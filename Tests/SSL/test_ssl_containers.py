@@ -32,7 +32,7 @@ path_to_test_dataset = full_ml_test_data_path("cxr_test_dataset")
 def _create_test_cxr_data(path_to_test_dataset: Path) -> None:
     """
     Creates fake datasets dataframe and dicom images mimicking the expected structure of the datasets
-    of NIH and RSNAKaggle
+    of NIHCXR and RSNAKaggleCXR
     :param path_to_test_dataset: folder to which we want to save the mock data.
     """
     if path_to_test_dataset.exists():
@@ -56,7 +56,7 @@ def default_runner() -> Runner:
 
 
 common_test_args = ["", "--is_debug_model=True", "--num_epochs=1", "--ssl_training_batch_size=10",
-                    "--classifier_batch_size=5",
+                    "--linear_head_batch_size=5",
                     "--num_workers=0"]
 
 
@@ -105,7 +105,7 @@ def test_load_innereye_ssl_container_cifar10_cifar100_resnet_byol() -> None:
         runner.parse_and_load_model()
     loaded_config = runner.lightning_container
     assert loaded_config is not None
-    assert loaded_config.classifier_dataset_name == SSLDatasetName.CIFAR100
+    assert loaded_config.linear_head_dataset_name == SSLDatasetName.CIFAR100
     assert loaded_config.ssl_training_dataset_name == SSLDatasetName.CIFAR10
     assert loaded_config.ssl_training_type == SSLTrainingType.BYOL
 
@@ -127,9 +127,9 @@ def test_innereye_ssl_container_rsna() -> None:
         loaded_config, actual_run = runner.run()
     assert loaded_config is not None
     assert isinstance(loaded_config.model, BYOLInnerEye)
-    assert loaded_config.online_eval.dataset == SSLDatasetName.RSNAKaggle.value
+    assert loaded_config.online_eval.dataset == SSLDatasetName.RSNAKaggleCXR.value
     assert loaded_config.online_eval.num_classes == 2
-    assert loaded_config.ssl_training_dataset_name == SSLDatasetName.NIH
+    assert loaded_config.ssl_training_dataset_name == SSLDatasetName.NIHCXR
     assert loaded_config.ssl_training_type == SSLTrainingType.BYOL
     assert loaded_config.encoder_output_dim == 1024  # DenseNet output size
     # Check model params

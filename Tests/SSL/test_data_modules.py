@@ -121,12 +121,12 @@ def test_get_transforms_in_SSL_container_for_cxr_data() -> None:
     Tests that the internal _get_transforms function returns data of the expected type of CXR.
     Tests that is_ssl_encoder_module induces the correct type of transform pipeline (dual vs single view).
     """
-    test_container = SSLContainer(classifier_dataset_name=SSLDatasetName.RSNAKaggle,
-                                  ssl_training_dataset_name=SSLDatasetName.NIH,
+    test_container = SSLContainer(classifier_dataset_name=SSLDatasetName.RSNAKaggleCXR,
+                                  ssl_training_dataset_name=SSLDatasetName.NIHCXR,
                                   ssl_augmentation_config=path_encoder_augmentation_cxr)
     test_container._load_config()
     dual_view_transform, _ = test_container._get_transforms(augmentation_config=test_container.ssl_augmentation_params,
-                                                            dataset_name=SSLDatasetName.NIH.value,
+                                                            dataset_name=SSLDatasetName.NIHCXR.value,
                                                             is_ssl_encoder_module=True)
 
     test_img = PIL.Image.fromarray(np.ones([312, 312]) * 255.).convert("L")
@@ -140,7 +140,7 @@ def test_get_transforms_in_SSL_container_for_cxr_data() -> None:
 
     single_view_transform, _ = test_container._get_transforms(
         augmentation_config=test_container.ssl_augmentation_params,
-        dataset_name=SSLDatasetName.NIH.value,
+        dataset_name=SSLDatasetName.NIHCXR.value,
         is_ssl_encoder_module=False)
     v1 = single_view_transform(test_img)
     # Images should be cropped to 224 x 224 and expanded to 3 channels according to config

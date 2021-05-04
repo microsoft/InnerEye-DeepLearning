@@ -111,9 +111,9 @@ class RSNAKaggleCXR(InnerEyeCXRDatasetWithReturnIndex):
         return 2
 
 
-class NIH(InnerEyeCXRDatasetWithReturnIndex):
+class NIHCXR(InnerEyeCXRDatasetWithReturnIndex):
     """
-    Dataset class to load the NIH Chest-Xray dataset.
+    Dataset class to load the NIHCXR Chest-Xray dataset.
     For more details instructions about how to download the dataset and the expected data folder structure, please
     refer to the docs/self_supervised_models.md documentation.
 

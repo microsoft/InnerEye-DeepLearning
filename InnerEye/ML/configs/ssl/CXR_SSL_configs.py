@@ -11,20 +11,20 @@ RSNA_AZURE_DATASET_ID = "rsna_pneumonia_detection_kaggle_dataset"
 NIH_AZURE_DATASET_ID = "nih-training-set"
 
 path_encoder_augmentation_cxr = repository_root_directory() / "InnerEye" / "ML" / "configs" / "ssl" / \
-                                "cxr_encoder_augmentations.yaml"
+                                "cxr_ssl_encoder_augmentations.yaml"
 
 path_linear_head_augmentation_cxr = repository_root_directory() / "InnerEye" / "ML" / "configs" / \
-                                    "ssl" / "cxr_linear_head.yaml"
+                                    "ssl" / "cxr_linear_head_augmentations.yaml"
 
 class NIH_RSNA_BYOL(SSLContainer):
     """
-    Config to train SSL model on NIH ChestXray dataset and use the RSNA Pneumonia detection Challenge dataset to
+    Config to train SSL model on NIHCXR ChestXray dataset and use the RSNA Pneumonia detection Challenge dataset to
     finetune the linear head on top for performance monitoring.
     """
 
     def __init__(self) -> None:
-        super().__init__(ssl_training_dataset_name=SSLDatasetName.NIH,
-                         classifier_dataset_name=SSLDatasetName.RSNAKaggle,
+        super().__init__(ssl_training_dataset_name=SSLDatasetName.NIHCXR,
+                         classifier_dataset_name=SSLDatasetName.RSNAKaggleCXR,
                          azure_dataset_id=NIH_AZURE_DATASET_ID,
                          random_seed=1,
                          recovery_checkpoint_save_interval=200,
@@ -40,8 +40,8 @@ class NIH_RSNA_BYOL(SSLContainer):
 
 class NIH_RSNA_SimCLR(SSLContainer):
     def __init__(self) -> None:
-        super().__init__(ssl_training_dataset_name=SSLDatasetName.NIH,
-                         classifier_dataset_name=SSLDatasetName.RSNAKaggle,
+        super().__init__(ssl_training_dataset_name=SSLDatasetName.NIHCXR,
+                         classifier_dataset_name=SSLDatasetName.RSNAKaggleCXR,
                          azure_dataset_id=NIH_AZURE_DATASET_ID,
                          random_seed=1,
                          recovery_checkpoint_save_interval=200,
@@ -57,7 +57,7 @@ class NIH_RSNA_SimCLR(SSLContainer):
 
 class CXRImageClassifier(SSLClassifierContainer):
     def __init__(self) -> None:
-        super().__init__(classifier_dataset_name=SSLDatasetName.RSNAKaggle,
+        super().__init__(classifier_dataset_name=SSLDatasetName.RSNAKaggleCXR,
                          random_seed=1,
                          recovery_checkpoint_save_interval=10,
                          num_epochs=200,

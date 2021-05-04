@@ -7,8 +7,8 @@ from yacs.config import CfgNode
 config = CfgNode()
 
 config.preprocess = CfgNode()
-config.preprocess.center_crop_size = 224
-config.preprocess.resize = 256
+config.preprocess.center_crop_size = 224 # Images are first resized to 256x25"
+config.preprocess.resize = 256 # Then at the end center cropped to 224x224
 
 config.augmentation = CfgNode()
 # Whether to apply random crop of scale config.augmentation.random_crop.scale,

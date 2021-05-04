@@ -33,7 +33,6 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
         """
 
         super().__init__(**kwargs)
-        self.training_step = int(0)
         self.weight_decay = 1e-4
         self.learning_rate = learning_rate
 
@@ -130,7 +129,6 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
             loss.backward()
             self.optimizer.step()
             self.optimizer.zero_grad()
-            self.training_step += 1
 
             # log metrics
             pl_module.log('ssl_online_evaluator/train/loss', loss)

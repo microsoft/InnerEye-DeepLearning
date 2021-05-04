@@ -36,12 +36,15 @@ class SSLClassifier(LightningModuleWithOptimizer, DeviceAwareModule):
                                             n_hidden=None,
                                             n_classes=num_classes,
                                             p=0.20)
-        self.train_metrics: List[ScalarMetricsBase] = [AreaUnderRocCurve(), AreaUnderPrecisionRecallCurve(),
-                                                       Accuracy05()] \
-            if self.num_classes == 2 else [Accuracy05()]
-        self.val_metrics: List[ScalarMetricsBase] = [AreaUnderRocCurve(), AreaUnderPrecisionRecallCurve(),
-                                                     Accuracy05()] \
-            if self.num_classes == 2 else [Accuracy05()]
+        if self.num_classes == 2:
+            self.train_metrics: List[ScalarMetricsBase] = \
+                [AreaUnderRocCurve(), AreaUnderPrecisionRecallCurve(), Accuracy05()]
+            self.val_metrics: List[ScalarMetricsBase] = \
+                [AreaUnderRocCurve(), AreaUnderPrecisionRecallCurve(), Accuracy05()]
+        else:
+            # Note that for multi-class, Accuracy05 is the standard multi-class accuracy.
+            self.train_metrics = [Accuracy05()]
+            self.val_metrics = [Accuracy05()]
 
     def train(self, mode: bool = True) -> Any:
         self.classifier_head.train(mode)

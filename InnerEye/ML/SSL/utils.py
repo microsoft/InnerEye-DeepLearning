@@ -52,6 +52,8 @@ def create_ssl_encoder(encoder_name: str, use_7x7_first_conv_in_resnet: bool = T
     elif encoder_name == 'resnet101':
         encoder = resnet101(return_all_feature_maps=False, first_conv=use_7x7_first_conv_in_resnet)
     elif encoder_name == 'densenet121':
+        if use_7x7_first_conv_in_resnet:
+            raise ValueError("You set use_7x7_first_conv_in_resnet to True but you requested a DenseNet121 encoder.")
         encoder = DenseNet121Encoder()
     else:
         raise ValueError("Unknown model type")

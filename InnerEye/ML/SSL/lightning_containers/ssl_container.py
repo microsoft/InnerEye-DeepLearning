@@ -13,7 +13,7 @@ from pytorch_lightning import LightningModule
 from yacs.config import CfgNode
 
 from InnerEye.ML.SSL.datamodules_and_datasets.cifar_datasets import InnerEyeCIFAR10, InnerEyeCIFAR100
-from InnerEye.ML.SSL.datamodules_and_datasets.cxr_datasets import CheXpert, NIH, RSNAKaggleCXR
+from InnerEye.ML.SSL.datamodules_and_datasets.cxr_datasets import CheXpert, NIHCXR, RSNAKaggleCXR
 from InnerEye.ML.SSL.datamodules_and_datasets.datamodules import CombinedDataModule, InnerEyeVisionDataModule
 from InnerEye.ML.SSL.datamodules_and_datasets.transforms_utils import InnerEyeCIFARLinearHeadTransform, \
     InnerEyeCIFARTrainTransform, \
@@ -42,8 +42,8 @@ class EncoderName(Enum):
 
 
 class SSLDatasetName(Enum):
-    RSNAKaggle = "RSNAKaggle"
-    NIH = "NIH"
+    RSNAKaggleCXR = "RSNAKaggleCXR"
+    NIHCXR = "NIHCXR"
     CIFAR10 = "CIFAR10"
     CIFAR100 = "CIFAR100"
     CheXpert = "CheXpert"
@@ -55,10 +55,15 @@ InnerEyeDataModuleTypes = Union[InnerEyeVisionDataModule, CombinedDataModule]
 class SSLContainer(LightningContainer):
     """
     This container is the based module to train an SSL model (either using BYOL or SimCLR).
-    See Readme for more extensive documentation about its configuration.
+    To have an overview of the parameters available for configuring this container please check out the documentation
+    at docs/self_supervised_models.md.
+
+
+    Note that this container is also used as the base class for SSLImageClassifier (finetuning container) as they share
+    setup and datamodule methods.
     """
-    _SSLDataClassMappings = {SSLDatasetName.RSNAKaggle.value: RSNAKaggleCXR,
-                             SSLDatasetName.NIH.value: NIH,
+    _SSLDataClassMappings = {SSLDatasetName.RSNAKaggleCXR.value: RSNAKaggleCXR,
+                             SSLDatasetName.NIHCXR.value: NIHCXR,
                              SSLDatasetName.CIFAR10.value: InnerEyeCIFAR10,
                              SSLDatasetName.CIFAR100.value: InnerEyeCIFAR100,
                              SSLDatasetName.CheXpert.value: CheXpert}
@@ -80,13 +85,13 @@ class SSLContainer(LightningContainer):
     is_debug_model = param.Boolean(default=False,
                                    doc="If True, the training will be restricted to 1 batch per epoch."
                                        "Used for debugging and tests.")
-    classifier_augmentation_config = param.ClassSelector(class_=Path,
-                                                         doc="The path to the yaml config for the linear head "
+    linear_head_augmentation_config = param.ClassSelector(class_=Path,
+                                                          doc="The path to the yaml config for the linear head "
                                                              "augmentations")
-    classifier_dataset_name = param.ClassSelector(class_=SSLDatasetName,
-                                                  doc="Name of the dataset to use for the linear head training")
-    classifier_batch_size = param.Integer(default=256, doc="Batch size for linear head tuning")
-    online_evaluator_lr = param.Number(default=1e-4, doc="Learning rate for linear head training during SSL training.")
+    linear_head_dataset_name = param.ClassSelector(class_=SSLDatasetName,
+                                                   doc="Name of the dataset to use for the linear head training")
+    linear_head_batch_size = param.Integer(default=256, doc="Batch size for linear head tuning")
+    learning_rate_linear_head_during_ssl_training = param.Number(default=1e-4, doc="Learning rate for linear head training during SSL training.")
 
     def setup(self) -> None:
         from InnerEye.ML.SSL.lightning_containers.ssl_image_classifier import SSLClassifierContainer
@@ -95,16 +100,16 @@ class SSLContainer(LightningContainer):
         # If you're using the same data for training and linear head, allow the user to specify the dataset only
         # once. Or if you are doing just finetuning of linear head, the user should be able to specify dataset via
         # azure_dataset_id/local_dataset instead of extra_dataset fields (as in this case we only use one dataset).
-        if ((self.classifier_dataset_name == self.ssl_training_dataset_name) or isinstance(self,
-                                                                                           SSLClassifierContainer)) \
+        if ((self.linear_head_dataset_name == self.ssl_training_dataset_name) or isinstance(self,
+                                                                                            SSLClassifierContainer)) \
                 and len(self.extra_local_dataset_paths) == 0 and self.local_dataset is not None:
             self.extra_local_dataset_paths = [self.local_dataset]
         self.datamodule_args = {SSLDataModuleType.LINEAR_HEAD:
                                     DataModuleArgs(augmentation_params=self.classifier_augmentation_params,
-                                                   dataset_name=self.classifier_dataset_name.value,
+                                                   dataset_name=self.linear_head_dataset_name.value,
                                                    dataset_path=self.extra_local_dataset_paths[0] if len(
                                                        self.extra_local_dataset_paths) > 0 else None,
-                                                   batch_size=self.classifier_batch_size)}
+                                                   batch_size=self.linear_head_batch_size)}
         if self.ssl_training_dataset_name is not None:
             self.datamodule_args.update(
                 {SSLDataModuleType.ENCODER: DataModuleArgs(augmentation_params=self.ssl_augmentation_params,
@@ -122,7 +127,7 @@ class SSLContainer(LightningContainer):
             self.ssl_augmentation_config) if self.ssl_augmentation_config is not None \
             else None
         self.classifier_augmentation_params = load_ssl_augmentation_config(
-            self.classifier_augmentation_config) if self.classifier_augmentation_config is not None else \
+            self.linear_head_augmentation_config) if self.linear_head_augmentation_config is not None else \
             self.ssl_augmentation_params
 
     def create_model(self) -> LightningModule:
@@ -215,7 +220,7 @@ class SSLContainer(LightningContainer):
         applied on. If False, return only one transformation.
         :return: training transformation pipeline and validation transformation pipeline.
         """
-        if dataset_name in [SSLDatasetName.RSNAKaggle.value, SSLDatasetName.NIH.value, SSLDatasetName.CheXpert.value]:
+        if dataset_name in [SSLDatasetName.RSNAKaggleCXR.value, SSLDatasetName.NIHCXR.value, SSLDatasetName.CheXpert.value]:
             assert augmentation_config is not None
             train_transforms, val_transforms = get_cxr_ssl_transforms(augmentation_config,
                                                                       return_two_views_per_sample=is_ssl_encoder_module,
@@ -234,9 +239,9 @@ class SSLContainer(LightningContainer):
         self.online_eval = SSLOnlineEvaluatorInnerEye(class_weights=self.data_module.class_weights,  # type: ignore
                                                       z_dim=self.encoder_output_dim,
                                                       num_classes=self.data_module.num_classes,  # type: ignore
-                                                      dataset=self.classifier_dataset_name.value,  # type: ignore
+                                                      dataset=self.linear_head_dataset_name.value,  # type: ignore
                                                       drop_p=0.2,
-                                                      learning_rate=self.online_evaluator_lr)
+                                                      learning_rate=self.learning_rate_linear_head_during_ssl_training)
         trainer_kwargs: Dict[str, Any] = {"callbacks": self.online_eval}
         if self.is_debug_model:
             trainer_kwargs.update({"limit_train_batches": 1, "limit_val_batches": 1})
