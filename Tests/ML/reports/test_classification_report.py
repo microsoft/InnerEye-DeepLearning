@@ -263,12 +263,13 @@ def test_get_metrics_table_single_run() -> None:
                                                            is_thresholded=False, is_crossval_report=False)
     expected_header = "Metric	Value".split('\t')
     expected_rows = [
-        "Area under PR Curve	0.5417".split('\t'),
-        "Area under ROC Curve	0.5000".split('\t'),
-        "Optimal threshold	0.6000".split('\t'),
-        "Accuracy at optimal threshold	0.5000".split('\t'),
-        "Sensitivity at optimal threshold	0.5000".split('\t'),
-        "Specificity at optimal threshold	0.5000".split('\t'),
+        f"{ReportedScalarMetrics.AUC_PR.value[0]}	0.5417".split('\t'),
+        f"{ReportedScalarMetrics.AUC_ROC.value[0]}	0.5000".split('\t'),
+        f"{ReportedScalarMetrics.OptimalThreshold.value[0]}	0.6000".split('\t'),
+        f"{ReportedScalarMetrics.AccuracyAtOptimalThreshold.value[0]}	0.5000".split('\t'),
+        f"{ReportedScalarMetrics.AccuracyAtThreshold05.value[0]}	0.5000".split('\t'),
+        f"{ReportedScalarMetrics.Sensitivity.value[0]}	0.5000".split('\t'),
+        f"{ReportedScalarMetrics.Specificity.value[0]}	0.5000".split('\t'),
     ]
     check_table_equality(header, rows, expected_header, expected_rows)
 
@@ -289,12 +290,13 @@ def test_get_metrics_table_crossval() -> None:
                                                            is_thresholded=False, is_crossval_report=True)
     expected_header = "Metric	Split 0	Split 1	Split 2	Mean (std)".split('\t')
     expected_rows = [
-        "Area under PR Curve	0.5417	0.4481	0.6889	0.5595 (0.0991)".split('\t'),
-        "Area under ROC Curve	0.5000	0.2778	0.7222	0.5000 (0.1814)".split('\t'),
-        "Optimal threshold	0.6000	0.6000	0.6000	0.6000 (0.0000)".split('\t'),
-        "Accuracy at optimal threshold	0.5000	0.2500	0.7500	0.5000 (0.2041)".split('\t'),
-        "Sensitivity at optimal threshold	0.5000	0.1667	0.8333	0.5000 (0.2722)".split('\t'),
-        "Specificity at optimal threshold	0.5000	0.1667	0.8333	0.5000 (0.2722)".split('\t')
+        f"{ReportedScalarMetrics.AUC_PR.value[0]}	0.5417	0.4481	0.6889	0.5595 (0.0991)".split('\t'),
+        f"{ReportedScalarMetrics.AUC_ROC.value[0]}	0.5000	0.2778	0.7222	0.5000 (0.1814)".split('\t'),
+        f"{ReportedScalarMetrics.OptimalThreshold.value[0]}	0.6000	0.6000	0.6000	0.6000 (0.0000)".split('\t'),
+        f"{ReportedScalarMetrics.AccuracyAtOptimalThreshold.value[0]}	0.5000	0.2500	0.7500	0.5000 (0.2041)".split('\t'),
+        f"{ReportedScalarMetrics.AccuracyAtThreshold05.value[0]}	0.5000	0.1667	0.8333	0.5000 (0.2722)".split('\t'),
+        f"{ReportedScalarMetrics.Sensitivity.value[0]}	0.5000	0.1667	0.8333	0.5000 (0.2722)".split('\t'),
+        f"{ReportedScalarMetrics.Specificity.value[0]}	0.5000	0.1667	0.8333	0.5000 (0.2722)".split('\t')
     ]
     check_table_equality(header, rows, expected_header, expected_rows)
 
