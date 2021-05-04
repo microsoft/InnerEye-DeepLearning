@@ -30,7 +30,7 @@ def test_add_gaussian_noise() -> None:
         AddGaussianNoise(cxr_augmentation_config)(tensor_img * 255.)
 
 
-def test_elastic_transform():
+def test_elastic_transform() -> None:
     """
     Tests elastic transform
     """
@@ -53,7 +53,7 @@ def test_elastic_transform():
     assert np.isclose(expected_array, transformed_image).all()
 
 
-def test_expand_channels():
+def test_expand_channels() -> None:
     image = np.ones([1, 256, 256]) * 255.
     tensor_img = torch.tensor(image)
     tensor_img = ExpandChannels()(tensor_img)
@@ -61,7 +61,7 @@ def test_expand_channels():
     assert torch.isclose(tensor_img[0], tensor_img[1]).all() and torch.isclose(tensor_img[1], tensor_img[2]).all()
 
 
-def test_create_chest_xray_transform():
+def test_create_chest_xray_transform() -> None:
     """
     Tests that the pipeline returned by create_chest_xray_transform returns the expected transformation.
     """
