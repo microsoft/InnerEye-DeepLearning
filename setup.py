@@ -13,7 +13,7 @@ from ruamel.yaml.comments import CommentedMap
 
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import namespace_to_path
-from InnerEye.Common.fixed_paths import INNEREYE_PACKAGE_NAME, INNEREYE_PACKAGE_ROOT
+from InnerEye.Common.fixed_paths import INNEREYE_PACKAGE_NAME
 
 ML_NAMESPACE = "InnerEye.ML"
 
