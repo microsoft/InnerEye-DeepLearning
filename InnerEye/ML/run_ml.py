@@ -894,5 +894,5 @@ class MLRunner:
                                           val_metrics=path_to_best_epoch_val,
                                           test_metrics=path_to_best_epoch_test)
         except Exception as ex:
-            print_exception(ex, "Failed to generated reporting notebook.")
+            print_exception(ex, "Failed to generate reporting notebook.")
             raise

@@ -196,14 +196,20 @@ def test_get_metric() -> None:
 
     accuracy = get_metric(predictions_to_compute_metrics=test_metrics,
                           predictions_to_set_optimal_threshold=val_metrics,
-                          metric=ReportedScalarMetrics.Accuracy)
+                          metric=ReportedScalarMetrics.AccuracyAtOptimalThreshold)
 
     assert accuracy == 0.5
 
     accuracy = get_metric(predictions_to_compute_metrics=test_metrics,
                           predictions_to_set_optimal_threshold=val_metrics,
-                          metric=ReportedScalarMetrics.Accuracy,
+                          metric=ReportedScalarMetrics.AccuracyAtOptimalThreshold,
                           optimal_threshold=0.1)
+
+    assert accuracy == 0.5
+
+    accuracy = get_metric(predictions_to_compute_metrics=test_metrics,
+                          predictions_to_set_optimal_threshold=val_metrics,
+                          metric=ReportedScalarMetrics.AccuracyAtThreshold05)
 
     assert accuracy == 0.5
 
