@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import logging
 from pathlib import Path
 from typing import Any, Dict
 
@@ -37,6 +38,7 @@ class SSLClassifierContainer(SSLContainer):
             try:
                 path_to_checkpoint = self.extra_downloaded_run_id.get_best_checkpoint_paths()
             except FileNotFoundError:
+                logging.info("Best checkpoint not found - using last recovery checkpoint instead")
                 path_to_checkpoint = self.extra_downloaded_run_id.get_recovery_checkpoint_paths()
             path_to_checkpoint = path_to_checkpoint[0]  # type: ignore
         else:

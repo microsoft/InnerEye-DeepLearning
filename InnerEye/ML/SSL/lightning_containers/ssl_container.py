@@ -166,9 +166,9 @@ class SSLContainer(LightningContainer):
         """
         if hasattr(self, "data_module"):
             return self.data_module
-        encoder_module = self._create_ssl_data_modules(is_ssl_encoder_module=True)
-        linear_head_module = self._create_ssl_data_modules(is_ssl_encoder_module=False)
-        return CombinedDataModule(encoder_module, linear_head_module, self.use_balanced_binary_loss_for_linear_head)
+        encoder_data_module = self._create_ssl_data_modules(is_ssl_encoder_module=True)
+        linear_data_module = self._create_ssl_data_modules(is_ssl_encoder_module=False)
+        return CombinedDataModule(encoder_data_module, linear_data_module, self.use_balanced_binary_loss_for_linear_head)
 
     def _create_ssl_data_modules(self, is_ssl_encoder_module: bool) -> InnerEyeVisionDataModule:
         """
@@ -199,7 +199,7 @@ class SSLContainer(LightningContainer):
                                       num_workers=self.num_workers,
                                       seed=self.random_seed)
         dm.prepare_data()
-        dm.setup('fit')
+        dm.setup()
         return dm
 
     def _get_transforms(self, augmentation_config: Optional[CfgNode],
