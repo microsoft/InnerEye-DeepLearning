@@ -417,7 +417,7 @@ def classification_model_test(config: ScalarModelBase,
     pipeline = create_inference_pipeline(config=config,
                                          checkpoint_paths=checkpoint_paths)
     if pipeline is None:
-        raise ValueError("There was no single checkpoint file available for model testing.")
+        raise ValueError("Inference pipeline could not be created.")
 
     # for mypy
     assert isinstance(pipeline, ScalarInferencePipelineBase)

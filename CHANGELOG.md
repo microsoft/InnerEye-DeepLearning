@@ -79,6 +79,8 @@ with only minimum code changes required. See [the MD documentation](docs/bring_y
 - ([#437])(https://github.com/microsoft/InnerEye-DeepLearning/pull/437)) Upgrade to PyTorch-Lightning 1.2.8.
 - ([#439](https://github.com/microsoft/InnerEye-DeepLearning/pull/439)) Recovery checkpoints are now
   named `recovery_epoch=x.ckpt` instead of `recovery.ckpt` or `recovery-v0.ckpt`.
+- ([#451](https://github.com/microsoft/InnerEye-DeepLearning/pull/451)) Change the signature for function `generate_custom_report` 
+  in `ModelConfigBase` to take only the path to the reports folder and a `ModelProcessing` object.
 
 ### Fixed
 
