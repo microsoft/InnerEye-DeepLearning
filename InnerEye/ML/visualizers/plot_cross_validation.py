@@ -676,14 +676,17 @@ def save_outliers(config: PlotCrossValidationConfig,
 
                     f.write(f"\n\n=== METRIC: {metric_type} ===\n\n")
                     if len(outliers) > 0:
-                        outliers_summary = str(outliers.groupby(
-                            [MetricsFileColumns.Patient.value, MetricsFileColumns.Structure.value,
-                             CSV_SERIES_HEADER, CSV_INSTITUTION_HEADER])
+                        # If running inside institution there may be no CSV_SERIES_HEADER and CSV_INSTITUTION_HEADER columns
+                        groupby_columns = [MetricsFileColumns.Patient.value, MetricsFileColumns.Structure.value]
+                        if CSV_SERIES_HEADER in outliers.columns and CSV_INSTITUTION_HEADER in outliers.columns:
+                            groupby_columns += [CSV_SERIES_HEADER, CSV_INSTITUTION_HEADER]
+                        outliers_summary = str(outliers.groupby(groupby_columns)
                                                .describe()[metric_type][stats_columns]
                                                .sort_values(stats_columns, ascending=False))
                         f.write(outliers_summary)
-                        f.write("\n\n")
-                        f.write(create_portal_query_for_outliers(outliers))
+                        if CSV_INSTITUTION_HEADER in outliers.columns and CSV_SERIES_HEADER in outliers.columns:
+                            f.write("\n\n")
+                            f.write(create_portal_query_for_outliers(outliers))
                     else:
                         f.write("No outliers found")
 
@@ -693,7 +696,11 @@ def save_outliers(config: PlotCrossValidationConfig,
 def create_portal_query_for_outliers(df: pd.DataFrame) -> str:
     """
     Create a portal query string as a conjunction of the disjunctions of the unique InstitutionId and seriesId values.
+
+    The passed data frame must have CSV_INSTITUTION_HEADER and CSV_SERIES_HEADER columns
     """
+    if CSV_INSTITUTION_HEADER not in df.columns or CSV_SERIES_HEADER not in df.columns:
+        raise ValueError(f"Data frame must have columns {CSV_INSTITUTION_HEADER} and {CSV_SERIES_HEADER}")
     return PORTAL_QUERY_TEMPLATE.format(
         " OR ".join(map(lambda x: 'r.InstitutionId = "{}"'.format(x), df[CSV_INSTITUTION_HEADER].unique())),
         " OR ".join(map(lambda x: 'STARTSWITH(r.VersionedDicomImageSeries.Latest.Series.InstanceUID,"{}")'.format(x),

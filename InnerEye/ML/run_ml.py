@@ -891,5 +891,5 @@ class MLRunner:
 
             config.generate_custom_report(report_dir=reports_dir, model_proc=model_proc)
         except Exception as ex:
-            print_exception(ex, "Failed to generated reporting notebook.")
+            print_exception(ex, "Failed to generate reporting notebook.")
             raise
