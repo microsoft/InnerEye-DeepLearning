@@ -155,6 +155,13 @@ def create_lightning_trainer(container: LightningContainer,
     else:
         deterministic = False
         benchmark = True
+    is_azureml_run = not is_offline_run_context(RUN_CONTEXT)
+    progress_bar_refresh_rate = container.pl_progress_bar_refresh_rate
+    if progress_bar_refresh_rate is None and is_azureml_run:
+        # When running in AzureML, the default progress bar clutters the output files with thousands of lines.
+        progress_bar_refresh_rate = 50
+        logging.info(f"The progress bar refresh rate is not set. Using a default of {progress_bar_refresh_rate}. "
+                     f"To change, modify the pl_progress_bar_refresh_rate field of the container.")
     # Read out additional model-specific args here.
     # We probably want to keep essential ones like numgpu and logging.
     trainer = Trainer(default_root_dir=str(container.outputs_folder),
@@ -165,7 +172,7 @@ def create_lightning_trainer(container: LightningContainer,
                       num_sanity_val_steps=container.pl_num_sanity_val_steps,
                       callbacks=[best_checkpoint_callback, recovery_checkpoint_callback],
                       logger=loggers,
-                      progress_bar_refresh_rate=container.pl_progress_bar_refresh_rate,
+                      progress_bar_refresh_rate=progress_bar_refresh_rate,
                       num_nodes=num_nodes,
                       gpus=num_gpus,
                       precision=precision,
