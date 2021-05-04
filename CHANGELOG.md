@@ -60,6 +60,7 @@ with only minimum code changes required. See [the MD documentation](docs/bring_y
   model configs with custom behaviour while leveraging the existing InnerEye workflows.
 - ([#445](https://github.com/microsoft/InnerEye-DeepLearning/pull/445)) Adding test coverage for the `HelloContainer`
   model with multiple GPUs
+- ([#450](https://github.com/microsoft/InnerEye-DeepLearning/pull/450)) Adds the metric "Accuracy at threshold 0.5" to the classification report (`classification_crossval_report.ipynb`). 
 
 ### Changed
 
@@ -93,6 +94,7 @@ with only minimum code changes required. See [the MD documentation](docs/bring_y
 
 ### Removed
 - ([#439](https://github.com/microsoft/InnerEye-DeepLearning/pull/439)) Deprecated `start_epoch` config argument.
+- ([#450](https://github.com/microsoft/InnerEye-DeepLearning/pull/450)) Delete unused `classification_report.ipynb`
 
 ### Deprecated
 
