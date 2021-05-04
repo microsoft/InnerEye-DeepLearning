@@ -316,7 +316,7 @@ def create_run_config(azure_config: AzureConfig,
     :return: The configured script run.
     """
     dataset_consumptions = {}
-    all_dataset_ids = [azure_dataset_id] + extra_azure_dataset_ids
+    all_dataset_ids = [azure_dataset_id] + extra_azure_dataset_ids if azure_dataset_id else extra_azure_dataset_ids
     for i, dataset_id in enumerate(all_dataset_ids):
         dataset_consumption = get_dataset_consumption(azure_config, dataset_id, i)
         dataset_consumptions.update({dataset_consumption.name: dataset_consumption})
