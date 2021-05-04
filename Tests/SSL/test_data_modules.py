@@ -82,13 +82,13 @@ def test_innereye_vision_module() -> None:
     images, labels = training_batch
     images_v1, images_v2 = images
     assert images_v1.shape == images_v2.shape == torch.Size([5, 3, 32, 32])
-    assert labels.tolist() == [0, 1, 6, 3, 6]
+    assert labels.tolist() == [6, 2, 8, 6, 6]
 
     validation_batch = next(iter(data_module.val_dataloader()))
     # Assert we have one image and one label given the InnerEyeCIFARLinearHeadTransform
     images_v1, labels = validation_batch
     assert images_v1.shape == torch.Size([5, 3, 32, 32])
-    assert labels.tolist() == [6, 0, 2, 3, 3]
+    assert labels.tolist() == [7, 9, 1, 5, 7]
 
 
 @pytest.mark.skipif(is_windows(), reason="Too slow on windows")
@@ -111,8 +111,8 @@ def test_innereye_vision_datamodule_with_return_index() -> None:
     # Assert we have one one index, one image and one label given the InnerEyeCIFARLinearHeadTransform
     indices, images, labels = training_batch
     assert images.shape == torch.Size([5, 3, 32, 32])
-    assert indices.tolist() == [45845, 11799, 43880, 43701, 41303]
-    assert labels.tolist() == [0, 1, 6, 3, 6]
+    assert indices.tolist() == [37542, 44491, 216, 43688, 41558]
+    assert labels.tolist() == [6, 2, 8, 6, 6]
 
 
 @pytest.mark.skipif(is_windows(), reason="Too slow on windows")
