@@ -139,7 +139,7 @@ def test_train_classification_model(class_name: str, test_output_dirs: OutputFol
 3,S4,{class_name},0.521128,0,Train,-1
 """
     check_log_file(metrics_path, metrics_expected, ignore_columns=[])
-    # Check log METRICS_FILE_NAME inside of the folder epoch_004/Train, which is written when we run model_test.
+    # Check log METRICS_FILE_NAME inside of the folder best_validation_epoch/Train, which is written when we run model_test.
     # Normally, we would run it on the Test and Val splits, but for convenience we test on the train split here.
     inference_metrics_path = config.outputs_folder / get_best_epoch_results_path(ModelExecutionMode.TRAIN) / \
                              SUBJECT_METRICS_FILE_NAME
@@ -149,6 +149,14 @@ def test_train_classification_model(class_name: str, test_output_dirs: OutputFol
 {class_name},S4,0.5211275815963745,0.0,{BEST_EPOCH_FOLDER_NAME},-1,Train
 """
     check_log_file(inference_metrics_path, inference_metrics_expected, ignore_columns=[])
+
+    inference_model_output_path = config.outputs_folder / get_best_epoch_results_path(ModelExecutionMode.TRAIN) / \
+                                  model_testing.MODEL_OUTPUT_CSV
+    inference_model_output_expected = \
+        f"""subject,prediction_target,label,model_output,cross_validation_split_index
+S2,{class_name},1.000000,0.529399,-1
+S4,{class_name},0.000000,0.521128,-1"""
+    check_log_file(inference_model_output_path, inference_model_output_expected, ignore_columns=[])
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Has OOM issues on windows build")
