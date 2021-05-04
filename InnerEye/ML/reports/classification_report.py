@@ -49,7 +49,8 @@ class ReportedScalarMetrics(Enum):
     AUC_PR = "Area under PR Curve", False
     AUC_ROC = "Area under ROC Curve", False
     OptimalThreshold = "Optimal threshold", False
-    Accuracy = "Accuracy at optimal threshold", True
+    AccuracyAtOptimalThreshold = "Accuracy at optimal threshold", True
+    AccuracyAtThreshold05 = "Accuracy at threshold 0.5", True
     Sensitivity = "Sensitivity at optimal threshold", True
     Specificity = "Specificity at optimal threshold", True
 
@@ -326,10 +327,14 @@ def get_metric(predictions_to_set_optimal_threshold: LabelsAndPredictions,
         precision, recall, _ = precision_recall_curve(predictions_to_compute_metrics.labels,
                                                       predictions_to_compute_metrics.model_outputs)
         return auc(recall, precision)
-    elif metric is ReportedScalarMetrics.Accuracy:
+    elif metric is ReportedScalarMetrics.AccuracyAtOptimalThreshold:
         return binary_classification_accuracy(model_output=predictions_to_compute_metrics.model_outputs,
                                               label=predictions_to_compute_metrics.labels,
                                               threshold=optimal_threshold)
+    elif metric is ReportedScalarMetrics.AccuracyAtThreshold05:
+        return binary_classification_accuracy(model_output=predictions_to_compute_metrics.model_outputs,
+                                              label=predictions_to_compute_metrics.labels,
+                                              threshold=0.5)
     elif metric is ReportedScalarMetrics.Specificity:
         return recall_score(predictions_to_compute_metrics.labels,
                             predictions_to_compute_metrics.model_outputs >= optimal_threshold, pos_label=0)
