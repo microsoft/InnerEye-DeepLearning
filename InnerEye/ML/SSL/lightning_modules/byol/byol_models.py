@@ -1,8 +1,8 @@
-from typing import Any, Tuple
+from typing import Any
 
 from torch import Tensor as T, nn
 
-from InnerEye.ML.SSL.encoders import Lambda, SSLEncoder
+from InnerEye.ML.SSL.encoders import SSLEncoder
 
 
 class _MLP(nn.Module):

@@ -29,20 +29,6 @@ class DenseNet121Encoder(torch.nn.Module):
         return torch.flatten(out, 1)
 
 
-class Lambda(torch.nn.Module):
-    """
-    Lambda torch nn module that can be used to modularise nn.functional methods.
-    It can be integrated in nn.Sequential constructs to simply chain functional methods and default nn modules
-    """
-
-    def __init__(self, fn: Callable) -> None:
-        super(Lambda, self).__init__()
-        self.lambda_func = fn
-
-    def forward(self, input: torch.Tensor) -> torch.Tensor:
-        return self.lambda_func(input)
-
-
 class SSLEncoder(nn.Module):
     """
     CNN image encoder that generates fixed size BYOL image embeddings.
