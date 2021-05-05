@@ -14,7 +14,7 @@ class CIFAR10SimCLR(SSLContainer):
 
     def __init__(self) -> None:
         super().__init__(ssl_training_dataset_name=SSLDatasetName.CIFAR10,
-                         classifier_dataset_name=SSLDatasetName.CIFAR10,
+                         linear_head_dataset_name=SSLDatasetName.CIFAR10,
                          ssl_training_batch_size=512,
                          ssl_encoder=EncoderName.resnet50,
                          ssl_training_type=SSLTrainingType.SimCLR,
@@ -31,7 +31,7 @@ class CIFAR10BYOL(SSLContainer):
 
     def __init__(self) -> None:
         super().__init__(ssl_training_dataset_name=SSLDatasetName.CIFAR10,
-                         classifier_dataset_name=SSLDatasetName.CIFAR10,
+                         linear_head_dataset_name=SSLDatasetName.CIFAR10,
                          ssl_training_batch_size=512,
                          ssl_encoder=EncoderName.resnet50,
                          ssl_training_type=SSLTrainingType.BYOL,
@@ -48,7 +48,7 @@ class CIFAR10CIFAR100BYOL(SSLContainer):
 
     def __init__(self) -> None:
         super().__init__(ssl_training_dataset_name=SSLDatasetName.CIFAR10,
-                         classifier_dataset_name=SSLDatasetName.CIFAR100,
+                         linear_head_dataset_name=SSLDatasetName.CIFAR100,
                          ssl_training_batch_size=512,
                          ssl_encoder=EncoderName.resnet50,
                          ssl_training_type=SSLTrainingType.BYOL,
