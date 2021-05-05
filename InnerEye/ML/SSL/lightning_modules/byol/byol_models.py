@@ -41,11 +41,13 @@ class SiameseArm(nn.Module):
         self.encoder = SSLEncoder(*encoder_kwargs)  # Encoder
         self.projector = _MLP(input_dim=self.encoder.get_output_feature_dim(), hidden_dim=2048, output_dim=128)
         self.predictor = _MLP(input_dim=self.projector.output_dim, hidden_dim=128, output_dim=128)
-        self.projector_normalised = nn.Sequential(self.projector,
-                                                  Lambda(lambda x: nn.functional.normalize(x, dim=-1)))
 
-    def forward(self, x: T) -> Tuple[T, T, T]:
+    def forward(self, x: T) -> T:
         y = self.encoder(x)
         z = self.projector(y)
         h = self.predictor(z)
-        return y, z, h
+        return h
+
+    def forward_until_predictor(self, x: T) -> T:
+        y = self.encoder(x)
+        return self.projector(y)

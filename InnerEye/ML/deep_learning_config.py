@@ -492,6 +492,8 @@ class TrainerParams(param.Parameterized):
         if 0 <= self.max_num_gpus < num_gpus:
             num_gpus = self.max_num_gpus
             logging.info(f"Restricting the number of GPUs to {num_gpus}")
+        elif self.max_num_gpus > num_gpus:
+            logging.warning(f"You requested max_num_gpus {self.max_num_gpus} but there are only {num_gpus} available.")
         return num_gpus
 
 class DeepLearningConfig(WorkflowParams,

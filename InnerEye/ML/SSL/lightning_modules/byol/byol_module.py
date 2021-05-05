@@ -86,11 +86,11 @@ class BYOLInnerEye(pl.LightningModule):
         (img_1, img_2), _ = batch
 
         # Image 1 to image 2 loss
-        _, _, h_img1 = self.online_network(img_1)
-        _, _, h_img2 = self.online_network(img_2)
+        h_img1 = self.online_network(img_1)
+        h_img2 = self.online_network(img_2)
         with torch.no_grad():
-            _, z_img1, _ = self.target_network(img_1)
-            _, z_img2, _ = self.target_network(img_2)
+            z_img1 = self.target_network.forward_until_predictor(img_1)
+            z_img2 = self.target_network.forward_until_predictor(img_2)
         loss = 0.5 * (self.cosine_loss(h_img1, z_img2.detach())
                       + self.cosine_loss(h_img2, z_img1.detach()))
 
