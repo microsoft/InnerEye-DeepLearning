@@ -22,7 +22,7 @@ from torch.utils.data import DataLoader
 
 from InnerEye.Azure import azure_util
 from InnerEye.Azure.azure_config import AzureConfig
-from InnerEye.Azure.azure_runner import ENVIRONMENT_VERSION, get_or_create_dataset
+from InnerEye.Azure.azure_runner import ENVIRONMENT_VERSION, INPUT_DATA_KEY, get_or_create_dataset
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, \
     DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, EFFECTIVE_RANDOM_SEED_KEY_NAME, IS_ENSEMBLE_KEY_NAME, \
     MODEL_ID_KEY_NAME, PARENT_RUN_CONTEXT, PARENT_RUN_ID_KEY_NAME, RUN_CONTEXT, RUN_RECOVERY_FROM_ID_KEY_NAME, \
@@ -59,18 +59,18 @@ from InnerEye.ML.visualizers.plot_cross_validation import \
     get_config_and_results_for_offline_runs, plot_cross_validation_from_files
 
 
-def try_to_mount_input_dataset(azure_dataset_id: str) -> Optional[Path]:
+def try_to_mount_input_dataset(dataset_index: int = 0) -> Optional[Path]:
     """
     Checks if the AzureML run context has a field for input datasets. If yes, the dataset stored there is
     returned as a Path. Returns None if no input datasets was found.
 
-    :param azure_dataset_id: AML dataset name, return path to this dataset
+    :param dataset_index: suffix of AML dataset name, return path to INPUT_DATA_KEY_idx dataset
     """
     if hasattr(RUN_CONTEXT, "input_datasets"):
         try:
-            return Path(RUN_CONTEXT.input_datasets[azure_dataset_id])
+            return Path(RUN_CONTEXT.input_datasets[f"{INPUT_DATA_KEY}_{dataset_index}"])
         except KeyError:
-            logging.warning(f"Run context field input_datasets has no {azure_dataset_id} entry.")
+            logging.warning(f"Run context field input_datasets has no {INPUT_DATA_KEY}_{dataset_index} entry.")
     return None
 
 
@@ -204,7 +204,7 @@ class MLRunner:
                     extra_locals.append(extra_local_dataset)
             elif len(self.container.extra_azure_dataset_ids) != 0:
                 for i, azure_id in enumerate(self.container.extra_azure_dataset_ids, 1):
-                    extra_local_dataset = self.mount_or_download_dataset(azure_id, None)
+                    extra_local_dataset = self.mount_or_download_dataset(azure_id, None, dataset_index=i)
                     assert extra_local_dataset is not None  # for mypy
                     extra_locals.append(extra_local_dataset)
             self.container.extra_local_dataset_paths = extra_locals
@@ -476,7 +476,8 @@ class MLRunner:
 
     def mount_or_download_dataset(self,
                                   azure_dataset_id: Optional[str],
-                                  local_dataset: Optional[Path]) -> Optional[Path]:
+                                  local_dataset: Optional[Path],
+                                  dataset_index: int = 0) -> Optional[Path]:
         """
         Makes the dataset that the model uses available on the executing machine. If the present training run is outside
         of AzureML, it expects that either the model has a `local_dataset` field set, in which case no action will be
@@ -516,7 +517,7 @@ class MLRunner:
 
         # Inside of AzureML, datasets can be either mounted or downloaded.
         if azure_dataset_id:
-            mounted = try_to_mount_input_dataset(azure_dataset_id)
+            mounted = try_to_mount_input_dataset(dataset_index)
             if not mounted:
                 raise ValueError("Unable to mount or download input dataset.")
             return mounted

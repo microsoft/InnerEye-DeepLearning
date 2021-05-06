@@ -32,6 +32,7 @@ from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
 
 SLEEP_TIME_SECONDS = 30
+INPUT_DATA_KEY = "input_data"
 
 RUN_RECOVERY_FILE = "most_recent_run.txt"
 # The version to use when creating an AzureML Python environment. We create all environments with a unique hashed
@@ -280,7 +281,8 @@ def get_or_create_python_environment(azure_config: AzureConfig,
 
 
 def get_dataset_consumption(azure_config: AzureConfig,
-                            azure_dataset_id: str) -> DatasetConsumptionConfig:
+                            azure_dataset_id: str,
+                            dataset_index: int = 0) -> DatasetConsumptionConfig:
     """
     Creates a configuration for using an AzureML dataset inside of an AzureML run. This will make the AzureML
     dataset with given name available as a named input, using INPUT_DATA_KEY as the key.
@@ -292,7 +294,7 @@ def get_dataset_consumption(azure_config: AzureConfig,
     azureml_dataset = get_or_create_dataset(azure_config, azure_dataset_id=azure_dataset_id)
     if not azureml_dataset:
         raise ValueError(f"AzureML dataset {azure_dataset_id} could not be found or created.")
-    named_input = azureml_dataset.as_named_input(azure_dataset_id)
+    named_input = azureml_dataset.as_named_input(f"{INPUT_DATA_KEY}_{dataset_index}")
     return named_input.as_mount() if azure_config.use_dataset_mount else named_input.as_download()
 
 
@@ -316,7 +318,7 @@ def create_run_config(azure_config: AzureConfig,
     dataset_consumptions = {}
     all_dataset_ids = [azure_dataset_id] + extra_azure_dataset_ids if azure_dataset_id else extra_azure_dataset_ids
     for i, dataset_id in enumerate(all_dataset_ids):
-        dataset_consumption = get_dataset_consumption(azure_config, dataset_id)
+        dataset_consumption = get_dataset_consumption(azure_config, dataset_id, i)
         dataset_consumptions.update({dataset_consumption.name: dataset_consumption})
 
     # AzureML seems to sometimes expect the entry script path in Linux format, hence convert to posix path
