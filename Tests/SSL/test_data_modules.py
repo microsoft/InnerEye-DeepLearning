@@ -121,7 +121,7 @@ def test_get_transforms_in_SSL_container_for_cxr_data() -> None:
     Tests that the internal _get_transforms function returns data of the expected type of CXR.
     Tests that is_ssl_encoder_module induces the correct type of transform pipeline (dual vs single view).
     """
-    test_container = SSLContainer(classifier_dataset_name=SSLDatasetName.RSNAKaggleCXR,
+    test_container = SSLContainer(linear_head_dataset_name=SSLDatasetName.RSNAKaggleCXR,
                                   ssl_training_dataset_name=SSLDatasetName.NIHCXR,
                                   ssl_augmentation_config=path_encoder_augmentation_cxr)
     test_container._load_config()
