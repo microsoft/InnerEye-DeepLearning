@@ -23,7 +23,7 @@ task. More importantly, the framework allows users to specify multiple datasets 
 training and evaluation. For instance, a BYOL encoder can be learnt using a dataset that does not contain any target
 labels and embeddings can be evaluated throughout training on a separate dataset containing class labels. To enable this
 functionality, our SSLContainer takes two dataset names parameters: ``ssl_training_dataset_name`` to indicate which
-dataset to use for SSL training and ``classifier_dataset_name`` to indicate which dataset for the classification task
+dataset to use for SSL training and ``linear_head_dataset_name`` to indicate which dataset for the classification task
 used to monitor embeddings quality during training.
 
 ## Quick start guide
@@ -62,7 +62,7 @@ Prior to starting training a model on this dataset, you will need to download it
 
 #### If you run on AML
 
-In order to train models on AML you will need to upload and register the datasets listed above to your storage account
+In order to train models on AML you will need to upload the datasets listed above to your storage account
 and get their dataset_id to pass to your model config.
 
 #### Step 1: Update your model config
@@ -95,17 +95,18 @@ with the following available arguments:
 
 * `ssl_training_dataset_name`: the name of the dataset to train the SSL encoder on, a member of the SSLDatasetName
   class (don't forget to update this class if you're adding a new dataset ;)),
-* `classifier_dataset_name`: the name of the dataset to train to linear head on top of the classifier for monitoring
+* `linear_head_dataset_name`: the name of the dataset to train to linear head on top of the classifier for monitoring
   purposes,
 * `azure_dataset_id`: the id of the AML dataset to use for SSL training,
 * `extra_azure_dataset_ids`: dataset_id to use for linear head training, expected to be provided as a list [data-id],
 * `ssl_encoder`: name of the encoder to train, member of `EncoderName` class, currently supported are resnet50,
   resnet101 and densenet121,
 * `ssl_training_type`: which SSL algorithm to use, member of `SSLType` choice between BYOL and SimCLR,
-* `ssl_training_batch_size`: batch size of SSL training=1200,
-* `ssl_training_path_augmentation_config`: path to yaml config for augmentation to use during SSL training. Only used
-  for NIH/Kaggle datasets.
-* `classifier_augmentations_path`: path to yaml config for augmentation to use for linear head training. Only used for
+* `ssl_training_batch_size`: batch size of SSL training
+* `linear_head_batch_size`: batch size for linear head training (used for monitor of SSL embeddings quality)
+* `ssl_augmentation_config`: path to yaml config for augmentation to use during SSL training. Only used for NIH/Kaggle
+  datasets.
+* `linear_head_augmentation_config`: path to yaml config for augmentation to use for linear head training. Only used for
   NIH/Kaggle datasets,
 * `use_balanced_binary_loss_for_linear_head`: whether to use balanced loss for linear head training,
 * `random_seed`: seed for the run,
@@ -134,9 +135,9 @@ datamodules for SSL training and linear head monitoring.
 
 The augmentations used for SSL training for all Chest-X-rays models are parametrized via a yaml config file. The path to
 this config as to be passed in the model config (cf. section above). We provide two defaults
-configs: ``rsna_aumgentations.yaml`` is used to define the augmentations used for BYOL/SimCLR training;
-the ``linear_head.yaml`` config defines the augmentations to used for the training of the linear head (used for
-monitoring purposes). The meaning of each config argument is detailed in `ssl_model_config.py`
+configs: ``cxr_ssl_encoder_augmentations.yaml`` is used to define the augmentations used for BYOL/SimCLR training;
+the ``cxr_linear_head_augmentations.yaml`` config defines the augmentations to used for the training of the linear head
+(used for monitoring purposes). The meaning of each config argument is detailed in `ssl_model_config.py`
 
 WARNING: this file will be ignored for CIFAR examples where we use the default pl-bolts augmentations.
 
