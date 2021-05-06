@@ -319,7 +319,7 @@ def aggregate_and_create_subject_metrics_file(outputs_folder: Path) -> None:
                     f.write(temp_file_contents)
                 else:
                     # For all files but the first one, cut off the header line.
-                    f.write(os.linesep + os.linesep.join(temp_file_contents.splitlines()[1:]))
+                    f.write("\n".join(temp_file_contents.splitlines()[1:]))
 
 
 class InnerEyeDDPPlugin(DDPPlugin):
