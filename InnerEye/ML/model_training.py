@@ -309,7 +309,7 @@ def aggregate_and_create_subject_metrics_file(outputs_folder: Path) -> None:
     :param config: model config
     """
     for mode in [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL]:
-        temp_files = (outputs_folder / mode.value).rglob(SUBJECT_OUTPUT_PER_RANK_PREFIX + "*")
+        temp_files = sorted((outputs_folder / mode.value).rglob(SUBJECT_OUTPUT_PER_RANK_PREFIX + "*"))
         result_file = outputs_folder / mode.value / SUBJECT_METRICS_FILE_NAME
         with result_file.open("a") as f:
             for i, file in enumerate(temp_files):
