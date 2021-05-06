@@ -77,6 +77,9 @@ class HelloWorld(SegmentationModelBase):
             # we define the structure names and colours to use.
             ground_truth_ids_display_names=fg_classes,
             colours=generate_random_colours_list(Random(5), len(fg_classes)),
+
+            # The HelloWorld model uses dummy data with overlapping segmentation labels
+            check_exclusive=False
         )
         self.add_and_validate(kwargs)
 

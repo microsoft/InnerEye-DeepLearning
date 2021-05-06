@@ -412,22 +412,30 @@ def load_image_in_known_formats(file: Path,
         raise ValueError(f"Unsupported image file type for path {file}")
 
 
-def load_labels_from_dataset_source(dataset_source: PatientDatasetSource) -> np.ndarray:
+def load_labels_from_dataset_source(dataset_source: PatientDatasetSource, check_exclusive: bool = True) -> np.ndarray:
     """
     Load labels containing segmentation binary labels in one-hot-encoding.
     In the future, this function will be used to load global class and non-imaging information as well.
 
     :param dataset_source: The dataset source for which channels are to be loaded into memory.
-    :return A label sample object containing ground-truth information.
+    :param check_exclusive: Check that the labels are mutually exclusive (defaults to True)
+    :return: A label sample object containing ground-truth information.
     """
     labels = np.stack(
         [load_image(gt, ImageDataType.SEGMENTATION.value).image for gt in dataset_source.ground_truth_channels])
+
+    if check_exclusive and not (sum(labels) > 1.).any():  # type: ignore
+        raise ValueError(f'The labels for patient {dataset_source.metadata.patient_id} are not mutually exclusive. '
+                         'Some loss functions (e.g. SoftDice) may produce results on overlapping labels, while others (e.g. FocalLoss) will fail. '
+                         'If you are sure that you want to use mutually exclusive labels, '
+                         'then re-run with the check_exclusive flag set to false in the settings file. '
+                         'Note that this is the first error encountered, other samples/patients may also have overlapping labels.')
 
     # Add the background binary map
     background = np.ones_like(labels[0])
     for c in range(len(labels)):
         background[labels[c] == 1] = 0
-    background = background[None, ...]
+    background = background[np.newaxis, ...]
     return np.vstack((background, labels))
 
 
@@ -475,12 +483,13 @@ def load_image(path: PathOrString, image_type: Optional[Type] = float) -> ImageW
     raise ValueError(f"Invalid file type {path}")
 
 
-def load_images_from_dataset_source(dataset_source: PatientDatasetSource) -> Sample:
+def load_images_from_dataset_source(dataset_source: PatientDatasetSource, check_exclusive: bool = True) -> Sample:
     """
     Load images. ground truth labels and masks from the provided dataset source.
     With an inferred label class for the background (assumed to be not provided in the input)
 
     :param dataset_source: The dataset source for which channels are to be loaded into memory.
+    :param check_exclusive: Check that the labels are mutually exclusive (defaults to True)
     :return: a Sample object with the loaded volume (image), labels, mask and metadata.
     """
     images = [load_image(channel, ImageDataType.IMAGE.value) for channel in dataset_source.image_channels]
@@ -492,7 +501,7 @@ def load_images_from_dataset_source(dataset_source: PatientDatasetSource) -> Sam
     # create raw sample to return
     metadata = copy(dataset_source.metadata)
     metadata.image_header = images[0].header
-    labels = load_labels_from_dataset_source(dataset_source)
+    labels = load_labels_from_dataset_source(dataset_source, check_exclusive=check_exclusive)
     return Sample(image=image,
                   labels=labels,
                   mask=mask,

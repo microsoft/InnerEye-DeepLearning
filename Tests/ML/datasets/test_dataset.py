@@ -28,7 +28,6 @@ from InnerEye.ML.utils.split_dataset import DatasetSplits
 
 crop_size = [55, 55, 55]
 
-
 @pytest.fixture
 def num_dataload_workers() -> int:
     """PyTorch support for multiple dataloader workers is flaky on Windows (so return 0)"""
