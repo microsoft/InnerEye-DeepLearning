@@ -75,15 +75,15 @@ class SSLClassifier(LightningModuleWithOptimizer, DeviceAwareModule):
 
     def training_step(self, batch: Any, batch_id: int, *args: Any, **kwargs: Any) -> None:  # type: ignore
         loss = self.shared_step(batch, True)
-        self.log("loss/train", loss)
+        self.log("loss/train", loss, on_step=False, on_epoch=True)
         for metric in self.train_metrics:
-            self.log(f"train_{metric.name}", metric, on_epoch=True, on_step=False)
+            self.log(f"train/{metric.name}", metric, on_epoch=True, on_step=False)
 
     def validation_step(self, batch: Any, batch_id: int, *args: Any, **kwargs: Any) -> None:  # type: ignore
         loss = self.shared_step(batch, is_training=False)
-        self.log('val_loss', loss, on_step=False, on_epoch=True, sync_dist=False)
+        self.log('val/loss', loss, on_step=False, on_epoch=True, sync_dist=False)
         for metric in self.val_metrics:
-            self.log(f"val_{metric.name}", metric, on_epoch=True, on_step=False)
+            self.log(f"val/{metric.name}", metric, on_epoch=True, on_step=False)
 
     def get_input_tensors(self, item: ScalarItem) -> List[torch.Tensor]:
         """
