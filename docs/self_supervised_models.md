@@ -1,9 +1,12 @@
 # Training of self-supervised models
 
-The code present in the SSL folder (link) allows you to train self-supervised models using
+The code present in the [InnerEye/ML/SSL](https://github.com/microsoft/InnerEye-DeepLearning/tree/main/InnerEye/ML/SSL)
+folder allows you to train self-supervised models using
 [SimCLR](http://proceedings.mlr.press/v119/chen20j/chen20j.pdf) or
 [BYOL](https://proceedings.neurips.cc/paper/2020/file/f3ada80d5c4ee70142b17b8192b2958e-Paper.pdf). This code runs as a "
-bring-your-own-model" self-contained module (cf. doc add-link-here).
+bring-your-own-model" self-contained module (
+see [docs/bring_your_own_model.md](https://github.com/microsoft/InnerEye-DeepLearning/blob/main/docs/bring_your_own_model.md))
+.
 
 Here, we provide implementations for four datasets to get you kickstarted with self-supervised models:
 
@@ -62,8 +65,8 @@ Prior to starting training a model on this dataset, you will need to download it
 
 #### If you run on AML
 
-In order to train models on AML you will need to upload the datasets listed above to your storage account
-and get their dataset_id to pass to your model config.
+In order to train models on AML you will need to upload the datasets listed above to your storage account and get their
+dataset_id to pass to your model config.
 
 #### Step 1: Update your model config
 
@@ -85,10 +88,12 @@ python ML/runner.py --model=NIH_RSNA_BYOL
 
 ## Configuring your own SSL models:
 
-### About SSLContainer(add-link-here) configuration
+### About SSLContainer configuration
 
-All SSL models are derived from the SSLcontainer class. See the config class in [ML/configs/ssl](link) for some examples
-of specific model configurations (all derived from this container).
+All SSL models are derived from
+the [SSLcontainer](https://github.com/microsoft/InnerEye-DeepLearning/blob/main/InnerEye/ML/SSL/lightning_containers/ssl_container.py)
+class. See the config class in [ML/configs/ssl](https://github.com/microsoft/InnerEye-DeepLearning/tree/main/InnerEye/ML/configs/ssl) for some examples of specific model configurations (all derived
+from this container).
 
 If you wish to create your own model config for SSL training, you will need to create a child class and parametrize it
 with the following available arguments:
