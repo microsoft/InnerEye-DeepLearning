@@ -3,6 +3,8 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from io import StringIO
+from pathlib import Path
+from typing import List
 from unittest import mock
 
 import pandas as pd
@@ -227,3 +229,23 @@ def test_optim_params2(test_output_dirs: OutputFolderForTests) -> None:
     expected_lr = 1e-1
     assert container.l_rate == expected_lr
     assert optim[0].param_groups[0]["lr"] == expected_lr
+
+
+def test_extra_directory_available(test_output_dirs: OutputFolderForTests) -> None:
+    def _create_container(extra_local_dataset_paths: List[Path] = [],
+                          extra_azure_dataset_ids: List[str] = []) -> LightningContainer:
+        container = DummyContainerWithModel()
+        container.local_dataset = test_output_dirs.root_dir
+        container.extra_local_dataset_paths = extra_local_dataset_paths
+        container.extra_azure_dataset_ids = extra_azure_dataset_ids
+        runner = MLRunner(model_config=None, container=container)
+        runner.setup()
+        return runner.container
+
+    extra_local_dataset_paths = [test_output_dirs.root_dir, test_output_dirs.root_dir]
+    container = _create_container(extra_local_dataset_paths)
+    assert container.extra_local_dataset_paths == [test_output_dirs.root_dir, test_output_dirs.root_dir]
+
+    # Check default behavior (no extra datasets provided)
+    container = _create_container()
+    assert container.extra_local_dataset_paths == []
