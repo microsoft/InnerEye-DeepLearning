@@ -24,3 +24,9 @@ class ModelInferenceConfig:
         long_paths = list(filter(is_long_path, self.checkpoint_paths))
         if long_paths:
             raise ValueError(f"Following paths: {long_paths} are greater than {MAX_PATH_LENGTH}")
+
+
+def read_model_inference_config(path_to_model_inference_config: str) -> ModelInferenceConfig:
+    with open(path_to_model_inference_config, 'r', encoding='utf-8') as file:
+        model_inference_config = ModelInferenceConfig.from_json(file.read())  # type: ignore
+    return model_inference_config
