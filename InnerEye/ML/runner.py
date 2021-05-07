@@ -28,7 +28,7 @@ if not runner_path.is_absolute():
     sys.argv[0] = str(runner_path.absolute())
 
 import logging
-from typing import Any, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 from azureml._base_sdk_common import user_agent
 from azureml.core import Run
@@ -214,6 +214,13 @@ class Runner:
         """
         return self._get_property_from_config_or_container("azure_dataset_id")
 
+    @property
+    def extra_azure_dataset_ids(self) -> List[str]:
+        """
+        Returns the name of the Azure dataset that should be used.
+        """
+        return self._get_property_from_config_or_container("extra_azure_dataset_ids")
+
     def run(self) -> Tuple[Optional[DeepLearningConfig], Optional[Run]]:
         """
         The main entry point for training and testing models from the commandline. This chooses a model to train
@@ -237,6 +244,8 @@ class Runner:
             run_object = self.submit_to_azureml()
         else:
             self.run_in_situ()
+        if self.model_config is None:
+            return self.lightning_container, run_object
         return self.model_config, run_object
 
     def submit_to_azureml(self) -> Run:
@@ -261,7 +270,7 @@ class Runner:
             upload_timeout_seconds=86400,
         )
         source_config.set_script_params_except_submit_flag()
-        azure_run = submit_to_azureml(self.azure_config, source_config, self.azure_dataset_id)
+        azure_run = submit_to_azureml(self.azure_config, source_config, self.azure_dataset_id, self.extra_azure_dataset_ids)
         logging.info("Job submission to AzureML done.")
         if self.azure_config.pytest_mark and self.azure_config.wait_for_completion:
             # The AzureML job can optionally run pytest. Attempt to download it to the current directory.
