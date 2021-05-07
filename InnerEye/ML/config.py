@@ -23,7 +23,8 @@ from InnerEye.Common.common_util import ModelProcessing, any_pairwise_larger, an
 from InnerEye.Common.generic_parsing import IntTuple
 from InnerEye.Common.type_annotations import TupleFloat2, TupleFloat3, TupleInt3, TupleStringOptionalFloat
 from InnerEye.ML.common import ModelExecutionMode
-from InnerEye.ML.deep_learning_config import ModelCategory, DeepLearningConfig
+from InnerEye.ML.deep_learning_config import ModelCategory
+from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.model_config_base import ModelConfigBase, ModelTransformsPerExecutionMode
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 
@@ -799,4 +800,4 @@ class SegmentationModelBase(ModelConfigBase):
 
 
 PostCrossValidationHookSignature = Callable[[ModelConfigBase, Path], None]
-ModelDeploymentHookSignature = Callable[[DeepLearningConfig, AzureConfig, Model, ModelProcessing], Any]
+ModelDeploymentHookSignature = Callable[[LightningContainer, AzureConfig, Model, ModelProcessing], Any]

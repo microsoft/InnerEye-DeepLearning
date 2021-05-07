@@ -13,7 +13,7 @@ import pandas as pd
 import stopit
 import torch.multiprocessing
 from azureml._restclient.constants import RunStatus
-from azureml.core import Environment, Run
+from azureml.core import Run
 from azureml.core.model import Model
 from azureml.data import FileDataset
 from pytorch_lightning import LightningModule, seed_everything
@@ -356,30 +356,36 @@ class MLRunner:
                 self.innereye_config.write_dataset_files()
                 self.create_activation_maps()
 
-        if isinstance(self.container, InnerEyeContainer):
-            # Inference for the InnerEye built-in models
-            # We specify the ModelProcessing as DEFAULT here even if the run_recovery points to an ensemble run, because
-            # the current run is a single one. See the documentation of ModelProcessing for more details.
-            self.run_inference_and_register_model(self.checkpoint_handler, ModelProcessing.DEFAULT)
+        # Register the model, and then run inference as required. No models should be registered when running outside AzureML.
+        if not self.is_offline_run:
+            if self.should_register_model():
+                self.register_model(self.checkpoint_handler, ModelProcessing.DEFAULT)
 
-            if self.container.generate_report:
-                self.generate_report(ModelProcessing.DEFAULT)
+        if not self.azure_config.only_register_model:
+            if isinstance(self.container, InnerEyeContainer):
+                # Inference for the InnerEye built-in models
+                # We specify the ModelProcessing as DEFAULT here even if the run_recovery points to an ensemble run, because
+                # the current run is a single one. See the documentation of ModelProcessing for more details.
+                self.run_inference(self.checkpoint_handler, ModelProcessing.DEFAULT)
 
-            # If this is an cross validation run, and the present run is child run 0, then wait for the sibling runs,
-            # build the ensemble model, and write a report for that.
-            if self.container.number_of_cross_validation_splits > 0:
-                should_wait_for_other_child_runs = (not self.is_offline_run) and \
-                                                   self.container.cross_validation_split_index == 0
-                if should_wait_for_other_child_runs:
-                    self.wait_for_runs_to_finish()
-                    self.create_ensemble_model_and_run_inference()
-        else:
-            # Inference for all models that are specified via LightningContainers.
-            with logging_section("Model inference"):
-                self.run_inference_for_lightning_models(self.checkpoint_handler.get_checkpoints_to_test())
-            # We can't enforce that files are written to the output folder, hence change the working directory manually
-            with change_working_directory(self.container.outputs_folder):
-                self.container.create_report()
+                if self.container.generate_report:
+                    self.generate_report(ModelProcessing.DEFAULT)
+
+                # If this is an cross validation run, and the present run is child run 0, then wait for the sibling runs,
+                # build the ensemble model, and write a report for that.
+                if self.container.number_of_cross_validation_splits > 0:
+                    should_wait_for_other_child_runs = (not self.is_offline_run) and \
+                                                       self.container.cross_validation_split_index == 0
+                    if should_wait_for_other_child_runs:
+                        self.wait_for_runs_to_finish()
+                        self.create_ensemble_model_and_run_inference()
+            else:
+                # Inference for all models that are specified via LightningContainers.
+                with logging_section("Model inference"):
+                    self.run_inference_for_lightning_models(self.checkpoint_handler.get_checkpoints_to_test())
+                # We can't enforce that files are written to the output folder, hence change the working directory manually
+                with change_working_directory(self.container.outputs_folder):
+                    self.container.create_report()
 
     def run_inference_for_lightning_models(self, checkpoint_paths: List[Path]) -> None:
         """
@@ -431,26 +437,20 @@ class MLRunner:
         else:
             logging.warning("None of the suitable test methods is overridden. Skipping inference completely.")
 
-    def run_inference_and_register_model(self, checkpoint_handler: CheckpointHandler,
-                                         model_proc: ModelProcessing) -> None:
+    def run_inference(self, checkpoint_handler: CheckpointHandler,
+                      model_proc: ModelProcessing) -> None:
         """
-        Register the model, and then run inference as required. No models should be registered when running outside
-        AzureML.
+        Run inference on InnerEyeContainer models
         :param checkpoint_handler: Checkpoint handler object to find checkpoint paths for model initialization
         :param model_proc: whether we are running an ensemble model from within a child run with index 0. If we are,
         then outputs will be written to OTHER_RUNS/ENSEMBLE under the main outputs directory.
         """
 
-        if not self.is_offline_run:
-            if self.should_register_model():
-                self.register_model(checkpoint_handler, model_proc)
+        # run full image inference on existing or newly trained model on the training, and testing set
+        test_metrics, val_metrics, _ = self.model_inference_train_and_test(checkpoint_handler=checkpoint_handler,
+                                                                           model_proc=model_proc)
 
-        if not self.azure_config.only_register_model:
-            # run full image inference on existing or newly trained model on the training, and testing set
-            test_metrics, val_metrics, _ = self.model_inference_train_and_test(checkpoint_handler=checkpoint_handler,
-                                                                               model_proc=model_proc)
-
-            self.try_compare_scores_against_baselines(model_proc)
+        self.try_compare_scores_against_baselines(model_proc)
 
     def should_register_model(self) -> bool:
         """
@@ -571,7 +571,7 @@ class MLRunner:
             model_subfolder = FINAL_MODEL_FOLDER if model_proc == ModelProcessing.DEFAULT else FINAL_ENSEMBLE_MODEL_FOLDER
             # This is the path under which AzureML will know the files: Either "final_model" or "final_ensemble_model"
             artifacts_path = model_subfolder
-            final_model_folder = self.innereye_config.file_system_config.run_folder / model_subfolder
+            final_model_folder = self.container.file_system_config.run_folder / model_subfolder
             # Copy all code from project and InnerEye into the model folder, and copy over checkpoints.
             # This increases the size of the data stored for the run. The other option would be to store all checkpoints
             # right in the final model folder - however, then that would also contain any other checkpoints that the model
@@ -591,7 +591,7 @@ class MLRunner:
             # When registering the model on the run, we need to provide a relative path inside of the run's output
             # folder in `model_path`
             model = run_to_register_on.register_model(
-                model_name=self.innereye_config.model_name,
+                model_name=self.container.model_name,
                 model_path=artifacts_path,
                 tags=RUN_CONTEXT.get_tags(),
                 description=model_description
@@ -612,7 +612,7 @@ class MLRunner:
             # create a version of the model for deployment if the hook is provided
             if self.model_deployment_hook is not None:
                 deployment_result = self.model_deployment_hook(
-                    self.innereye_config, self.azure_config, model, model_proc)
+                    self.container, self.azure_config, model, model_proc)
             return model, deployment_result
 
     @staticmethod
@@ -784,8 +784,14 @@ class MLRunner:
                                                    run_context=PARENT_RUN_CONTEXT)
             checkpoint_handler.download_checkpoints_from_hyperdrive_child_runs(PARENT_RUN_CONTEXT)
 
-        self.run_inference_and_register_model(checkpoint_handler=checkpoint_handler,
-                                              model_proc=ModelProcessing.ENSEMBLE_CREATION)
+        # Register the model, and then run inference as required. No models should be registered when running outside AzureML.
+        if not self.is_offline_run:
+            if self.should_register_model():
+                self.register_model(checkpoint_handler, ModelProcessing.ENSEMBLE_CREATION)
+
+        if not self.azure_config.only_register_model:
+            self.run_inference(checkpoint_handler=checkpoint_handler,
+                               model_proc=ModelProcessing.ENSEMBLE_CREATION)
 
         crossval_dir = self.plot_cross_validation_and_upload_results()
         if self.innereye_config.generate_report:
