@@ -2,7 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 
 import torch
 from pl_bolts.models.self_supervised import SSLEvaluator
@@ -14,7 +14,6 @@ from InnerEye.ML.lightning_container import LightningModuleWithOptimizer
 from InnerEye.ML.lightning_metrics import Accuracy05, AreaUnderPrecisionRecallCurve, AreaUnderRocCurve, \
     ScalarMetricsBase
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
-
 
 
 class SSLClassifier(LightningModuleWithOptimizer, DeviceAwareModule):
