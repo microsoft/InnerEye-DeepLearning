@@ -155,9 +155,9 @@ for your pretrained model. For this you have two options:
 
 - If you are running locally, you can provide the local path to your pretrained model checkpoint
   via `--local_weights_path`.
-- If your are running on AML, use the `extra_run_recovery_id` field. Providing this field, will mean that AML will
+- If your are running on AML, use the `pretraining_run_recovery_id` field. Providing this field, will mean that AML will
   automatically download the checkpoints to the current node, will pick the latest checkpoint to build the classifier on
-  top. Beware not to confuse `extra_run_recovery_id` with `run_recovery_id` as the latter is use to continue training on
+  top. Beware not to confuse `pretraining_run_recovery_id` with `run_recovery_id` as the latter is use to continue training on
   the same model (which is not the case here).
 
 The code will then automatically extract the encoder part of the loaded SSL model to initialize your classifier. You can
@@ -170,7 +170,7 @@ We provide an example of such a classifier container for CIFAR named `SSLClassif
 for this model on CIFAR10, just run
 
 ```
-python ML/runner.py --model=SSLClassifierCIFAR --extra_run_recovery_id={THE_ID_TO_YOUR_SSL_TRAINING_JOB}
+python ML/runner.py --model=SSLClassifierCIFAR --pretraining_run_recovery_id={THE_ID_TO_YOUR_SSL_TRAINING_JOB}
 ```
 
 ### Example for CXR
@@ -179,7 +179,7 @@ Similarly, we provide class to allow you to simply start a finetuning job for CX
 default, this will launch a finetuning job on the RSNA Pneumonia dataset. To start the run:
 
 ```
-python ML/runner.py --model=CXRImageClassifier --extra_run_recovery_id={THE_ID_TO_YOUR_SSL_TRAINING_JOB}
+python ML/runner.py --model=CXRImageClassifier --pretraining_run_recovery_id={THE_ID_TO_YOUR_SSL_TRAINING_JOB}
 ```
 
 or for a local run
