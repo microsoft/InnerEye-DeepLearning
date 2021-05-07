@@ -16,6 +16,7 @@ from InnerEye.ML.lightning_metrics import Accuracy05, AreaUnderPrecisionRecallCu
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 
 
+
 class SSLClassifier(LightningModuleWithOptimizer, DeviceAwareModule):
     """
     SSL Image classifier that combines pre-trained SSL encoder with a trainable linear-head.
@@ -46,6 +47,10 @@ class SSLClassifier(LightningModuleWithOptimizer, DeviceAwareModule):
             self.train_metrics = [Accuracy05()]
             self.val_metrics = [Accuracy05()]
 
+    def on_train_start(self) -> None:
+        for metric in [*self.train_metrics, *self.val_metrics]:
+            metric.to(device=self.device)
+
     def train(self, mode: bool = True) -> Any:
         self.classifier_head.train(mode)
         if self.freeze_encoder:
@@ -73,11 +78,12 @@ class SSLClassifier(LightningModuleWithOptimizer, DeviceAwareModule):
                 metric(posteriors, y)
         return mlp_loss
 
-    def training_step(self, batch: Any, batch_id: int, *args: Any, **kwargs: Any) -> None:  # type: ignore
+    def training_step(self, batch: Any, batch_id: int, *args: Any, **kwargs: Any) -> Any:  # type: ignore
         loss = self.shared_step(batch, True)
         self.log("loss/train", loss, on_step=False, on_epoch=True)
         for metric in self.train_metrics:
             self.log(f"train/{metric.name}", metric, on_epoch=True, on_step=False)
+        return loss
 
     def validation_step(self, batch: Any, batch_id: int, *args: Any, **kwargs: Any) -> None:  # type: ignore
         loss = self.shared_step(batch, is_training=False)
