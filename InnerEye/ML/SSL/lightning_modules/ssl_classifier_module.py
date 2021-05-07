@@ -2,7 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 import torch
 from pl_bolts.models.self_supervised import SSLEvaluator
@@ -80,7 +80,7 @@ class SSLClassifier(LightningModuleWithOptimizer, DeviceAwareModule):
 
     def training_step(self, batch: Any, batch_id: int, *args: Any, **kwargs: Any) -> Any:  # type: ignore
         loss = self.shared_step(batch, True)
-        self.log("loss/train", loss, on_step=False, on_epoch=True)
+        self.log("train/loss", loss, on_step=False, on_epoch=True)
         for metric in self.train_metrics:
             self.log(f"train/{metric.name}", metric, on_epoch=True, on_step=False)
         return loss
