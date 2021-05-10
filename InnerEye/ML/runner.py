@@ -44,9 +44,10 @@ from InnerEye.Common.common_util import FULL_METRICS_DATAFRAME_FILE, METRICS_AGG
     disable_logging_to_file, is_linux, logging_to_stdout
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME
-from InnerEye.ML.config import ModelDeploymentHookSignature, PostCrossValidationHookSignature
+from InnerEye.ML.config import PostCrossValidationHookSignature
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.model_config_base import ModelConfigBase
+from InnerEye.ML.run_ml import MLRunner, ModelDeploymentHookSignature
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
 
 try:
@@ -321,14 +322,10 @@ class Runner:
             finally:
                 disable_logging_to_file()
 
-    def create_ml_runner(self) -> Any:
+    def create_ml_runner(self) -> MLRunner:
         """
         Create and return an ML runner using the attributes of this Runner object.
         """
-        # This import statement cannot be at the beginning of the file because it will cause import
-        # of packages that are not available inside the azure_runner.yml environment, in particular pytorch.
-        # That is also why we specify the return type is Any rather than MLRunner.
-        from InnerEye.ML.run_ml import MLRunner
         return MLRunner(
             model_config=self.model_config,
             container=self.lightning_container,

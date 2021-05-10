@@ -57,6 +57,7 @@ jobs:
           wait_for_completion: 'True'
           pytest_mark: 'gpu or cpu_and_gpu or azureml'
           max_run_duration: '30m'
+          use_full_conda_environment: true
       - task: PublishTestResults@2
         inputs:
           testResultsFiles: '**/test-*.xml'
@@ -80,6 +81,7 @@ jobs:
         parameters:
           wait_for_completion: 'True'
           max_run_duration: '30m'
+          use_full_conda_environment: true
 
   # Train a 2-element ensemble model
   - job: TrainEnsemble
@@ -98,6 +100,7 @@ jobs:
           wait_for_completion: 'True'
           pytest_mark: ''
           max_run_duration: '1h'
+          use_full_conda_environment: true
       - template: tests_after_training.yml
         parameters:
           pytest_mark: after_training_ensemble_run
@@ -120,6 +123,7 @@ jobs:
           wait_for_completion: 'True'
           pytest_mark: ''
           max_run_duration: '1h'
+          use_full_conda_environment: true
       - template: tests_after_training.yml
         parameters:
           pytest_mark: after_training_2node
@@ -144,6 +148,7 @@ jobs:
           wait_for_completion: 'True'
           pytest_mark: ''
           max_run_duration: '1h'
+          use_full_conda_environment: true
       - template: tests_after_training.yml
         parameters:
           pytest_mark: after_training_glaucoma_cv_run

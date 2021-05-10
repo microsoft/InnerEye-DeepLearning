@@ -14,17 +14,15 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 import numpy as np
 import pandas as pd
 import param
-from azureml.core import Model, ScriptRunConfig
+from azureml.core import ScriptRunConfig
 from azureml.train.hyperdrive import HyperDriveConfig
 from pandas import DataFrame
 
-from InnerEye.Azure.azure_config import AzureConfig
-from InnerEye.Common.common_util import ModelProcessing, any_pairwise_larger, any_smaller_or_equal_than, check_is_any_of
+from InnerEye.Common.common_util import any_pairwise_larger, any_smaller_or_equal_than, check_is_any_of
 from InnerEye.Common.generic_parsing import IntTuple
 from InnerEye.Common.type_annotations import TupleFloat2, TupleFloat3, TupleInt3, TupleStringOptionalFloat
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.deep_learning_config import ModelCategory
-from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.model_config_base import ModelConfigBase, ModelTransformsPerExecutionMode
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 
@@ -800,4 +798,3 @@ class SegmentationModelBase(ModelConfigBase):
 
 
 PostCrossValidationHookSignature = Callable[[ModelConfigBase, Path], None]
-ModelDeploymentHookSignature = Callable[[LightningContainer, AzureConfig, Model, ModelProcessing], Any]

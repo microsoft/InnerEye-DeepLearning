@@ -7,14 +7,14 @@ import logging
 import shutil
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import pandas as pd
 import stopit
 import torch.multiprocessing
 from azureml._restclient.constants import RunStatus
-from azureml.core import Run
-from azureml.core.model import Model
+from azureml.core import Model, Run
+from azureml.core import model
 from azureml.data import FileDataset
 from pytorch_lightning import LightningModule, seed_everything
 from pytorch_lightning.utilities.cloud_io import load as pl_load
@@ -50,13 +50,15 @@ from InnerEye.ML.model_training import create_lightning_trainer, model_train
 from InnerEye.ML.reports.notebook_report import generate_classification_crossval_notebook, \
     generate_classification_multilabel_notebook, generate_classification_notebook, generate_segmentation_notebook, \
     get_ipynb_report_name, reports_folder
-from InnerEye.ML.runner import ModelDeploymentHookSignature, PostCrossValidationHookSignature, get_all_environment_files
+from InnerEye.ML.runner import PostCrossValidationHookSignature, get_all_environment_files
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
 from InnerEye.ML.visualizers import activation_maps
 from InnerEye.ML.visualizers.plot_cross_validation import \
     get_config_and_results_for_offline_runs, plot_cross_validation_from_files
+
+ModelDeploymentHookSignature = Callable[[LightningContainer, AzureConfig, Model, ModelProcessing], Any]
 
 
 def try_to_mount_input_dataset(dataset_index: int = 0) -> Optional[Path]:
@@ -540,7 +542,7 @@ class MLRunner:
 
     def register_model(self,
                        checkpoint_handler: CheckpointHandler,
-                       model_proc: ModelProcessing) -> Tuple[Model, Any]:
+                       model_proc: ModelProcessing) -> Tuple[model.Model, Any]:
         """
         Registers a new model in the workspace's model registry on AzureML to be deployed further.
         The AzureML run's tags are updated to describe with information about ensemble creation and the parent run ID.
