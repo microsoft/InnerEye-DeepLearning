@@ -663,17 +663,17 @@ class MLRunner:
                 try:
                     # Checkpoints live in a folder structure in the checkpoint folder. There can be multiple of
                     # them, with identical names, coming from an ensemble run. Hence, preserve their folder structure.
-                    checkpoint_relative = checkpoint.relative_to(self.innereye_config.checkpoint_folder)
+                    checkpoint_relative = checkpoint.relative_to(self.container.checkpoint_folder)
                 except ValueError:
                     raise ValueError(f"Checkpoint file {checkpoint} was expected to be in a subfolder of "
-                                     f"{self.innereye_config.checkpoint_folder}")
+                                     f"{self.container.checkpoint_folder}")
                 # Checkpoints go into a newly created folder "checkpoints" inside of the model folder
                 relative_checkpoint_paths.append(str(Path(CHECKPOINT_FOLDER) / checkpoint_relative))
             else:
                 raise ValueError(f"Expected an absolute path to a checkpoint file, but got: {checkpoint}")
         model_folder.mkdir(parents=True, exist_ok=True)
-        model_inference_config = ModelInferenceConfig(model_name=self.innereye_config.model_name,
-                                                      model_configs_namespace=self.innereye_config.__class__.__module__,
+        model_inference_config = ModelInferenceConfig(model_name=self.container.model_name,
+                                                      model_configs_namespace=self.container.__class__.__module__,
                                                       checkpoint_paths=relative_checkpoint_paths)
         # Inference configuration must live in the root folder of the registered model
         full_path_to_config = model_folder / fixed_paths.MODEL_INFERENCE_JSON_FILE_NAME

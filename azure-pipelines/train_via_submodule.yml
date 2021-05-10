@@ -26,8 +26,3 @@ steps:
       PYTHONPATH: $(Agent.TempDirectory)/InnerEye
       APPLICATION_KEY: $(InnerEyeDeepLearningServicePrincipalKey)
     displayName: 'Training and Recovery in AzureML'
-
-  - template: tests_after_training.yml
-    parameters:
-      pytest_mark: "inference or after_training"
-      test_run_title: "tests_after_train_submodule"
