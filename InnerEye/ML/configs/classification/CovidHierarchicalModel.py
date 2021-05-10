@@ -55,13 +55,13 @@ class CovidHierarchicalModel(ScalarModelBase):
     freeze_encoder = param.Boolean(default=False, doc="Whether to freeze the pretrained encoder or not.")
     name_of_checkpoint = param.String(default=None, doc="Filename of checkpoint to use for recovery")
 
-    def __init__(self, **kwargs: Any):
+    def __init__(self, covid_dataset_id=COVID_DATASET_ID, **kwargs: Any):
         learning_rate = 1e-5 if self.use_pretrained_model else 1e-4
         super().__init__(target_names=['CVX03vs12', 'CVX0vs3', 'CVX1vs2'],
                          loss_type=ScalarLoss.CustomClassification,
                          class_names=['CVX0', 'CVX1', 'CVX2', 'CVX3'],
                          max_num_gpus=1,
-                         azure_dataset_id=COVID_DATASET_ID,
+                         azure_dataset_id=covid_dataset_id,
                          subject_column="series",
                          image_file_column="filepath",
                          label_value_column="final_label",
