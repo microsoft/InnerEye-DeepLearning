@@ -69,6 +69,7 @@ with only minimum code changes required. See [the MD documentation](docs/bring_y
   Detection Challenge datasets. See
   [SSL doc](https://github.com/microsoft/InnerEye-DeepLearning/blob/main/docs/self_supervised_models.md) for more
   details.
+- ([#456](https://github.com/microsoft/InnerEye-DeepLearning/pull/456)) Adding configs to train Covid detection models
 
 ### Changed
 
