@@ -672,8 +672,12 @@ class MLRunner:
             else:
                 raise ValueError(f"Expected an absolute path to a checkpoint file, but got: {checkpoint}")
         model_folder.mkdir(parents=True, exist_ok=True)
+        if isinstance(self.container, InnerEyeContainer):
+            model_configs_namespace = self.innereye_config.__class__.__module__
+        else:
+            model_configs_namespace = self.container.__class__.__module__
         model_inference_config = ModelInferenceConfig(model_name=self.container.model_name,
-                                                      model_configs_namespace=self.container.__class__.__module__,
+                                                      model_configs_namespace=model_configs_namespace,
                                                       checkpoint_paths=relative_checkpoint_paths)
         # Inference configuration must live in the root folder of the registered model
         full_path_to_config = model_folder / fixed_paths.MODEL_INFERENCE_JSON_FILE_NAME
