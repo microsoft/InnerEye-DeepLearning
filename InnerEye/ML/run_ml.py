@@ -27,7 +27,7 @@ from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, \
     DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, EFFECTIVE_RANDOM_SEED_KEY_NAME, IS_ENSEMBLE_KEY_NAME, \
     MODEL_ID_KEY_NAME, PARENT_RUN_CONTEXT, PARENT_RUN_ID_KEY_NAME, RUN_CONTEXT, RUN_RECOVERY_FROM_ID_KEY_NAME, \
     RUN_RECOVERY_ID_KEY_NAME, create_run_recovery_id, is_offline_run_context, \
-    merge_conda_files
+    merge_conda_files, get_all_environment_files
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import BASELINE_COMPARISONS_FOLDER, BASELINE_WILCOXON_RESULTS_FILE, \
     CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE, \
@@ -50,7 +50,6 @@ from InnerEye.ML.model_training import create_lightning_trainer, model_train
 from InnerEye.ML.reports.notebook_report import generate_classification_crossval_notebook, \
     generate_classification_multilabel_notebook, generate_classification_notebook, generate_segmentation_notebook, \
     get_ipynb_report_name, reports_folder
-from InnerEye.ML.runner import PostCrossValidationHookSignature, get_all_environment_files
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
@@ -59,6 +58,7 @@ from InnerEye.ML.visualizers.plot_cross_validation import \
     get_config_and_results_for_offline_runs, plot_cross_validation_from_files
 
 ModelDeploymentHookSignature = Callable[[LightningContainer, AzureConfig, Model, ModelProcessing], Any]
+PostCrossValidationHookSignature = Callable[[ModelConfigBase, Path], None]
 
 
 def try_to_mount_input_dataset(dataset_index: int = 0) -> Optional[Path]:

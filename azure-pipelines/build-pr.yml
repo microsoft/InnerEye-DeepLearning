@@ -40,6 +40,7 @@ jobs:
         parameters:
           wait_for_completion: 'True'
           max_run_duration: '30m'
+          use_full_conda_environment: true
       - template: tests_after_training.yml
         parameters:
           pytest_mark: after_training_single_run

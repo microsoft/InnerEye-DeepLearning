@@ -44,10 +44,9 @@ from InnerEye.Common.common_util import FULL_METRICS_DATAFRAME_FILE, METRICS_AGG
     disable_logging_to_file, is_linux, logging_to_stdout
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME
-from InnerEye.ML.config import PostCrossValidationHookSignature
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.model_config_base import ModelConfigBase
-from InnerEye.ML.run_ml import MLRunner, ModelDeploymentHookSignature
+from InnerEye.ML.run_ml import MLRunner, ModelDeploymentHookSignature, PostCrossValidationHookSignature
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
 
 try:
