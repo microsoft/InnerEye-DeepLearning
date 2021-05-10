@@ -180,7 +180,8 @@ class CheXpert(InnerEyeCXRDatasetWithReturnIndex):
 
 class CovidDataset(InnerEyeCXRDatasetWithReturnIndex):
     """
-    Dataset class to load CovidDataset dataset as datamodule for monitoring SSL training quality directly on CovidDataset data.
+    Dataset class to load CovidDataset dataset as datamodule for monitoring SSL training quality directly on
+    CovidDataset data.
     We use CVX03 against CVX12 as proxy task.
     """
 
