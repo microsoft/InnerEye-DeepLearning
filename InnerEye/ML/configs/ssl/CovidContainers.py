@@ -3,7 +3,7 @@ from InnerEye.ML.SSL.utils import SSLTrainingType
 from InnerEye.ML.configs.ssl.CXR_SSL_configs import NIH_AZURE_DATASET_ID, path_encoder_augmentation_cxr, \
     path_linear_head_augmentation_cxr
 
-COVID_DATASET_ID = "29014966-7f7b-4b83-bb93-7df1311dd245_2021_04_19"
+COVID_DATASET_ID = "id-of-your-dataset"
 
 
 class COVID_NIH_BYOL(SSLContainer):
