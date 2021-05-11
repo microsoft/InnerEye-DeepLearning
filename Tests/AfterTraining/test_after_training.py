@@ -97,6 +97,7 @@ def get_most_recent_model(fallback_run_id_for_local_execution: str = FALLBACK_SI
 
 
 @pytest.mark.after_training_single_run
+@pytest.mark.after_training_hello_container
 def test_model_file_structure(test_output_dirs: OutputFolderForTests) -> None:
     """
     Downloads the model that was built in the most recent run, and checks if its file structure is as expected.
