@@ -28,5 +28,6 @@ class ModelInferenceConfig:
 
 
 def read_model_inference_config(path_to_model_inference_config: Path) -> ModelInferenceConfig:
-    model_inference_config = ModelInferenceConfig.from_json(path_to_model_inference_config.read_text(encoding='utf-8'))
+    model_inference_config_json = path_to_model_inference_config.read_text(encoding='utf-8')
+    model_inference_config = ModelInferenceConfig.from_json(model_inference_config_json)  # type: ignore
     return model_inference_config
