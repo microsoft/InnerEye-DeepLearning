@@ -87,7 +87,7 @@ There is an example model already included in the InnerEye toolbox, that uses th
 check out [fastmri_varnet.py](../InnerEye/ML/configs/other/fastmri_varnet.py). As with all InnerEye models, you can
 start a training run by specifying the name of the class that defines the model, like this:
 ```shell script
-python InnerEye/ML/runner.py --model FastMri --azureml=True --num_nodes=4
+python InnerEye/ML/runner.py --model KneeMulticoil --azureml=True --num_nodes=4
 ```
 This will start an AzureML job with 4 nodes training at the same time. Depending on how you set up your compute
 cluster, this will use a different number of GPUs: For example, if your cluster uses ND24 virtual machines, where 
@@ -107,3 +107,16 @@ on our cluster (4 Tesla P40 cards per node):
 
 Note that the download times depend on the type of Azure storage account that your workspace is using. We recommend 
 using Premium storage accounts for optimal performance.
+
+
+## Performance considerations for Brain Multicoil
+
+Training a FastMri model on the `brain_multicoil` dataset is particularly challenging because the dataset is larger.
+Downloading the dataset can - depending on the types of nodes - already make the nodes go out of disk space.
+
+The InnerEye toolbox has a way of working around that problem, by mounting the dataset on-the-fly, rather than 
+downloading it at the start of the job. You can trigger this behaviour by supplying an additional commandline argument
+`--use_dataset_mount=True`, for example:
+```shell script
+python InnerEye/ML/runner.py --model KneeMulticoil --azureml=True --num_nodes=4 --use_dataset_mount=True
+```
