@@ -269,7 +269,7 @@ def test_image_encoder_with_segmentation(test_output_dirs: OutputFolderForTests,
     # Patch the load_images function that will be called once we access a dataset item
     image_and_seg = ImageAndSegmentations[np.ndarray](images=np.zeros(scan_size, dtype=np.float32),
                                                       segmentations=np.ones(scan_size, dtype=np.uint8))
-    with mock.patch("InnerEye.Azure.azure_util.is_offline_run_context", return_value=True):
+    with mock.patch("InnerEye.ML.run_ml.is_offline_run_context", return_value=True):
         with mock.patch('InnerEye.ML.utils.io_util.load_image_in_known_formats', return_value=image_and_seg):
             azure_config = get_default_azure_config()
             azure_config.train = True
