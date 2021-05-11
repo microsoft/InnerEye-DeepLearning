@@ -564,8 +564,6 @@ class MLRunner:
         elif PARENT_RUN_CONTEXT is not None:
             RUN_CONTEXT.tag(PARENT_RUN_ID_KEY_NAME, str(PARENT_RUN_CONTEXT.id))
 
-        model_description = "Registering model."
-
         with logging_section(f"Registering {model_proc.value} model"):
             # The files for the final model can't live in the outputs folder. If they do: when registering the model,
             # the files may not yet uploaded by hosttools, and that may (or not) cause errors. Hence, place the folder
@@ -595,8 +593,7 @@ class MLRunner:
             model = run_to_register_on.register_model(
                 model_name=self.container.model_name,
                 model_path=artifacts_path,
-                tags=RUN_CONTEXT.get_tags(),
-                description=model_description
+                tags=RUN_CONTEXT.get_tags()
             )
             # Add the name of the Python environment as a model tag, because we need it when running inference
             # on the model. We could add that as an immutable property, but with tags we have the option to modify
