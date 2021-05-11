@@ -5,6 +5,7 @@ steps:
 
   - bash: |
       conda env create --file environment.yml --name AzureRunner
+      source activate AzureRunner
       pip freeze
     failOnStderr: false
     displayName: Create full Conda environment and print package list
