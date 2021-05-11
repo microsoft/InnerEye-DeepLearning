@@ -63,7 +63,7 @@ def init_from_model_inference_json(model_folder: Path, use_gpu: bool = True) -> 
     logging.info('Python version: ' + sys.version)
     path_to_model_inference_config = model_folder / fixed_paths.MODEL_INFERENCE_JSON_FILE_NAME
     logging.info(f'path_to_model_inference_config: {path_to_model_inference_config}')
-    model_inference_config = read_model_inference_config(str(path_to_model_inference_config))
+    model_inference_config = read_model_inference_config(path_to_model_inference_config)
     logging.info(f'model_inference_config: {model_inference_config}')
     full_path_to_checkpoints = [model_folder / x for x in model_inference_config.checkpoint_paths]
     logging.info(f'full_path_to_checkpoints: {full_path_to_checkpoints}')

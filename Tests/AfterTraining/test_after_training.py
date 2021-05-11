@@ -132,8 +132,7 @@ def test_model_file_structure(test_output_dirs: OutputFolderForTests) -> None:
             print(m)
         pytest.fail(f"{len(missing)} files in the registered model are missing: {missing[:5]}")
 
-    model_inference_config = read_model_inference_config(
-        str(downloaded_folder / fixed_paths.MODEL_INFERENCE_JSON_FILE_NAME))
+    model_inference_config = read_model_inference_config(downloaded_folder / fixed_paths.MODEL_INFERENCE_JSON_FILE_NAME)
     tags = get_most_recent_run(fallback_run_id_for_local_execution=fallback_run_id_for_local_execution).get_tags()
     model_name = tags["model_name"]
     assert model_inference_config.model_name == model_name

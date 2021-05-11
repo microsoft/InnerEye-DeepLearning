@@ -4,6 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 from dataclasses import dataclass
 from typing import List
+from pathlib import Path
 
 from dataclasses_json import dataclass_json
 
@@ -26,7 +27,6 @@ class ModelInferenceConfig:
             raise ValueError(f"Following paths: {long_paths} are greater than {MAX_PATH_LENGTH}")
 
 
-def read_model_inference_config(path_to_model_inference_config: str) -> ModelInferenceConfig:
-    with open(path_to_model_inference_config, 'r', encoding='utf-8') as file:
-        model_inference_config = ModelInferenceConfig.from_json(file.read())  # type: ignore
+def read_model_inference_config(path_to_model_inference_config: Path) -> ModelInferenceConfig:
+    model_inference_config = ModelInferenceConfig.from_json(path_to_model_inference_config.read_text(encoding='utf-8'))
     return model_inference_config
