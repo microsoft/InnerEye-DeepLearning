@@ -9,12 +9,12 @@ import pytorch_lightning as pl
 import torch
 from pl_bolts.callbacks.ssl_online import SSLOnlineEvaluator
 from pl_bolts.models.self_supervised.evaluator import SSLEvaluator
+from pytorch_lightning.metrics import Metric
 from torch import Tensor as T
 from torch.nn import functional as F
 
 from InnerEye.ML.SSL.utils import SSLDataModuleType
-from InnerEye.ML.lightning_metrics import Accuracy05, AreaUnderPrecisionRecallCurve, AreaUnderRocCurve, \
-    ScalarMetricsBase
+from InnerEye.ML.lightning_metrics import Accuracy05, AreaUnderPrecisionRecallCurve, AreaUnderRocCurve
 
 BatchType = Union[Dict[SSLDataModuleType, Any], Any]
 
@@ -36,11 +36,11 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
         self.weight_decay = 1e-4
         self.learning_rate = learning_rate
 
-        self.train_metrics: List[ScalarMetricsBase] = [AreaUnderRocCurve(), AreaUnderPrecisionRecallCurve(),
-                                                       Accuracy05()] \
+        self.train_metrics: List[Metric] = [AreaUnderRocCurve(), AreaUnderPrecisionRecallCurve(),
+                                            Accuracy05()] \
             if self.num_classes == 2 else [Accuracy05()]
-        self.val_metrics: List[ScalarMetricsBase] = [AreaUnderRocCurve(), AreaUnderPrecisionRecallCurve(),
-                                                     Accuracy05()] \
+        self.val_metrics: List[Metric] = [AreaUnderRocCurve(), AreaUnderPrecisionRecallCurve(),
+                                          Accuracy05()] \
             if self.num_classes == 2 else [Accuracy05()]
         self.class_weights = class_weights
 
