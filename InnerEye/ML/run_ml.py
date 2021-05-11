@@ -256,6 +256,20 @@ class MLRunner:
                              f"configuration is of type {type(self.model_config)}")
         return self.model_config
 
+    @property
+    def config_namespace(self) -> str:
+        """
+        Returns the namespace of the model configuration object.
+        For models defined as lightning containers, this is the namespace of the container class defining the model.
+        For legacy InnerEye models, the original config is not a container object, but instead a subclass of
+        ModelConfigBase. In this case, return the namespace of the original config class, not the namespace of the
+        derived InnerEyeContainer.
+        """
+        if isinstance(self.container, InnerEyeContainer):
+            return self.innereye_config.__class__.__module__
+        else:
+            return self.container.__class__.__module__
+
     def start_logging_to_file(self) -> None:
         if self.container is None:
             self.setup()
@@ -669,12 +683,8 @@ class MLRunner:
             else:
                 raise ValueError(f"Expected an absolute path to a checkpoint file, but got: {checkpoint}")
         model_folder.mkdir(parents=True, exist_ok=True)
-        if isinstance(self.container, InnerEyeContainer):
-            model_configs_namespace = self.innereye_config.__class__.__module__
-        else:
-            model_configs_namespace = self.container.__class__.__module__
         model_inference_config = ModelInferenceConfig(model_name=self.container.model_name,
-                                                      model_configs_namespace=model_configs_namespace,
+                                                      model_configs_namespace=self.config_namespace,
                                                       checkpoint_paths=relative_checkpoint_paths)
         # Inference configuration must live in the root folder of the registered model
         full_path_to_config = model_folder / fixed_paths.MODEL_INFERENCE_JSON_FILE_NAME
