@@ -4,17 +4,8 @@ steps:
   - template: store_settings.yml
 
   - bash: |
-      conda env create --file azure_runner.yml --name AzureRunner
-      pip freeze
-    failOnStderr: false
-    displayName: Create restricted Conda environment and print package list
-    # If the parameter is not set at all, this will evaluate ne('', true)
-    condition: ne('${{ parameters.use_full_conda_environment }}', true)
-
-  - bash: |
       conda env create --file environment.yml --name AzureRunner
       pip freeze
     failOnStderr: false
     displayName: Create full Conda environment and print package list
-    condition: eq('${{ parameters.use_full_conda_environment }}', true)
 

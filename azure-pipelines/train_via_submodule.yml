@@ -1,7 +1,5 @@
 steps:
   - template: azure_runner_env.yml
-    parameters:
-      use_full_conda_environment: '${{ parameters.use_full_conda_environment }}'
 
   # Create a directory structure with a runner script and the InnerEye submodule, starting training from there.
   # Then do a recovery run in AzureML to see if that works well.
