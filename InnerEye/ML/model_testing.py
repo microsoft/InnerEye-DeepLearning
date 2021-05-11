@@ -17,7 +17,7 @@ from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, PARE
 from InnerEye.Common.common_util import BEST_EPOCH_FOLDER_NAME, METRICS_AGGREGATES_FILE, ModelProcessing, \
     SUBJECT_METRICS_FILE_NAME, get_best_epoch_results_path, is_linux, logging_section
 from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME
-from InnerEye.Common.metrics_constants import MetricType, MetricsFileColumns
+from InnerEye.Common.metrics_constants import MetricType, MetricsFileColumns, LoggingColumns
 from InnerEye.ML import metrics, plotting
 from InnerEye.ML.common import ModelExecutionMode, STORED_CSV_FILE_NAMES
 from InnerEye.ML.config import DATASET_ID_FILE, GROUND_TRUTH_IDS_FILE, IMAGE_CHANNEL_IDS_FILE, SegmentationModelBase
@@ -42,6 +42,7 @@ from InnerEye.ML.utils.metrics_util import MetricsPerPatientWriter
 
 BOXPLOT_FILE = "metrics_boxplot.png"
 THUMBNAILS_FOLDER = "thumbnails"
+MODEL_OUTPUT_CSV = "model_outputs.csv"
 
 
 def model_test(config: ModelConfigBase,
@@ -409,72 +410,79 @@ def classification_model_test(config: ScalarModelBase,
     """
     posthoc_label_transform = config.get_posthoc_label_transform()
 
-    def test_epoch(checkpoint_paths: List[Path]) -> Optional[MetricsDict]:
-        pipeline = create_inference_pipeline(config=config,
-                                             checkpoint_paths=checkpoint_paths)
-
-        if pipeline is None:
-            return None
-
-        # for mypy
-        assert isinstance(pipeline, ScalarInferencePipelineBase)
-
-        ml_util.set_random_seed(config.get_effective_random_seed(), "Model Testing")
-        ds = config.get_torch_dataset_for_inference(data_split).as_data_loader(
-            shuffle=False,
-            batch_size=1,
-            num_dataload_workers=0
-        )
-
-        logging.info(f"Starting to evaluate model on {data_split.value} set.")
-        metrics_dict = create_metrics_dict_for_scalar_models(config)
-        for sample in ds:
-            result = pipeline.predict(sample)
-            model_output = result.posteriors
-            label = result.labels.to(device=model_output.device)
-            label = posthoc_label_transform(label)
-            sample_id = result.subject_ids[0]
-            compute_scalar_metrics(metrics_dict,
-                                   subject_ids=[sample_id],
-                                   model_output=model_output,
-                                   labels=label,
-                                   loss_type=config.loss_type)
-            logging.debug(f"Example {sample_id}: {metrics_dict.to_string()}")
-
-        average = metrics_dict.average(across_hues=False)
-        logging.info(average.to_string())
-
-        return metrics_dict
-
-    checkpoints_to_test = checkpoint_handler.get_checkpoints_to_test()
-
-    if not checkpoints_to_test:
+    checkpoint_paths = checkpoint_handler.get_checkpoints_to_test()
+    if not checkpoint_paths:
         raise ValueError("There were no checkpoints available for model testing.")
 
-    result = test_epoch(checkpoint_paths=checkpoints_to_test)
-    if result is None:
-        raise ValueError("There was no single checkpoint file available for model testing.")
+    pipeline = create_inference_pipeline(config=config,
+                                         checkpoint_paths=checkpoint_paths)
+    if pipeline is None:
+        raise ValueError("Inference pipeline could not be created.")
+
+    # for mypy
+    assert isinstance(pipeline, ScalarInferencePipelineBase)
+
+    ml_util.set_random_seed(config.get_effective_random_seed(), "Model Testing")
+    ds = config.get_torch_dataset_for_inference(data_split).as_data_loader(
+        shuffle=False,
+        batch_size=1,
+        num_dataload_workers=0
+    )
+
+    logging.info(f"Starting to evaluate model on {data_split.value} set.")
+    results_folder = config.outputs_folder / get_best_epoch_results_path(data_split, model_proc)
+    os.makedirs(str(results_folder), exist_ok=True)
+    metrics_dict = create_metrics_dict_for_scalar_models(config)
+    if not isinstance(config, SequenceModelBase):
+        output_logger: Optional[DataframeLogger] = DataframeLogger(csv_path=results_folder / MODEL_OUTPUT_CSV)
     else:
-        if isinstance(result, ScalarMetricsDict):
-            results_folder = config.outputs_folder / get_best_epoch_results_path(data_split, model_proc)
-            csv_file = results_folder / SUBJECT_METRICS_FILE_NAME
+        output_logger = None
 
-            logging.info(f"Writing {data_split.value} metrics to file {str(csv_file)}")
+    for sample in ds:
+        result = pipeline.predict(sample)
+        model_output = result.posteriors
+        label = result.labels.to(device=model_output.device)
+        label = posthoc_label_transform(label)
+        sample_id = result.subject_ids[0]
+        if output_logger:
+            for i in range(len(config.target_names)):
+                output_logger.add_record({LoggingColumns.Patient.value: sample_id,
+                                          LoggingColumns.Hue.value: config.target_names[i],
+                                          LoggingColumns.Label.value: label[0][i].item(),
+                                          LoggingColumns.ModelOutput.value: model_output[0][i].item(),
+                                          LoggingColumns.CrossValidationSplitIndex.value: cross_val_split_index})
 
-            # If we are running inference after a training run, the validation set metrics may have been written
-            # during train time. If this is not the case, or we are running on the test set, create the metrics
-            # file.
-            if not csv_file.exists():
-                os.makedirs(str(results_folder), exist_ok=False)
-                df_logger = DataframeLogger(csv_file)
-                # For test if ensemble split should be default, else record which fold produced this prediction
-                cv_index = DEFAULT_CROSS_VALIDATION_SPLIT_INDEX if model_proc == ModelProcessing.ENSEMBLE_CREATION \
-                    else cross_val_split_index
-                result.store_metrics_per_subject(df_logger=df_logger,
-                                                 mode=data_split,
-                                                 cross_validation_split_index=cv_index,
-                                                 epoch=BEST_EPOCH_FOLDER_NAME)
-                # write to disk
-                df_logger.flush()
+        compute_scalar_metrics(metrics_dict,
+                               subject_ids=[sample_id],
+                               model_output=model_output,
+                               labels=label,
+                               loss_type=config.loss_type)
+        logging.debug(f"Example {sample_id}: {metrics_dict.to_string()}")
 
-    return InferenceMetricsForClassification(metrics=result)
+    average = metrics_dict.average(across_hues=False)
+    logging.info(average.to_string())
+
+    if isinstance(metrics_dict, ScalarMetricsDict):
+        csv_file = results_folder / SUBJECT_METRICS_FILE_NAME
+
+        logging.info(f"Writing {data_split.value} metrics to file {str(csv_file)}")
+
+        # If we are running inference after a training run, the validation set metrics may have been written
+        # during train time. If this is not the case, or we are running on the test set, create the metrics
+        # file.
+        if not csv_file.exists():
+            df_logger = DataframeLogger(csv_file)
+            # For test if ensemble split should be default, else record which fold produced this prediction
+            cv_index = DEFAULT_CROSS_VALIDATION_SPLIT_INDEX if model_proc == ModelProcessing.ENSEMBLE_CREATION \
+                else cross_val_split_index
+            metrics_dict.store_metrics_per_subject(df_logger=df_logger,
+                                                   mode=data_split,
+                                                   cross_validation_split_index=cv_index,
+                                                   epoch=BEST_EPOCH_FOLDER_NAME)
+            # write to disk
+            df_logger.flush()
+
+    if output_logger:
+        output_logger.flush()
+
+    return InferenceMetricsForClassification(metrics=metrics_dict)

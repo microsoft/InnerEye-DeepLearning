@@ -33,6 +33,7 @@ dependencies:
       - numba==0.51.2
       - numpy==1.19.1
       - numba==0.51.2
+      - opencv-python-headless==4.5.1.48
       - pandas==1.1.0
       - papermill==2.2.2
       - param==1.9.3
@@ -60,3 +61,4 @@ dependencies:
       - tensorboard==2.3.0
       - tensorboardX==2.1
       - torchprof==1.3.3
+      - yacs==0.1.8

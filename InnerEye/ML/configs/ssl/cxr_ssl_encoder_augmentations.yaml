@@ -1,0 +1,34 @@
+preprocess:
+  center_crop_size: 224
+  resize: 256
+augmentation:
+  use_random_horizontal_flip: True
+  use_random_affine: True
+  use_random_color: True
+  use_random_crop: True
+  use_gamma_transform: True
+  use_random_erasing: True
+  add_gaussian_noise: True
+  use_elastic_transform: True
+  random_horizontal_flip:
+    prob: 0.5
+  random_erasing:
+      scale: (0.15, 0.4)
+      ratio: (0.33, 3)
+  random_affine:
+    max_angle: 180
+    max_horizontal_shift: 0.00
+    max_vertical_shift: 0.00
+    max_shear: 40
+  elastic_transform:
+    sigma: 4
+    alpha: 34
+    p_apply: 0.4
+  random_color:
+    brightness: 0.2
+    contrast: 0.2
+    saturation: 0.0
+  random_crop:
+    scale: (0.4, 1.0)
+  gaussian_noise:
+    std: 0.05

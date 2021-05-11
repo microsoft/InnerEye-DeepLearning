@@ -13,6 +13,9 @@ created.
 
 ### Added
 
+- ([#446](https://github.com/microsoft/InnerEye-DeepLearning/pull/446)) Guarding `save_outlier` so that it works when 
+institution id and series id columns are missing.
+- ([#441](https://github.com/microsoft/InnerEye-DeepLearning/pull/441)) Add script to move models from one AzureML workspace to another: `python InnerEye/Scripts/move_model.py`
 - ([#417](https://github.com/microsoft/InnerEye-DeepLearning/pull/417)) Added a generic way of adding PyTorch Lightning
 models to the toolbox. It is now possible to train almost any Lightning model with the InnerEye toolbox in AzureML,
 with only minimum code changes required. See [the MD documentation](docs/bring_your_own_model.md) for details.
@@ -59,6 +62,15 @@ with only minimum code changes required. See [the MD documentation](docs/bring_y
 challenge datasets directly to Azure blob storage.
 - ([#445](https://github.com/microsoft/InnerEye-DeepLearning/pull/445)) Adding test coverage for the `HelloContainer`
   model with multiple GPUs
+- ([#450](https://github.com/microsoft/InnerEye-DeepLearning/pull/450)) Adds the metric "Accuracy at threshold 0.5" to the classification report (`classification_crossval_report.ipynb`). 
+- ([#451](https://github.com/microsoft/InnerEye-DeepLearning/pull/451)) Write a file `model_outputs.csv` with columns 
+  `subject`, `prediction_target`, `label`, `model_output` and `cross_validation_split_index`. This file is not written out for sequence models.
+- ([#440](https://github.com/microsoft/InnerEye-DeepLearning/pull/440)) Added support for training of self-supervised
+  models (BYOL and SimCLR) based on the bring-your-own-model framework. Providing examples configurations for training
+  of SSL models on CIFAR10/100 datasets as well as for chest-x-ray datasets such as NIH CHest-Xray or RSNA Pneumonia
+  Detection Challenge datasets. See
+  [SSL doc](https://github.com/microsoft/InnerEye-DeepLearning/blob/main/docs/self_supervised_models.md) for more
+  details.
 
 ### Changed
 
@@ -72,9 +84,11 @@ challenge datasets directly to Azure blob storage.
 - ([#432](https://github.com/microsoft/InnerEye-DeepLearning/pull/432)) Upgraded to PyTorch-Lightning 1.2.7. Add
   end-to-end test for classification cross-validation. WARNING: upgrade PL version causes hanging of multi-node
   training.
-- ([#437])(https://github.com/microsoft/InnerEye-DeepLearning/pull/437)) Upgrade to PyTorch-Lightning 1.2.8.
+- ([#437](https://github.com/microsoft/InnerEye-DeepLearning/pull/437)) Upgrade to PyTorch-Lightning 1.2.8.
 - ([#439](https://github.com/microsoft/InnerEye-DeepLearning/pull/439)) Recovery checkpoints are now
   named `recovery_epoch=x.ckpt` instead of `recovery.ckpt` or `recovery-v0.ckpt`.
+- ([#451](https://github.com/microsoft/InnerEye-DeepLearning/pull/451)) Change the signature for function `generate_custom_report` 
+  in `ModelConfigBase` to take only the path to the reports folder and a `ModelProcessing` object.
 
 ### Fixed
 
@@ -92,6 +106,7 @@ challenge datasets directly to Azure blob storage.
 
 ### Removed
 - ([#439](https://github.com/microsoft/InnerEye-DeepLearning/pull/439)) Deprecated `start_epoch` config argument.
+- ([#450](https://github.com/microsoft/InnerEye-DeepLearning/pull/450)) Delete unused `classification_report.ipynb`.
 
 ### Deprecated
 

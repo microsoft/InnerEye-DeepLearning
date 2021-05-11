@@ -11,7 +11,6 @@ from time import sleep
 from typing import Any, Dict, Optional, Tuple, TypeVar
 
 import numpy as np
-import torch
 from pytorch_lightning import LightningModule, Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
@@ -122,19 +121,13 @@ def create_lightning_trainer(container: LightningContainer,
     # recovery_checkpoints_save_last_k.
     recovery_checkpoint_callback = InnerEyeRecoveryCheckpointCallback(container)
 
-    available_gpus = torch.cuda.device_count()
-    num_gpus = available_gpus if container.use_gpu else 0
-    no_gpu_message = "" if container.use_gpu else ". Not using any GPU because the use_gpu flag is set to False."
-    logging.info(f"Number of available GPUs: {available_gpus}{no_gpu_message}")
-    if 0 <= container.max_num_gpus < num_gpus:
-        num_gpus = container.max_num_gpus
-        logging.info(f"Restricting the number of GPUs to {num_gpus}")
+    num_gpus = container.num_gpus_per_node
     effective_num_gpus = num_gpus * num_nodes
-    # Accelerator should be "ddp" when training large models in AzureML (when using DDP_spawn, we get out of GPU
-    # memory). For unit tests, only "ddp_spawn" works
+    # Accelerator should be "ddp" when running large models in AzureML (when using DDP_spawn, we get out of GPU memory).
+    # For unit tests, only "ddp_spawn" works
     accelerator = "ddp" if effective_num_gpus > 1 else None
     plugins = [InnerEyeDDPPlugin(num_nodes=num_nodes, sync_batchnorm=True)] if effective_num_gpus > 1 else None
-    logging.info(f"Using {num_gpus} GPUs with accelerator '{accelerator}'")
+    logging.info(f"Using {num_gpus} GPUs per node with accelerator '{accelerator}'")
     tensorboard_logger = TensorBoardLogger(save_dir=str(container.logs_folder), name="Lightning", version="")
     loggers = [tensorboard_logger, AzureMLLogger()]
     storing_logger: Optional[StoringLogger]
@@ -155,6 +148,11 @@ def create_lightning_trainer(container: LightningContainer,
     else:
         deterministic = False
         benchmark = True
+    # If the users provides additional callbacks via get_trainer_arguments (for custom
+    # containers
+    callbacks = [best_checkpoint_callback, recovery_checkpoint_callback]
+    if "callbacks" in kwargs:
+        callbacks.append(kwargs.pop("callbacks"))  # type: ignore
     is_azureml_run = not is_offline_run_context(RUN_CONTEXT)
     progress_bar_refresh_rate = container.pl_progress_bar_refresh_rate
     if progress_bar_refresh_rate is None and is_azureml_run:
@@ -170,7 +168,7 @@ def create_lightning_trainer(container: LightningContainer,
                       accelerator=accelerator,
                       max_epochs=container.num_epochs,
                       num_sanity_val_steps=container.pl_num_sanity_val_steps,
-                      callbacks=[best_checkpoint_callback, recovery_checkpoint_callback],
+                      callbacks=callbacks,
                       logger=loggers,
                       progress_bar_refresh_rate=progress_bar_refresh_rate,
                       num_nodes=num_nodes,
@@ -319,7 +317,7 @@ def aggregate_and_create_subject_metrics_file(outputs_folder: Path) -> None:
     :param config: model config
     """
     for mode in [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL]:
-        temp_files = (outputs_folder / mode.value).rglob(SUBJECT_OUTPUT_PER_RANK_PREFIX + "*")
+        temp_files = sorted((outputs_folder / mode.value).rglob(SUBJECT_OUTPUT_PER_RANK_PREFIX + "*"))
         result_file = outputs_folder / mode.value / SUBJECT_METRICS_FILE_NAME
         with result_file.open("a") as f:
             for i, file in enumerate(temp_files):
@@ -329,7 +327,7 @@ def aggregate_and_create_subject_metrics_file(outputs_folder: Path) -> None:
                     f.write(temp_file_contents)
                 else:
                     # For all files but the first one, cut off the header line.
-                    f.write(os.linesep + os.linesep.join(temp_file_contents.splitlines()[1:]))
+                    f.write("\n".join(temp_file_contents.splitlines()[1:]))
 
 
 class InnerEyeDDPPlugin(DDPPlugin):
