@@ -4,8 +4,8 @@ steps:
   - template: store_settings.yml
 
   - bash: |
-      conda env create --file environment.yml --name AzureRunner
-      source activate AzureRunner
+      conda env create --file environment.yml --name InnerEye
+      source activate InnerEye
       pip freeze
     failOnStderr: false
     displayName: Create full Conda environment and print package list

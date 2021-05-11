@@ -48,15 +48,7 @@ from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.run_ml import MLRunner, ModelDeploymentHookSignature, PostCrossValidationHookSignature
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
-
-try:
-    # This import can fail when the code runs inside the azure_runner.yml Conda environment, that we use
-    # for the PR builds
-    from InnerEye.ML.lightning_container import LightningContainer
-
-    has_torch = True
-except ModuleNotFoundError as ex:
-    has_torch = False
+from InnerEye.ML.lightning_container import LightningContainer
 
 
 def initialize_rpdb() -> None:
@@ -171,7 +163,7 @@ class Runner:
         # Now create a parser that understands overrides at model/container level.
         parser_result = parse_overrides_and_apply(config_or_container, parser_result)
 
-        if has_torch and isinstance(config_or_container, LightningContainer):
+        if isinstance(config_or_container, LightningContainer):
             self.lightning_container = config_or_container
         elif isinstance(config_or_container, DeepLearningConfig):
             # Built-in InnerEye models: A fake container for these models will be created in MLRunner

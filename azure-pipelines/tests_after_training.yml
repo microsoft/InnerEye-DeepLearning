@@ -1,9 +1,8 @@
-# This pipeline assumes that there is a Conda environment AzureRunner already.
-# It will update AzureRunner to include all packages needed for InnerEye, run pytest, and publish the test results.
+# This pipeline assumes that there is a Conda environment InnerEye already. It will run pytest and publish the test results.
 steps:
   # The run ID of the training run is now available in most_recent_run.txt.
   - bash: |
-      source activate AzureRunner
+      source activate InnerEye
       pytest ./Tests -m "${{parameters.pytest_mark}}" --junitxml=junit/test-${{parameters.test_run_title}}.xml
     env:
       PYTHONPATH: $(Build.SourcesDirectory)
