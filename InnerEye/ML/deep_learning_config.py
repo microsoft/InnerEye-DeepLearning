@@ -454,7 +454,8 @@ class TrainerParams(param.Parameterized):
     use_mixed_precision: bool = param.Boolean(False, doc="If true, mixed precision training is activated during "
                                                          "training.")
     max_num_gpus: int = param.Integer(default=-1, doc="The maximum number of GPUS to use. If set to a value < 0, use"
-                                                      "all available GPUs.")
+                                                      "all available GPUs. In distributed training, this is the "
+                                                      "maximum number of GPUs per node.")
     pl_progress_bar_refresh_rate: Optional[int] = \
         param.Integer(default=None,
                       doc="PyTorch Lightning trainer flag 'progress_bar_refresh_rate': How often to refresh progress "
@@ -495,6 +496,7 @@ class TrainerParams(param.Parameterized):
         elif self.max_num_gpus > num_gpus:
             logging.warning(f"You requested max_num_gpus {self.max_num_gpus} but there are only {num_gpus} available.")
         return num_gpus
+
 
 class DeepLearningConfig(WorkflowParams,
                          DatasetParams,
