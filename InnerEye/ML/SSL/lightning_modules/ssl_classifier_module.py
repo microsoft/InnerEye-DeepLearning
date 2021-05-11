@@ -5,14 +5,14 @@
 from typing import Any, List, Optional
 
 import torch
+from pytorch_lightning.metrics import Metric
 from pl_bolts.models.self_supervised import SSLEvaluator
 from torch.nn import functional as F
 
 from InnerEye.ML.SSL.encoders import get_encoder_output_dim
 from InnerEye.ML.dataset.scalar_sample import ScalarItem
 from InnerEye.ML.lightning_container import LightningModuleWithOptimizer
-from InnerEye.ML.lightning_metrics import Accuracy05, AreaUnderPrecisionRecallCurve, AreaUnderRocCurve, \
-    ScalarMetricsBase
+from InnerEye.ML.lightning_metrics import Accuracy05, AreaUnderPrecisionRecallCurve, AreaUnderRocCurve
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 
 
@@ -37,9 +37,9 @@ class SSLClassifier(LightningModuleWithOptimizer, DeviceAwareModule):
                                             n_classes=num_classes,
                                             p=0.20)
         if self.num_classes == 2:
-            self.train_metrics: List[ScalarMetricsBase] = \
+            self.train_metrics: List[Metric] = \
                 [AreaUnderRocCurve(), AreaUnderPrecisionRecallCurve(), Accuracy05()]
-            self.val_metrics: List[ScalarMetricsBase] = \
+            self.val_metrics: List[Metric] = \
                 [AreaUnderRocCurve(), AreaUnderPrecisionRecallCurve(), Accuracy05()]
         else:
             # Note that for multi-class, Accuracy05 is the standard multi-class accuracy.
