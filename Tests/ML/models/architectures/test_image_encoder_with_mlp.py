@@ -269,14 +269,15 @@ def test_image_encoder_with_segmentation(test_output_dirs: OutputFolderForTests,
     # Patch the load_images function that will be called once we access a dataset item
     image_and_seg = ImageAndSegmentations[np.ndarray](images=np.zeros(scan_size, dtype=np.float32),
                                                       segmentations=np.ones(scan_size, dtype=np.uint8))
-    with mock.patch('InnerEye.ML.utils.io_util.load_image_in_known_formats', return_value=image_and_seg):
-        azure_config = get_default_azure_config()
-        azure_config.train = True
-        MLRunner(config, azure_config=azure_config).run()
-        # No further asserts here because the models are still in experimental state. Most errors would come
-        # from having invalid model architectures, which would throw runtime errors during training.
-        # Verified manually that the cross entropy on the Val set that appears during training, and the
-        # cross entropy when running on the Val set in test mode are the same.
+    with mock.patch("InnerEye.ML.deep_learning_config.is_offline_run_context", return_value=False):
+        with mock.patch('InnerEye.ML.utils.io_util.load_image_in_known_formats', return_value=image_and_seg):
+            azure_config = get_default_azure_config()
+            azure_config.train = True
+            MLRunner(config, azure_config=azure_config).run()
+            # No further asserts here because the models are still in experimental state. Most errors would come
+            # from having invalid model architectures, which would throw runtime errors during training.
+            # Verified manually that the cross entropy on the Val set that appears during training, and the
+            # cross entropy when running on the Val set in test mode are the same.
 
 
 @pytest.mark.parametrize("use_gpu", [True, False] if is_gpu_available() else [False])
