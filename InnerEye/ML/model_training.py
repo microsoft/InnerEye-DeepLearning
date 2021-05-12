@@ -141,7 +141,7 @@ def create_lightning_trainer(container: LightningContainer,
         plugins = [InnerEyeDDPPlugin(num_nodes=num_nodes, sync_batchnorm=True,
                                      find_unused_parameters=container.pl_find_unused_parameters)]
     else:
-        plugins = None
+        plugins = []
     logging.info(f"Using {num_gpus} GPUs per node with accelerator '{accelerator}'")
     tensorboard_logger = TensorBoardLogger(save_dir=str(container.logs_folder), name="Lightning", version="")
     loggers = [tensorboard_logger, AzureMLLogger()]
