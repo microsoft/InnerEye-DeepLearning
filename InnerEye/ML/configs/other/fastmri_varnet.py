@@ -108,7 +108,7 @@ class FastMri(LightningContainer):
         if dataset_cache.is_file():
             # There is no easy way of overriding the location of the dataset cache file in the
             # constructor of FastMriDataModule. Hence, copy from dataset folder to current working directory.
-            logging.info("Copying the dataset cache file to the current working directory.")
+            logging.info("Copying a pre-computed dataset cache file to the current working directory.")
             shutil.copy(dataset_cache, Path.cwd() / DATASET_CACHE)
         else:
             logging.info("No dataset cache file found in the dataset folder.")
