@@ -10,13 +10,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import param
 
+from InnerEye.ML.augmentations.augmentation_for_segmentation_utils import slicers_for_random_crop
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.dataset.cropping_dataset import CroppingDataset
 from InnerEye.ML.dataset.full_image_dataset import FullImageDataset
 from InnerEye.ML.dataset.sample import Sample
 from InnerEye.ML.plotting import resize_and_save, scan_with_transparent_overlay
-from InnerEye.ML.utils import augmentation, io_util
+from InnerEye.ML.utils import io_util
 # The name of the folder inside the default outputs folder that will holds plots that show the effect of
 # sampling random patches
 from InnerEye.ML.utils.image_util import get_unit_image_header
@@ -60,9 +61,9 @@ def visualize_random_crops(sample: Sample,
     # Nifti file of that datatype.
     repeats = 200
     for _ in range(repeats):
-        slicers, _ = augmentation.slicers_for_random_crop(sample=sample,
-                                                          crop_size=config.crop_size,
-                                                          class_weights=config.class_weights)
+        slicers, _ = slicers_for_random_crop(sample=sample,
+                                                      crop_size=config.crop_size,
+                                                      class_weights=config.class_weights)
         heatmap[slicers[0], slicers[1], slicers[2]] += 1
     is_3dim = heatmap.shape[0] > 1
     header = sample.metadata.image_header
