@@ -4,7 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 import random
 from abc import abstractmethod
-from typing import Any, List, Tuple
+from typing import Any, List, Tuple, Union
 
 import PIL
 import numpy as np
@@ -12,16 +12,13 @@ import torch
 import torchvision
 from scipy.ndimage import gaussian_filter, map_coordinates
 from torchvision.transforms import functional as F
-from yacs.config import CfgNode
-
-import InnerEye.ML
 
 
 class ImageTransformBase:
     def __init__(self, *args, **kwargs):
         pass
 
-    def draw_transform(self,  input_size: List[int]) -> List[int]:
+    def draw_transform(self, input_size: List[int]) -> List[int]:
         """
         This function should implement how to shuffle the transform_pipeline parameters
 
@@ -43,27 +40,30 @@ class ImageTransformBase:
 
 
 class CenterCrop(ImageTransformBase):
-    def __init__(self, config: CfgNode) -> None:
+    def __init__(self, center_crop_size: int) -> None:
         super().__init__()
-        self.center_crop_size = config.preprocess.center_crop_size
+        self.center_crop_size = center_crop_size
 
     def __call__(self, image: PIL.Image.Image) -> PIL.Image:
         return torchvision.transforms.CenterCrop(self.center_crop_size)(image)
 
 
 class RandomResizeCrop(ImageTransformBase):
-    def __init__(self, config: CfgNode) -> None:
+    def __init__(self,
+                 random_crop_scale: Tuple[float, float],
+                 resize_size: Union[int, Tuple[int, int]]) -> None:
         super().__init__()
-        self.size = config.preprocess.resize
+        self.size = resize_size
         self._transform_generator = torchvision.transforms.RandomResizedCrop(
             size=self.size,
-            scale=config.augmentation.random_crop.scale)
+            scale=random_crop_scale)
 
-    def draw_transform(self,  input_size: List[int]) -> List[int]:
+    def draw_transform(self, input_size: List[int]) -> List[int]:
         self.params = self._transform_generator.get_params(torch.zeros(input_size),
                                                            self._transform_generator.scale,
                                                            self._transform_generator.ratio)
-        size = F._get_image_size(F.resized_crop(PIL.Image.fromarray(np.ones(input_size[1:])), *self.params, self.size))
+        size = F._get_image_size(F.resized_crop(
+            PIL.Image.fromarray(np.ones(input_size[1:])), *self.params, self.size))
         return [input_size[0], size[1], size[0]]  # Returns [C, new_width, new_height]
 
     def __call__(self, image: PIL.Image.Image) -> Any:
@@ -71,18 +71,22 @@ class RandomResizeCrop(ImageTransformBase):
 
 
 class RandomAffine(ImageTransformBase):
-    def __init__(self, config: CfgNode) -> None:
+    def __init__(self,
+                 max_angle: int,
+                 max_horizontal_shift: float,
+                 max_vertical_shift: float,
+                 max_shear: int) -> None:
         super().__init__()
-        self.max_angle = config.augmentation.random_affine.max_angle
-        self.max_horizontal_shift = config.augmentation.random_affine.max_horizontal_shift
-        self.max_vertical_shift = config.augmentation.random_affine.max_vertical_shift
-        self.max_shear = config.augmentation.random_affine.max_shear
+        self.max_angle = max_angle
+        self.max_horizontal_shift = max_horizontal_shift
+        self.max_vertical_shift = max_vertical_shift
+        self.max_shear = max_shear
         self._transform_generator = torchvision.transforms.RandomAffine(degrees=self.max_angle,
                                                                         translate=(self.max_horizontal_shift,
                                                                                    self.max_vertical_shift),
                                                                         shear=self.max_shear)
 
-    def draw_transform(self,  input_size: List[int]) -> List[int]:
+    def draw_transform(self, input_size: List[int]) -> List[int]:
         self._current_params = self._transform_generator.get_params(self._transform_generator.degrees,
                                                                     self._transform_generator.translate,
                                                                     self._transform_generator.scale,
@@ -95,9 +99,9 @@ class RandomAffine(ImageTransformBase):
 
 
 class RandomHorizontalFlip(ImageTransformBase):
-    def __init__(self, config: CfgNode) -> None:
+    def __init__(self, p_apply: float) -> None:
         super().__init__()
-        self.p_apply = config.augmentation.random_horizontal_flip.prob
+        self.p_apply = p_apply
 
     def draw_transform(self, input_size: List[int]) -> List[int]:
         self.apply_flip = torch.rand(1).data < self.p_apply
@@ -110,11 +114,13 @@ class RandomHorizontalFlip(ImageTransformBase):
 
 
 class Resize(ImageTransformBase):
-    def __init__(self, config: CfgNode) -> None:
+    def __init__(self, resize_size: Union[Tuple[int, int], int]) -> None:
         super().__init__()
-        self.resize_size = config.preprocess.resize
+        self.resize_size = resize_size
 
     def draw_transform(self, input_size: List[int]) -> List[int]:
+        if isinstance(self.resize_size, Tuple):
+            return [input_size[0], self.resize_size[0], self.resize_size[1]]
         return [input_size[0], self.resize_size, self.resize_size]
 
     def __call__(self, img: PIL.Image.Image) -> PIL.Image.Image:
@@ -122,12 +128,16 @@ class Resize(ImageTransformBase):
 
 
 class RandomColorJitter(ImageTransformBase):
-    def __init__(self, config: CfgNode) -> None:
+    def __init__(self,
+                 max_brightness: float,
+                 max_contrast: float,
+                 max_saturation: float
+                 ) -> None:
         super().__init__()
         self._transform_generator = torchvision.transforms.ColorJitter(
-            brightness=config.augmentation.random_color.brightness,
-            contrast=config.augmentation.random_color.contrast,
-            saturation=config.augmentation.random_color.saturation)
+            brightness=max_brightness,
+            contrast=max_contrast,
+            saturation=max_saturation)
 
     def draw_transform(self, input_size: List[int]) -> List[int]:
         self.params = self._transform_generator.get_params(self._transform_generator.brightness,
@@ -149,10 +159,13 @@ class RandomColorJitter(ImageTransformBase):
 
 
 class RandomErasing(ImageTransformBase):
-    def __init__(self, config: CfgNode) -> None:
+    def __init__(self,
+                 scale: Tuple[float, float],
+                 ratio: Tuple[float, float]
+                 ) -> None:
         super().__init__()
-        self.scale = config.augmentation.random_erasing.scale
-        self.ratio = config.augmentation.random_erasing.ratio
+        self.scale = scale
+        self.ratio = ratio
         self.p_apply = 0.5
         self._transform_generator = torchvision.transforms.RandomErasing(scale=self.scale, ratio=self.ratio)
 
@@ -172,9 +185,9 @@ class RandomErasing(ImageTransformBase):
 
 class RandomGamma(ImageTransformBase):
 
-    def __init__(self, config: CfgNode) -> None:
+    def __init__(self, scale: Tuple[float, float]) -> None:
         super().__init__()
-        self.scale = config.augmentation.gamma.scale
+        self.scale = scale
 
     def draw_transform(self, input_size: List[int]) -> List[int]:
         self.gamma = random.uniform(*self.scale)
@@ -198,11 +211,14 @@ class ElasticTransform(ImageTransformBase):
         :param p_apply: probability of applying the transformation
     """
 
-    def __init__(self, config: CfgNode) -> None:
+    def __init__(self,
+                 sigma: float,
+                 alpha: float,
+                 p_apply: float) -> None:
         super().__init__()
-        self.alpha = config.augmentation.elastic_transform.alpha
-        self.sigma = config.augmentation.elastic_transform.sigma
-        self.p_apply = config.augmentation.elastic_transform.p_apply
+        self.alpha = alpha
+        self.sigma = sigma
+        self.p_apply = p_apply
 
     def draw_transform(self, input_size: List[int]) -> List[int]:
         self.dx_pertubation = np.random.random(input_size) * 2 - 1
@@ -243,15 +259,18 @@ class ExpandChannels(ImageTransformBase):
 
 class AddGaussianNoise(ImageTransformBase):
 
-    def __init__(self, config: CfgNode) -> None:
+    def __init__(self,
+                 p_apply: float,
+                 std: float,
+                 ) -> None:
         """
         Transformation to add Gaussian noise N(0, std) to an image. Where std is set with the
         config.augmentation.gaussian_noise.std argument. The transformation will be applied with probability
         config.augmentation.gaussian_noise.p_apply
         """
         super().__init__()
-        self.p_apply = config.augmentation.gaussian_noise.p_apply
-        self.std = config.augmentation.gaussian_noise.std
+        self.p_apply = p_apply
+        self.std = std
 
     def draw_transform(self, input_size: List[int]) -> List[int]:
         self.apply = torch.rand(1).data < self.p_apply

@@ -140,26 +140,54 @@ def create_transform_pipeline_from_config(config: CfgNode,
     transforms: List[Any] = []
     if apply_augmentations:
         if config.augmentation.use_random_affine:
-            transforms.append(RandomAffine(config))
+            transforms.append(RandomAffine(
+                max_angle=config.augmentation.random_affine.max_angle,
+                max_horizontal_shift=config.augmentation.random_affine.max_horizontal_shift,
+                max_vertical_shift=config.augmentation.random_affine.max_vertical_shift,
+                max_shear=config.augmentation.random_affine.max_shear
+            ))
         if config.augmentation.use_random_crop:
-            transforms.append(RandomResizeCrop(config))
+            transforms.append(RandomResizeCrop(
+                random_crop_scale=config.augmentation.random_crop.scale,
+                resize_size=config.preprocess.resize
+            ))
         else:
-            transforms.append(Resize(config))
+            transforms.append(Resize(
+                resize_size=config.preprocess.resize
+            ))
         if config.augmentation.use_random_horizontal_flip:
-            transforms.append(RandomHorizontalFlip(config))
+            transforms.append(RandomHorizontalFlip(
+                p_apply=config.augmentation.random_horizontal_flip.prob
+            ))
         if config.augmentation.use_gamma_transform:
-            transforms.append(RandomGamma(config))
+            transforms.append(RandomGamma(
+                scale=config.augmentation.gamma.scale
+            ))
         if config.augmentation.use_random_color:
-            transforms.append(RandomColorJitter(config))
+            transforms.append(RandomColorJitter(
+                max_brightness=config.augmentation.random_color.brightness,
+                max_contrast=config.augmentation.random_color.contrast,
+                max_saturation=config.augmentation.random_color.saturation
+            ))
         if config.augmentation.use_elastic_transform:
-            transforms.append(ElasticTransform(config))
-        transforms += [CenterCrop(config), ToTensor()]
-        if config.augmentation.use_random_erasing:
-            transforms.append(RandomErasing(config))
-        if config.augmentation.add_gaussian_noise:
-            transforms.append(AddGaussianNoise(config))
-    else:
-        transforms += [Resize(config), CenterCrop(config), ToTensor()]
-    transforms.append(ExpandChannels())
-    pipeline = ImageTransformationPipeline(transforms=transforms)
+            transforms.append(ElasticTransform(
+                alpha=config.augmentation.elastic_transform.alpha,
+                sigma=config.augmentation.elastic_transform.sigma,
+                p_apply=config.augmentation.elastic_transform.p_apply
+            ))
+            transforms += [CenterCrop(config.preprocess.center_crop_size),
+                           ToTensor()]
+            if config.augmentation.use_random_erasing:
+                transforms.append(RandomErasing(
+                    scale=config.augmentation.random_erasing.scale,
+                    ratio=config.augmentation.random_erasing.ratio))
+            if config.augmentation.add_gaussian_noise:
+                transforms.append(AddGaussianNoise(p_apply=config.augmentation.gaussian_noise.p_apply,
+                                                   std=config.augmentation.gaussian_noise.std))
+            else:
+                transforms += [Resize(resize_size=config.preprocess.resize),
+                               CenterCrop(config.preprocess.center_crop_size),
+                               ToTensor()]
+            transforms.append(ExpandChannels())
+            pipeline = ImageTransformationPipeline(transforms=transforms)
     return pipeline
