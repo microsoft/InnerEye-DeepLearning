@@ -18,8 +18,14 @@ from Tests.SSL.test_data_modules import cxr_augmentation_config
 
 import numpy as np
 
+# TODO
+# Add a test for initialization of pipeline directly from a list of configs. Same as below but simpler maybe.
+# Need a test with actually 4D inputs.
+# Need a test for RBG images and join_channel transforms
+# Need to test throws an error if use_joint_transform and the image is not RGB or 1-channel
+# Need to test if use same transform for all channels and use one transform per channel works as expected
 
-def test_create_transform_pipeline() -> None:
+def test_create_transform_pipeline_from_config() -> None:
     """
     Tests that the pipeline returned by create_transform_pipeline_from_config returns the expected transformation.
     """
