@@ -28,7 +28,7 @@ if not runner_path.is_absolute():
     sys.argv[0] = str(runner_path.absolute())
 
 import logging
-from typing import Any, List, Optional, Tuple
+from typing import Optional, Tuple
 
 from azureml._base_sdk_common import user_agent
 from azureml.core import Run
@@ -45,6 +45,7 @@ from InnerEye.Common.common_util import FULL_METRICS_DATAFRAME_FILE, METRICS_AGG
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
+from InnerEye.ML.lightning_base import InnerEyeContainer
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.run_ml import MLRunner, ModelDeploymentHookSignature, PostCrossValidationHookSignature
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
@@ -116,8 +117,7 @@ class Runner:
         # parsed.
         self.model_config: Optional[DeepLearningConfig] = None
         self.azure_config: AzureConfig = AzureConfig()
-        # This should be typed as LightningContainer, but we don't always have that imported
-        self.lightning_container: Any = None
+        self.lightning_container: LightningContainer = None  # type: ignore
 
     def parse_and_load_model(self) -> ParserResult:
         """
@@ -165,9 +165,10 @@ class Runner:
 
         if isinstance(config_or_container, LightningContainer):
             self.lightning_container = config_or_container
-        elif isinstance(config_or_container, DeepLearningConfig):
-            # Built-in InnerEye models: A fake container for these models will be created in MLRunner
+        elif isinstance(config_or_container, ModelConfigBase):
+            # Built-in InnerEye models use a fake container
             self.model_config = config_or_container
+            self.lightning_container = InnerEyeContainer(config_or_container)
         else:
             raise ValueError(f"Don't know how to handle a loaded configuration of type {type(config_or_container)}")
         if azure_config.extra_code_directory:
@@ -176,42 +177,6 @@ class Runner:
         else:
             logging.info("extra_code_directory is unset")
         return parser_result
-
-    def _get_property_from_config_or_container(self, name: str) -> Any:
-        """
-        Reads out a property or attribute from either the model configuration (if that is a built-in InnerEye
-        model) or the lightning container.
-        :param name: The name of the property to read.
-        :return: The property value, coming from either the model config or the container.
-        """
-        if isinstance(self.model_config, DeepLearningConfig):
-            return getattr(self.model_config, name)
-        elif self.lightning_container is not None:
-            return getattr(self.lightning_container, name)
-        else:
-            raise ValueError(f"Did not expect config of type {type(self.model_config)} and container of type "
-                             f"{type(self.lightning_container)}")
-
-    @property
-    def perform_cross_validation(self) -> bool:
-        """
-        Returns True if cross validation will be be performed as part of the training procedure.
-        """
-        return self._get_property_from_config_or_container("perform_cross_validation")
-
-    @property
-    def azure_dataset_id(self) -> str:
-        """
-        Returns the name of the Azure dataset that should be used.
-        """
-        return self._get_property_from_config_or_container("azure_dataset_id")
-
-    @property
-    def extra_azure_dataset_ids(self) -> List[str]:
-        """
-        Returns the name of the Azure dataset that should be used.
-        """
-        return self._get_property_from_config_or_container("extra_azure_dataset_ids")
 
     def run(self) -> Tuple[Optional[DeepLearningConfig], Optional[Run]]:
         """
@@ -226,8 +191,8 @@ class Runner:
         initialize_rpdb()
         user_agent.append(azure_util.INNEREYE_SDK_NAME, azure_util.INNEREYE_SDK_VERSION)
         self.parse_and_load_model()
-        if self.perform_cross_validation:
-            if self.lightning_container is not None:
+        if self.lightning_container.perform_cross_validation:
+            if self.model_config is None:
                 raise NotImplementedError("Cross validation for LightingContainer models is not yet supported.")
             # force hyperdrive usage if performing cross validation
             self.azure_config.hyperdrive = True
@@ -251,7 +216,7 @@ class Runner:
         logging.getLogger('azure').setLevel(logging.WARNING)
         # PyJWT prints out warnings that are beyond our control
         warnings.filterwarnings("ignore", category=DeprecationWarning)
-        if isinstance(self.model_config, DeepLearningConfig) and not self.azure_dataset_id:
+        if isinstance(self.model_config, DeepLearningConfig) and not self.lightning_container.azure_dataset_id:
             raise ValueError("When running an InnerEye built-in model in AzureML, the 'azure_dataset_id' "
                              "property must be set.")
         hyperdrive_func = lambda run_config: self.model_config.get_hyperdrive_config(run_config)  # type: ignore
@@ -264,8 +229,9 @@ class Runner:
             upload_timeout_seconds=86400,
         )
         source_config.set_script_params_except_submit_flag()
-        azure_run = submit_to_azureml(self.azure_config, source_config, self.azure_dataset_id,
-                                      self.extra_azure_dataset_ids)
+        azure_run = submit_to_azureml(self.azure_config, source_config,
+                                      self.lightning_container.all_azure_dataset_ids(),
+                                      self.lightning_container.all_dataset_mountpoints())
         logging.info("Job submission to AzureML done.")
         if self.azure_config.pytest_mark and self.azure_config.wait_for_completion:
             # The AzureML job can optionally run pytest. Attempt to download it to the current directory.

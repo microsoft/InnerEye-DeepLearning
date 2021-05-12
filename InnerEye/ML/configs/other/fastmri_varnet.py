@@ -6,6 +6,8 @@
 # Suppress all errors here because the imports after code cause loads of warnings. We can't specifically suppress
 # individual warnings only.
 # flake8: noqa
+import logging
+import shutil
 from pathlib import Path
 from typing import Optional
 
@@ -22,6 +24,9 @@ add_folder_to_sys_path_if_needed("fastMRI")
 from fastmri.data.subsample import create_mask_for_mask_type
 from fastmri.data.transforms import VarNetDataTransform
 from fastmri.pl_modules import FastMriDataModule, VarNetModule
+
+# The name of the dataset cache file that the fastMRI codebase generates
+DATASET_CACHE = "dataset_cache.pkl"
 
 
 class VarNetWithImageLogging(VarNetModule):
@@ -97,6 +102,17 @@ class FastMri(LightningContainer):
     def create_model(self) -> LightningModule:
         return VarNetWithImageLogging()
 
+    def before_training_on_local_rank_zero(self) -> None:
+        assert self.local_dataset, "No dataset is available yet."
+        dataset_cache = self.local_dataset / DATASET_CACHE
+        if dataset_cache.is_file():
+            # There is no easy way of overriding the location of the dataset cache file in the
+            # constructor of FastMriDataModule. Hence, copy from dataset folder to current working directory.
+            logging.info("Copying the dataset cache file to the current working directory.")
+            shutil.copy(dataset_cache, Path.cwd() / DATASET_CACHE)
+        else:
+            logging.info("No dataset cache file found in the dataset folder.")
+
 
 class KneeMulticoil(FastMri):
     """
@@ -140,6 +156,9 @@ class BrainMulticoil(FastMri):
     def __init__(self) -> None:
         super().__init__()
         self.azure_dataset_id = "brain_multicoil"
+        # If the Azure nodes run out of disk space when downloading the dataset, re-submit with the
+        # --use_dataset_mount=True flag. The dataset will be mounted to the fixed path given here.
+        self.dataset_mountpoint = "/tmp/fastmri"
 
     def get_data_module(self) -> LightningDataModule:
         return get_data_module(azure_dataset_id=self.azure_dataset_id,

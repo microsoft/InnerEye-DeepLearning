@@ -33,6 +33,8 @@ jobs:
     variables:
       - name: tag
         value: 'TrainBasicModel'
+      - name: more_switches
+        value: '--log_level=DEBUG --use_dataset_mount=True'
     pool:
       vmImage: 'ubuntu-18.04'
     steps:

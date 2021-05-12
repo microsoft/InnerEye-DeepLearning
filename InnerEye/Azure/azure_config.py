@@ -12,8 +12,10 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import param
-from azureml.core import Run, ScriptRunConfig, Workspace
+from azureml.core import Dataset, Datastore, Run, ScriptRunConfig, Workspace
 from azureml.core.authentication import InteractiveLoginAuthentication, ServicePrincipalAuthentication
+from azureml.data import FileDataset
+from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.train.hyperdrive import HyperDriveConfig
 from git import Repo
 
@@ -24,6 +26,8 @@ from InnerEye.Common.generic_parsing import GenericConfig
 
 # The name of the "azureml" property of AzureConfig
 AZURECONFIG_SUBMIT_TO_AZUREML = "azureml"
+
+INPUT_DATA_KEY = "input_data"
 
 
 @dataclass(frozen=True)
@@ -241,6 +245,67 @@ class AzureConfig(GenericConfig):
         :param run_recovery_id: A run recovery ID (format experiment_name:run_id)
         """
         return fetch_run(workspace=self.get_workspace(), run_recovery_id=run_recovery_id)
+
+    def get_or_create_dataset(self, azure_dataset_id: str) -> FileDataset:
+        """
+        Looks in the AzureML datastore for a dataset of the given name. If there is no such dataset, a dataset is
+        created and registered, assuming that the files are in a folder that has the same name as the dataset.
+        For example, if azure_dataset_id is 'foo', then the 'foo' dataset should be pointing to the folder
+        <container_root>/datasets/foo
+
+        WARNING: the behaviour of Dataset.File.from_files, used below, is idiosyncratic. For example,
+        if "mydataset" storage has two "foo..." subdirectories each containing
+        a file dataset.csv and a directory ABC,
+
+        datastore = Datastore.get(workspace, "mydataset")
+        # This dataset has the file(s) in foo-bar01 at top level, e.g. dataset.csv
+        ds1 = Dataset.File.from_files([(datastore, "foo-bar01/*")])
+        # This dataset has two directories at top level, each with a name matching foo-bar*, and each
+        # containing dataset.csv.
+        ds2 = Dataset.File.from_files([(datastore, "foo-bar*/*")])
+        # This dataset contains a single directory "mydataset" at top level, containing a subdirectory
+        # foo-bar01, containing dataset.csv and (part of) ABC.
+        ds3 = Dataset.File.from_files([(datastore, "foo-bar01/*"),
+                                       (datastore, "foo-bar01/ABC/abc_files/*/*.nii.gz")])
+
+        These behaviours can be verified by calling "ds.download()" on each dataset ds.
+        """
+        if not self.azureml_datastore:
+            raise ValueError("No value set for 'azureml_datastore' (name of the datastore in the AzureML workspace)")
+        logging.info(f"Retrieving datastore '{self.azureml_datastore}' from AzureML workspace")
+        workspace = self.get_workspace()
+        datastore = Datastore.get(workspace, self.azureml_datastore)
+        try:
+            logging.info(f"Trying to retrieve AzureML Dataset '{azure_dataset_id}'")
+            azureml_dataset = Dataset.get_by_name(workspace, name=azure_dataset_id)
+            logging.info("Dataset found.")
+        except:
+            logging.info(f"Dataset does not yet exist, creating a new one from data in folder '{azure_dataset_id}'")
+            # See WARNING above before changing the from_files call!
+            azureml_dataset = Dataset.File.from_files([(datastore, azure_dataset_id)])
+            logging.info("Registering the dataset for future use.")
+            azureml_dataset.register(workspace, name=azure_dataset_id)
+        return azureml_dataset
+
+    def get_dataset_consumption(self,
+                                azure_dataset_id: str,
+                                dataset_index: int,
+                                mountpoint: str) -> DatasetConsumptionConfig:
+        """
+        Creates a configuration for using an AzureML dataset inside of an AzureML run. This will make the AzureML
+        dataset with given name available as a named input, using INPUT_DATA_KEY as the key.
+        :param mountpoint: The path at which the dataset should be mounted, if using dataset mounting rather than
+        downloading.
+        :param azure_dataset_id: The name of the dataset in blob storage to be used for this run. This can be an empty
+        string to not use any datasets.
+        :param dataset_index: suffix for the dataset name, dataset name will be set to INPUT_DATA_KEY_idx
+        """
+        azureml_dataset = self.get_or_create_dataset(azure_dataset_id=azure_dataset_id)
+        if not azureml_dataset:
+            raise ValueError(f"AzureML dataset {azure_dataset_id} could not be found or created.")
+        named_input = azureml_dataset.as_named_input(f"{INPUT_DATA_KEY}_{dataset_index}")
+        path_on_compute = mountpoint or None
+        return named_input.as_mount(path_on_compute) if self.use_dataset_mount else named_input.as_download()
 
 
 @dataclass

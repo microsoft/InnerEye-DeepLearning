@@ -118,5 +118,19 @@ The InnerEye toolbox has a way of working around that problem, by mounting the d
 downloading it at the start of the job. You can trigger this behaviour by supplying an additional commandline argument
 `--use_dataset_mount=True`, for example:
 ```shell script
-python InnerEye/ML/runner.py --model KneeMulticoil --azureml=True --num_nodes=4 --use_dataset_mount=True
+python InnerEye/ML/runner.py --model BrainMulticoil --azureml=True --num_nodes=4 --use_dataset_mount=True
 ```
+With this flag, the InnerEye training script will start immediately, without downloading data beforehand. 
+However, the fastMRI data module generates a cache file before training, and to build that, it needs to traverse the 
+full dataset. This will lead to a long (1-2 hours) startup time before starting the first epoch, while it is
+creating this cache file. This can be avoided
+by copying the cache file from a previous run into to the dataset folder. More specifically, you need to follow these
+steps:
+* Start a training job, training for only 1 epoch, like 
+`python InnerEye/ML/runner.py --model BrainMulticoil --azureml=True --use_dataset_mount=True --num_epochs=1`
+* Wait until the job starts training the first epoch. Then navigate to the "Outputs" section of the job in AzureML
+* You should see a file `dataset_cache.pkl` that has been produced by the job. Download that file.
+* Upload the file `dataset_cache.pkl` to the storage account that holds the fastMRI datasets, in the `brain_multicoil` 
+folder that the Azure Data Factory created. You can do that via the Azure Portal, or Azure Storage Explorer.
+* Start the training job again, this time you can start multi-node training right away, like this:
+`python InnerEye/ML/runner.py --model BrainMulticoil --azureml=True --use_dataset_mount=True --num_nodes=8`

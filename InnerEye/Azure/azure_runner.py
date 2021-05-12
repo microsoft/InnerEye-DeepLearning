@@ -14,12 +14,9 @@ from datetime import date
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from azureml.core import Dataset, Environment, Experiment, Run, ScriptRunConfig
-from azureml.core.datastore import Datastore
+from azureml.core import Environment, Experiment, Run, ScriptRunConfig
 from azureml.core.runconfig import MpiConfiguration, RunConfiguration
 from azureml.core.workspace import WORKSPACE_DEFAULT_BLOB_STORE_NAME
-from azureml.data import FileDataset
-from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 
 from InnerEye.Azure import azure_util
 from InnerEye.Azure.azure_config import AzureConfig, ParserResult, SourceConfig
@@ -32,7 +29,6 @@ from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
 
 SLEEP_TIME_SECONDS = 30
-INPUT_DATA_KEY = "input_data"
 
 RUN_RECOVERY_FILE = "most_recent_run.txt"
 # The version to use when creating an AzureML Python environment. We create all environments with a unique hashed
@@ -52,17 +48,17 @@ ENV_LOCAL_RANK = "LOCAL_RANK"
 
 def submit_to_azureml(azure_config: AzureConfig,
                       source_config: SourceConfig,
-                      azure_dataset_id: str,
-                      extra_azure_dataset_ids: List[str]) -> Run:
+                      all_azure_dataset_ids: List[str],
+                      all_dataset_mountpoints: List[str]) -> Run:
     """
-    The main entry point. It creates an AzureML workspace if needed, submits an experiment using the code
+    The main entry point when submitting the runner script to AzureML.
+    It creates an AzureML workspace if needed, submits an experiment using the code
     as specified in source_config, and waits for completion if needed.
     :param azure_config: azure related configurations to setup valid workspace
     :param source_config: The information about which code should be submitted, and which arguments should be used.
-    :param azure_dataset_id: The name of the dataset on blob storage to be used for this run.
-    :param extra_azure_dataset_ids: A list of additional dataset names on blob storage to be used for this run. This
-    will be ignore for InnerEyeContainer models, may only be used by custom LightningContainer (see bring your own model
-    and self-supervised training documentation).
+    :param all_azure_dataset_ids: The name of all datasets on blob storage that will be used for this run.
+    :param all_dataset_mountpoints: When using mounted datasets in AzureML, these are the per-dataset mount points.
+    The list must have the same length as all_azure_dataset_ids.
     """
     azure_run: Optional[Run] = None
 
@@ -79,7 +75,9 @@ def submit_to_azureml(azure_config: AzureConfig,
     for s in [signal.SIGINT, signal.SIGTERM]:
         signal.signal(s, interrupt_handler)
     # create train/test experiment
-    azure_run = create_and_submit_experiment(azure_config, source_config, azure_dataset_id, extra_azure_dataset_ids)
+    script_run_config = create_run_config(azure_config, source_config, all_azure_dataset_ids, all_dataset_mountpoints)
+    commandline_args = " ".join(source_config.script_params)
+    azure_run = create_and_submit_experiment(azure_config, script_run_config, commandline_args=commandline_args)
 
     if azure_config.wait_for_completion:
         # We want the job output to be visible on the console, but the program should not exit if the
@@ -131,25 +129,20 @@ def create_experiment_name(azure_config: AzureConfig) -> str:
     return branch or getpass.getuser() + f"_local_branch_{date.today().strftime('%Y%m')}"
 
 
-def create_and_submit_experiment(
-        azure_config: AzureConfig,
-        source_config: SourceConfig,
-        azure_dataset_id: str,
-        extra_azure_dataset_ids: List[str]) -> Run:
+def create_and_submit_experiment(azure_config: AzureConfig,
+                                 script_run_config: ScriptRunConfig,
+                                 commandline_args: str) -> Run:
     """
     Creates an AzureML experiment in the workspace and submits it for execution.
-    :param azure_config: azure related configurations to setup valid workspace
-    :param source_config: The information about which code should be submitted, and which arguments should be used.
-    :param azure_dataset_id: The name of the dataset in blob storage to be used for this run.
-    :param extra_azure_dataset_ids: A list of additional dataset names on blob storage to be used for this run. This
-    will be ignore for InnerEyeContainer models, may only be used by custom LightningContainer (see bring your own model
-    and self-supervised training documentation).
+    :param azure_config: azure related configurations to setup a valid workspace.
+    :param script_run_config: The configuration for the script that should be run inside of AzureML.
+    :param commandline_args: A string with all commandline arguments that were provided to the runner. These are only
+    used to set a tag on the submitted AzureML run.
     :returns: Run object for the submitted AzureML run
     """
     workspace = azure_config.get_workspace()
     experiment_name = create_experiment_name(azure_config)
     exp = Experiment(workspace=workspace, name=azure_util.to_azure_friendly_string(experiment_name))
-    script_run_config = create_run_config(azure_config, source_config, azure_dataset_id, extra_azure_dataset_ids)
 
     # submit a training/testing run associated with the experiment
     run: Run = exp.submit(script_run_config)
@@ -159,7 +152,7 @@ def create_and_submit_experiment(
         return run
 
     # Set metadata for the run.
-    set_run_tags(run, azure_config, commandline_args=(" ".join(source_config.script_params)))
+    set_run_tags(run, azure_config, commandline_args=commandline_args)
 
     print("\n==============================================================================")
     print(f"Successfully queued new run {run.id} in experiment: {exp.name}")
@@ -187,48 +180,6 @@ def create_and_submit_experiment(
               f"InnerEye/Azure/tensorboard_monitor.py --run_ids={run.id}")
         print("==============================================================================")
     return run
-
-
-def get_or_create_dataset(azure_config: AzureConfig,
-                          azure_dataset_id: str) -> FileDataset:
-    """
-    Looks in the AzureML datastore for a dataset of the given name. If there is no such dataset, a dataset is created
-    and registered, assuming that the files are in a folder that has the same name as the dataset. For example, if
-    azure_dataset_id is 'foo', then the 'foo' dataset is pointing to <container_root>/datasets/foo folder.
-
-    WARNING: the behaviour of Dataset.File.from_files, used below, is idiosyncratic. For example,
-    if "mydataset" storage has two "foo..." subdirectories each containing
-    a file dataset.csv and a directory ABC,
-
-    datastore = Datastore.get(workspace, "mydataset")
-    # This dataset has the file(s) in foo-bar01 at top level, e.g. dataset.csv
-    ds1 = Dataset.File.from_files([(datastore, "foo-bar01/*")])
-    # This dataset has two directories at top level, each with a name matching foo-bar*, and each
-    # containing dataset.csv.
-    ds2 = Dataset.File.from_files([(datastore, "foo-bar*/*")])
-    # This dataset contains a single directory "mydataset" at top level, containing a subdirectory
-    # foo-bar01, containing dataset.csv and (part of) ABC.
-    ds3 = Dataset.File.from_files([(datastore, "foo-bar01/*"),
-                                   (datastore, "foo-bar01/ABC/abc_files/*/*.nii.gz")])
-
-    These behaviours can be verified by calling "ds.download()" on each dataset ds.
-    """
-    if not azure_config.azureml_datastore:
-        raise ValueError("No value set for 'azureml_datastore' (name of the datastore in the AzureML workspace)")
-    logging.info(f"Retrieving datastore '{azure_config.azureml_datastore}' from AzureML workspace")
-    workspace = azure_config.get_workspace()
-    datastore = Datastore.get(workspace, azure_config.azureml_datastore)
-    try:
-        logging.info(f"Trying to retrieve AzureML Dataset '{azure_dataset_id}'")
-        azureml_dataset = Dataset.get_by_name(workspace, name=azure_dataset_id)
-        logging.info("Dataset found.")
-    except:
-        logging.info(f"Dataset does not yet exist, creating a new one from data in folder '{azure_dataset_id}'")
-        # See WARNING above before changing the from_files call!
-        azureml_dataset = Dataset.File.from_files([(datastore, azure_dataset_id)])
-        logging.info("Registering the dataset for future use.")
-        azureml_dataset.register(workspace, name=azure_dataset_id)
-    return azureml_dataset
 
 
 def get_or_create_python_environment(azure_config: AzureConfig,
@@ -292,45 +243,32 @@ def get_or_create_python_environment(azure_config: AzureConfig,
     return env
 
 
-def get_dataset_consumption(azure_config: AzureConfig,
-                            azure_dataset_id: str,
-                            dataset_index: int = 0) -> DatasetConsumptionConfig:
-    """
-    Creates a configuration for using an AzureML dataset inside of an AzureML run. This will make the AzureML
-    dataset with given name available as a named input, using INPUT_DATA_KEY as the key.
-    :param azure_config: azure related configurations to use for model scale-out behaviour
-    :param azure_dataset_id: The name of the dataset in blob storage to be used for this run. This can be an empty
-    string to not use any datasets.
-    :param dataset_index: suffix for the dataset name, dataset name will be set to INPUT_DATA_KEY_idx
-    """
-    azureml_dataset = get_or_create_dataset(azure_config, azure_dataset_id=azure_dataset_id)
-    if not azureml_dataset:
-        raise ValueError(f"AzureML dataset {azure_dataset_id} could not be found or created.")
-    named_input = azureml_dataset.as_named_input(f"{INPUT_DATA_KEY}_{dataset_index}")
-    return named_input.as_mount() if azure_config.use_dataset_mount else named_input.as_download()
-
-
 def create_run_config(azure_config: AzureConfig,
                       source_config: SourceConfig,
-                      azure_dataset_id: str = "",
-                      extra_azure_dataset_ids: List[str] = [],
+                      all_azure_dataset_ids: List[str],
+                      all_dataset_mountpoints: List[str],
                       environment_name: str = "") -> ScriptRunConfig:
     """
     Creates a configuration to run the InnerEye training script in AzureML.
     :param azure_config: azure related configurations to use for model scale-out behaviour
     :param source_config: configurations for model execution, such as name and execution mode
-    :param azure_dataset_id: The name of the dataset in blob storage to be used for this run. This can be an empty
-    string to not use any datasets.
-    :param extra_azure_dataset_ids: List of extra datasets in blob storage to be used for this run. This can be empty.
+    :param all_azure_dataset_ids: The name of all datasets on blob storage that will be used for this run.
+    :param all_dataset_mountpoints: When using mounted datasets in AzureML, these are the per-dataset mount points.
     :param environment_name: If specified, try to retrieve the existing Python environment with this name. If that
     is not found, create one from the Conda files provided in `source_config`. This parameter is meant to be used
     when running inference for an existing model.
     :return: The configured script run.
     """
     dataset_consumptions = {}
-    all_dataset_ids = [azure_dataset_id] + extra_azure_dataset_ids if azure_dataset_id else extra_azure_dataset_ids
-    for i, dataset_id in enumerate(all_dataset_ids):
-        dataset_consumption = get_dataset_consumption(azure_config, dataset_id, i)
+    if len(all_dataset_mountpoints) > 0:
+        if len(all_azure_dataset_ids) != len(all_dataset_mountpoints):
+            raise ValueError("The number of dataset mount points (in dataset_mountpoint and extra_dataset_mountpoints) "
+                             "must equal the number of Azure dataset IDs (in azure_dataset_id and "
+                             "extra_azure_dataset_ids)")
+    else:
+        all_dataset_mountpoints = [""] * len(all_azure_dataset_ids)
+    for i, (dataset_id, mount_point) in enumerate(zip(all_azure_dataset_ids, all_dataset_mountpoints)):
+        dataset_consumption = azure_config.get_dataset_consumption(dataset_id, i, mount_point)
         dataset_consumptions.update({dataset_consumption.name: dataset_consumption})
 
     # AzureML seems to sometimes expect the entry script path in Linux format, hence convert to posix path

@@ -94,7 +94,7 @@ def test_innereye_container_init() -> None:
     """
     Test if the constructor of the InnerEye container copies attributes as expected.
     """
-    # The constructor should copy all fields that belong to either EssentialParams or DatasetParams from the
+    # The constructor should copy all fields that belong to either WorkflowParams or DatasetParams from the
     # config object to the container.
     for (attrib, type_) in [("weights_url", WorkflowParams), ("azure_dataset_id", DatasetParams)]:
         config = ModelConfigBase()
@@ -103,6 +103,18 @@ def test_innereye_container_init() -> None:
         setattr(config, attrib, "foo")
         container = InnerEyeContainer(config)
         assert getattr(container, attrib) == "foo"
+
+
+def test_copied_properties() -> None:
+    config = ModelConfigBase()
+    # This field lives in DatasetParams
+    config.azure_dataset_id = "foo"
+    # This field lives in WorkflowParams
+    config.number_of_cross_validation_splits = 5
+    assert config.perform_cross_validation
+    container = InnerEyeContainer(config)
+    assert container.azure_dataset_id == "foo"
+    assert container.perform_cross_validation
 
 
 def test_create_fastmri_container() -> None:
