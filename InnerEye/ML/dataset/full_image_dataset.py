@@ -7,7 +7,7 @@ import os
 from abc import ABC
 from collections import Counter
 from pathlib import Path
-from typing import Any, Callable, Dict, Generic, List, Optional, TypeVar
+from typing import Any, Callable, Dict, Generic, List, Optional, TypeVar, Tuple
 
 import pandas as pd
 import torch.utils.data
@@ -23,7 +23,6 @@ from InnerEye.ML.utils import io_util
 from InnerEye.ML.utils.csv_util import CSV_CHANNEL_HEADER, CSV_PATH_HEADER, \
     CSV_SUBJECT_HEADER
 from InnerEye.ML.utils.transforms import Compose3D
-
 
 COMPRESSION_EXTENSIONS = ['sz', 'gz']
 
@@ -265,9 +264,9 @@ class FullImageDataset(GeneralDataset):
 
 
 def convert_channels_to_file_paths(channels: List[str],
-                          rows: pd.DataFrame,
-                          local_dataset_root_folder: Path,
-                          patient_id: str) -> List[Path]:
+                                   rows: pd.DataFrame,
+                                   local_dataset_root_folder: Optional[Path],
+                                   patient_id: str) -> Tuple[List[Path], str]:
     """
     Returns: 1) The full path for files specified in the training, validation and testing datasets, and
              2) Missing channels or missing files.
@@ -285,7 +284,8 @@ def convert_channels_to_file_paths(channels: List[str],
         if len(row) == 0:
             failed_channel_info += f"Patient {patient_id} does not have channel '{channel_id}'" + os.linesep
         elif len(row) > 1:
-            failed_channel_info += f"Patient {patient_id} has more than one entry for channel '{channel_id}'" + os.linesep
+            failed_channel_info += f"Patient {patient_id} has more than one entry for channel '{channel_id}'" + \
+                                   os.linesep
         else:
             image_path = local_dataset_root_folder / row[CSV_PATH_HEADER].values[0]
             if not image_path.is_file():
@@ -338,7 +338,8 @@ def load_dataset_sources(dataframe: pd.DataFrame,
         # converts channels to paths and makes second sanity check for channel data
         paths: List[Path] = []
         failed_channel_info: str = ''
-        paths, failed_channel_info = convert_channels_to_file_paths(channels, rows, local_dataset_root_folder, patient_id)
+        paths, failed_channel_info = convert_channels_to_file_paths(channels, rows, local_dataset_root_folder,
+                                                                    patient_id)
 
         if failed_channel_info:
             raise ValueError(failed_channel_info)
