@@ -138,6 +138,8 @@ def create_lightning_trainer(container: LightningContainer,
     # For unit tests, only "ddp_spawn" works
     accelerator = "ddp" if effective_num_gpus > 1 else None
     if effective_num_gpus > 1:
+        # Initialize the DDP plugin with find_unused_parameters=False by default. If True (default), it prints out
+        # lengthy warnings about the performance impact of find_unused_parameters
         plugins = [InnerEyeDDPPlugin(num_nodes=num_nodes, sync_batchnorm=True,
                                      find_unused_parameters=container.pl_find_unused_parameters)]
     else:
