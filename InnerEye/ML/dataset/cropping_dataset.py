@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 import pandas as pd
 
-from import InnerEye.ML.augmentations.augmentation_for_segmentation_utils import random_crop
+from InnerEye.ML.augmentations.augmentation_for_segmentation_utils import random_crop
 from InnerEye.Common.common_util import any_pairwise_larger
 from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.config import PaddingMode, SegmentationModelBase

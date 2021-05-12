@@ -18,6 +18,8 @@ import InnerEye.ML
 
 
 class ImageTransformBase:
+    def __init__(self, *args, **kwargs):
+        pass
 
     def draw_transform(self,  input_size: List[int]) -> List[int]:
         """
@@ -253,11 +255,11 @@ class AddGaussianNoise(ImageTransformBase):
 
     def draw_transform(self, input_size: List[int]) -> List[int]:
         self.apply = torch.rand(1).data < self.p_apply
+        self.noise = torch.randn(size=input_size) * self.std
         return input_size
 
     def __call__(self, data: torch.Tensor) -> torch.Tensor:
         assert data.max() <= 1 and data.min() >= 0
         if self.apply:
-            noise = torch.randn(size=data.shape) * self.std
-            data = torch.clamp(data + noise, 0, 1)
+            data = torch.clamp(data + self.noise, 0, 1)
         return data
