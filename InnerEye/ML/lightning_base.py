@@ -34,7 +34,7 @@ from InnerEye.ML.utils.ml_util import RandomStateSnapshot, set_random_seed, vali
 from InnerEye.ML.utils.model_util import generate_and_print_model_summary
 from InnerEye.ML.visualizers.patch_sampling import visualize_random_crops_for_dataset
 from InnerEye.ML.utils.csv_util import CSV_SUBJECT_HEADER
-from InnerEye.ML.dataset.full_image_dataset import converts_channels_to_file_paths
+from InnerEye.ML.dataset.full_image_dataset import convert_channels_to_file_paths
 
 class TrainAndValDataLightning(LightningDataModule):
     """
@@ -160,7 +160,7 @@ class InnerEyeContainer(LightningContainer):
                 for patient_id in unique_ids:
                     rows = split_data.loc[split_data[CSV_SUBJECT_HEADER] == patient_id]
                     # Converts channels from data frame to file paths and gets errors if any
-                    __, failed_channel_info = converts_channels_to_file_paths(all_channels,
+                    __, failed_channel_info = convert_channels_to_file_paths(all_channels,
                                                                               rows,
                                                                               local_dataset_root_folder,
                                                                               patient_id)

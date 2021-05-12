@@ -24,8 +24,6 @@ from Tests.Common.test_util import full_ml_test_data_path
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import DummyPatientMetadata, load_train_and_test_data_channels
 from InnerEye.ML.lightning_base import InnerEyeContainer
-from InnerEye.ML.utils.csv_util import CSV_SUBJECT_HEADER
-from InnerEye.ML.dataset.full_image_dataset import converts_channels_to_file_paths
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 
 crop_size = [55, 55, 55]
@@ -424,7 +422,7 @@ def test_get_all_metadata(default_config: ModelConfigBase) -> None:
     assert PatientMetadata.from_dataframe(df, '2') == PatientMetadata(patient_id='2', institution="2")
 
 
-def test_converts_channels_to_file_paths(default_config: ModelConfigBase) -> None:
+def test_convert_channels_to_file_paths(default_config: ModelConfigBase) -> None:
     """
     Test unit for missing channels and missing files.
     """

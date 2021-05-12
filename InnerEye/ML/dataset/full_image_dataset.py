@@ -264,7 +264,7 @@ class FullImageDataset(GeneralDataset):
                                     )
 
 
-def converts_channels_to_file_paths(channels: List[str],
+def convert_channels_to_file_paths(channels: List[str],
                           rows: pd.DataFrame,
                           local_dataset_root_folder: Path,
                           patient_id: str) -> List[Path]:
@@ -338,7 +338,7 @@ def load_dataset_sources(dataframe: pd.DataFrame,
         # converts channels to paths and makes second sanity check for channel data
         paths: List[Path] = []
         failed_channel_info: str = ''
-        paths, failed_channel_info = converts_channels_to_file_paths(channels, rows, local_dataset_root_folder, patient_id)
+        paths, failed_channel_info = convert_channels_to_file_paths(channels, rows, local_dataset_root_folder, patient_id)
 
         if failed_channel_info:
             raise ValueError(failed_channel_info)
