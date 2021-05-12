@@ -40,9 +40,14 @@ class ImageTransformBase:
 
 
 class CenterCrop(ImageTransformBase):
-    def __init__(self, center_crop_size: int) -> None:
+    def __init__(self, center_crop_size: Union[Tuple[int, int], int]) -> None:
         super().__init__()
         self.center_crop_size = center_crop_size
+
+    def draw_transform(self, input_size: List[int]) -> List[int]:
+        if isinstance(self.center_crop_size, int):
+            return [input_size[0], self.center_crop_size, self.center_crop_size]
+        return [input_size[0], self.center_crop_size[0], self.center_crop_size[1]]
 
     def __call__(self, image: PIL.Image.Image) -> PIL.Image:
         return torchvision.transforms.CenterCrop(self.center_crop_size)(image)

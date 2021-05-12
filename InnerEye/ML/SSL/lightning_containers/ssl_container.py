@@ -22,7 +22,7 @@ from InnerEye.ML.SSL.encoders import get_encoder_output_dim
 from InnerEye.ML.SSL.lightning_modules.byol.byol_module import BYOLInnerEye
 from InnerEye.ML.SSL.lightning_modules.simclr_module import SimCLRInnerEye
 from InnerEye.ML.SSL.lightning_modules.ssl_online_evaluator import SSLOnlineEvaluatorInnerEye
-from InnerEye.ML.SSL.utils import SSLDataModuleType, SSLTrainingType, load_ssl_augmentation_config
+from InnerEye.ML.SSL.utils import SSLDataModuleType, SSLTrainingType, load_yaml_augmentation_config
 from InnerEye.ML.lightning_container import LightningContainer
 
 
@@ -123,10 +123,10 @@ class SSLContainer(LightningContainer):
 
     def _load_config(self) -> None:
         # For Chest-XRay you need to specify the parameters of the augmentations via a config file.
-        self.ssl_augmentation_params = load_ssl_augmentation_config(
+        self.ssl_augmentation_params = load_yaml_augmentation_config(
             self.ssl_augmentation_config) if self.ssl_augmentation_config is not None \
             else None
-        self.classifier_augmentation_params = load_ssl_augmentation_config(
+        self.classifier_augmentation_params = load_yaml_augmentation_config(
             self.linear_head_augmentation_config) if self.linear_head_augmentation_config is not None else \
             self.ssl_augmentation_params
 

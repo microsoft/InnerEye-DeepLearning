@@ -34,22 +34,31 @@ def test_create_transform_pipeline() -> None:
     transformed_image = transformation_pipeline(image)
 
     # Expected pipeline
+    image = np.ones([256, 256]) * 255.
+    image[100:150, 100:200] = 1
+    image = PIL.Image.fromarray(image).convert("L")
+
     np.random.seed(3)
     torch.manual_seed(3)
     random.seed(3)
-    all_transforms = [RandomAffine(cxr_augmentation_config),
-                      RandomResizeCrop(cxr_augmentation_config),
-                      Resize(cxr_augmentation_config),
-                      RandomHorizontalFlip(cxr_augmentation_config),
-                      RandomGamma(cxr_augmentation_config),
-                      RandomColorJitter(cxr_augmentation_config),
-                      ElasticTransform(cxr_augmentation_config),
-                      CenterCrop(cxr_augmentation_config),
+    all_transforms = [RandomAffine(max_angle=180,
+                                   max_horizontal_shift=0,
+                                   max_vertical_shift=0,
+                                   max_shear=40),
+                      RandomResizeCrop(random_crop_scale=(0.4, 1.0),
+                                       resize_size=256),
+                      RandomHorizontalFlip(p_apply=0.5),
+                      RandomGamma(scale=(0.5, 1.5)),
+                      RandomColorJitter(max_saturation=0,
+                                        max_brightness=0.2,
+                                        max_contrast=0.2),
+                      ElasticTransform(sigma=4, alpha=34, p_apply=0.4),
+                      CenterCrop(center_crop_size=224),
                       ToTensor(),
-                      RandomErasing(cxr_augmentation_config),
-                      AddGaussianNoise(cxr_augmentation_config),
+                      RandomErasing(scale=(0.4, 1.0), ratio=(0.3, 3.3)),
+                      AddGaussianNoise(std=0.05, p_apply=0.5),
                       ExpandChannels()]
-    input_size = [256, 256]
+    input_size = [1, 256, 256]
     for t in all_transforms:
         input_size = t.draw_transform(input_size)
     expected_transformed = image
@@ -61,8 +70,8 @@ def test_create_transform_pipeline() -> None:
     # Test the evaluation pipeline
     transformation_pipeline = create_transform_pipeline_from_config(cxr_augmentation_config, apply_augmentations=False)
     transformed_image = transformation_pipeline(image)
-    all_transforms = [Resize(cxr_augmentation_config),
-                      CenterCrop(cxr_augmentation_config),
+    all_transforms = [Resize(resize_size=256),
+                      CenterCrop(center_crop_size=224),
                       ToTensor(),
                       ExpandChannels()]
     for t in all_transforms:

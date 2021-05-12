@@ -122,7 +122,7 @@ class ImageTransformationPipeline(Transform3D):
                         self.draw_next_transform(input_size=[1, x, y])
                 res[channel] = self.apply_transform_on_3d_image(res[channel].unsqueeze(0)).squeeze(0)
             else:
-                self.draw_next_transform(input_size=[1, x, y])
+                self.draw_next_transform(input_size=[c, x, y])
                 res = self.apply_transform_on_3d_image(res)
         return res.to(dtype=image.dtype)
 
@@ -175,19 +175,19 @@ def create_transform_pipeline_from_config(config: CfgNode,
                 sigma=config.augmentation.elastic_transform.sigma,
                 p_apply=config.augmentation.elastic_transform.p_apply
             ))
-            transforms += [CenterCrop(config.preprocess.center_crop_size),
-                           ToTensor()]
-            if config.augmentation.use_random_erasing:
-                transforms.append(RandomErasing(
-                    scale=config.augmentation.random_erasing.scale,
-                    ratio=config.augmentation.random_erasing.ratio))
-            if config.augmentation.add_gaussian_noise:
-                transforms.append(AddGaussianNoise(p_apply=config.augmentation.gaussian_noise.p_apply,
-                                                   std=config.augmentation.gaussian_noise.std))
-            else:
-                transforms += [Resize(resize_size=config.preprocess.resize),
-                               CenterCrop(config.preprocess.center_crop_size),
-                               ToTensor()]
-            transforms.append(ExpandChannels())
-            pipeline = ImageTransformationPipeline(transforms=transforms)
+        transforms += [CenterCrop(config.preprocess.center_crop_size),
+                       ToTensor()]
+        if config.augmentation.use_random_erasing:
+            transforms.append(RandomErasing(
+                scale=config.augmentation.random_erasing.scale,
+                ratio=config.augmentation.random_erasing.ratio))
+        if config.augmentation.add_gaussian_noise:
+            transforms.append(AddGaussianNoise(p_apply=config.augmentation.gaussian_noise.p_apply,
+                                               std=config.augmentation.gaussian_noise.std))
+    else:
+        transforms += [Resize(resize_size=config.preprocess.resize),
+                       CenterCrop(config.preprocess.center_crop_size),
+                       ToTensor()]
+    transforms.append(ExpandChannels())
+    pipeline = ImageTransformationPipeline(transforms=transforms)
     return pipeline
