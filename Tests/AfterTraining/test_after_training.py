@@ -35,6 +35,7 @@ from InnerEye.Common.spawn_subprocess import spawn_and_monitor_subprocess
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, ModelCategory
 from InnerEye.ML.reports.notebook_report import get_html_report_name
+from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.utils.image_util import get_unit_image_header
 from InnerEye.ML.utils.io_util import zip_random_dicom_series
 from InnerEye.ML.model_inference_config import read_model_inference_config
@@ -102,7 +103,7 @@ def get_most_recent_model(fallback_run_id_for_local_execution: str = FALLBACK_SI
 @pytest.mark.after_training_ensemble_run
 @pytest.mark.after_training_glaucoma_cv_run
 @pytest.mark.after_training_hello_container
-def test_model_file_structure(test_output_dirs: OutputFolderForTests) -> None:
+def test_registered_model_file_structure_and_instantiate(test_output_dirs: OutputFolderForTests) -> None:
     """
     Downloads the model that was built in the most recent run, and checks if its file structure is as expected.
     """
@@ -138,6 +139,9 @@ def test_model_file_structure(test_output_dirs: OutputFolderForTests) -> None:
     assert model_inference_config.model_name == model_name
     assert model_inference_config.model_configs_namespace.startswith("InnerEye.ML.configs.")
     assert model_inference_config.model_configs_namespace.endswith(model_name)
+    loader = ModelConfigLoader(model_configs_namespace=model_inference_config.model_configs_namespace)
+    model_config = loader.create_model_config_from_name(model_name=model_inference_config.model_name)
+    assert type(model_config).__name__ == model_inference_config.model_name
 
 
 @pytest.mark.after_training_single_run
