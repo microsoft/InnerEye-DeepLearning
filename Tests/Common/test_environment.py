@@ -40,5 +40,3 @@ def test_invalid_python_packages() -> None:
     for package in packages_to_avoid:
         print("- {}".format(package))
     check_file(fixed_paths_for_tests.tests_root_directory().parent / fixed_paths.ENVIRONMENT_YAML_FILE_NAME)
-    check_file(
-        fixed_paths_for_tests.tests_root_directory().parent / fixed_paths.AZURE_RUNNER_ENVIRONMENT_YAML_FILE_NAME)

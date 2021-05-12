@@ -44,19 +44,11 @@ from InnerEye.Common.common_util import FULL_METRICS_DATAFRAME_FILE, METRICS_AGG
     disable_logging_to_file, is_linux, logging_to_stdout
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME
-from InnerEye.ML.config import ModelDeploymentHookSignature, PostCrossValidationHookSignature
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.model_config_base import ModelConfigBase
+from InnerEye.ML.run_ml import MLRunner, ModelDeploymentHookSignature, PostCrossValidationHookSignature
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
-
-try:
-    # This import can fail when the code runs inside the azure_runner.yml Conda environment, that we use
-    # for the PR builds
-    from InnerEye.ML.lightning_container import LightningContainer
-
-    has_torch = True
-except ModuleNotFoundError as ex:
-    has_torch = False
+from InnerEye.ML.lightning_container import LightningContainer
 
 
 def initialize_rpdb() -> None:
@@ -171,7 +163,7 @@ class Runner:
         # Now create a parser that understands overrides at model/container level.
         parser_result = parse_overrides_and_apply(config_or_container, parser_result)
 
-        if has_torch and isinstance(config_or_container, LightningContainer):
+        if isinstance(config_or_container, LightningContainer):
             self.lightning_container = config_or_container
         elif isinstance(config_or_container, DeepLearningConfig):
             # Built-in InnerEye models: A fake container for these models will be created in MLRunner
@@ -321,14 +313,10 @@ class Runner:
             finally:
                 disable_logging_to_file()
 
-    def create_ml_runner(self) -> Any:
+    def create_ml_runner(self) -> MLRunner:
         """
         Create and return an ML runner using the attributes of this Runner object.
         """
-        # This import statement cannot be at the beginning of the file because it will cause import
-        # of packages that are not available inside the azure_runner.yml environment, in particular pytorch.
-        # That is also why we specify the return type is Any rather than MLRunner.
-        from InnerEye.ML.run_ml import MLRunner
         return MLRunner(
             model_config=self.model_config,
             container=self.lightning_container,

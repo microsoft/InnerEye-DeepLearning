@@ -21,7 +21,7 @@ from InnerEye.Common.fixed_paths import DEFAULT_RESULT_ZIP_DICOM_NAME
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.Common.type_annotations import TupleFloat3, TupleInt3
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.model_inference_config import ModelInferenceConfig
+from InnerEye.ML.model_inference_config import read_model_inference_config
 from InnerEye.ML.model_testing import DEFAULT_RESULT_IMAGE_NAME
 from InnerEye.ML.photometric_normalization import PhotometricNormalization
 from InnerEye.ML.pipelines.ensemble import EnsemblePipeline
@@ -63,7 +63,7 @@ def init_from_model_inference_json(model_folder: Path, use_gpu: bool = True) -> 
     logging.info('Python version: ' + sys.version)
     path_to_model_inference_config = model_folder / fixed_paths.MODEL_INFERENCE_JSON_FILE_NAME
     logging.info(f'path_to_model_inference_config: {path_to_model_inference_config}')
-    model_inference_config = read_model_inference_config(str(path_to_model_inference_config))
+    model_inference_config = read_model_inference_config(path_to_model_inference_config)
     logging.info(f'model_inference_config: {model_inference_config}')
     full_path_to_checkpoints = [model_folder / x for x in model_inference_config.checkpoint_paths]
     logging.info(f'full_path_to_checkpoints: {full_path_to_checkpoints}')
@@ -98,12 +98,6 @@ def create_inference_pipeline(model_config: SegmentationModelBase,
         raise ValueError("Cannot create inference pipeline")
 
     return inference_pipeline, model_config
-
-
-def read_model_inference_config(path_to_model_inference_config: str) -> ModelInferenceConfig:
-    with open(path_to_model_inference_config, 'r', encoding='utf-8') as file:
-        model_inference_config = ModelInferenceConfig.from_json(file.read())  # type: ignore
-    return model_inference_config
 
 
 def is_spacing_valid(spacing: TupleFloat3, dataset_expected_spacing_xyz: TupleFloat3) -> bool:

@@ -1,5 +1,5 @@
 steps:
-  - template: azure_runner_env.yml
+  - template: inner_eye_env.yml
 
   # Create a directory structure with a runner script and the InnerEye submodule, starting training from there.
   # Then do a recovery run in AzureML to see if that works well.
@@ -7,7 +7,7 @@ steps:
   # the recovery run.
   - bash: |
       set -e  # This makes the script fail if any command in it fails, not just the last one
-      source activate AzureRunner
+      source activate InnerEye
       mkdir $(Agent.TempDirectory)/InnerEye/
       cp -r $(Build.SourcesDirectory)/TestSubmodule $(Agent.TempDirectory)/InnerEye/TestSubmodule
       cp -r $(Build.SourcesDirectory) $(Agent.TempDirectory)/InnerEye/Submodule
@@ -24,8 +24,3 @@ steps:
       PYTHONPATH: $(Agent.TempDirectory)/InnerEye
       APPLICATION_KEY: $(InnerEyeDeepLearningServicePrincipalKey)
     displayName: 'Training and Recovery in AzureML'
-
-  - template: tests_after_training.yml
-    parameters:
-      pytest_mark: "inference or after_training"
-      test_run_title: "tests_after_train_submodule"

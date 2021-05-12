@@ -64,8 +64,6 @@ SETTINGS_YAML_FILE_NAME = "settings.yml"
 SETTINGS_YAML_FILE = INNEREYE_PACKAGE_ROOT / SETTINGS_YAML_FILE_NAME
 
 MODEL_INFERENCE_JSON_FILE_NAME = 'model_inference_config.json'
-AZURE_RUNNER_ENVIRONMENT_YAML_FILE_NAME = "azure_runner.yml"
-AZURE_RUNNER_ENVIRONMENT_YAML = repository_root_directory(AZURE_RUNNER_ENVIRONMENT_YAML_FILE_NAME)
 
 # The names of files at the repository root that are required for running the inference pipeline.
 SCORE_SCRIPT = "score.py"
