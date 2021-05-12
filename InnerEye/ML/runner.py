@@ -137,7 +137,6 @@ class Runner:
         azure_config.project_root = self.project_root
         self.azure_config = azure_config
         self.model_config = None
-        self.lightning_container = None
         if not azure_config.model:
             raise ValueError("Parameter 'model' needs to be set to tell InnerEye which model to run.")
         model_config_loader: ModelConfigLoader = ModelConfigLoader(**parser_result.args)
