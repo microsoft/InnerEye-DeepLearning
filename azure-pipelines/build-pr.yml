@@ -177,6 +177,8 @@ jobs:
         value: 'HelloContainer'
       - name: tag
         value: 'HelloContainerPR'
+      - name: more_switches
+        value: '--num_nodes=2'
     pool:
       vmImage: 'ubuntu-18.04'
     steps:
@@ -184,7 +186,6 @@ jobs:
         parameters:
           wait_for_completion: 'True'
           pytest_mark: ''
-          extra_args: '--num_nodes=2'
           max_run_duration: '30m'
       - template: tests_after_training.yml
         parameters:
