@@ -464,5 +464,5 @@ def set_environment_variables_for_multi_node() -> None:
 
     if ENV_OMPI_COMM_WORLD_RANK in os.environ:
         os.environ[ENV_NODE_RANK] = os.environ[ENV_OMPI_COMM_WORLD_RANK]  # node rank is the world_rank from mpi run
-    for var in [ENV_MASTER_ADDR, ENV_MASTER_PORT, ENV_NODE_RANK]:
-        print(f"Distributed training: {var} = {os.environ[var]}")
+    env_vars = ", ".join(f"{var} = {os.environ[var]}" for var in [ENV_MASTER_ADDR, ENV_MASTER_PORT, ENV_NODE_RANK])
+    print(f"Distributed training: {env_vars}")

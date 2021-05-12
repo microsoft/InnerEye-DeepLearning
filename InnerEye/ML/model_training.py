@@ -237,6 +237,16 @@ def model_train(checkpoint_handler: CheckpointHandler,
         if container.monitoring_interval_seconds > 0:
             resource_monitor = start_resource_monitor(container)
 
+    # Run all of the container-related operations consistently with changed outputs folder, even ones that
+    # should not rely on the current working directory, like get_data_module.
+    with change_working_directory(container.outputs_folder):
+        data_module = container.get_data_module()
+        if is_global_rank_zero():
+            container.before_training_on_global_rank_zero()
+        if is_local_rank_zero():
+            container.before_training_on_local_rank_zero()
+        container.before_training_on_all_ranks()
+
     # Create the trainer object. Backup the environment variables before doing that, in case we need to run a second
     # training in the unit tests.d
     old_environ = dict(os.environ)
@@ -260,14 +270,6 @@ def model_train(checkpoint_handler: CheckpointHandler,
     # When training models that are not built-in InnerEye models, we have no guarantee that they write
     # files to the right folder. Best guess is to change the current working directory to where files should go.
     with change_working_directory(container.outputs_folder):
-        # Run all of the container-related operations consistently with changed outputs folder, even ones that
-        # should not rely on the current working directory, like get_data_module.
-        data_module = container.get_data_module()
-        if is_global_rank_zero():
-            container.before_training_on_global_rank_zero()
-        if is_local_rank_zero():
-            container.before_training_on_local_rank_zero()
-        container.before_training_on_all_ranks()
         trainer.fit(lightning_model, datamodule=data_module)
         trainer.logger.close()  # type: ignore
     world_size = getattr(trainer, "world_size", 0)
