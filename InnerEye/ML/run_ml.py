@@ -259,11 +259,18 @@ class MLRunner:
     @property
     def config_namespace(self) -> str:
         """
-        Returns the namespace of the model configuration object.
+        Returns the namespace of the model configuration object, i.e. return the name of the module in which the
+        model configuration object or the lightning container object is defined.
         For models defined as lightning containers, this is the namespace of the container class defining the model.
         For legacy InnerEye models, the original config is not a container object, but instead a subclass of
         ModelConfigBase. In this case, return the namespace of the original config class, not the namespace of the
         derived InnerEyeContainer.
+
+        Examples:
+        1. For the Lung config class defined in InnerEye/ML/configs/segmentation/Lung.py,
+           the namespace is InnerEye.ML.configs.segmentation.Lung
+        1. For the HelloContainer container class defined in InnerEye/ML/configs/other/HelloContainer.py,
+           the namespace is InnerEye.ML.configs.other.HelloContainer
         """
         if isinstance(self.container, InnerEyeContainer):
             return self.innereye_config.__class__.__module__
