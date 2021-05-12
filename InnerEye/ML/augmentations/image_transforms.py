@@ -77,10 +77,10 @@ class RandomResizeCrop(ImageTransformBase):
 
 class RandomAffine(ImageTransformBase):
     def __init__(self,
-                 max_angle: int,
-                 max_horizontal_shift: float,
-                 max_vertical_shift: float,
-                 max_shear: int) -> None:
+                 max_angle: int = 0,
+                 max_horizontal_shift: float = 0.0,
+                 max_vertical_shift: float = 0.0,
+                 max_shear: int = 0.0) -> None:
         super().__init__()
         self.max_angle = max_angle
         self.max_horizontal_shift = max_horizontal_shift
@@ -100,7 +100,7 @@ class RandomAffine(ImageTransformBase):
         return input_size
 
     def __call__(self, img: PIL.Image.Image) -> Any:
-        return F.affine(img, *self._current_params)
+        return F.affine(img, *self._current_params, fill=0)
 
 
 class RandomHorizontalFlip(ImageTransformBase):

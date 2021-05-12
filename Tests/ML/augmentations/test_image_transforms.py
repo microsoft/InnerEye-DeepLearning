@@ -6,10 +6,12 @@
 import numpy as np
 
 import torch
+import torchvision
 from scipy.ndimage import gaussian_filter, map_coordinates
 from torchvision.transforms.functional import to_pil_image
 
-from InnerEye.ML.augmentations.image_transforms import AddGaussianNoise, ElasticTransform, ExpandChannels
+from InnerEye.ML.augmentations.image_transforms import AddGaussianNoise, CenterCrop, ElasticTransform, ExpandChannels, \
+    ImageTransformBase, RandomAffine
 
 input_size = [1, 256, 256]
 array = np.ones(input_size) * 255.
@@ -55,3 +57,47 @@ def test_expand_channels() -> None:
     transformed = transformation(test_img_as_tensor)
     assert transformed.shape == torch.Size([3, 256, 256])
     assert torch.isclose(transformed[0], transformed[1]).all() and torch.isclose(transformed[1], transformed[2]).all()
+
+
+def test_center_crop():
+    transformation = CenterCrop(center_crop_size=224)
+    transformed_image = np.asarray(transformation(test_pil_image))
+    assert transformed_image.shape == (224, 224)
+
+
+def _check_transformation_result(image_as_tensor: torch.Tensor,
+                                 transformation: ImageTransformBase,
+                                 expected: torch.Tensor) -> None:
+    test_tensor_pil = torchvision.transforms.functional.to_pil_image(image_as_tensor)
+    transformed = torchvision.transforms.functional.to_tensor(transformation(test_tensor_pil)).squeeze()
+    assert torch.isclose(transformed, expected).all()
+
+
+def test_affine_transformation():
+    test_image = torch.tensor([[2, 1, 3],
+                               [1, 2, 3],
+                               [3, 3, 2]], dtype=torch.int32)
+    expected_result = torch.tensor([[1, 2, 1],
+                                    [3, 2, 3],
+                                    [3, 2, 3]], dtype=torch.int32)
+    transformation = RandomAffine(max_angle=180)
+    torch.random.manual_seed(2)
+    transformation.draw_transform(test_image.shape)
+    _check_transformation_result(test_image, transformation, expected_result)
+
+    expected_result = torch.tensor([[0, 2, 1],
+                                    [0, 1, 2],
+                                    [0, 3, 3]], dtype=torch.int32)
+    transformation = RandomAffine(max_horizontal_shift=1.0)
+    transformation.draw_transform(test_image.shape)
+    _check_transformation_result(test_image, transformation, expected_result)
+
+    torch.random.manual_seed(4)
+    expected_result = torch.tensor([[3, 3, 2],
+                                    [0, 0, 0],
+                                    [0, 0, 0]], dtype=torch.int32)
+    transformation = RandomAffine(max_vertical_shift=1.0)
+    transformation.draw_transform(test_image.shape)
+    _check_transformation_result(test_image, transformation, expected_result)
+
+
