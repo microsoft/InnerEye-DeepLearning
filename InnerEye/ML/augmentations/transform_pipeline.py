@@ -37,9 +37,6 @@ class ImageTransformationPipeline(Transform3D):
                  use_different_transformation_per_channel: bool = False):
         """
         :param transforms: List of transformations to apply to images.
-        :param is_transformation_for_segmentation_maps: if True, only use geometrical transformation suitable
-        for segmentation maps. If False, additionally use color/contrast related transformation suitable for
-        images.
         :param use_joint_channel_transformation: if True apply one transformation on each slice but using all channels
         as input e.g. for RGB images. If False, apply transformation channel by channel.
         :param use_different_transformation_per_channel: if True, apply a different version of the augmentation pipeline
@@ -48,7 +45,6 @@ class ImageTransformationPipeline(Transform3D):
 
         """
         self.transforms = transforms
-        self.for_segmentation_input_maps = is_transformation_for_segmentation_maps
         self.use_joint_channel_transformation = use_joint_channel_transformation
         self.use_different_transformation_per_channel = use_different_transformation_per_channel
         if self.use_joint_channel_transformation and self.use_different_transformation_per_channel:
@@ -130,12 +126,11 @@ class ImageTransformationPipeline(Transform3D):
 def create_transform_pipeline_from_config(config: CfgNode,
                                           apply_augmentations: bool) -> ImageTransformationPipeline:
     """
-    Defines the image transformations pipeline used in Chest-Xray datasets.
-    Type of augmentation and strength are defined in the config.
+    Defines the image transformations pipeline used in Chest-Xray datasets. Can be used for other types of
+    images data, type of augmentations to use and strength are expected to be defined in the config.
     :param config: config yaml file fixing strength and type of augmentation to apply
     :param apply_augmentations: if True return transformation pipeline with augmentations. Else,
-    disable augmentations i.e.
-    only resize and center crop the image.
+    disable augmentations i.e. only resize and center crop the image.
     """
     transforms: List[Any] = []
     if apply_augmentations:

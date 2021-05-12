@@ -134,9 +134,9 @@ class Resize(ImageTransformBase):
 
 class RandomColorJitter(ImageTransformBase):
     def __init__(self,
-                 max_brightness: float,
-                 max_contrast: float,
-                 max_saturation: float
+                 max_brightness: float = 0.0,
+                 max_contrast: float = 0.0,
+                 max_saturation: float = 0.0
                  ) -> None:
         super().__init__()
         self._transform_generator = torchvision.transforms.ColorJitter(

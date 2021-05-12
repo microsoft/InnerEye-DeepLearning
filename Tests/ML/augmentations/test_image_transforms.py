@@ -11,7 +11,7 @@ from scipy.ndimage import gaussian_filter, map_coordinates
 from torchvision.transforms.functional import to_pil_image
 
 from InnerEye.ML.augmentations.image_transforms import AddGaussianNoise, CenterCrop, ElasticTransform, ExpandChannels, \
-    ImageTransformBase, RandomAffine
+    ImageTransformBase, RandomAffine, RandomColorJitter, RandomHorizontalFlip
 
 input_size = [1, 256, 256]
 array = np.ones(input_size) * 255.
@@ -70,7 +70,7 @@ def _check_transformation_result(image_as_tensor: torch.Tensor,
                                  expected: torch.Tensor) -> None:
     test_tensor_pil = torchvision.transforms.functional.to_pil_image(image_as_tensor)
     transformed = torchvision.transforms.functional.to_tensor(transformation(test_tensor_pil)).squeeze()
-    assert torch.isclose(transformed, expected).all()
+    assert torch.isclose(transformed, expected, rtol=0.02).all()
 
 
 def test_affine_transformation():
@@ -101,3 +101,40 @@ def test_affine_transformation():
     _check_transformation_result(test_image, transformation, expected_result)
 
 
+def test_random_horizontal_flip() -> None:
+    """
+    Tests each individual transformation of the ImageTransformationPipeline class on a 2D input representing
+    a natural image.
+    """
+    test_image = torch.tensor([[1, 0.5, 0.1],
+                               [0.5, 1, 0.1],
+                               [0.1, 0.1, 1]], dtype=torch.float32)
+    expected = torch.tensor([[0.1, 0.5, 1],
+                             [0.1, 1, 0.5],
+                             [1, 0.1, 0.1]], dtype=torch.float32)
+    transformation = RandomHorizontalFlip(p_apply=1.0)
+    transformation.draw_transform(test_image.shape)
+    _check_transformation_result(test_image, transformation, expected)
+    transformation = RandomHorizontalFlip(p_apply=0.0)
+    transformation.draw_transform(test_image.shape)
+    _check_transformation_result(test_image, transformation, test_image)
+
+
+def test_random_color_jitter() -> None:
+    test_image = torch.tensor([[1, 0.5, 0.1],
+                               [0.5, 1, 0.1],
+                               [0.1, 0.1, 1]], dtype=torch.float32)
+    expected = torch.tensor([[0.8510, 0.4235, 0.0824],
+                             [0.4235, 0.8510, 0.0824],
+                             [0.0824, 0.0824, 0.8510]])
+    torch.manual_seed(0)
+    transformation = RandomColorJitter(max_brightness=0.2)
+    transformation.draw_transform(test_image.shape)
+    _check_transformation_result(test_image, transformation, expected)
+
+    expected = torch.tensor([[1.0000, 0.4980, 0.0353],
+                             [0.4980, 1.0000, 0.0353],
+                             [0.0353, 0.0353, 1.0000]])
+    transformation = RandomColorJitter(max_contrast=0.2)
+    transformation.draw_transform(test_image.shape)
+    _check_transformation_result(test_image, transformation, expected)
