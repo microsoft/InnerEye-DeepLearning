@@ -45,7 +45,7 @@ from InnerEye.Scripts import submit_for_inference
 from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_nifti_shape
 
 FALLBACK_ENSEMBLE_RUN = "refs_pull_439_merge:HD_403627fe-c564-4e36-8ba3-c2915d64e220"
-FALLBACK_SINGLE_RUN = "antonsc_fastmri:antonsc_fastmri_1620832810_77165cb1"
+FALLBACK_SINGLE_RUN = "refs_pull_444_merge:refs_pull_444_merge_1620835799_e84ac017"
 FALLBACK_2NODE_RUN = "refs_pull_439_merge:refs_pull_439_merge_1618850855_4d2356f9"
 FALLBACK_CV_GLAUCOMA = "refs_pull_439_merge:HD_252cdfa3-bce4-49c5-bf53-995ee3bcab4c"
 FALLBACK_HELLO_CONTAINER_RUN = "refs_pull_455_merge:refs_pull_455_merge_1620723534_e086c5c5"
