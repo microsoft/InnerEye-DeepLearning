@@ -83,9 +83,10 @@ If set up correctly, this is the Azure storage account that holds all datasets u
 Hence, after the downloading completes, you are ready to use the InnerEye toolbox to submit an AzureML job that uses
 the FastMRI data.
 
-There is an example model already included in the InnerEye toolbox, that uses the `knee_multicoil` dataset. Please
-check out [fastmri_varnet.py](../InnerEye/ML/configs/other/fastmri_varnet.py). As with all InnerEye models, you can
-start a training run by specifying the name of the class that defines the model, like this:
+There are 3 example models already coded up in the InnerEye toolbox, defined in 
+[fastmri_varnet.py](../InnerEye/ML/configs/other/fastmri_varnet.py): `KneeSinglecoil`, `KneeMulticoil`, and 
+`BrainMulticoil`. As with all InnerEye models, you can start a training run by specifying the name of the class 
+that defines the model, like this:
 ```shell script
 python InnerEye/ML/runner.py --model KneeMulticoil --azureml=True --num_nodes=4
 ```
@@ -95,7 +96,7 @@ each VM has 4 Tesla P40 cards, training will use a total of 16 GPUs.
 
 As common with multiple nodes, training time will not scale linearly with increased number of nodes. The following
 table gives a rough overview of time to train 1 epoch of the FastMri model in the InnerEye toolbox 
-on our cluster (4 Tesla P40 cards per node):
+on our cluster (`Standard_ND24s` nodes with 4 Tesla P40 cards):
 
 | Step | 1 node (4 GPUs) | 2 nodes (8 GPUs) | 4 nodes (16 GPUs) | 8 nodes (32 GPUs) |
 | --- | --- | --- | --- | --- |
@@ -108,15 +109,20 @@ on our cluster (4 Tesla P40 cards per node):
 Note that the download times depend on the type of Azure storage account that your workspace is using. We recommend 
 using Premium storage accounts for optimal performance.
 
+You can avoid the time to download the dataset, by specifying that the data is always read on-the-fly from the network.
+For that, just add the `--use_dataset_mount=True` flag to the commandline. This may impact training throughput if
+the storage account cannot provide the data quick enough - however, we have not observed a drop in GPU utilization even
+when training on 8 nodes in parallel. For more details around dataset mounting please refer to the next section.
 
-## Performance considerations for Brain Multicoil
+
+## Performance considerations for BrainMulticoil
 
 Training a FastMri model on the `brain_multicoil` dataset is particularly challenging because the dataset is larger.
 Downloading the dataset can - depending on the types of nodes - already make the nodes go out of disk space.
 
-The InnerEye toolbox has a way of working around that problem, by mounting the dataset on-the-fly, rather than 
-downloading it at the start of the job. You can trigger this behaviour by supplying an additional commandline argument
-`--use_dataset_mount=True`, for example:
+The InnerEye toolbox has a way of working around that problem, by reading the dataset on-the-fly from the network, 
+rather than downloading it at the start of the job. You can trigger this behaviour by supplying an additional 
+commandline argument `--use_dataset_mount=True`, for example:
 ```shell script
 python InnerEye/ML/runner.py --model BrainMulticoil --azureml=True --num_nodes=4 --use_dataset_mount=True
 ```
@@ -145,3 +151,5 @@ python InnerEye/ML/runner.py --model BrainMulticoil --azureml=True --use_dataset
 ```
 This job should pick up the existing cache file, and output a message like "Copying a pre-computed dataset cache 
 file ..."
+
+The same trick can of course be applied to the other models as well (`KneeSinglecoil`, `KneeMulticoil`).

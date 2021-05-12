@@ -122,6 +122,9 @@ class KneeMulticoil(FastMri):
     def __init__(self) -> None:
         super().__init__()
         self.azure_dataset_id = "knee_multicoil"
+        # If the Azure nodes run out of disk space when downloading the dataset, re-submit with the
+        # --use_dataset_mount=True flag. The dataset will be mounted to the fixed path given here.
+        self.dataset_mountpoint = "/tmp/knee_multicoil"
 
     def get_data_module(self) -> LightningDataModule:
         return get_data_module(azure_dataset_id=self.azure_dataset_id,
@@ -138,6 +141,9 @@ class KneeSinglecoil(FastMri):
     def __init__(self) -> None:
         super().__init__()
         self.azure_dataset_id = "knee_singlecoil"
+        # If the Azure nodes run out of disk space when downloading the dataset, re-submit with the
+        # --use_dataset_mount=True flag. The dataset will be mounted to the fixed path given here.
+        self.dataset_mountpoint = "/tmp/knee_singlecoil"
 
     def get_data_module(self) -> LightningDataModule:
         return get_data_module(azure_dataset_id=self.azure_dataset_id,
@@ -158,7 +164,7 @@ class BrainMulticoil(FastMri):
         self.azure_dataset_id = "brain_multicoil"
         # If the Azure nodes run out of disk space when downloading the dataset, re-submit with the
         # --use_dataset_mount=True flag. The dataset will be mounted to the fixed path given here.
-        self.dataset_mountpoint = "/tmp/fastmri"
+        self.dataset_mountpoint = "/tmp/brain_multicoil"
 
     def get_data_module(self) -> LightningDataModule:
         return get_data_module(azure_dataset_id=self.azure_dataset_id,
