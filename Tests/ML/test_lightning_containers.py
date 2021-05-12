@@ -19,7 +19,8 @@ from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.run_ml import MLRunner
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.configs.lightning_test_containers import DummyContainerWithModel, DummyContainerWithPlainLightning
+from Tests.ML.configs.lightning_test_containers import DummyContainerWithHooks, DummyContainerWithModel, \
+    DummyContainerWithPlainLightning
 from Tests.ML.util import default_runner
 
 
@@ -249,3 +250,18 @@ def test_extra_directory_available(test_output_dirs: OutputFolderForTests) -> No
     # Check default behavior (no extra datasets provided)
     container = _create_container()
     assert container.extra_local_dataset_paths == []
+
+
+def test_container_hooks(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test if the hooks before training are called at the right place and in the right order.
+    """
+    container = DummyContainerWithHooks()
+    container.local_dataset = test_output_dirs.root_dir
+    runner = MLRunner(model_config=None, container=container)
+    runner.setup()
+    runner.run()
+    # The hooks in DummyContainerWithHooks itself check that the hooks are called in the right order. Here,
+    # only check that they have all been called.
+    for file in ["global_rank_zero.txt", "local_rank_zero.txt", "all_ranks.txt"]:
+        assert (runner.container.outputs_folder / file).is_file(), f"Missing file: {file}"

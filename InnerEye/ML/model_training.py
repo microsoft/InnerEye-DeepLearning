@@ -35,18 +35,29 @@ TEMP_PREFIX = "temp/"
 T = TypeVar('T')
 
 
-def is_rank_zero() -> bool:
+def is_global_rank_zero() -> bool:
     """
     Tries to guess if the current process is running as DDP rank zero, before the training has actually started,
     by looking at environment variables.
-    :return: True if the current process is global_rank 0.
+    :return: True if the current process is global rank 0.
     """
-    global_rank = os.getenv(ENV_GLOBAL_RANK)
-    local_rank = os.getenv(ENV_LOCAL_RANK)
     # When doing multi-node training, this indicates which node the present job is on. This is set in
     # set_environment_variables_for_multi_node
     node_rank = os.getenv(ENV_NODE_RANK, "0")
-    return global_rank is None and local_rank is None and node_rank == "0"
+    return is_local_rank_zero() and node_rank == "0"
+
+
+def is_local_rank_zero() -> bool:
+    """
+    Tries to guess if the current process is running as DDP local rank zero (i.e., the process that is responsible for
+    GPU 0 on each node).
+    :return: True if the current process is local rank 0.
+    """
+    # The per-node jobs for rank zero do not have any of the rank-related environment variables set. PL will
+    # set them only once starting its child processes.
+    global_rank = os.getenv(ENV_GLOBAL_RANK)
+    local_rank = os.getenv(ENV_LOCAL_RANK)
+    return global_rank is None and local_rank is None
 
 
 def upload_output_file_as_temp(file_path: Path, outputs_folder: Path) -> None:
@@ -217,12 +228,10 @@ def model_train(checkpoint_handler: CheckpointHandler,
     checkpoint_path = checkpoint_handler.get_recovery_path_train()
     lightning_model = container.model
 
-    container.before_training_on_all_ranks()
     resource_monitor: Optional[ResourceMonitor] = None
     # Execute some bookkeeping tasks only once if running distributed:
-    if is_rank_zero():
+    if is_global_rank_zero():
         logging.info(f"Model checkpoints are saved at {container.checkpoint_folder}")
-        container.before_training_on_rank_zero()
         write_args_file(container.config if isinstance(container, InnerEyeContainer) else container,
                         outputs_folder=container.outputs_folder)
         if container.monitoring_interval_seconds > 0:
@@ -238,8 +247,9 @@ def model_train(checkpoint_handler: CheckpointHandler,
                                                        checkpoint_path,
                                                        num_nodes=num_nodes,
                                                        **container.get_trainer_arguments())
-    logging.info(f"{ENV_GLOBAL_RANK}: {os.getenv(ENV_GLOBAL_RANK)}, {ENV_LOCAL_RANK} {os.getenv(ENV_LOCAL_RANK)}. "
-                 f"trainer.global_rank: {trainer.global_rank}")
+    rank_info = ", ".join(f"{env}: {os.getenv(env)}"
+                          for env in [ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK])
+    logging.info(f"Environment variables: {rank_info}. trainer.global_rank: {trainer.global_rank}")
     # InnerEye models use this logger for diagnostics
     if isinstance(lightning_model, InnerEyeLightning):
         if storing_logger is None:
@@ -249,8 +259,15 @@ def model_train(checkpoint_handler: CheckpointHandler,
     logging.info("Starting training")
     # When training models that are not built-in InnerEye models, we have no guarantee that they write
     # files to the right folder. Best guess is to change the current working directory to where files should go.
-    data_module = container.get_data_module()
     with change_working_directory(container.outputs_folder):
+        # Run all of the container-related operations consistently with changed outputs folder, even ones that
+        # should not rely on the current working directory, like get_data_module.
+        data_module = container.get_data_module()
+        if is_global_rank_zero():
+            container.before_training_on_global_rank_zero()
+        if is_local_rank_zero():
+            container.before_training_on_local_rank_zero()
+        container.before_training_on_all_ranks()
         trainer.fit(lightning_model, datamodule=data_module)
         trainer.logger.close()  # type: ignore
     world_size = getattr(trainer, "world_size", 0)
