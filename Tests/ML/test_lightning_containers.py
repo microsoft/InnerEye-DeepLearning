@@ -192,9 +192,10 @@ def test_container_to_str() -> None:
     print(s)
     assert "foo" in s
     assert "bar" in s
-    assert "param" not in s
-    assert "initialized" not in s
     assert "123456" in s
+    # These two are internal variables of the params library, and should be skipped.
+    assert "param                " not in s
+    assert "initialized          " not in s
 
 
 def test_file_system_with_subfolders(test_output_dirs: OutputFolderForTests) -> None:
