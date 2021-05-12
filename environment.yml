@@ -12,11 +12,12 @@ dependencies:
       - git+https://github.com/analysiscenter/radio.git@6d53e25#egg=radio
       - azure-mgmt-resource==12.1.0
       - azure-mgmt-datafactory==1.1.0
-      - azureml-mlflow==1.27.0
-      - azureml-sdk==1.27.0
-      - azureml-tensorboard==1.27.0
+      - azureml-mlflow==1.28.0
+      - azureml-sdk==1.28.0
+      - azureml-tensorboard==1.28.0
       - conda-merge==0.1.5
       - dataclasses-json==0.5.2
+      - docker==4.3.1
       - flake8==3.8.3
       - gitpython==3.1.7
       - gputil==1.4.0
@@ -27,7 +28,7 @@ dependencies:
       - jupyter-client==6.1.5
       - lightning-bolts==0.3.1
       - matplotlib==3.3.0
-      - mlflow==1.12.1
+      - mlflow==1.17.0
       - mypy==0.812
       - mypy-extensions==0.4.3
       - numba==0.51.2
