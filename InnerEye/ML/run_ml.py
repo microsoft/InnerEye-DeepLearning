@@ -43,7 +43,7 @@ from InnerEye.Common.fixed_paths import INNEREYE_PACKAGE_NAME, LOG_FILE_NAME, PY
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, DeepLearningConfig, FINAL_ENSEMBLE_MODEL_FOLDER, \
-    FINAL_MODEL_FOLDER, ModelCategory, MultiprocessingStartMethod
+    FINAL_MODEL_FOLDER, ModelCategory, MultiprocessingStartMethod, load_checkpoint
 from InnerEye.ML.lightning_base import InnerEyeContainer
 from InnerEye.ML.lightning_container import InnerEyeInference, LightningContainer
 from InnerEye.ML.metrics import InferenceMetrics, InferenceMetricsForSegmentation
@@ -405,8 +405,7 @@ class MLRunner:
                 dataloaders.append((data.val_dataloader(), ModelExecutionMode.VAL))  # type: ignore
             if self.container.perform_training_set_inference:
                 dataloaders.append((data.train_dataloader(), ModelExecutionMode.TRAIN))  # type: ignore
-            map_location = "gpu" if self.container.use_gpu else "cpu"
-            checkpoint = pl_load(checkpoint_paths[0], map_location=map_location)
+            checkpoint = load_checkpoint(checkpoint_paths[0], use_gpu=self.container.use_gpu)
             lightning_model.load_state_dict(checkpoint['state_dict'])
             lightning_model.eval()
             with change_working_directory(self.container.outputs_folder):
