@@ -23,6 +23,7 @@ from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, create
     get_best_checkpoint_path, get_recovery_checkpoint_path
 
 # A folder inside of the outputs folder that will contain all information for running the model in inference mode
+
 FINAL_MODEL_FOLDER = "final_model"
 FINAL_ENSEMBLE_MODEL_FOLDER = "final_ensemble_model"
 
@@ -30,6 +31,7 @@ FINAL_ENSEMBLE_MODEL_FOLDER = "final_ensemble_model"
 # them before registration.
 CHECKPOINT_FOLDER = "checkpoints"
 VISUALIZATION_FOLDER = "visualizations"
+EXTRA_RUN_SUBFOLDER = "extra_run_id"
 
 ARGS_TXT = "args.txt"
 WEIGHTS_FILE = "weights.pth"
@@ -283,6 +285,14 @@ class DatasetParams(param.Parameterized):
     local_dataset: Optional[Path] = \
         param.ClassSelector(class_=Path, default=None, allow_None=True,
                             doc="The path of the dataset to use, when training is running outside Azure.")
+    extra_azure_dataset_ids: List[str] = \
+        param.List(default=[], allow_None=False,
+                   doc="This can be used to feed in additional datasets to your custom datamodules. These will be"
+                       "mounted and made available as a list of paths in 'extra_local_datasets' when running in AML.")
+    extra_local_dataset_paths: List[Path] = param.List(class_=Path, default=[], allow_None=False,
+                                                       doc="This can be used to feed in additional datasets "
+                                                           "to your custom datamodules when running outside of Azure "
+                                                           "AML.")
 
 
 class OutputParams(param.Parameterized):
@@ -470,6 +480,21 @@ class TrainerParams(param.Parameterized):
         from InnerEye.ML.utils.ml_util import is_gpu_available
         return is_gpu_available()
 
+    @property
+    def num_gpus_per_node(self) -> int:
+        """
+        Computes the number of gpus to use for each node: either the number of gpus available on the device
+        or restrict it to max_num_gpu, whichever is smaller. Returns 0 if running on a CPU device.
+        """
+        import torch
+        num_gpus = torch.cuda.device_count() if self.use_gpu else 0
+        logging.info(f"Number of available GPUs: {num_gpus}")
+        if 0 <= self.max_num_gpus < num_gpus:
+            num_gpus = self.max_num_gpus
+            logging.info(f"Restricting the number of GPUs to {num_gpus}")
+        elif self.max_num_gpus > num_gpus:
+            logging.warning(f"You requested max_num_gpus {self.max_num_gpus} but there are only {num_gpus} available.")
+        return num_gpus
 
 class DeepLearningConfig(WorkflowParams,
                          DatasetParams,
@@ -508,9 +533,6 @@ class DeepLearningConfig(WorkflowParams,
         param.DataFrame(default=None,
                         doc="The dataframe that contains the dataset for the model. This is usually read from disk "
                             "from dataset.csv")
-    _use_gpu: Optional[bool] = param.Boolean(None,
-                                             doc="If true, a CUDA capable GPU with at least 1 device is "
-                                                 "available. If None, the use_gpu property has not yet been called.")
     avoid_process_spawn_in_data_loaders: bool = \
         param.Boolean(is_windows(), doc="If True, use a data loader logic that avoid spawning new processes at the "
                                         "start of each epoch. This speeds up training on both Windows and Linux, but"
@@ -563,6 +585,7 @@ class DeepLearningConfig(WorkflowParams,
         self.create_filesystem(fixed_paths.repository_root_directory())
         # Disable the PL progress bar because all InnerEye models have their own console output
         self.pl_progress_bar_refresh_rate = 0
+        self.extra_downloaded_run_id: Optional[Any] = None
 
     def validate(self) -> None:
         """

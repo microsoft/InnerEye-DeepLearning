@@ -28,7 +28,7 @@ if not runner_path.is_absolute():
     sys.argv[0] = str(runner_path.absolute())
 
 import logging
-from typing import Any, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 from azureml._base_sdk_common import user_agent
 from azureml.core import Run
@@ -44,19 +44,11 @@ from InnerEye.Common.common_util import FULL_METRICS_DATAFRAME_FILE, METRICS_AGG
     disable_logging_to_file, is_linux, logging_to_stdout
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME
-from InnerEye.ML.config import ModelDeploymentHookSignature, PostCrossValidationHookSignature
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.model_config_base import ModelConfigBase
+from InnerEye.ML.run_ml import MLRunner, ModelDeploymentHookSignature, PostCrossValidationHookSignature
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
-
-try:
-    # This import can fail when the code runs inside the azure_runner.yml Conda environment, that we use
-    # for the PR builds
-    from InnerEye.ML.lightning_container import LightningContainer
-
-    has_torch = True
-except ModuleNotFoundError as ex:
-    has_torch = False
+from InnerEye.ML.lightning_container import LightningContainer
 
 
 def initialize_rpdb() -> None:
@@ -171,7 +163,7 @@ class Runner:
         # Now create a parser that understands overrides at model/container level.
         parser_result = parse_overrides_and_apply(config_or_container, parser_result)
 
-        if has_torch and isinstance(config_or_container, LightningContainer):
+        if isinstance(config_or_container, LightningContainer):
             self.lightning_container = config_or_container
         elif isinstance(config_or_container, DeepLearningConfig):
             # Built-in InnerEye models: A fake container for these models will be created in MLRunner
@@ -214,6 +206,13 @@ class Runner:
         """
         return self._get_property_from_config_or_container("azure_dataset_id")
 
+    @property
+    def extra_azure_dataset_ids(self) -> List[str]:
+        """
+        Returns the name of the Azure dataset that should be used.
+        """
+        return self._get_property_from_config_or_container("extra_azure_dataset_ids")
+
     def run(self) -> Tuple[Optional[DeepLearningConfig], Optional[Run]]:
         """
         The main entry point for training and testing models from the commandline. This chooses a model to train
@@ -237,6 +236,8 @@ class Runner:
             run_object = self.submit_to_azureml()
         else:
             self.run_in_situ()
+        if self.model_config is None:
+            return self.lightning_container, run_object
         return self.model_config, run_object
 
     def submit_to_azureml(self) -> Run:
@@ -261,7 +262,7 @@ class Runner:
             upload_timeout_seconds=86400,
         )
         source_config.set_script_params_except_submit_flag()
-        azure_run = submit_to_azureml(self.azure_config, source_config, self.azure_dataset_id)
+        azure_run = submit_to_azureml(self.azure_config, source_config, self.azure_dataset_id, self.extra_azure_dataset_ids)
         logging.info("Job submission to AzureML done.")
         if self.azure_config.pytest_mark and self.azure_config.wait_for_completion:
             # The AzureML job can optionally run pytest. Attempt to download it to the current directory.
@@ -312,14 +313,10 @@ class Runner:
             finally:
                 disable_logging_to_file()
 
-    def create_ml_runner(self) -> Any:
+    def create_ml_runner(self) -> MLRunner:
         """
         Create and return an ML runner using the attributes of this Runner object.
         """
-        # This import statement cannot be at the beginning of the file because it will cause import
-        # of packages that are not available inside the azure_runner.yml environment, in particular pytorch.
-        # That is also why we specify the return type is Any rather than MLRunner.
-        from InnerEye.ML.run_ml import MLRunner
         return MLRunner(
             model_config=self.model_config,
             container=self.lightning_container,

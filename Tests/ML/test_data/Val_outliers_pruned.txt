@@ -1,0 +1,56 @@
+
+
+=== METRIC: Dice ===
+
+                         count  mean  min  max
+Patient Structure                             
+341     rectum           1.0    1.1   1.1  1.1
+366     rectum           1.0    0.9   0.9  0.9
+411     rectum           1.0    0.9   0.9  0.9
+306     rectum           1.0    0.8   0.8  0.8
+344     rectum           1.0    0.8   0.8  0.8
+365     rectum           1.0    0.7   0.7  0.7
+343     rectum           1.0    0.4   0.4  0.4
+409     rectum           1.0    0.4   0.4  0.4
+320     rectum           1.0    0.3   0.3  0.3
+374     rectum           1.0    0.2   0.2  0.2
+341     femur_r          1.0    0.1   0.1  0.1
+366     seminalvesicles  1.0    0.1   0.1  0.1
+306     bladder          1.0    0.0   0.0  0.0
+        femur_r          1.0    0.0   0.0  0.0
+        prostate         1.0    0.0   0.0  0.0
+        seminalvesicles  1.0    0.0   0.0  0.0
+320     bladder          1.0    0.0   0.0  0.0
+        femur_r          1.0    0.0   0.0  0.0
+        prostate         1.0    0.0   0.0  0.0
+        seminalvesicles  1.0    0.0   0.0  0.0
+341     bladder          1.0    0.0   0.0  0.0
+        prostate         1.0    0.0   0.0  0.0
+        seminalvesicles  1.0    0.0   0.0  0.0
+343     bladder          1.0    0.0   0.0  0.0
+        femur_r          1.0    0.0   0.0  0.0
+        prostate         1.0    0.0   0.0  0.0
+        seminalvesicles  1.0    0.0   0.0  0.0
+344     bladder          1.0    0.0   0.0  0.0
+        femur_r          1.0    0.0   0.0  0.0
+        prostate         1.0    0.0   0.0  0.0
+        seminalvesicles  1.0    0.0   0.0  0.0
+365     bladder          1.0    0.0   0.0  0.0
+        femur_r          1.0    0.0   0.0  0.0
+        prostate         1.0    0.0   0.0  0.0
+        seminalvesicles  1.0    0.0   0.0  0.0
+366     bladder          1.0    0.0   0.0  0.0
+        femur_r          1.0    0.0   0.0  0.0
+        prostate         1.0    0.0   0.0  0.0
+374     bladder          1.0    0.0   0.0  0.0
+        femur_r          1.0    0.0   0.0  0.0
+        prostate         1.0    0.0   0.0  0.0
+        seminalvesicles  1.0    0.0   0.0  0.0
+409     bladder          1.0    0.0   0.0  0.0
+        femur_r          1.0    0.0   0.0  0.0
+        prostate         1.0    0.0   0.0  0.0
+        seminalvesicles  1.0    0.0   0.0  0.0
+411     bladder          1.0    0.0   0.0  0.0
+        femur_r          1.0    0.0   0.0  0.0
+        prostate         1.0    0.0   0.0  0.0
+        seminalvesicles  1.0    0.0   0.0  0.0
