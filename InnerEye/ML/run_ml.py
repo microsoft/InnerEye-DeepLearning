@@ -159,8 +159,8 @@ class MLRunner:
         :param post_cross_validation_hook: A function to call after waiting for completion of cross validation runs.
         The function is called with the model configuration and the path to the downloaded and merged metrics files.
         :param model_deployment_hook: an optional function for deploying a model in an application-specific way.
-        If present, it should take a model config (DeepLearningConfig), an AzureConfig, and an AzureML
-        Model as arguments, and return an optional Path and a further object of any type.
+        If present, it should take a LightningContainer, an AzureConfig, an AzureML Model and a ModelProcessing object
+        as arguments, and return an object of any type.
         :param output_subfolder: If provided, the output folder structure will have an additional subfolder,
         when running outside AzureML.
         """
