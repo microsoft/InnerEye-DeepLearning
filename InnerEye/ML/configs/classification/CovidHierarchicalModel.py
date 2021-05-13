@@ -57,7 +57,7 @@ class CovidHierarchicalModel(ScalarModelBase):
     test_set_ids = param.String(default=None,
                                 doc="Name of the csv file in the dataset folder with the test set ids.")
 
-    def __init__(self, covid_dataset_id=COVID_DATASET_ID, **kwargs: Any):
+    def __init__(self, covid_dataset_id: str = COVID_DATASET_ID, **kwargs: Any):
         learning_rate = 1e-5 if self.use_pretrained_model else 1e-4
         super().__init__(target_names=['CVX03vs12', 'CVX0vs3', 'CVX1vs2'],
                          loss_type=ScalarLoss.CustomClassification,
@@ -140,12 +140,12 @@ class CovidHierarchicalModel(ScalarModelBase):
                                   freeze_encoder=self.freeze_encoder,
                                   class_weights=None)
         # Next args are just here because we are using this model within an InnerEyeContainer
-        model.imaging_feature_type = ImagingFeatureType.Image
-        model.num_non_image_features = 0
-        model.encode_channels_jointly = True
+        model.imaging_feature_type = ImagingFeatureType.Image  # type: ignore
+        model.num_non_image_features = 0  # type: ignore
+        model.encode_channels_jointly = True  # type: ignore
         return model
 
-    def _get_ssl_checkpoint_path(self):
+    def _get_ssl_checkpoint_path(self) -> Path:
         # Get the SSL weights from the AML run provided via "pretraining_run_recovery_id" command line argument.
         # Accessible via extra_downloaded_run_id field of the config.
         assert self.extra_downloaded_run_id is not None

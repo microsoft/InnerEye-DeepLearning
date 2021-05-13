@@ -4,7 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 import logging
 from pathlib import Path
-from typing import Any, Callable, List, Optional
+from typing import Any, Callable, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -185,7 +185,7 @@ class CovidDataset(InnerEyeCXRDatasetWithReturnIndex):
     We use CVX03 against CVX12 as proxy task.
     """
 
-    def _prepare_dataset(self):
+    def _prepare_dataset(self) -> None:
         self.dataset_dataframe = pd.read_csv(self.root / "dataset.csv")
         mapping = {"0": 0, "3": 0, "1": 1, "2": 1}
         self.dataset_dataframe["final_label"] = self.dataset_dataframe.final_label.astype(int).astype(str).apply(
@@ -199,7 +199,7 @@ class CovidDataset(InnerEyeCXRDatasetWithReturnIndex):
     def num_classes(self) -> int:
         return 2
 
-    def _split_dataset(self, val_split: float, seed: int):
+    def _split_dataset(self, val_split: float, seed: int) -> Tuple[Subset, Subset]:
         """
         Implements val - train split.
         :param val_split: proportion to use for validation

@@ -1,3 +1,5 @@
+from typing import Any
+
 from InnerEye.ML.SSL.lightning_containers.ssl_container import EncoderName, SSLContainer, SSLDatasetName
 from InnerEye.ML.SSL.utils import SSLTrainingType
 from InnerEye.ML.configs.ssl.CXR_SSL_configs import NIH_AZURE_DATASET_ID, path_encoder_augmentation_cxr, \
@@ -12,8 +14,8 @@ class NIH_COVID_BYOL(SSLContainer):
     """
 
     def __init__(self,
-                 covid_dataset_id=COVID_DATASET_ID,
-                 **kwargs):
+                 covid_dataset_id: str = COVID_DATASET_ID,
+                 **kwargs: Any):
         super().__init__(ssl_training_dataset_name=SSLDatasetName.NIHCXR,
                          linear_head_dataset_name=SSLDatasetName.Covid,
                          random_seed=1,
