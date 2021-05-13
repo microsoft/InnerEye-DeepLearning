@@ -54,6 +54,8 @@ class CovidHierarchicalModel(ScalarModelBase):
     use_pretrained_model = param.Boolean(default=False, doc="TBD")
     freeze_encoder = param.Boolean(default=False, doc="Whether to freeze the pretrained encoder or not.")
     name_of_checkpoint = param.String(default=None, doc="Filename of checkpoint to use for recovery")
+    test_set_ids = param.String(default="test_set_ids.csv",
+                                doc="Name of the csv file in the dataset folder with the test set ids.")
 
     def __init__(self, covid_dataset_id=COVID_DATASET_ID, **kwargs: Any):
         learning_rate = 1e-5 if self.use_pretrained_model else 1e-4
@@ -86,7 +88,7 @@ class CovidHierarchicalModel(ScalarModelBase):
         return False
 
     def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:
-        test_df = pd.read_csv(self.local_dataset / "test_series_ids.csv")
+        test_df = pd.read_csv(self.local_dataset / self.test_set_ids)
 
         in_test_set = dataset_df.series.isin(test_df.series)
         train_ids = dataset_df.series[~in_test_set].values
