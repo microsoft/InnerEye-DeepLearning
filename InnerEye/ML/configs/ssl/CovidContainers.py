@@ -6,7 +6,7 @@ from InnerEye.ML.configs.ssl.CXR_SSL_configs import NIH_AZURE_DATASET_ID, path_e
 COVID_DATASET_ID = "id-of-your-dataset"
 
 
-class COVID_NIH_BYOL(SSLContainer):
+class NIH_COVID_BYOL(SSLContainer):
     """
     Class to train a SSL model on NIH dataset and monitor embeddings quality on a Covid Dataset.
     """
