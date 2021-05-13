@@ -223,7 +223,7 @@ class CovidHierarchicalModel(ScalarModelBase):
                 "config": codecs.encode(pickle.dumps(self), "base64").decode(),
                 "is_crossval_report": False
             }
-        template = Path(__file__).absolute().parent.parent / "utils" / "HierarchicalCovidModelReport.ipynb"
+        template = Path(__file__).absolute().parent.parent / "reports" / "CovidHierarchicalModelReport.ipynb"
         return generate_notebook(template,
                                  notebook_params=notebook_params,
                                  result_notebook=report_dir / get_ipynb_report_name(
