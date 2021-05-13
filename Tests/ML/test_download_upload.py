@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, List, Optional
 from unittest import mock
 
-import pytest
+import pytest, pandas
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common import fixed_paths
@@ -214,7 +214,28 @@ def test_mount_or_download(test_output_dirs: OutputFolderForTests) -> None:
     Tests the different combinations of local and Azure datasets, with Innereye built-in and container models.
     """
     root = test_output_dirs.root_dir
+
+    # With runs outside of AzureML, a local dataset should be used as-is. Azure dataset ID is ignored here.
+    shutil.copy(full_ml_test_data_path(DATASET_CSV_FILE_NAME), root / DATASET_CSV_FILE_NAME)
+
+    df = pandas.read_csv(str(full_ml_test_data_path(DATASET_CSV_FILE_NAME)), usecols=['filePath'])
+
     for is_lightning_model in [True, False]:
+        if not is_lightning_model:
+            # Consider three directories, i) "downloaded", ii)  "mounted", iii) "train_and_test_data" Path for ""
+            # represents "train_and_test_data" and is empty since the string "train_and_test_data" is in data.csv
+            # file and corresponds to the case container.local_dataset == root
+            for myPath in ["downloaded", "mounted", ""]:
+
+                path = test_output_dirs.root_dir / myPath
+                path.mkdir(exist_ok=True)
+
+                train_and_test_data_path = path / "train_and_test_data"
+                train_and_test_data_path.mkdir(exist_ok=True)
+
+                for filePath in set(df['filePath'].values):
+                    shutil.copy(full_ml_test_data_path() / filePath, path / filePath)
+
         # With runs outside of AzureML, an AML dataset should get downloaded.
         container = _test_mount_for_lightning_container(test_output_dirs=test_output_dirs,
                                                         is_offline_run=True,
@@ -236,8 +257,6 @@ def test_mount_or_download(test_output_dirs: OutputFolderForTests) -> None:
         if not is_lightning_model:
             assert container.config.local_dataset == container.local_dataset
 
-        # With runs outside of AzureML, a local dataset should be used as-is. Azure dataset ID is ignored here.
-        shutil.copy(full_ml_test_data_path(DATASET_CSV_FILE_NAME), root / DATASET_CSV_FILE_NAME)
         container = _test_mount_for_lightning_container(test_output_dirs=test_output_dirs,
                                                         is_offline_run=True,
                                                         local_dataset=root,
