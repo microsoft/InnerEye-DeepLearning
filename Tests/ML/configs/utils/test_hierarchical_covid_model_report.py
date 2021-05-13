@@ -2,7 +2,8 @@ import pandas as pd
 from math import nan
 
 from InnerEye.Common.metrics_constants import LoggingColumns
-from InnerEye.ML.configs.utils.hierarchical_covid_model_report import get_dataframe_with_covid_labels, MULTICLASS_HUE_NAME
+from InnerEye.ML.configs.reports.covid_hierarchical_model_report import MULTICLASS_HUE_NAME, \
+    get_dataframe_with_covid_labels
 
 
 def test_get_dataframe_with_covid_labels() -> None:
