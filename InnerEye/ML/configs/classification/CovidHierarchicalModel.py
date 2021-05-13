@@ -54,7 +54,7 @@ class CovidHierarchicalModel(ScalarModelBase):
     use_pretrained_model = param.Boolean(default=False, doc="TBD")
     freeze_encoder = param.Boolean(default=False, doc="Whether to freeze the pretrained encoder or not.")
     name_of_checkpoint = param.String(default=None, doc="Filename of checkpoint to use for recovery")
-    test_set_ids = param.String(default="test_set_ids.csv",
+    test_set_ids = param.String(default=None,
                                 doc="Name of the csv file in the dataset folder with the test set ids.")
 
     def __init__(self, covid_dataset_id=COVID_DATASET_ID, **kwargs: Any):
@@ -88,18 +88,24 @@ class CovidHierarchicalModel(ScalarModelBase):
         return False
 
     def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:
-        test_df = pd.read_csv(self.local_dataset / self.test_set_ids)
-
-        in_test_set = dataset_df.series.isin(test_df.series)
-        train_ids = dataset_df.series[~in_test_set].values
-        test_ids = dataset_df.series[in_test_set].values
-
-        num_val_samples = 400
-        val_ids = train_ids[:num_val_samples]
-        train_ids = train_ids[num_val_samples:]
-
-        return DatasetSplits.from_subject_ids(dataset_df, train_ids=train_ids, val_ids=val_ids, test_ids=test_ids,
-                                              subject_column="series", group_column="subject")
+        if self.test_set_ids:
+            test_df = pd.read_csv(self.local_dataset / self.test_set_ids)
+            in_test_set = dataset_df.series.isin(test_df.series)
+            train_ids = dataset_df.series[~in_test_set].values
+            test_ids = dataset_df.series[in_test_set].values
+            num_val_samples = 400
+            val_ids = train_ids[:num_val_samples]
+            train_ids = train_ids[num_val_samples:]
+            return DatasetSplits.from_subject_ids(dataset_df, train_ids=train_ids, val_ids=val_ids, test_ids=test_ids,
+                                                  subject_column="series", group_column="subject")
+        else:
+            return DatasetSplits.from_proportions(dataset_df,
+                                                  proportion_train=0.8,
+                                                  proportion_val=0.1,
+                                                  proportion_test=0.1,
+                                                  subject_column="series",
+                                                  group_column="subject",
+                                                  shuffle=True)
 
     # noinspection PyTypeChecker
     def get_image_sample_transforms(self) -> ModelTransformsPerExecutionMode:
