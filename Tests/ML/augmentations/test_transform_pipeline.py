@@ -7,7 +7,7 @@ import random
 import PIL
 import pytest
 import torch
-from torchvision.transforms import CenterCrop, ColorJitter, Compose, RandomErasing, ToTensor
+from torchvision.transforms import CenterCrop, ColorJitter, Compose, RandomAffine, RandomErasing, ToTensor
 from torchvision.transforms.functional import to_tensor
 
 from InnerEye.ML.augmentations.image_transforms import AddGaussianNoise, ElasticTransform, RandomGamma
@@ -17,13 +17,6 @@ from Tests.SSL.test_data_modules import cxr_augmentation_config
 
 import numpy as np
 
-
-# TODO
-# Add a test for initialization of pipeline directly from a list of configs. Same as below but simpler maybe.
-# Need a test with actually 4D inputs.
-# Need a test for RBG images and join_channel transforms
-# Need to test throws an error if use_joint_transform and the image is not RGB or 1-channel
-# Need to test if use same transform for all channels and use one transform per channel works as expected
 
 @pytest.mark.parametrize("use_different_transformation_per_channel", [True, False])
 def test_torchvision_on_various_input(use_different_transformation_per_channel: bool) -> None:
@@ -38,9 +31,7 @@ def test_torchvision_on_various_input(use_different_transformation_per_channel: 
         [CenterCrop(224),
          RandomErasing(),
          ColorJitter(),
-         ElasticTransform(sigma=4, alpha=34, p_apply=1),
-         AddGaussianNoise(p_apply=1, std=0.05),
-         RandomGamma(scale=(0.3, 3))
+         RandomAffine(degrees=(10, 12), shear=15, translate=(0.1, 0.3))
          ],
         use_different_transformation_per_channel)
 
@@ -62,6 +53,45 @@ def test_torchvision_on_various_input(use_different_transformation_per_channel: 
     test_4d_tensor[..., 100:150, 100:200] = 1
     tf = transform(test_4d_tensor)
     assert tf.shape == torch.Size([25, 34, 224, 224])
+
+    # Same transformation should be applied to all slices and channels.
+    assert torch.isclose(tf[0, 0], tf[1, 1]).all() != use_different_transformation_per_channel
+
+
+@pytest.mark.parametrize("use_different_transformation_per_channel", [True, False])
+def test_custom_tf_on_various_input(use_different_transformation_per_channel: bool) -> None:
+    """
+    This tests that we can run transformation pipeline with our custom transforms on various types
+    of input: PIL image, 3D tensor, 4D tensors. Tests that use_different_transformation_per_channel has the correct
+    behavior. The transforms are test individually in test_image_transforms.py
+    """
+    image = np.ones([256, 256]) * 255.
+    image[100:150, 100:200] = 1
+    pipeline = ImageTransformationPipeline(
+        [ElasticTransform(sigma=4, alpha=34, p_apply=1),
+         AddGaussianNoise(p_apply=1, std=0.05),
+         RandomGamma(scale=(0.3, 3))
+         ],
+        use_different_transformation_per_channel)
+
+    # Test PIL image input
+    image = PIL.Image.fromarray(image).convert("L")
+    pipeline(image)
+
+    # Test image as [C, H, W] tensor
+    image_as_tensor = to_tensor(image)
+    pipeline(image_as_tensor)
+
+    # Test image as [1, 1, H, W]
+    image_as_tensor = image_as_tensor.unsqueeze(0)
+    assert image_as_tensor.shape == torch.Size([1, 1, 256, 256])
+    assert pipeline(image_as_tensor).shape == torch.Size([1, 1, 256, 256])
+
+    # Test with a fake scan [C, Z, H, W] -> [25, 34, 256, 256]
+    test_4d_tensor = torch.ones([25, 34, 256, 256]) * 255.
+    test_4d_tensor[..., 100:150, 100:200] = 1
+    tf = pipeline(test_4d_tensor)
+    assert tf.shape == torch.Size([25, 34, 256, 256])
 
     # Same transformation should be applied to all slices and channels.
     assert torch.isclose(tf[0, 0], tf[1, 1]).all() != use_different_transformation_per_channel
