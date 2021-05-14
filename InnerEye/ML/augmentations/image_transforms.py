@@ -30,11 +30,17 @@ class RandomGamma():
 class ExpandChannels:
     """
     Transforms an image with 1 channel to an image with 3 channels by copying pixel intensities of the image along
-    the 0th dimension.
+    the 1st dimension.
     """
 
     def __call__(self, data: torch.Tensor) -> torch.Tensor:
-        return torch.repeat_interleave(data, 3, dim=0)
+        """
+        :param: data [Z, C, H, W]
+        """
+        shape = data.shape
+        if len(shape) != 4 or shape[1] != 1:
+             raise ValueError(f"Expected input of shape [Z, 1, H, W], found {shape}")
+        return torch.repeat_interleave(data, 3, dim=1)
 
 
 class AddGaussianNoise:

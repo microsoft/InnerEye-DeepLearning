@@ -63,16 +63,24 @@ class ImageTransformationPipeline:
 
         image = _convert_to_tensor_if_necessary(image)
 
-        # If we have a 2D image [C, H, W] expand to [C, Z, H, W]. Build-in torchvision transforms allow such 4D inputs.
+        # If we have a 2D image [C, H, W] expand to [Z, C, H, W]. Build-in torchvision transforms allow such 4D inputs.
         if len(image.shape) == 3:
-            image = image.unsqueeze(1)
+            image = image.unsqueeze(0)
+
+        else:
+            # Some transforms assume the order of dimension is [..., C, H, W] so permute first and last dimension to
+            # obtain [Z, C, H, W]
+            image = torch.transpose(image, 1, 0)
+
         if not self.use_different_transformation_per_channel:
             image = _convert_to_tensor_if_necessary(self.pipeline(image))
         else:
             channels = []
-            for channel in range(image.shape[0]):
-                channels.append(_convert_to_tensor_if_necessary(self.pipeline(image[channel].unsqueeze(0))))
-            image = torch.cat(channels, dim=0)
+            for channel in range(image.shape[1]):
+                channels.append(_convert_to_tensor_if_necessary(self.pipeline(image[:, channel, :, :].unsqueeze(1))))
+            image = torch.cat(channels, dim=1)
+        # Back to [C, Z, H, W]
+        image = torch.transpose(image, 1, 0)
         return image.to(dtype=image.dtype)
 
 
@@ -85,7 +93,7 @@ def create_transform_pipeline_from_config(config: CfgNode,
     :param apply_augmentations: if True return transformation pipeline with augmentations. Else,
     disable augmentations i.e. only resize and center crop the image.
     """
-    transforms: List[Any] = []
+    transforms: List[Any] = [ExpandChannels()]
     if apply_augmentations:
         if config.augmentation.use_random_affine:
             transforms.append(RandomAffine(
@@ -117,7 +125,7 @@ def create_transform_pipeline_from_config(config: CfgNode,
                 sigma=config.augmentation.elastic_transform.sigma,
                 p_apply=config.augmentation.elastic_transform.p_apply
             ))
-        transforms += [CenterCrop(config.preprocess.center_crop_size), ToTensor()]
+        transforms.append(CenterCrop(config.preprocess.center_crop_size))
         if config.augmentation.use_random_erasing:
             transforms.append(RandomErasing(
                 scale=config.augmentation.random_erasing.scale,
@@ -130,8 +138,6 @@ def create_transform_pipeline_from_config(config: CfgNode,
             ))
     else:
         transforms += [Resize(size=config.preprocess.resize),
-                       CenterCrop(config.preprocess.center_crop_size),
-                       ToTensor()]
-    transforms.append(ExpandChannels())
+                       CenterCrop(config.preprocess.center_crop_size)]
     pipeline = ImageTransformationPipeline(transforms=transforms)
     return pipeline

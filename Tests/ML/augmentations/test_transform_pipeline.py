@@ -7,11 +7,14 @@ import random
 import PIL
 import pytest
 import torch
-from torchvision.transforms import CenterCrop, ColorJitter, Compose, RandomAffine, RandomErasing, ToTensor
+from torchvision.transforms import CenterCrop, ColorJitter, RandomAffine, RandomErasing, RandomHorizontalFlip, \
+    RandomResizedCrop, Resize, ToTensor
 from torchvision.transforms.functional import to_tensor
 
-from InnerEye.ML.augmentations.image_transforms import AddGaussianNoise, ElasticTransform, RandomGamma
-from InnerEye.ML.augmentations.transform_pipeline import ImageTransformationPipeline
+from InnerEye.ML.augmentations.image_transforms import AddGaussianNoise, ElasticTransform, ExpandChannels, RandomGamma
+from InnerEye.ML.augmentations.transform_pipeline import ImageTransformationPipeline, \
+    create_transform_pipeline_from_config
+
 # create_transform_pipeline_from_config
 from Tests.SSL.test_data_modules import cxr_augmentation_config
 
@@ -30,7 +33,6 @@ def test_torchvision_on_various_input(use_different_transformation_per_channel: 
     transform = ImageTransformationPipeline(
         [CenterCrop(224),
          RandomErasing(),
-         ColorJitter(),
          RandomAffine(degrees=(10, 12), shear=15, translate=(0.1, 0.3))
          ],
         use_different_transformation_per_channel)
@@ -106,55 +108,48 @@ def test_create_transform_pipeline_from_config() -> None:
     image[100:150, 100:200] = 1
     image = PIL.Image.fromarray(image).convert("L")
 
+    all_transforms = [ExpandChannels(),
+                      RandomAffine(degrees=180, translate=(0, 0), shear=40),
+                      RandomResizedCrop(scale=(0.4, 1.0), size=256),
+                      RandomHorizontalFlip(p=0.5),
+                      RandomGamma(scale=(0.5, 1.5)),
+                      ColorJitter(saturation=0, brightness=0.2, contrast=0.2),
+                      ElasticTransform(sigma=4, alpha=34, p_apply=0.4),
+                      CenterCrop(size=224),
+                      RandomErasing(scale=(0.15, 0.4), ratio=(0.33, 3)),
+                      AddGaussianNoise(std=0.05, p_apply=0.5)
+                      ]
+
     np.random.seed(3)
     torch.manual_seed(3)
     random.seed(3)
-    transformed_image = transformation_pipeline(image)
 
+    transformed_image = transformation_pipeline(image)
     # Expected pipeline
     image = np.ones([256, 256]) * 255.
     image[100:150, 100:200] = 1
     image = PIL.Image.fromarray(image).convert("L")
+    # In the pipeline the image is converted to tensor before applying the transformations. Do the same here.
+    image = ToTensor()(image).reshape([1, 1, 256, 256])
 
     np.random.seed(3)
     torch.manual_seed(3)
     random.seed(3)
-    all_transforms = [RandomAffine(max_angle=180,
-                                   max_horizontal_shift=0,
-                                   max_vertical_shift=0,
-                                   max_shear=40),
-                      RandomResizeCrop(random_crop_scale=(0.4, 1.0),
-                                       resize_size=256),
-                      RandomHorizontalFlip(p_apply=0.5),
-                      RandomGamma(scale=(0.5, 1.5)),
-                      RandomColorJitter(max_saturation=0,
-                                        max_brightness=0.2,
-                                        max_contrast=0.2),
-                      ElasticTransform(sigma=4, alpha=34, p_apply=0.4),
-                      CenterCrop(center_crop_size=224),
-                      ToTensor(),
-                      RandomErasing(scale=(0.4, 1.0), ratio=(0.3, 3.3)),
-                      AddGaussianNoise(std=0.05, p_apply=0.5),
-                      ExpandChannels()]
-    input_size = [1, 256, 256]
-    for t in all_transforms:
-        input_size = t.draw_transform(input_size)
+
     expected_transformed = image
     for t in all_transforms:
         expected_transformed = t(expected_transformed)
-
+    # The pipeline takes as input [C, Z, H, W] and returns [C, Z, H, W]
+    # But the transforms list expect [Z, C, H, W] and returns [Z, C, H, W] so need to permute dimension to compare
+    expected_transformed = torch.transpose(expected_transformed, 1, 0)
     assert torch.isclose(expected_transformed, transformed_image).all()
 
     # Test the evaluation pipeline
     transformation_pipeline = create_transform_pipeline_from_config(cxr_augmentation_config, apply_augmentations=False)
     transformed_image = transformation_pipeline(image)
-    all_transforms = [Resize(resize_size=256),
-                      CenterCrop(center_crop_size=224),
-                      ToTensor(),
-                      ExpandChannels()]
-    for t in all_transforms:
-        input_size = t.draw_transform(input_size)
+    all_transforms = [ExpandChannels(), Resize(size=256), CenterCrop(size=224)]
     expected_transformed = image
     for t in all_transforms:
         expected_transformed = t(expected_transformed)
+    expected_transformed = torch.transpose(expected_transformed, 1, 0)
     assert torch.isclose(expected_transformed, transformed_image).all()
