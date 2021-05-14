@@ -62,8 +62,8 @@ def visualize_random_crops(sample: Sample,
     repeats = 200
     for _ in range(repeats):
         slicers, _ = slicers_for_random_crop(sample=sample,
-                                                      crop_size=config.crop_size,
-                                                      class_weights=config.class_weights)
+                                             crop_size=config.crop_size,
+                                             class_weights=config.class_weights)
         heatmap[slicers[0], slicers[1], slicers[2]] += 1
     is_3dim = heatmap.shape[0] > 1
     header = sample.metadata.image_header

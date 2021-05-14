@@ -58,7 +58,7 @@ class AddGaussianNoise:
         if np.random.random(1) > self.p_apply:
             return data
         noise = torch.randn(size=data.shape[-2:]) * self.std
-        data = torch.clamp(data + noise, data.min(), data.max())
+        data = torch.clamp(data + noise, data.min(), data.max())  # type: ignore
         return data
 
 

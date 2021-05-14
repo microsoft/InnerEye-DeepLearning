@@ -386,12 +386,20 @@ class ScalarModelBase(ModelConfigBase):
     def create_torch_datasets(self, dataset_splits: DatasetSplits) -> Dict[ModelExecutionMode, Any]:
         from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
         image_transforms = self.get_image_sample_transforms()
-        train = ScalarDataset(args=self, data_frame=dataset_splits.train,
-                              name="training", sample_transforms=ScalarItemAugmentation(image_transforms.train))  # type: ignore
-        val = ScalarDataset(args=self, data_frame=dataset_splits.val, feature_statistics=train.feature_statistics,
-                            name="validation", sample_transforms=ScalarItemAugmentation(image_transforms.val))  # type: ignore
-        test = ScalarDataset(args=self, data_frame=dataset_splits.test, feature_statistics=train.feature_statistics,
-                             name="test", sample_transforms=ScalarItemAugmentation(image_transforms.test))  # type: ignore
+        train = ScalarDataset(args=self,
+                              data_frame=dataset_splits.train,
+                              name="training",
+                              sample_transforms=image_transforms.train.get_scalar_item_transformation)
+        val = ScalarDataset(args=self,
+                            data_frame=dataset_splits.val,
+                            feature_statistics=train.feature_statistics,
+                            name="validation",
+                            sample_transforms=image_transforms.val.get_scalar_item_transformation)
+        test = ScalarDataset(args=self,
+                             data_frame=dataset_splits.test,
+                             feature_statistics=train.feature_statistics,
+                             name="test",
+                             sample_transforms=image_transforms.test.get_scalar_item_transformation)
 
         return {
             ModelExecutionMode.TRAIN: train,

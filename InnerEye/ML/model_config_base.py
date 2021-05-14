@@ -15,6 +15,7 @@ from pandas import DataFrame
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY
 from InnerEye.Common.common_util import ModelProcessing
 from InnerEye.Common.metrics_constants import TrackedMetrics
+from InnerEye.ML.augmentations.transform_pipeline import ImageTransformationPipeline
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, STORED_CSV_FILE_NAMES
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.utils.split_dataset import DatasetSplits
@@ -267,9 +268,9 @@ class ModelTransformsPerExecutionMode:
     to apply to each sample depending on each execution mode (train, validation and test)
     """
 
-    def __init__(self, train: Optional[Callable] = None,
-                 val: Optional[Callable] = None,
-                 test: Optional[Callable] = None):
+    def __init__(self, train: Optional[ImageTransformationPipeline] = None,
+                 val: Optional[ImageTransformationPipeline] = None,
+                 test: Optional[ImageTransformationPipeline] = None):
         """
 
         :param train: the transformation(s) to apply to the training set.

@@ -13,6 +13,7 @@ from torchvision.transforms.functional import to_tensor
 from yacs.config import CfgNode
 
 from InnerEye.ML.augmentations.image_transforms import AddGaussianNoise, ElasticTransform, ExpandChannels, RandomGamma
+from InnerEye.ML.dataset.scalar_sample import ScalarItem
 
 
 class ImageTransformationPipeline:
@@ -29,7 +30,8 @@ class ImageTransformationPipeline:
     # noinspection PyMissingConstructor
     def __init__(self,
                  transforms: List[Callable],
-                 use_different_transformation_per_channel: bool = False):
+                 use_different_transformation_per_channel: bool = False,
+                 apply_pipeline_to_segmentation_maps: bool = False):
         """
         :param transforms: List of transformations to apply to images. Supports out of the boxes torchvision transforms
         as they accept data of arbitrary dimension. If the data is [C, Z, H, W] they will apply the same transformation
@@ -37,13 +39,14 @@ class ImageTransformationPipeline:
         transform class but be aware that you function should expect input of shape [C, Z, H, W] and apply the same
         transformation to each C, Z slice.
         :param use_different_transformation_per_channel: if True, apply a different version of the augmentation pipeline
-        for each channel. If False, applies the same transformation to each channel, separately. Incompatible with
-        use_joint_channel_transformation set to True.
-
+        for each channel. If False, applies the same transformation to each channel, separately.
+        :param: apply_transform_to_segmentation_maps. If True, the pipeline will be applied to the segmentations field
+        of the scalar item, else it will be applied to the images.
         """
         self.transforms = transforms
         self.use_different_transformation_per_channel = use_different_transformation_per_channel
         self.pipeline = Compose(transforms)
+        self.apply_pipeline_to_segmentation_maps = apply_pipeline_to_segmentation_maps
 
     def __call__(self, image: torch.Tensor) -> torch.Tensor:
         """
@@ -56,7 +59,7 @@ class ImageTransformationPipeline:
         :param image: batch of tensor images of size [C, Z, Y, X] or batch of 2D images as PIL Image
         """
 
-        def _convert_to_tensor_if_necessary(data: Union[PIL.Image.Image, torch.Tensor]):
+        def _convert_to_tensor_if_necessary(data: Union[PIL.Image.Image, torch.Tensor]) -> torch.Tensor:
             return to_tensor(data) if isinstance(data, PIL.Image.Image) else data
 
         image = _convert_to_tensor_if_necessary(image)
@@ -81,6 +84,20 @@ class ImageTransformationPipeline:
         image = torch.transpose(image, 1, 0)
         return image.to(dtype=image.dtype)
 
+    def get_scalar_item_transformation(self, item: ScalarItem) -> ScalarItem:
+        """
+        This function returns the transformation around a ScalarItem, it will apply the pipeline to either the images
+        or the segmentations and return a new ScalarItem with the transformed image.
+        :param item: item to transform
+        :return: item with the new transformed image.
+        """
+        if self.apply_pipeline_to_segmentation_maps:
+            if item.segmentations is None:
+                raise ValueError("A segmentation data augmentation transform_pipeline has been"
+                                 "specified but no segmentations has been loaded.")
+            return item.clone_with_overrides(segmentations=self(item.segmentations))
+        else:
+            return item.clone_with_overrides(images=self(item.images))
 
 def create_cxr_transform_pipeline_from_config(config: CfgNode,
                                               apply_augmentations: bool) -> ImageTransformationPipeline:

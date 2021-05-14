@@ -18,6 +18,7 @@ from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.metrics_constants import LoggingColumns, MetricType, SEQUENCE_POSITION_HUE_NAME_PREFIX
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.augmentations.transform_pipeline import ImageTransformationPipeline
+
 from InnerEye.ML.dataset.sequence_dataset import SequenceDataset
 from InnerEye.ML.deep_learning_config import TemperatureScalingConfig
 from InnerEye.ML.lightning_models import transfer_batch_to_device
