@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+from typing import Callable, Union
 
 from InnerEye.ML.augmentations.transform_pipeline import ImageTransformationPipeline
 from InnerEye.ML.dataset.sample import Sample
@@ -19,7 +20,7 @@ class ScalarItemAugmentation(Transform3D[ScalarItem]):
     """
 
     # noinspection PyMissingConstructor
-    def __init__(self, transform: ImageTransformationPipeline):
+    def __init__(self, transform: Union[Callable, ImageTransformationPipeline]):
         """
 
         :param transform: the transformation to apply to the image.

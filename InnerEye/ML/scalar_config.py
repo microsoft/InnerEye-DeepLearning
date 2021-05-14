@@ -14,6 +14,7 @@ from azureml.train.hyperdrive import HyperDriveConfig
 from InnerEye.Common.common_util import print_exception
 from InnerEye.Common.generic_parsing import ListOrDictParam
 from InnerEye.Common.type_annotations import TupleInt3
+from InnerEye.ML.augmentations.utils import ScalarItemAugmentation
 from InnerEye.ML.common import ModelExecutionMode, OneHotEncoderBase
 from InnerEye.ML.deep_learning_config import ModelCategory
 from InnerEye.ML.model_config_base import ModelConfigBase, ModelTransformsPerExecutionMode
@@ -386,11 +387,11 @@ class ScalarModelBase(ModelConfigBase):
         from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
         image_transforms = self.get_image_sample_transforms()
         train = ScalarDataset(args=self, data_frame=dataset_splits.train,
-                              name="training", sample_transforms=image_transforms.train)  # type: ignore
+                              name="training", sample_transforms=ScalarItemAugmentation(image_transforms.train))  # type: ignore
         val = ScalarDataset(args=self, data_frame=dataset_splits.val, feature_statistics=train.feature_statistics,
-                            name="validation", sample_transforms=image_transforms.val)  # type: ignore
+                            name="validation", sample_transforms=ScalarItemAugmentation(image_transforms.val))  # type: ignore
         test = ScalarDataset(args=self, data_frame=dataset_splits.test, feature_statistics=train.feature_statistics,
-                             name="test", sample_transforms=image_transforms.test)  # type: ignore
+                             name="test", sample_transforms=ScalarItemAugmentation(image_transforms.test))  # type: ignore
 
         return {
             ModelExecutionMode.TRAIN: train,
