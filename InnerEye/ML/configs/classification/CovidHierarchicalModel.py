@@ -51,11 +51,15 @@ class CovidHierarchicalModel(ScalarModelBase):
     To recover from a particular checkpoint from your SSL run e.g. "recovery_epoch=499.ckpt" please use hte
     --name_of_checkpoint argument.
     """
-    use_pretrained_model = param.Boolean(default=False, doc="TBD")
+    use_pretrained_model = param.Boolean(default=False, doc="If True, start training from a model pretrained with SSL."
+                                                            "If False, start training a DenseNet model from scratch"
+                                                            "(random initialization).")
     freeze_encoder = param.Boolean(default=False, doc="Whether to freeze the pretrained encoder or not.")
     name_of_checkpoint = param.String(default=None, doc="Filename of checkpoint to use for recovery")
-    test_set_ids = param.String(default=None,
-                                doc="Name of the csv file in the dataset folder with the test set ids.")
+    test_set_ids_csv = param.String(default=None,
+                                    doc="Name of the csv file in the dataset folder with the test set ids. The dataset"
+                                        "is expected to have a 'series' and a 'subject' column. The subject column"
+                                        "is assumed to contain unique ids.")
 
     def __init__(self, covid_dataset_id: str = COVID_DATASET_ID, **kwargs: Any):
         learning_rate = 1e-5 if self.use_pretrained_model else 1e-4
@@ -82,14 +86,15 @@ class CovidHierarchicalModel(ScalarModelBase):
                          **kwargs)
         self.num_classes = 3
         if not self.use_pretrained_model and self.freeze_encoder:
-            raise ValueError("You specified training from scratch but you asked to freeze the encoder.")
+            raise ValueError("No encoder to freeze when training from scratch. You requested training from scratch and"
+                             "encoder freezing.")
 
     def should_generate_multilabel_report(self) -> bool:
         return False
 
     def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:
-        if self.test_set_ids:
-            test_df = pd.read_csv(self.local_dataset / self.test_set_ids)
+        if self.test_set_ids_csv:
+            test_df = pd.read_csv(self.local_dataset / self.test_set_ids_csv)
             in_test_set = dataset_df.series.isin(test_df.series)
             train_ids = dataset_df.series[~in_test_set].values
             test_ids = dataset_df.series[in_test_set].values
@@ -151,15 +156,16 @@ class CovidHierarchicalModel(ScalarModelBase):
         assert self.extra_downloaded_run_id is not None
         assert isinstance(self.extra_downloaded_run_id, RunRecovery)
         ssl_path = self.checkpoint_folder / "ssl_checkpoint.ckpt"
-        logging.info(f"name_of_checkpoint: {self.name_of_checkpoint}")
+
         if not ssl_path.exists():  # for test (when it is already present) we don't need to redo this.
             if self.name_of_checkpoint is not None:
+                logging.info(f"Using checkpoint: {self.name_of_checkpoint} as starting point.")
                 path_to_checkpoint = self.extra_downloaded_run_id.checkpoints_roots[0] / self.name_of_checkpoint
             else:
-                try:
-                    path_to_checkpoint = self.extra_downloaded_run_id.get_best_checkpoint_paths()[0]
-                    assert path_to_checkpoint.exists()
-                except AssertionError:
+                path_to_checkpoint = self.extra_downloaded_run_id.get_best_checkpoint_paths()[0]
+                if not path_to_checkpoint.exists():
+                    logging.info("No best checkpoint found for this model. Getting the latest recovery "
+                                 "checkpoint instead.")
                     path_to_checkpoint = self.extra_downloaded_run_id.get_recovery_checkpoint_paths()[0]
             assert path_to_checkpoint.exists()
             path_to_checkpoint.rename(ssl_path)
