@@ -187,9 +187,9 @@ class CovidDataset(InnerEyeCXRDatasetWithReturnIndex):
 
     def _prepare_dataset(self) -> None:
         self.dataset_dataframe = pd.read_csv(self.root / "dataset.csv")
-        mapping = {"0": 0, "3": 0, "1": 1, "2": 1}
-        self.dataset_dataframe["final_label"] = self.dataset_dataframe.final_label.astype(int).astype(str).apply(
-            lambda x: mapping[x])
+        mapping = {0: 0, 3: 0, 1: 1, 2: 1}
+        # For monitoring purpose with use binary classification CV03vsCV12
+        self.dataset_dataframe["final_label"] = self.dataset_dataframe.final_label.apply(lambda x: mapping[x])
         self.indices = np.arange(len(self.dataset_dataframe))
         self.subject_ids = self.dataset_dataframe.subject.values
         self.filenames = [self.root / file for file in self.dataset_dataframe.filepath.values]
