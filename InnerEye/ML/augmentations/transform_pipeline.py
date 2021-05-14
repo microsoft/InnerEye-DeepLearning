@@ -84,8 +84,8 @@ class ImageTransformationPipeline:
         return image.to(dtype=image.dtype)
 
 
-def create_transform_pipeline_from_config(config: CfgNode,
-                                          apply_augmentations: bool) -> ImageTransformationPipeline:
+def create_cxr_transform_pipeline_from_config(config: CfgNode,
+                                              apply_augmentations: bool) -> ImageTransformationPipeline:
     """
     Defines the image transformations pipeline used in Chest-Xray datasets. Can be used for other types of
     images data, type of augmentations to use and strength are expected to be defined in the config.
