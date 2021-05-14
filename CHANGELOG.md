@@ -94,6 +94,16 @@ with only minimum code changes required. See [the MD documentation](docs/bring_y
   named `recovery_epoch=x.ckpt` instead of `recovery.ckpt` or `recovery-v0.ckpt`.
 - ([#451](https://github.com/microsoft/InnerEye-DeepLearning/pull/451)) Change the signature for function `generate_custom_report` 
   in `ModelConfigBase` to take only the path to the reports folder and a `ModelProcessing` object.
+- ([#458](https://github.com/microsoft/InnerEye-DeepLearning/pull/458)) Simplifying and generalizing the way we handle 
+  data augmentations: The pipelining logic is now taken care of by a ImageTransformPipeline class that takes as 
+  input a list of transforms to chain together. This pipeline takes of applying transforms on 3D or 2D images. 
+  The user can choose to apply the same transformation for all channels (RGB example) or whether to apply different 
+  transformation for each channel (if each channel represents a different 
+  modality / time point for example). The pipeline can now work directly with out-of-the box torchvision transform 
+  (as long as they support [..., C, H, W] inputs). This allows to get rid of nearly all of our custom augmentations 
+  functions. The conversion from pipeline of image transformation to ScalarItemAugmentation is now taken care of under 
+  the hood, the user does not need to call this wrapper for each config class. Getting rid of all the intrincated unused 
+  code for RandAugment & Co. The user has now instead complete freedom to specify the set of augmentations.
 
 ### Fixed
 
