@@ -2,139 +2,92 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import random
 
 import numpy as np
+import pytest
 
 import torch
-import torchvision
+
 from scipy.ndimage import gaussian_filter, map_coordinates
-from torchvision.transforms.functional import to_pil_image
 
-from InnerEye.ML.augmentations.image_transforms import AddGaussianNoise, CenterCrop, ElasticTransform, ExpandChannels, \
-    ImageTransformBase, RandomAffine, RandomColorJitter, RandomHorizontalFlip
-
-input_size = [1, 256, 256]
-array = np.ones(input_size) * 255.
-array[0, 100:150, 100:200] = 1
-test_img_as_tensor = torch.tensor(array / 255.)
-test_pil_image = to_pil_image(test_img_as_tensor)
+from InnerEye.ML.augmentations.image_transforms import AddGaussianNoise, ElasticTransform, ExpandChannels, RandomGamma
 
 
 def test_add_gaussian_noise() -> None:
     """
     Tests functionality of add gaussian noise
     """
-    transformation = AddGaussianNoise(p_apply=1, std=0.1)
-    transformation.draw_transform(input_size)
-    transformed = transformation(test_img_as_tensor)
-    assert torch.isclose(torch.clamp(test_img_as_tensor + transformation.noise, 0, 1), transformed).all()
+    np.random.seed(1)
+    tensor_img = torch.ones([1, 1, 256, 256], dtype=torch.float)
+    tensor_img[..., 100:150, 100:200] = 1 / 255.
+    # Input tensor [C, Z, H, W]
+    torch.manual_seed(10)
+    transformed = AddGaussianNoise(std=0.05, p_apply=1)(tensor_img)
+    torch.manual_seed(10)
+    noise = torch.randn(size=(1, 256, 256)) * 0.05
+    assert torch.isclose(torch.clamp(tensor_img + noise, tensor_img.min(), tensor_img.max()), transformed).all()
+    # Check that it applies the same transform to all slices
+    tensor_img = torch.ones([2, 2, 256, 256], dtype=torch.float)
+    tensor_img[..., 100:150, 100:200] = 1 / 255.
+    # Input tensor [C, Z, H, W]
+    torch.manual_seed(10)
+    transformed = AddGaussianNoise(std=0.05, p_apply=1)(tensor_img)
+    torch.manual_seed(10)
+    noise = torch.randn(size=(1, 256, 256)) * 0.05
+    assert torch.isclose(torch.clamp(tensor_img + noise, tensor_img.min(), tensor_img.max()), transformed).all()
 
 
 def test_elastic_transform() -> None:
     """
     Tests elastic transform
     """
-    sigma = 4
-    alpha = 34
-    transformation = ElasticTransform(p_apply=1, sigma=sigma, alpha=alpha)
-    transformation.draw_transform(input_size)
-    transformation.apply = 1
-    img_array = np.asarray(test_pil_image).squeeze()
-    assert img_array.shape == (256, 256)
-    x, y = np.meshgrid(np.arange(256), np.arange(256), indexing='ij')
-    dx = gaussian_filter(transformation.dx_pertubation, sigma, mode="constant", cval=0) * alpha
-    dy = gaussian_filter(transformation.dy_pertubation, sigma, mode="constant", cval=0) * alpha
-    indices = np.reshape(x + dx, (-1, 1)), np.reshape(y + dy, (-1, 1))
-    expected_array = map_coordinates(img_array, indices, order=1).reshape((256, 256))
-    transformed_image = np.asarray(transformation(test_pil_image))
-    assert np.isclose(expected_array, transformed_image).all()
+    image = torch.ones([2, 2, 256, 256]) * 255.
+    image[..., 100:150, 100:200] = 1
+
+    # Computed expected transform
+    np.random.seed(7)
+    np.random.random(1)
+
+    shape = (256, 256)
+    dx = gaussian_filter((np.random.random(shape) * 2 - 1), 4, mode="constant", cval=0) * 34
+    dy = gaussian_filter((np.random.random(shape) * 2 - 1), 4, mode="constant", cval=0) * 34
+    all_dimensions_axes = [np.arange(dim) for dim in image.shape]
+    grid = np.meshgrid(*all_dimensions_axes, indexing='ij')
+    grid[-2] = grid[-2] + dx
+    grid[-1] = grid[-1] + dy
+    indices = [np.reshape(grid[i], (-1, 1)) for i in range(len(grid))]
+    expected_tensor = torch.tensor(map_coordinates(image, indices, order=1).reshape(image.shape))
+    # Actual transform
+    np.random.seed(7)
+    transformed_image = ElasticTransform(sigma=4, alpha=34, p_apply=1.0)(image)
+    assert torch.isclose(expected_tensor, transformed_image).all()
 
 
 def test_expand_channels() -> None:
-    transformation = ExpandChannels()
-    # Has not effect but should not fail
-    transformation.draw_transform(input_size)
-    transformed = transformation(test_img_as_tensor)
-    assert transformed.shape == torch.Size([3, 256, 256])
-    assert torch.isclose(transformed[0], transformed[1]).all() and torch.isclose(transformed[1], transformed[2]).all()
+    tensor_img = torch.ones([1, 256, 256])
+    tensor_img = ExpandChannels()(tensor_img)
+    assert tensor_img.shape == torch.Size([3, 256, 256])
+    assert torch.isclose(tensor_img[0], tensor_img[1]).all() and torch.isclose(tensor_img[1], tensor_img[2]).all()
+    tensor_img = torch.ones([1, 1, 256, 256])
+    tensor_img = ExpandChannels()(tensor_img)
+    assert tensor_img.shape == torch.Size([3, 1, 256, 256])
 
 
-def test_center_crop():
-    transformation = CenterCrop(center_crop_size=224)
-    transformed_image = np.asarray(transformation(test_pil_image))
-    assert transformed_image.shape == (224, 224)
+def test_random_gamma() -> None:
+    # This is invalid input (expects 4 dimensions)
+    tensor_img = torch.ones([1, 256, 256])
+    with pytest.raises(ValueError):
+        RandomGamma(scale=(0.3, 3))(tensor_img)
 
+    random.seed(0)
+    tensor_img = torch.ones([1, 1, 256, 256])
+    transformed_1 = RandomGamma(scale=(0.3, 3))(tensor_img)
+    assert transformed_1.shape == torch.Size([1, 1, 256, 256])
 
-def _check_transformation_result(image_as_tensor: torch.Tensor,
-                                 transformation: ImageTransformBase,
-                                 expected: torch.Tensor) -> None:
-    test_tensor_pil = torchvision.transforms.functional.to_pil_image(image_as_tensor)
-    transformed = torchvision.transforms.functional.to_tensor(transformation(test_tensor_pil)).squeeze()
-    assert torch.isclose(transformed, expected, rtol=0.02).all()
-
-
-def test_affine_transformation():
-    test_image = torch.tensor([[2, 1, 3],
-                               [1, 2, 3],
-                               [3, 3, 2]], dtype=torch.int32)
-    expected_result = torch.tensor([[1, 2, 1],
-                                    [3, 2, 3],
-                                    [3, 2, 3]], dtype=torch.int32)
-    transformation = RandomAffine(max_angle=180)
-    torch.random.manual_seed(2)
-    transformation.draw_transform(test_image.shape)
-    _check_transformation_result(test_image, transformation, expected_result)
-
-    expected_result = torch.tensor([[0, 2, 1],
-                                    [0, 1, 2],
-                                    [0, 3, 3]], dtype=torch.int32)
-    transformation = RandomAffine(max_horizontal_shift=1.0)
-    transformation.draw_transform(test_image.shape)
-    _check_transformation_result(test_image, transformation, expected_result)
-
-    torch.random.manual_seed(4)
-    expected_result = torch.tensor([[3, 3, 2],
-                                    [0, 0, 0],
-                                    [0, 0, 0]], dtype=torch.int32)
-    transformation = RandomAffine(max_vertical_shift=1.0)
-    transformation.draw_transform(test_image.shape)
-    _check_transformation_result(test_image, transformation, expected_result)
-
-
-def test_random_horizontal_flip() -> None:
-    """
-    Tests each individual transformation of the ImageTransformationPipeline class on a 2D input representing
-    a natural image.
-    """
-    test_image = torch.tensor([[1, 0.5, 0.1],
-                               [0.5, 1, 0.1],
-                               [0.1, 0.1, 1]], dtype=torch.float32)
-    expected = torch.tensor([[0.1, 0.5, 1],
-                             [0.1, 1, 0.5],
-                             [1, 0.1, 0.1]], dtype=torch.float32)
-    transformation = RandomHorizontalFlip(p_apply=1.0)
-    transformation.draw_transform(test_image.shape)
-    _check_transformation_result(test_image, transformation, expected)
-    transformation = RandomHorizontalFlip(p_apply=0.0)
-    transformation.draw_transform(test_image.shape)
-    _check_transformation_result(test_image, transformation, test_image)
-
-
-def test_random_color_jitter() -> None:
-    test_image = torch.tensor([[1, 0.5, 0.1],
-                               [0.5, 1, 0.1],
-                               [0.1, 0.1, 1]], dtype=torch.float32)
-    expected = torch.tensor([[0.8510, 0.4235, 0.0824],
-                             [0.4235, 0.8510, 0.0824],
-                             [0.0824, 0.0824, 0.8510]])
-    torch.manual_seed(0)
-    transformation = RandomColorJitter(max_brightness=0.2)
-    transformation.draw_transform(test_image.shape)
-    _check_transformation_result(test_image, transformation, expected)
-
-    expected = torch.tensor([[1.0000, 0.4980, 0.0353],
-                             [0.4980, 1.0000, 0.0353],
-                             [0.0353, 0.0353, 1.0000]])
-    transformation = RandomColorJitter(max_contrast=0.2)
-    transformation.draw_transform(test_image.shape)
-    _check_transformation_result(test_image, transformation, expected)
+    random.seed(0)
+    tensor_img = torch.ones([2, 2, 256, 256])
+    transformed_2 = RandomGamma(scale=(0.3, 3))(tensor_img)
+    # If you run on 1 channel, 1 Z dimension the gamma transform applied should be the same for all slices.
+    assert transformed_2.shape == torch.Size([2, 2, 256, 256])
+    assert torch.isclose(transformed_2[0], transformed_2[1]).all()
