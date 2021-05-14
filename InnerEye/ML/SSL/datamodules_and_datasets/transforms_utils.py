@@ -10,7 +10,7 @@ import torch
 from pl_bolts.models.self_supervised.simclr import SimCLRTrainDataTransform
 from yacs.config import CfgNode
 
-from InnerEye.ML.augmentations.transform_pipeline import create_cxr_transform_pipeline_from_config
+from InnerEye.ML.augmentations.transform_pipeline import create_cxr_transforms_from_config
 
 
 def get_cxr_ssl_transforms(config: CfgNode,
@@ -34,9 +34,9 @@ def get_cxr_ssl_transforms(config: CfgNode,
     This is required for SSL validation loss to be meaningful. If False, only apply basic processing step
     (no augmentations)
     """
-    train_transforms = create_cxr_transform_pipeline_from_config(config, apply_augmentations=True)
-    val_transforms = create_cxr_transform_pipeline_from_config(config,
-                                                               apply_augmentations=use_training_augmentations_for_validation)
+    train_transforms = create_cxr_transforms_from_config(config, apply_augmentations=True)
+    val_transforms = create_cxr_transforms_from_config(config,
+                                                       apply_augmentations=use_training_augmentations_for_validation)
     if return_two_views_per_sample:
         train_transforms = DualViewTransformWrapper(train_transforms)  # type: ignore
         val_transforms = DualViewTransformWrapper(val_transforms)  # type: ignore

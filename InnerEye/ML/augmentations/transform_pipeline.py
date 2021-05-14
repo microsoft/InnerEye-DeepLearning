@@ -13,8 +13,8 @@ from torchvision.transforms.functional import to_tensor
 from yacs.config import CfgNode
 
 from InnerEye.ML.augmentations.image_transforms import AddGaussianNoise, ElasticTransform, ExpandChannels, RandomGamma
-from InnerEye.ML.dataset.scalar_sample import ScalarItem
 
+S = "ScalarItem"
 
 class ImageTransformationPipeline:
     """
@@ -29,7 +29,7 @@ class ImageTransformationPipeline:
 
     # noinspection PyMissingConstructor
     def __init__(self,
-                 transforms: List[Callable],
+                 transforms: Union[Callable, List[Callable]],
                  use_different_transformation_per_channel: bool = False,
                  apply_pipeline_to_segmentation_maps: bool = False):
         """
@@ -43,9 +43,8 @@ class ImageTransformationPipeline:
         :param: apply_transform_to_segmentation_maps. If True, the pipeline will be applied to the segmentations field
         of the scalar item, else it will be applied to the images.
         """
-        self.transforms = transforms
         self.use_different_transformation_per_channel = use_different_transformation_per_channel
-        self.pipeline = Compose(transforms)
+        self.pipeline = Compose(transforms) if isinstance(transforms, List) else transforms
         self.apply_pipeline_to_segmentation_maps = apply_pipeline_to_segmentation_maps
 
     def __call__(self, image: torch.Tensor) -> torch.Tensor:
@@ -84,7 +83,7 @@ class ImageTransformationPipeline:
         image = torch.transpose(image, 1, 0)
         return image.to(dtype=image.dtype)
 
-    def get_scalar_item_transformation(self, item: ScalarItem) -> ScalarItem:
+    def get_scalar_item_transformation(self, item: S) -> S:
         """
         This function returns the transformation around a ScalarItem, it will apply the pipeline to either the images
         or the segmentations and return a new ScalarItem with the transformed image.
@@ -99,8 +98,8 @@ class ImageTransformationPipeline:
         else:
             return item.clone_with_overrides(images=self(item.images))
 
-def create_cxr_transform_pipeline_from_config(config: CfgNode,
-                                              apply_augmentations: bool) -> ImageTransformationPipeline:
+def create_cxr_transforms_from_config(config: CfgNode,
+                                      apply_augmentations: bool) -> Callable:
     """
     Defines the image transformations pipeline used in Chest-Xray datasets. Can be used for other types of
     images data, type of augmentations to use and strength are expected to be defined in the config.
@@ -154,5 +153,5 @@ def create_cxr_transform_pipeline_from_config(config: CfgNode,
     else:
         transforms += [Resize(size=config.preprocess.resize),
                        CenterCrop(config.preprocess.center_crop_size)]
-    pipeline = ImageTransformationPipeline(transforms=transforms)
+    pipeline = Compose(transforms)
     return pipeline
