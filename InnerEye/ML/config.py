@@ -9,17 +9,16 @@ from dataclasses import dataclass
 from enum import Enum, unique
 from math import isclose
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import pandas as pd
 import param
-from azureml.core import Model, ScriptRunConfig
+from azureml.core import ScriptRunConfig
 from azureml.train.hyperdrive import HyperDriveConfig
 from pandas import DataFrame
 
-from InnerEye.Azure.azure_config import AzureConfig
-from InnerEye.Common.common_util import ModelProcessing, any_pairwise_larger, any_smaller_or_equal_than, check_is_any_of
+from InnerEye.Common.common_util import any_pairwise_larger, any_smaller_or_equal_than, check_is_any_of
 from InnerEye.Common.generic_parsing import IntTuple
 from InnerEye.Common.type_annotations import TupleFloat2, TupleFloat3, TupleInt3, TupleStringOptionalFloat
 from InnerEye.ML.common import ModelExecutionMode
@@ -796,7 +795,3 @@ class SegmentationModelBase(ModelConfigBase):
         By default no transformation is performed.
         """
         return ModelTransformsPerExecutionMode()
-
-
-PostCrossValidationHookSignature = Callable[[ModelConfigBase, Path], None]
-ModelDeploymentHookSignature = Callable[[SegmentationModelBase, AzureConfig, Model, ModelProcessing], Any]

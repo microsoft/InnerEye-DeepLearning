@@ -80,6 +80,11 @@ jobs:
         parameters:
           wait_for_completion: 'True'
           max_run_duration: '30m'
+      - template: tests_after_training.yml
+        parameters:
+          pytest_mark: "inference or after_training"
+          test_run_title: tests_after_train_submodule
+
 
   # Train a 2-element ensemble model
   - job: TrainEnsemble
@@ -149,7 +154,7 @@ jobs:
           pytest_mark: after_training_glaucoma_cv_run
           test_run_title: tests_after_training_glaucoma_cv_run
 
-  - job: TrainHelloWorldAndHelloContainer
+  - job: TrainHelloWorld
     variables:
       - name: model
         value: 'HelloWorld'
@@ -158,20 +163,27 @@ jobs:
     pool:
       vmImage: 'ubuntu-18.04'
     steps:
-      # First create the full conda environment and train HelloWorld in AzureML, then run HelloContainer right after
       - template: train_template.yml
         parameters:
           wait_for_completion: 'True'
           pytest_mark: ''
-          max_run_duration: '1h'
-          use_full_conda_environment: true
-      - bash: |
-          source activate AzureRunner
-          branch_prefix="refs/heads/"
-          full_branch_name=$(Build.SourceBranch)
-          branch_name_without_prefix=${full_branch_name#$branch_prefix}
-          python ./InnerEye/ML/runner.py --azureml=True --model="HelloContainer" --wait_for_completion=True --max_run_duration=30m --cluster="$(cluster)" --tag="HelloContainerPR" --build_number=$(Build.BuildId) --build_user="$(Build.RequestedFor)" --build_user_email="" --build_branch="$branch_name_without_prefix" --build_source_repository="$(Build.Repository.Name)"
-        env:
-          PYTHONPATH: $(Build.SourcesDirectory)/
-          APPLICATION_KEY: $(InnerEyeDeepLearningServicePrincipalKey)
-        displayName: 'Queue AzureML Job for HelloContainer'
+          max_run_duration: '30m'
+
+  - job: TrainHelloContainer
+    variables:
+      - name: model
+        value: 'HelloContainer'
+      - name: tag
+        value: 'HelloContainerPR'
+    pool:
+      vmImage: 'ubuntu-18.04'
+    steps:
+      - template: train_template.yml
+        parameters:
+          wait_for_completion: 'True'
+          pytest_mark: ''
+          max_run_duration: '30m'
+      - template: tests_after_training.yml
+        parameters:
+          pytest_mark: after_training_hello_container
+          test_run_title: tests_after_training_hello_container

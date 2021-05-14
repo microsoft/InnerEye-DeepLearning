@@ -1,11 +1,9 @@
 steps:
-  - template: azure_runner_env.yml
-    parameters:
-      use_full_conda_environment: '${{ parameters.use_full_conda_environment }}'
+  - template: inner_eye_env.yml
 
   - bash: |
       set -e  # This makes the script fail if any command in it fails, not just the last one
-      source activate AzureRunner
+      source activate InnerEye
       branch_prefix="refs/heads/"
       full_branch_name=$(Build.SourceBranch)
       branch_name_without_prefix=${full_branch_name#$branch_prefix}

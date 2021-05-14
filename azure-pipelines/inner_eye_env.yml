@@ -1,0 +1,12 @@
+steps:
+  - template: checkout.yml
+
+  - template: store_settings.yml
+
+  - bash: |
+      conda env create --file environment.yml --name InnerEye
+      source activate InnerEye
+      pip freeze
+    failOnStderr: false
+    displayName: Create full Conda environment and print package list
+

@@ -69,6 +69,13 @@ with only minimum code changes required. See [the MD documentation](docs/bring_y
   Detection Challenge datasets. See
   [SSL doc](https://github.com/microsoft/InnerEye-DeepLearning/blob/main/docs/self_supervised_models.md) for more
   details.
+- ([#455](https://github.com/microsoft/InnerEye-DeepLearning/pull/455)) All models trained on AzureML are registered.
+  The codepath previously allowed only segmentation models (subclasses of `SegmentationModelBase`) to be registered.
+  Models are registered after a training run or if the `only_register_model` flag is set. Models may be legacy InnerEye
+  config-based models or may be defined using the LightningContainer class.
+  Additionally, the `TrainHelloWorldAndHelloContainer` job in the PR build has been split into two jobs, `TrainHelloWorld` and
+  `TrainHelloContainer`. A pytest marker `after_training_hello_container` has been added to run tests after training is
+  finished in the `TrainHelloContainer` job.
 
 ### Changed
 
@@ -105,6 +112,8 @@ with only minimum code changes required. See [the MD documentation](docs/bring_y
 ### Removed
 - ([#439](https://github.com/microsoft/InnerEye-DeepLearning/pull/439)) Deprecated `start_epoch` config argument.
 - ([#450](https://github.com/microsoft/InnerEye-DeepLearning/pull/450)) Delete unused `classification_report.ipynb`.
+- ([#455](https://github.com/microsoft/InnerEye-DeepLearning/pull/455)) Removed the AzureRunner conda environment.
+  The full InnerEye conda environment is needed to submit a training job to AzureML.
 
 ### Deprecated
 
