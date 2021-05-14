@@ -11,7 +11,6 @@ import torch
 import torchvision
 from scipy.ndimage import gaussian_filter, map_coordinates
 
-
 class RandomGamma():
 
     def __init__(self, scale: Tuple[float, float]) -> None:

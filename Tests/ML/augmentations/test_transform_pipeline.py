@@ -103,8 +103,7 @@ def test_create_transform_pipeline_from_config() -> None:
     """
     Tests that the pipeline returned by create_transform_pipeline_from_config returns the expected transformation.
     """
-    transformation_pipeline = ImageTransformationPipeline(
-        create_cxr_transforms_from_config(cxr_augmentation_config, apply_augmentations=True))
+    transformation_pipeline = create_cxr_transforms_from_config(cxr_augmentation_config, apply_augmentations=True)
     image = np.ones([256, 256]) * 255.
     image[100:150, 100:200] = 1
     image = PIL.Image.fromarray(image).convert("L")

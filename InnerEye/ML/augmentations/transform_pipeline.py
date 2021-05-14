@@ -62,9 +62,9 @@ class ImageTransformationPipeline:
             return to_tensor(data) if isinstance(data, PIL.Image.Image) else data
 
         image = _convert_to_tensor_if_necessary(image)
-
+        original_input_is_2d = len(image.shape) == 3
         # If we have a 2D image [C, H, W] expand to [Z, C, H, W]. Build-in torchvision transforms allow such 4D inputs.
-        if len(image.shape) == 3:
+        if original_input_is_2d:
             image = image.unsqueeze(0)
 
         else:
@@ -81,6 +81,8 @@ class ImageTransformationPipeline:
             image = torch.cat(channels, dim=1)
         # Back to [C, Z, H, W]
         image = torch.transpose(image, 1, 0)
+        if original_input_is_2d:
+            image= image.squeeze(1)
         return image.to(dtype=image.dtype)
 
     def get_scalar_item_transformation(self, item: S) -> S:
@@ -99,7 +101,7 @@ class ImageTransformationPipeline:
             return item.clone_with_overrides(images=self(item.images))
 
 def create_cxr_transforms_from_config(config: CfgNode,
-                                      apply_augmentations: bool) -> Callable:
+                                      apply_augmentations: bool) -> ImageTransformationPipeline:
     """
     Defines the image transformations pipeline used in Chest-Xray datasets. Can be used for other types of
     images data, type of augmentations to use and strength are expected to be defined in the config.
@@ -153,5 +155,5 @@ def create_cxr_transforms_from_config(config: CfgNode,
     else:
         transforms += [Resize(size=config.preprocess.resize),
                        CenterCrop(config.preprocess.center_crop_size)]
-    pipeline = Compose(transforms)
+    pipeline = ImageTransformationPipeline(transforms)
     return pipeline
