@@ -102,8 +102,7 @@ with only minimum code changes required. See [the MD documentation](docs/bring_y
   modality / time point for example). The pipeline can now work directly with out-of-the box torchvision transform 
   (as long as they support [..., C, H, W] inputs). This allows to get rid of nearly all of our custom augmentations 
   functions. The conversion from pipeline of image transformation to ScalarItemAugmentation is now taken care of under 
-  the hood, the user does not need to call this wrapper for each config class. Getting rid of all the intrincated unused 
-  code for RandAugment & Co. The user has now instead complete freedom to specify the set of augmentations.
+  the hood, the user does not need to call this wrapper for each config class.
 
 ### Fixed
 
@@ -124,6 +123,8 @@ with only minimum code changes required. See [the MD documentation](docs/bring_y
 - ([#450](https://github.com/microsoft/InnerEye-DeepLearning/pull/450)) Delete unused `classification_report.ipynb`.
 - ([#455](https://github.com/microsoft/InnerEye-DeepLearning/pull/455)) Removed the AzureRunner conda environment.
   The full InnerEye conda environment is needed to submit a training job to AzureML.
+-  ([#458](https://github.com/microsoft/InnerEye-DeepLearning/pull/458)) Getting rid of all the unused code for 
+   RandAugment & Co. The user has now instead complete freedom to specify the set of augmentations to use.
 
 ### Deprecated
 
