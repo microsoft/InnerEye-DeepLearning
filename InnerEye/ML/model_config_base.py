@@ -5,7 +5,7 @@
 import abc
 import logging
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 
 import pandas as pd
 from azureml.core import ScriptRunConfig
@@ -268,9 +268,9 @@ class ModelTransformsPerExecutionMode:
     to apply to each sample depending on each execution mode (train, validation and test)
     """
 
-    def __init__(self, train: Optional[ImageTransformationPipeline] = None,
-                 val: Optional[ImageTransformationPipeline] = None,
-                 test: Optional[ImageTransformationPipeline] = None):
+    def __init__(self, train: Optional[Callable] = None,
+                 val: Optional[Callable] = None,
+                 test: Optional[Callable] = None):
         """
 
         :param train: the transformation(s) to apply to the training set.

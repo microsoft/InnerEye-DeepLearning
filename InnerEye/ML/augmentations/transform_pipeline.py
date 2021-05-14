@@ -2,7 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from typing import Any, Callable, List, Union
+from typing import Any, Callable, List, TypeVar, Union
 
 import PIL
 import torch
@@ -13,8 +13,8 @@ from torchvision.transforms.functional import to_tensor
 from yacs.config import CfgNode
 
 from InnerEye.ML.augmentations.image_transforms import AddGaussianNoise, ElasticTransform, ExpandChannels, RandomGamma
+from InnerEye.ML.dataset.scalar_sample import ScalarItem
 
-S = "ScalarItem"
 
 class ImageTransformationPipeline:
     """
@@ -47,7 +47,7 @@ class ImageTransformationPipeline:
         self.pipeline = Compose(transforms) if isinstance(transforms, List) else transforms
         self.apply_pipeline_to_segmentation_maps = apply_pipeline_to_segmentation_maps
 
-    def __call__(self, image: torch.Tensor) -> torch.Tensor:
+    def transform_image(self, image: torch.Tensor) -> torch.Tensor:
         """
         Main function to apply the transformation pipeline to either slice by slice on one 3D-image or
         on the 2D image.
@@ -82,10 +82,11 @@ class ImageTransformationPipeline:
         # Back to [C, Z, H, W]
         image = torch.transpose(image, 1, 0)
         if original_input_is_2d:
-            image= image.squeeze(1)
+            image = image.squeeze(1)
         return image.to(dtype=image.dtype)
 
-    def get_scalar_item_transformation(self, item: S) -> S:
+    from InnerEye.ML.dataset.scalar_sample import ScalarItem
+    def get_scalar_item_transformation(self, item: ScalarItem) -> ScalarItem:
         """
         This function returns the transformation around a ScalarItem, it will apply the pipeline to either the images
         or the segmentations and return a new ScalarItem with the transformed image.
@@ -96,9 +97,15 @@ class ImageTransformationPipeline:
             if item.segmentations is None:
                 raise ValueError("A segmentation data augmentation transform_pipeline has been"
                                  "specified but no segmentations has been loaded.")
-            return item.clone_with_overrides(segmentations=self(item.segmentations))
+            return item.clone_with_overrides(segmentations=self.transform_image(item.segmentations))
         else:
-            return item.clone_with_overrides(images=self(item.images))
+            return item.clone_with_overrides(images=self.transform_image(item.images))
+
+    def __call__(self, data: Union[ScalarItem, torch.Tensor]):
+        if isinstance(data, ScalarItem):
+            return self.get_scalar_item_transformation(data)
+        return self.transform_image(data)
+
 
 def create_cxr_transforms_from_config(config: CfgNode,
                                       apply_augmentations: bool) -> ImageTransformationPipeline:

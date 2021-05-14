@@ -23,6 +23,7 @@ from InnerEye.ML.utils.split_dataset import DatasetSplits
 
 DEFAULT_KEY = "Default"
 
+
 class AggregationType(Enum):
     """
     The type of global pooling aggregation to use between the encoder and the classifier.
@@ -114,7 +115,8 @@ class ScalarModelBase(ModelConfigBase):
                                             "in dataset.csv"
                                             "For multi-label classification, this field is required."
                                             "For binary classification, this field must be a list of size 1, and "
-                                            "is by default ['Default'], but can optionally be set to a more descriptive "
+                                            "is by default ['Default'], but can optionally be set to a more "
+                                            "descriptive "
                                             "name for the positive class.")
     target_names: List[str] = param.List(class_=str,
                                          default=None,
@@ -134,7 +136,8 @@ class ScalarModelBase(ModelConfigBase):
     image_file_column: Optional[str] = param.String(default=None, allow_None=True,
                                                     doc="The column that contains the path to image files.")
     expected_column_values: List[Tuple[str, str]] = \
-        param.List(default=None, doc="List of tuples with column name and expected value to filter rows in the dataset csv file",
+        param.List(default=None,
+                   doc="List of tuples with column name and expected value to filter rows in the dataset csv file",
                    allow_None=True)
     label_channels: Optional[List[str]] = \
         param.List(default=None, allow_None=True,
@@ -389,17 +392,17 @@ class ScalarModelBase(ModelConfigBase):
         train = ScalarDataset(args=self,
                               data_frame=dataset_splits.train,
                               name="training",
-                              sample_transforms=image_transforms.train.get_scalar_item_transformation)
+                              sample_transforms=image_transforms.train)
         val = ScalarDataset(args=self,
                             data_frame=dataset_splits.val,
                             feature_statistics=train.feature_statistics,
                             name="validation",
-                            sample_transforms=image_transforms.val.get_scalar_item_transformation)
+                            sample_transforms=image_transforms.val)
         test = ScalarDataset(args=self,
                              data_frame=dataset_splits.test,
                              feature_statistics=train.feature_statistics,
                              name="test",
-                             sample_transforms=image_transforms.test.get_scalar_item_transformation)
+                             sample_transforms=image_transforms.test)
 
         return {
             ModelExecutionMode.TRAIN: train,
