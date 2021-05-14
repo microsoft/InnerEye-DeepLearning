@@ -123,8 +123,6 @@ with only minimum code changes required. See [the MD documentation](docs/bring_y
 - ([#450](https://github.com/microsoft/InnerEye-DeepLearning/pull/450)) Delete unused `classification_report.ipynb`.
 - ([#455](https://github.com/microsoft/InnerEye-DeepLearning/pull/455)) Removed the AzureRunner conda environment.
   The full InnerEye conda environment is needed to submit a training job to AzureML.
--  ([#458](https://github.com/microsoft/InnerEye-DeepLearning/pull/458)) Getting rid of all the unused code for 
-   RandAugment & Co. The user has now instead complete freedom to specify the set of augmentations to use.
 
 ### Deprecated
 

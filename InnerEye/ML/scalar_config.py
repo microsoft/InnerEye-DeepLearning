@@ -14,7 +14,7 @@ from azureml.train.hyperdrive import HyperDriveConfig
 from InnerEye.Common.common_util import print_exception
 from InnerEye.Common.generic_parsing import ListOrDictParam
 from InnerEye.Common.type_annotations import TupleInt3
-from InnerEye.ML.augmentations.utils import ScalarItemAugmentation
+
 from InnerEye.ML.common import ModelExecutionMode, OneHotEncoderBase
 from InnerEye.ML.deep_learning_config import ModelCategory
 from InnerEye.ML.model_config_base import ModelConfigBase, ModelTransformsPerExecutionMode
