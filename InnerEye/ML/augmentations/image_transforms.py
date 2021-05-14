@@ -39,220 +39,19 @@ class ImageTransformBase:
         pass
 
 
-class CenterCrop(ImageTransformBase):
-    def __init__(self, center_crop_size: Union[Tuple[int, int], int]) -> None:
-        super().__init__()
-        self.center_crop_size = center_crop_size
-
-    def draw_transform(self, input_size: List[int]) -> List[int]:
-        if isinstance(self.center_crop_size, int):
-            return [input_size[0], self.center_crop_size, self.center_crop_size]
-        return [input_size[0], self.center_crop_size[0], self.center_crop_size[1]]
-
-    def __call__(self, image: PIL.Image.Image) -> PIL.Image:
-        return torchvision.transforms.CenterCrop(self.center_crop_size)(image)
-
-
-class RandomResizeCrop(ImageTransformBase):
-    def __init__(self,
-                 random_crop_scale: Tuple[float, float],
-                 resize_size: Union[int, Tuple[int, int]]) -> None:
-        super().__init__()
-        self.size = resize_size
-        self._transform_generator = torchvision.transforms.RandomResizedCrop(
-            size=self.size,
-            scale=random_crop_scale)
-
-    def draw_transform(self, input_size: List[int]) -> List[int]:
-        self.params = self._transform_generator.get_params(torch.zeros(input_size),
-                                                           self._transform_generator.scale,
-                                                           self._transform_generator.ratio)
-        size = F._get_image_size(F.resized_crop(
-            PIL.Image.fromarray(np.ones(input_size[1:])), *self.params, self.size))
-        return [input_size[0], size[1], size[0]]  # Returns [C, new_width, new_height]
-
-    def __call__(self, image: PIL.Image.Image) -> Any:
-        return F.resized_crop(image, *self.params, self.size)
-
-
-class RandomAffine(ImageTransformBase):
-    def __init__(self,
-                 max_angle: int = 0,
-                 max_horizontal_shift: float = 0.0,
-                 max_vertical_shift: float = 0.0,
-                 max_shear: int = 0.0) -> None:
-        super().__init__()
-        self.max_angle = max_angle
-        self.max_horizontal_shift = max_horizontal_shift
-        self.max_vertical_shift = max_vertical_shift
-        self.max_shear = max_shear
-        self._transform_generator = torchvision.transforms.RandomAffine(degrees=self.max_angle,
-                                                                        translate=(self.max_horizontal_shift,
-                                                                                   self.max_vertical_shift),
-                                                                        shear=self.max_shear)
-
-    def draw_transform(self, input_size: List[int]) -> List[int]:
-        self._current_params = self._transform_generator.get_params(self._transform_generator.degrees,
-                                                                    self._transform_generator.translate,
-                                                                    self._transform_generator.scale,
-                                                                    self._transform_generator.shear,
-                                                                    input_size)
-        return input_size
-
-    def __call__(self, img: PIL.Image.Image) -> Any:
-        return F.affine(img, *self._current_params, fill=0)
-
-
-class RandomHorizontalFlip(ImageTransformBase):
-    def __init__(self, p_apply: float) -> None:
-        super().__init__()
-        self.p_apply = p_apply
-
-    def draw_transform(self, input_size: List[int]) -> List[int]:
-        self.apply_flip = torch.rand(1).data < self.p_apply
-        return input_size
-
-    def __call__(self, img: PIL.Image.Image) -> PIL.Image.Image:
-        if self.apply_flip:
-            return F.hflip(img)
-        return img
-
-
-class Resize(ImageTransformBase):
-    def __init__(self, resize_size: Union[Tuple[int, int], int]) -> None:
-        super().__init__()
-        self.resize_size = resize_size
-
-    def draw_transform(self, input_size: List[int]) -> List[int]:
-        if isinstance(self.resize_size, Tuple):
-            return [input_size[0], self.resize_size[0], self.resize_size[1]]
-        return [input_size[0], self.resize_size, self.resize_size]
-
-    def __call__(self, img: PIL.Image.Image) -> PIL.Image.Image:
-        return torchvision.transforms.Resize(self.resize_size)(img)
-
-
-class RandomColorJitter(ImageTransformBase):
-    def __init__(self,
-                 max_brightness: float = 0.0,
-                 max_contrast: float = 0.0,
-                 max_saturation: float = 0.0
-                 ) -> None:
-        super().__init__()
-        self._transform_generator = torchvision.transforms.ColorJitter(
-            brightness=max_brightness,
-            contrast=max_contrast,
-            saturation=max_saturation)
-
-    def draw_transform(self, input_size: List[int]) -> List[int]:
-        self.params = self._transform_generator.get_params(self._transform_generator.brightness,
-                                                           self._transform_generator.contrast,
-                                                           self._transform_generator.saturation,
-                                                           None)
-        return input_size
-
-    def __call__(self, img: PIL.Image.Image) -> PIL.Image.Image:
-        fn_idx, brightness_factor, contrast_factor, saturation_factor, hue_factor = self.params
-        for fn_id in fn_idx:
-            if fn_id == 0 and brightness_factor is not None:
-                img = F.adjust_brightness(img, brightness_factor)
-            elif fn_id == 1 and contrast_factor is not None:
-                img = F.adjust_contrast(img, contrast_factor)
-            elif fn_id == 2 and saturation_factor is not None:
-                img = F.adjust_saturation(img, saturation_factor)
-        return img
-
-
-class RandomErasing(ImageTransformBase):
-    def __init__(self,
-                 scale: Tuple[float, float],
-                 ratio: Tuple[float, float]
-                 ) -> None:
-        super().__init__()
-        self.scale = scale
-        self.ratio = ratio
-        self.p_apply = 0.5
-        self._transform_generator = torchvision.transforms.RandomErasing(scale=self.scale, ratio=self.ratio)
-
-    def draw_transform(self, input_size: List[int]) -> List[int]:
-        self.params = self._transform_generator.get_params(torch.zeros(input_size),
-                                                           scale=self.scale,
-                                                           ratio=self.ratio,
-                                                           value=[0, ])
-        self.apply = torch.rand(1).data < self.p_apply
-        return input_size
-
-    def __call__(self, img: torch.Tensor) -> torch.Tensor:
-        if self.apply:
-            return F.erase(img, *self.params)
-        return img
-
-
-class RandomGamma(ImageTransformBase):
+class RandomGamma():
 
     def __init__(self, scale: Tuple[float, float]) -> None:
-        super().__init__()
         self.scale = scale
 
-    def draw_transform(self, input_size: List[int]) -> List[int]:
-        self.gamma = random.uniform(*self.scale)
-        return input_size
-
-    def __call__(self, image: PIL.Image) -> PIL.Image:
-        return F.adjust_gamma(image, gamma=self.gamma)
-
-
-class ElasticTransform(ImageTransformBase):
-    """Elastic deformation of images as described in [Simard2003]_.
-    .. [Simard2003] Simard, Steinkraus and Platt, "Best Practices for
-       Convolutional Neural Networks applied to Visual Document Analysis", in
-       Proc. of the International Conference on Document Analysis and
-       Recognition, 2003.
-
-       https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.160.8494&rep=rep1&type=pdf
-
-        :param sigma: elasticity coefficient
-        :param alpha: intensity of the deformation
-        :param p_apply: probability of applying the transformation
-    """
-
-    def __init__(self,
-                 sigma: float,
-                 alpha: float,
-                 p_apply: float) -> None:
-        super().__init__()
-        self.alpha = alpha
-        self.sigma = sigma
-        self.p_apply = p_apply
-
-    def draw_transform(self, input_size: List[int]) -> List[int]:
-        self.dx_pertubation = np.random.random(input_size) * 2 - 1
-        self.dy_pertubation = np.random.random(input_size) * 2 - 1
-        self.apply = np.random.random(1) < self.p_apply
-        return input_size
-
-    def __call__(self, image: PIL.Image) -> PIL.Image:
-        if self.apply:
-            image = np.asarray(image).squeeze()
-            assert len(image.shape) == 2
-            shape = image.shape
-            dx = gaussian_filter(self.dx_pertubation, self.sigma, mode="constant", cval=0) * self.alpha
-            dy = gaussian_filter(self.dy_pertubation, self.sigma, mode="constant", cval=0) * self.alpha
-            x, y = np.meshgrid(np.arange(shape[0]), np.arange(shape[1]), indexing='ij')
-            indices = np.reshape(x + dx, (-1, 1)), np.reshape(y + dy, (-1, 1))
-            return PIL.Image.fromarray(map_coordinates(image, indices, order=1).reshape(shape))
+    def __call__(self, image: torch.Tensor) -> torch.Tensor:
+        gamma = random.uniform(*self.scale)
+        for c, z in zip(range(image.shape[0]), range(image.shape[1])):
+            image[c, z] = torchvision.transforms.functional.adjust_gamma(image[c, z], gamma=gamma)
         return image
 
 
-class ToTensor(ImageTransformBase):
-    def __call__(self, image: PIL.Image.Image) -> torch.Tensor:
-        tensor_data = torchvision.transforms.ToTensor()(image)
-        if len(tensor_data) == 2:
-            tensor_data = tensor_data.unsqueeze(0)
-        return tensor_data
-
-
-class ExpandChannels(ImageTransformBase):
+class ExpandChannels:
     """
     Transforms an image with 1 channel to an image with 3 channels by copying pixel intensities of the image along
     the 0th dimension.
@@ -262,12 +61,9 @@ class ExpandChannels(ImageTransformBase):
         return torch.repeat_interleave(data, 3, dim=0)
 
 
-class AddGaussianNoise(ImageTransformBase):
+class AddGaussianNoise:
 
-    def __init__(self,
-                 p_apply: float,
-                 std: float,
-                 ) -> None:
+    def __init__(self, p_apply: float, std: float) -> None:
         """
         Transformation to add Gaussian noise N(0, std) to an image. Where std is set with the
         config.augmentation.gaussian_noise.std argument. The transformation will be applied with probability
@@ -277,13 +73,51 @@ class AddGaussianNoise(ImageTransformBase):
         self.p_apply = p_apply
         self.std = std
 
-    def draw_transform(self, input_size: List[int]) -> List[int]:
-        self.apply = torch.rand(1).data < self.p_apply
-        self.noise = torch.randn(size=input_size) * self.std
-        return input_size
+    def __call__(self, data: torch.Tensor) -> torch.Tensor:
+        if np.random.random(1) > self.p_apply:
+            return data
+        noise = torch.randn(size=data.shape[-2:]) * self.std
+        data = torch.clamp(data + noise, data.min(), data.max())
+        return data
+
+
+class ElasticTransform:
+    """Elastic deformation of images as described in [Simard2003]_.
+    .. [Simard2003] Simard, Steinkraus and Platt, "Best Practices for
+       Convolutional Neural Networks applied to Visual Document Analysis", in
+       Proc. of the International Conference on Document Analysis and
+       Recognition, 2003.
+       https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.160.8494&rep=rep1&type=pdf
+    """
+
+    def __init__(self,
+                 sigma: float,
+                 alpha: float,
+                 p_apply: float
+                 ) -> None:
+        """
+        :param sigma: elasticity coefficient
+        :param alpha: intensity of the deformation
+        :param p_apply: probability of applying the transformation
+        """
+        super().__init__()
+        self.alpha = alpha
+        self.sigma = sigma
+        self.p_apply = p_apply
 
     def __call__(self, data: torch.Tensor) -> torch.Tensor:
-        assert data.max() <= 1 and data.min() >= 0
-        if self.apply:
-            data = torch.clamp(data + self.noise, 0, 1)
-        return data
+        if np.random.random(1) > self.p_apply:
+            return data
+        result_type = data.dtype
+        data = data.cpu().numpy()
+        shape = data.shape
+
+        dx = gaussian_filter((np.random.random(shape[-2:]) * 2 - 1), self.sigma, mode="constant", cval=0) * self.alpha
+        dy = gaussian_filter((np.random.random(shape[-2:]) * 2 - 1), self.sigma, mode="constant", cval=0) * self.alpha
+        all_dimensions_axes = [np.arange(dim) for dim in shape]
+        grid = np.meshgrid(*all_dimensions_axes, indexing='ij')
+        grid[-2] = grid[-2] + dx
+        grid[-1] = grid[-1] + dy
+        indices = [np.reshape(grid[i], (-1, 1)) for i in range(len(grid))]
+
+        return torch.tensor(map_coordinates(data, indices, order=1).reshape(shape), dtype=result_type)
