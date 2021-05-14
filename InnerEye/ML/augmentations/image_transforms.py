@@ -13,32 +13,6 @@ import torchvision
 from scipy.ndimage import gaussian_filter, map_coordinates
 from torchvision.transforms import functional as F
 
-
-class ImageTransformBase:
-    def __init__(self, *args, **kwargs):
-        pass
-
-    def draw_transform(self, input_size: List[int]) -> List[int]:
-        """
-        This function should implement how to shuffle the transform_pipeline parameters
-
-        Example: for random rotation the max angle is fixed during init of the class.
-        Each call the draw_next_transform should sample a rotation angle within the [-max_angle, max_angle] interval.
-
-        Note: We are using an explicit call to shuffle the transform_pipeline parameters to ensure that we can use
-        the same
-        transform_pipeline for all 2D slices in a given 3D volume.
-        """
-        return input_size
-
-    @abstractmethod
-    def __call__(self, data: Any) -> Any:
-        """
-        Should implement the transformation itself given the currently set transformation parameters.
-        """
-        pass
-
-
 class RandomGamma():
 
     def __init__(self, scale: Tuple[float, float]) -> None:
@@ -46,6 +20,8 @@ class RandomGamma():
 
     def __call__(self, image: torch.Tensor) -> torch.Tensor:
         gamma = random.uniform(*self.scale)
+        if len(image.shape)!= 4:
+            raise ValueError(f"Expected input of shape [C, Z, H, W], but only got {len(image.shape)} dimensions")
         for c, z in zip(range(image.shape[0]), range(image.shape[1])):
             image[c, z] = torchvision.transforms.functional.adjust_gamma(image[c, z], gamma=gamma)
         return image
