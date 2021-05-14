@@ -251,24 +251,7 @@ class AzureConfig(GenericConfig):
         Looks in the AzureML datastore for a dataset of the given name. If there is no such dataset, a dataset is
         created and registered, assuming that the files are in a folder that has the same name as the dataset.
         For example, if azure_dataset_id is 'foo', then the 'foo' dataset should be pointing to the folder
-        <container_root>/datasets/foo
-
-        WARNING: the behaviour of Dataset.File.from_files, used below, is idiosyncratic. For example,
-        if "mydataset" storage has two "foo..." subdirectories each containing
-        a file dataset.csv and a directory ABC,
-
-        datastore = Datastore.get(workspace, "mydataset")
-        # This dataset has the file(s) in foo-bar01 at top level, e.g. dataset.csv
-        ds1 = Dataset.File.from_files([(datastore, "foo-bar01/*")])
-        # This dataset has two directories at top level, each with a name matching foo-bar*, and each
-        # containing dataset.csv.
-        ds2 = Dataset.File.from_files([(datastore, "foo-bar*/*")])
-        # This dataset contains a single directory "mydataset" at top level, containing a subdirectory
-        # foo-bar01, containing dataset.csv and (part of) ABC.
-        ds3 = Dataset.File.from_files([(datastore, "foo-bar01/*"),
-                                       (datastore, "foo-bar01/ABC/abc_files/*/*.nii.gz")])
-
-        These behaviours can be verified by calling "ds.download()" on each dataset ds.
+        <container_root>/datasets/foo/
         """
         if not self.azureml_datastore:
             raise ValueError("No value set for 'azureml_datastore' (name of the datastore in the AzureML workspace)")
@@ -281,8 +264,9 @@ class AzureConfig(GenericConfig):
             logging.info("Dataset found.")
         except:
             logging.info(f"Dataset does not yet exist, creating a new one from data in folder '{azure_dataset_id}'")
-            # See WARNING above before changing the from_files call!
-            azureml_dataset = Dataset.File.from_files([(datastore, azure_dataset_id)])
+            # Ensure that there is a / at the end of the file path, otherwise folder that share a prefix could create
+            # trouble (for example, folders foo and foo_bar exist, and I'm trying to create a dataset from "foo")
+            azureml_dataset = Dataset.File.from_files(path=(datastore, azure_dataset_id + "/"))
             logging.info("Registering the dataset for future use.")
             azureml_dataset.register(workspace, name=azure_dataset_id)
         return azureml_dataset

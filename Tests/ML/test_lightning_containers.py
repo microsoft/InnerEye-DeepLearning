@@ -194,8 +194,10 @@ def test_container_to_str() -> None:
     assert "bar" in s
     assert "123456" in s
     # These two are internal variables of the params library, and should be skipped.
-    assert "param                " not in s
-    assert "initialized          " not in s
+    # The extra spaces are on purpose, because there are fields in the container that contain the string "param".
+    # The output of __str__ is a big table in the format "    field_name        : field_value"
+    assert " param                " not in s
+    assert " initialized          " not in s
 
 
 def test_file_system_with_subfolders(test_output_dirs: OutputFolderForTests) -> None:

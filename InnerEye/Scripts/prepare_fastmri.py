@@ -163,12 +163,13 @@ def create_datafactory_and_run(files_and_tokens: Dict[str, str],
     def download_and_uncompress(source_file_or_tuple: Union[str, Tuple[str, str]], target_folder: str) -> List[str]:
         """
         Downloads a file from AWS and stores them in blob storage in its compressed form.
-        Also, downloads the same file from AWS, uncompresses it, and writes the results to the given folder
-        in blob storage.
+        From the compressed file in blob storage, it is then uncompressed, and written to a new folder in blob storage.
+        For example, if 'target_folder' is 'foo', the uncompressed file will be written to folder 'foo', and the
+        compressed raw data will be written to 'foo_compressed'.
         :param source_file_or_tuple: The name of the .tar.gz or .tar file to download, without any access tokens.
         If the name is a Tuple[str, str], the second tuple element is the "real" extension, for files where the
         extension is misleading.
-        :param target_folder: The folder in the target storage account
+        :param target_folder: The folder prefix in the target storage account. T
         :return: A list of pipelines that this method created.
         """
         if isinstance(source_file_or_tuple, str):

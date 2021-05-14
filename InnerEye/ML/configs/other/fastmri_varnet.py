@@ -43,10 +43,10 @@ class VarNetWithImageLogging(VarNetModule):
                 experiment.add_image(name, image, global_step=self.global_step)
 
 
-def get_data_module(azure_dataset_id: str,
-                    local_dataset: Optional[Path],
-                    sample_rate: Optional[float],
-                    test_path: str) -> LightningDataModule:
+def get_fastmri_data_module(azure_dataset_id: str,
+                            local_dataset: Optional[Path],
+                            sample_rate: Optional[float],
+                            test_path: str) -> LightningDataModule:
     """
     Creates a LightningDataModule that consumes data from the FastMRI challenge. The type of challenge
     (single/multicoil) is determined from the name of the dataset in Azure blob storage. The mask type is set to
@@ -127,10 +127,10 @@ class KneeMulticoil(FastMri):
         self.dataset_mountpoint = "/tmp/knee_multicoil"
 
     def get_data_module(self) -> LightningDataModule:
-        return get_data_module(azure_dataset_id=self.azure_dataset_id,
-                               local_dataset=self.local_dataset,
-                               sample_rate=self.sample_rate,
-                               test_path="multicoil_test_v2")
+        return get_fastmri_data_module(azure_dataset_id=self.azure_dataset_id,
+                                       local_dataset=self.local_dataset,
+                                       sample_rate=self.sample_rate,
+                                       test_path="multicoil_test_v2")
 
 
 class KneeSinglecoil(FastMri):
@@ -146,10 +146,10 @@ class KneeSinglecoil(FastMri):
         self.dataset_mountpoint = "/tmp/knee_singlecoil"
 
     def get_data_module(self) -> LightningDataModule:
-        return get_data_module(azure_dataset_id=self.azure_dataset_id,
-                               local_dataset=self.local_dataset,
-                               sample_rate=self.sample_rate,
-                               test_path="singlecoil_test_v2")
+        return get_fastmri_data_module(azure_dataset_id=self.azure_dataset_id,
+                                       local_dataset=self.local_dataset,
+                                       sample_rate=self.sample_rate,
+                                       test_path="singlecoil_test_v2")
 
 
 class BrainMulticoil(FastMri):
@@ -167,7 +167,7 @@ class BrainMulticoil(FastMri):
         self.dataset_mountpoint = "/tmp/brain_multicoil"
 
     def get_data_module(self) -> LightningDataModule:
-        return get_data_module(azure_dataset_id=self.azure_dataset_id,
-                               local_dataset=self.local_dataset,
-                               sample_rate=self.sample_rate,
-                               test_path="multicoil_test")
+        return get_fastmri_data_module(azure_dataset_id=self.azure_dataset_id,
+                                       local_dataset=self.local_dataset,
+                                       sample_rate=self.sample_rate,
+                                       test_path="multicoil_test")
