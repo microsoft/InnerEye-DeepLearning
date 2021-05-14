@@ -115,8 +115,7 @@ class ToySequenceModel(SequenceModelBase):
             return ModelTransformsPerExecutionMode(
                 train=ImageTransformationPipeline(
                     transforms=[RandomAffine(degrees=30, translate=(0.1, 0.1), shear=15),
-                                ColorJitter(brightness=0.2),
-                                CenterCrop(32)]))
+                                ColorJitter(brightness=0.2)]))
         else:
             return ModelTransformsPerExecutionMode()
 

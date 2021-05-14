@@ -2,7 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from typing import Any, Callable, List, TypeVar, Union
+from typing import Any, Callable, List, Union
 
 import PIL
 import torch
@@ -13,7 +13,6 @@ from torchvision.transforms.functional import to_tensor
 from yacs.config import CfgNode
 
 from InnerEye.ML.augmentations.image_transforms import AddGaussianNoise, ElasticTransform, ExpandChannels, RandomGamma
-from InnerEye.ML.dataset.scalar_sample import ScalarItem
 
 
 class ImageTransformationPipeline:
@@ -102,6 +101,7 @@ class ImageTransformationPipeline:
             return item.clone_with_overrides(images=self.transform_image(item.images))
 
     def __call__(self, data: Union[ScalarItem, torch.Tensor]):
+        from InnerEye.ML.dataset.scalar_sample import ScalarItem
         if isinstance(data, ScalarItem):
             return self.get_scalar_item_transformation(data)
         return self.transform_image(data)
