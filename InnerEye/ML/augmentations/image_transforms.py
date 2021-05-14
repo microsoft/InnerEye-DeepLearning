@@ -3,15 +3,14 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import random
-from abc import abstractmethod
-from typing import Any, List, Tuple, Union
 
-import PIL
+from typing import Tuple
+
 import numpy as np
 import torch
 import torchvision
 from scipy.ndimage import gaussian_filter, map_coordinates
-from torchvision.transforms import functional as F
+
 
 class RandomGamma():
 
@@ -20,7 +19,7 @@ class RandomGamma():
 
     def __call__(self, image: torch.Tensor) -> torch.Tensor:
         gamma = random.uniform(*self.scale)
-        if len(image.shape)!= 4:
+        if len(image.shape) != 4:
             raise ValueError(f"Expected input of shape [C, Z, H, W], but only got {len(image.shape)} dimensions")
         for c, z in zip(range(image.shape[0]), range(image.shape[1])):
             image[c, z] = torchvision.transforms.functional.adjust_gamma(image[c, z], gamma=gamma)
@@ -39,7 +38,7 @@ class ExpandChannels:
         """
         shape = data.shape
         if len(shape) != 4 or shape[1] != 1:
-             raise ValueError(f"Expected input of shape [Z, 1, H, W], found {shape}")
+            raise ValueError(f"Expected input of shape [Z, 1, H, W], found {shape}")
         return torch.repeat_interleave(data, 3, dim=1)
 
 

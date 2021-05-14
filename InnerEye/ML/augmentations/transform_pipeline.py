@@ -6,11 +6,9 @@ from typing import Any, Callable, List, Union
 
 import PIL
 import torch
-import torchvision
+
 from torchvision.transforms import CenterCrop, ColorJitter, Compose, RandomAffine, RandomErasing, \
-    RandomHorizontalFlip, \
-    RandomResizedCrop, Resize, \
-    ToTensor, functional as F
+    RandomHorizontalFlip, RandomResizedCrop, Resize
 from torchvision.transforms.functional import to_tensor
 from yacs.config import CfgNode
 

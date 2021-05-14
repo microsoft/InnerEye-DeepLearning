@@ -35,7 +35,8 @@ def get_cxr_ssl_transforms(config: CfgNode,
     (no augmentations)
     """
     train_transforms = create_cxr_transform_pipeline_from_config(config, apply_augmentations=True)
-    val_transforms = create_cxr_transform_pipeline_from_config(config, apply_augmentations=use_training_augmentations_for_validation)
+    val_transforms = create_cxr_transform_pipeline_from_config(config,
+                                                               apply_augmentations=use_training_augmentations_for_validation)
     if return_two_views_per_sample:
         train_transforms = DualViewTransformWrapper(train_transforms)
         val_transforms = DualViewTransformWrapper(val_transforms)
@@ -44,7 +45,8 @@ def get_cxr_ssl_transforms(config: CfgNode,
 
 class InnerEyeCIFARTrainTransform(SimCLRTrainDataTransform):
     """
-    Overload lightning-bolts SimCLRTrainDataTransform, to avoid return unused eval transform_pipeline. Used for training and
+    Overload lightning-bolts SimCLRTrainDataTransform, to avoid return unused eval transform_pipeline. Used for
+    training and
     val of SSL models.
     """
 
