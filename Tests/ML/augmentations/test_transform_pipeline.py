@@ -141,7 +141,7 @@ def test_create_transform_pipeline_from_config() -> None:
         expected_transformed = t(expected_transformed)
     # The pipeline takes as input [C, Z, H, W] and returns [C, Z, H, W]
     # But the transforms list expect [Z, C, H, W] and returns [Z, C, H, W] so need to permute dimension to compare
-    expected_transformed = torch.transpose(expected_transformed, 1, 0)
+    expected_transformed = torch.transpose(expected_transformed, 1, 0).squeeze(1)
     assert torch.isclose(expected_transformed, transformed_image).all()
 
     # Test the evaluation pipeline
@@ -151,5 +151,5 @@ def test_create_transform_pipeline_from_config() -> None:
     expected_transformed = image
     for t in all_transforms:
         expected_transformed = t(expected_transformed)
-    expected_transformed = torch.transpose(expected_transformed, 1, 0)
+    expected_transformed = torch.transpose(expected_transformed, 1, 0).squeeze(1)
     assert torch.isclose(expected_transformed, transformed_image).all()

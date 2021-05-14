@@ -66,12 +66,12 @@ def test_elastic_transform() -> None:
 
 def test_expand_channels() -> None:
     tensor_img = torch.ones([1, 256, 256])
-    tensor_img = ExpandChannels()(tensor_img)
-    assert tensor_img.shape == torch.Size([3, 256, 256])
-    assert torch.isclose(tensor_img[0], tensor_img[1]).all() and torch.isclose(tensor_img[1], tensor_img[2]).all()
+    with pytest.raises(ValueError):
+        ExpandChannels()(tensor_img)
+
     tensor_img = torch.ones([1, 1, 256, 256])
     tensor_img = ExpandChannels()(tensor_img)
-    assert tensor_img.shape == torch.Size([3, 1, 256, 256])
+    assert tensor_img.shape == torch.Size([1, 3, 256, 256])
 
 
 def test_random_gamma() -> None:
