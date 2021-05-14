@@ -100,7 +100,7 @@ class ImageTransformationPipeline:
         else:
             return item.clone_with_overrides(images=self.transform_image(item.images))
 
-    def __call__(self, data: Union[ScalarItem, torch.Tensor]):
+    def __call__(self, data: Union[ScalarItem, torch.Tensor]) -> Union[ScalarItem, torch.Tensor]:
         from InnerEye.ML.dataset.scalar_sample import ScalarItem
         if isinstance(data, ScalarItem):
             return self.get_scalar_item_transformation(data)
