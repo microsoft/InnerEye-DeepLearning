@@ -169,7 +169,7 @@ def create_datafactory_and_run(files_and_tokens: Dict[str, str],
         :param source_file_or_tuple: The name of the .tar.gz or .tar file to download, without any access tokens.
         If the name is a Tuple[str, str], the second tuple element is the "real" extension, for files where the
         extension is misleading.
-        :param target_folder: The folder prefix in the target storage account. T
+        :param target_folder: The folder prefix in the target storage account.
         :return: A list of pipelines that this method created.
         """
         if isinstance(source_file_or_tuple, str):
