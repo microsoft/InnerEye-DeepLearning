@@ -143,7 +143,7 @@ def _test_mount_for_lightning_container(test_output_dirs: OutputFolderForTests,
     download_path = test_output_dirs.root_dir / "downloaded"
     mount_path = test_output_dirs.root_dir / "mounted"
     if not is_lightning_model:
-        train_and_test_data : str = "train_and_test_data"
+        train_and_test_data = "train_and_test_data"
         for path in [download_path, mount_path, test_output_dirs.root_dir]:
             # If destination folder exists, delete content to ensure consistency and avoid 'FileExistsError'
             if (path / train_and_test_data).is_dir():
