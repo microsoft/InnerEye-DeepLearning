@@ -5,7 +5,7 @@
 import abc
 import logging
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Dict, Optional
 
 import pandas as pd
 from azureml.core import ScriptRunConfig

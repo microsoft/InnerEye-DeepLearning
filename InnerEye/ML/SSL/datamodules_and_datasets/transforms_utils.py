@@ -13,7 +13,6 @@ from yacs.config import CfgNode
 from InnerEye.ML.augmentations.transform_pipeline import create_cxr_transform_pipeline_from_config
 
 
-
 def get_cxr_ssl_transforms(config: CfgNode,
                            return_two_views_per_sample: bool,
                            use_training_augmentations_for_validation: bool = False) -> Tuple[Any, Any]:
