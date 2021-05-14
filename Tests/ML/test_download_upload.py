@@ -188,19 +188,7 @@ def test_mount_failing_offline_runs(test_output_dirs: OutputFolderForTests,
 def test_mount_in_azureml1(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test cases when MLRunner.mount_or_download_dataset runs inside AzureML.
-    First files from 'data.csv' are copied to the mounted folder and then lightning container is mounted and tested.
     """
-    df = pandas.read_csv(str(full_ml_test_data_path(DATASET_CSV_FILE_NAME)), usecols=['filePath'])
-
-    path = test_output_dirs.root_dir / "mounted"
-    path.mkdir(exist_ok=True)
-
-    train_and_test_data_path = path / "train_and_test_data"
-    train_and_test_data_path.mkdir(exist_ok=True)
-
-    for filePath in set(df['filePath'].values):
-        shutil.copy(full_ml_test_data_path() / filePath, path / filePath)
-
     container = _test_mount_for_lightning_container(test_output_dirs=test_output_dirs,
                                                     is_offline_run=False,
                                                     local_dataset=None,
@@ -224,7 +212,6 @@ def test_mount_in_azureml2(test_output_dirs: OutputFolderForTests) -> None:
 def test_mount_or_download(test_output_dirs: OutputFolderForTests) -> None:
     """
     Tests the different combinations of local and Azure datasets, with Innereye built-in and container models.
-    First files from 'data.csv' are copied to the mounted, downloaded and root folders.
     """
     root = test_output_dirs.root_dir
 
