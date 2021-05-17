@@ -180,7 +180,7 @@ S3,week1,scan3.npy,True,6,60,Male,Val2
     config_for_dataset.read_dataset_into_dataframe_and_pre_process()
 
     dataset = ScalarDataset(config_for_dataset,
-                            sample_transforms=ImageTransformationPipeline([RandomAffine(10), ColorJitter(0.2)]))
+                            sample_transforms=ImageTransformationPipeline([RandomAffine(10), ColorJitter(0.2)]))  # type: ignore
     assert len(dataset) == 3
 
     config = ImageEncoder(

@@ -661,7 +661,7 @@ class ScalarDatasetBase(GeneralDataset[ScalarModelBase], Generic[T]):
                  data_frame: Optional[pd.DataFrame] = None,
                  feature_statistics: Optional[FeatureStatistics] = None,
                  name: Optional[str] = None,
-                 sample_transforms: Optional[Union[Compose3D[ScalarItem], Transform3D[ScalarItem]]] = None):
+                 sample_transforms: Optional[Callable[[ScalarItem], ScalarItem]] = None):
         """
         High level class for the scalar dataset designed to be inherited for specific behaviour
         :param args: The model configuration object.
@@ -725,7 +725,7 @@ class ScalarDatasetBase(GeneralDataset[ScalarModelBase], Generic[T]):
             center_crop_size=self.args.center_crop_size,
             image_size=self.args.image_size)
 
-        return Compose3D.apply(self.transforms, sample)
+        return Compose3D.apply(self.transforms, sample)  # type: ignore
 
     def create_status_string(self, items: List[T]) -> str:
         """

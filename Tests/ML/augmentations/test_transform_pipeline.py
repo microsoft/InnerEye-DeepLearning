@@ -48,16 +48,19 @@ def test_torchvision_on_various_input(use_different_transformation_per_channel: 
     # Test image as [1, 1, H, W]
     image_as_tensor = image_as_tensor.unsqueeze(0)
     assert image_as_tensor.shape == torch.Size([1, 1, 256, 256])
-    assert transform(image_as_tensor).shape == torch.Size([1, 1, 224, 224])
+    transformed = transform(image_as_tensor)
+    assert isinstance(transformed, torch.Tensor)
+    assert transformed.shape == torch.Size([1, 1, 224, 224])
 
     # Test with a fake scan [C, Z, H, W] -> [25, 34, 256, 256]
     test_4d_tensor = torch.ones([25, 34, 256, 256]) * 255.
     test_4d_tensor[..., 100:150, 100:200] = 1
-    tf = transform(test_4d_tensor)
-    assert tf.shape == torch.Size([25, 34, 224, 224])
+    transformed = transform(test_4d_tensor)
+    assert isinstance(transformed, torch.Tensor)
+    assert transformed.shape == torch.Size([25, 34, 224, 224])
 
     # Same transformation should be applied to all slices and channels.
-    assert torch.isclose(tf[0, 0], tf[1, 1]).all() != use_different_transformation_per_channel
+    assert torch.isclose(transformed[0, 0], transformed[1, 1]).all() != use_different_transformation_per_channel
 
 
 @pytest.mark.parametrize("use_different_transformation_per_channel", [True, False])
@@ -87,16 +90,19 @@ def test_custom_tf_on_various_input(use_different_transformation_per_channel: bo
     # Test image as [1, 1, H, W]
     image_as_tensor = image_as_tensor.unsqueeze(0)
     assert image_as_tensor.shape == torch.Size([1, 1, 256, 256])
-    assert pipeline(image_as_tensor).shape == torch.Size([1, 1, 256, 256])
+    transformed = pipeline(image_as_tensor)
+    assert isinstance(transformed, torch.Tensor)
+    assert transformed.shape == torch.Size([1, 1, 256, 256])
 
     # Test with a fake scan [C, Z, H, W] -> [25, 34, 256, 256]
     test_4d_tensor = torch.ones([25, 34, 256, 256]) * 255.
     test_4d_tensor[..., 100:150, 100:200] = 1
-    tf = pipeline(test_4d_tensor)
-    assert tf.shape == torch.Size([25, 34, 256, 256])
+    transformed = pipeline(test_4d_tensor)
+    assert isinstance(transformed, torch.Tensor)
+    assert transformed.shape == torch.Size([25, 34, 256, 256])
 
     # Same transformation should be applied to all slices and channels.
-    assert torch.isclose(tf[0, 0], tf[1, 1]).all() != use_different_transformation_per_channel
+    assert torch.isclose(transformed[0, 0], transformed[1, 1]).all() != use_different_transformation_per_channel
 
 
 def test_create_transform_pipeline_from_config() -> None:
@@ -125,6 +131,7 @@ def test_create_transform_pipeline_from_config() -> None:
     random.seed(3)
 
     transformed_image = transformation_pipeline(image)
+    assert isinstance(transformed_image, torch.Tensor)
     # Expected pipeline
     image = np.ones([256, 256]) * 255.
     image[100:150, 100:200] = 1
@@ -147,6 +154,7 @@ def test_create_transform_pipeline_from_config() -> None:
     # Test the evaluation pipeline
     transformation_pipeline = create_cxr_transforms_from_config(cxr_augmentation_config, apply_augmentations=False)
     transformed_image = transformation_pipeline(image)
+    assert isinstance(transformed_image, torch.Tensor)
     all_transforms = [ExpandChannels(), Resize(size=256), CenterCrop(size=224)]
     expected_transformed = image
     for t in all_transforms:
