@@ -76,7 +76,7 @@ with only minimum code changes required. See [the MD documentation](docs/bring_y
   Additionally, the `TrainHelloWorldAndHelloContainer` job in the PR build has been split into two jobs, `TrainHelloWorld` and
   `TrainHelloContainer`. A pytest marker `after_training_hello_container` has been added to run tests after training is
   finished in the `TrainHelloContainer` job.
-- ([#456](https://github.com/microsoft/InnerEye-DeepLearning/pull/456)) Adding configs to train Covid detection models
+- ([#456](https://github.com/microsoft/InnerEye-DeepLearning/pull/456)) Adding configs to train Covid detection models.
 
 ### Changed
 
