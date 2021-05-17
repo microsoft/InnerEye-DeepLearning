@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import random
 from typing import Any, List
 
 import numpy as np
@@ -10,7 +11,10 @@ import pytest
 from InnerEye.ML.augmentations.augmentation_for_segmentation_utils import random_crop
 from InnerEye.ML.dataset.sample import Sample
 from InnerEye.ML.utils import ml_util
+
 from Tests.ML.util import DummyPatientMetadata
+
+ml_util.set_random_seed(1)
 
 image_size = (8, 8, 8)
 valid_image_4d = np.random.uniform(size=((5,) + image_size)) * 10
@@ -18,6 +22,8 @@ valid_mask = np.random.randint(2, size=image_size)
 number_of_classes = 5
 class_assignments = np.random.randint(2, size=image_size)
 valid_labels = np.zeros((number_of_classes,) + image_size)
+for c in range(number_of_classes):
+    valid_labels[c, class_assignments == c] = 1
 valid_crop_size = (2, 2, 2)
 valid_full_crop_size = image_size
 valid_class_weights = [0.5] + [0.5 / (number_of_classes - 1)] * (number_of_classes - 1)
@@ -74,15 +80,13 @@ def test_invalid_crop_size(crop_size: Any) -> None:
 
 def test_random_crop_no_fg() -> None:
     with pytest.raises(Exception):
-        random_crop(Sample(
-            metadata=DummyPatientMetadata, image=valid_image_4d, labels=valid_labels,
-            mask=np.zeros_like(valid_mask)),
-            valid_crop_size, valid_class_weights)
+        random_crop(Sample(metadata=DummyPatientMetadata, image=valid_image_4d, labels=valid_labels,
+                           mask=np.zeros_like(valid_mask)),
+                    valid_crop_size, valid_class_weights)
 
     with pytest.raises(Exception):
         random_crop(Sample(metadata=DummyPatientMetadata, image=valid_image_4d,
-                           labels=np.zeros_like(
-                               valid_labels), mask=valid_mask),
+                           labels=np.zeros_like(valid_labels), mask=valid_mask),
                     valid_crop_size, valid_class_weights)
 
 
