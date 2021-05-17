@@ -26,7 +26,7 @@ from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils.csv_util import CSV_CHANNEL_HEADER, CSV_SUBJECT_HEADER
 from InnerEye.ML.utils.dataset_util import CategoricalToOneHotEncoder
 from InnerEye.ML.utils.features_util import FeatureStatistics
-from InnerEye.ML.utils.transforms import Compose3D, Transform3D
+from InnerEye.ML.utils.transforms import Compose3D
 
 T = TypeVar('T', bound=ScalarDataSource)
 
