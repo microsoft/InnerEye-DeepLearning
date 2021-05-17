@@ -265,7 +265,7 @@ class FullImageDataset(GeneralDataset):
 
 def convert_channels_to_file_paths(channels: List[str],
                                    rows: pd.DataFrame,
-                                   local_dataset_root_folder: Optional[Path],
+                                   local_dataset_root_folder: Path,
                                    patient_id: str) -> Tuple[List[Path], str]:
     """
     Returns: 1) The full path for files specified in the training, validation and testing datasets, and
@@ -336,8 +336,6 @@ def load_dataset_sources(dataframe: pd.DataFrame,
             raise ValueError(f"ids have duplicated entries: {channels}")
         rows = dataframe.loc[dataframe[CSV_SUBJECT_HEADER] == patient_id]
         # converts channels to paths and makes second sanity check for channel data
-        paths: List[Path] = []
-        failed_channel_info: str = ''
         paths, failed_channel_info = convert_channels_to_file_paths(channels, rows, local_dataset_root_folder,
                                                                     patient_id)
 

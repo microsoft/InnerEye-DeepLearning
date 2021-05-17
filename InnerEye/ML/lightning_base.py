@@ -152,7 +152,7 @@ class InnerEyeContainer(LightningContainer):
             if self.config.mask_id:
                 all_channels += [self.config.mask_id]
             # Root directory where data is stored
-            local_dataset_root_folder = self.config.local_dataset
+            local_dataset_root_folder: Path = Path( self.config.local_dataset.__str__() )
             # Iterate over train, validation and test dataset
             dataset_splits = self.config.get_dataset_splits()
             for split_data in [dataset_splits.train, dataset_splits.val, dataset_splits.test]:
