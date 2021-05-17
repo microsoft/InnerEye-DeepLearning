@@ -45,7 +45,7 @@ def get_cxr_ssl_transforms(config: CfgNode,
 
 class InnerEyeCIFARTrainTransform(SimCLRTrainDataTransform):
     """
-    Overload lightning-bolts SimCLRTrainDataTransform, to avoid return unused eval transform_pipeline. Used for
+    Overload lightning-bolts SimCLRTrainDataTransform, to avoid return unused eval transform. Used for
     training and
     val of SSL models.
     """
@@ -59,7 +59,7 @@ class InnerEyeCIFARTrainTransform(SimCLRTrainDataTransform):
 
 class InnerEyeCIFARLinearHeadTransform(SimCLRTrainDataTransform):
     """
-    Overload lightning-bolts SimCLRTrainDataTransform, to only return linear head eval transform_pipeline.
+    Overload lightning-bolts SimCLRTrainDataTransform, to only return linear head eval transform.
     """
 
     def __call__(self, sample: Any) -> Any:

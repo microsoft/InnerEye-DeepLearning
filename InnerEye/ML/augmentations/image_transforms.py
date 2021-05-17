@@ -11,9 +11,20 @@ import torch
 import torchvision
 from scipy.ndimage import gaussian_filter, map_coordinates
 
+
 class RandomGamma:
+    """
+    Custom function to apply a random gamma transform within a specified range of possible gamma value.
+    See documentation of
+    [`adjust_gamma`](https://pytorch.org/vision/0.8/transforms.html#torchvision.transforms.functional.adjust_gamma) for
+    more details.
+    """
 
     def __init__(self, scale: Tuple[float, float]) -> None:
+        """
+        :param scale: a tuple (min_gamma, max_gamma) that specifies the range of possible values to sample the gamma
+        value from when the transformation is called.
+        """
         self.scale = scale
 
     def __call__(self, image: torch.Tensor) -> torch.Tensor:
@@ -34,7 +45,8 @@ class ExpandChannels:
 
     def __call__(self, data: torch.Tensor) -> torch.Tensor:
         """
-        :param: data [Z, C, H, W]
+        :param: data of shape [Z, 1, H, W]
+        :return: data with channel copied 3 times, shape [Z, 3, H, W]
         """
         shape = data.shape
         if len(shape) != 4 or shape[1] != 1:
@@ -46,9 +58,9 @@ class AddGaussianNoise:
 
     def __init__(self, p_apply: float, std: float) -> None:
         """
-        Transformation to add Gaussian noise N(0, std) to an image. Where std is set with the
-        config.augmentation.gaussian_noise.std argument. The transformation will be applied with probability
-        config.augmentation.gaussian_noise.p_apply
+        Transformation to add Gaussian noise N(0, std) to an image.
+        :param: p_apply: probability of applying the transformation.
+        :param: std: standard deviation of the gaussian noise to add to the image.
         """
         super().__init__()
         self.p_apply = p_apply
