@@ -109,9 +109,11 @@ class ImageEncoder(ScalarModelBase):
         return ModelTransformsPerExecutionMode(
             train=ImageTransformationPipeline(transforms=[RandomAffine(10),
                                                           ColorJitter(0.2)],
-                                              apply_pipeline_to_segmentation_maps= (
-                        self.imaging_feature_type == ImagingFeatureType.Segmentation
-                        or self.imaging_feature_type == ImagingFeatureType.ImageAndSegmentation)))
+                                              apply_pipeline_to_segmentation_maps=(
+                                                      self.imaging_feature_type == ImagingFeatureType.Segmentation
+                                                      or self.imaging_feature_type ==
+                                                      ImagingFeatureType.ImageAndSegmentation)))
+
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize(["encode_channels_jointly", "use_non_imaging_features",
