@@ -294,8 +294,10 @@ the transformation pipeline.
 
 `ImageTransformationPipeline` takes three arguments for its constructor:
  * `transforms`: a list of image transforms, in particular you can feed in standard [torchvision transforms](https://pytorch.org/vision/0.8/transforms.html) or
-any other transforms as long as they support an input [..., C, H, W] (where ... is an arbitrary number of 
-   leading dimensions, this is the standard for torchvision transforms.).
+any other transforms as long as they support an input `[Z, C, H, W]` (where Z is the 3rd dimension (1 for 2D images), 
+   C number of channels, H and W the height and width of each 2D slide - this is supported for standard torchvision 
+   transforms.). You can also define your own transforms as long as they expect such a `[Z, C, H, W]` input. You can
+   find some examples of custom transforms class in `InnerEye/ML/augmentation/image_transforms.py`. 
 * `apply_transform_to_segmentation_maps`: If True, the pipeline will be applied to the segmentations field
         of the scalar item, else it will be applied to the images.
 * `use_different_transformation_per_channel`: if True, apply a different version of the augmentation pipeline
