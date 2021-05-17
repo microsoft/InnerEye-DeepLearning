@@ -85,6 +85,7 @@ class ImageTransformationPipeline:
         return image.to(dtype=image.dtype)
 
     from InnerEye.ML.dataset.scalar_sample import ScalarItem
+
     def get_scalar_item_transformation(self, item: ScalarItem) -> ScalarItem:
         """
         This function returns the transformation around a ScalarItem, it will apply the pipeline to either the images

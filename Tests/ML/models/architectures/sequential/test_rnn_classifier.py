@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import pytest
 import torch
-from torchvision.transforms import CenterCrop, ColorJitter, RandomAffine
+from torchvision.transforms import ColorJitter, RandomAffine
 
 from InnerEye.Common import common_util
 from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, logging_to_stdout
