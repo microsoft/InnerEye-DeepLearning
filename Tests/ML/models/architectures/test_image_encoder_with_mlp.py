@@ -115,7 +115,7 @@ class ImageEncoder(ScalarModelBase):
                         or self.imaging_feature_type == ImagingFeatureType.ImageAndSegmentation)))
 
 
-# @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
+@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize(["encode_channels_jointly", "use_non_imaging_features",
                           "reduction_factor", "expected_num_reduced_features",
                           "kernel_size_per_encoding_block", "stride_size_per_encoding_block",
