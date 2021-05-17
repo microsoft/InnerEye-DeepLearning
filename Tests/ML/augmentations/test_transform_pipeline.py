@@ -62,7 +62,7 @@ def test_torchvision_on_various_input(use_different_transformation_per_channel: 
     # Same transformation should be applied to all slices and channels.
     assert torch.isclose(transformed[0, 0], transformed[1, 1]).all() != use_different_transformation_per_channel
 
-@pytest.skipif(is_windows(), reason="OOM on windows")
+@pytest.mark.skipif(is_windows(), reason="OOM on windows")
 @pytest.mark.parametrize("use_different_transformation_per_channel", [True, False])
 def test_custom_tf_on_various_input(use_different_transformation_per_channel: bool) -> None:
     """
