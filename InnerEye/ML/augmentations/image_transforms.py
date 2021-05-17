@@ -11,7 +11,7 @@ import torch
 import torchvision
 from scipy.ndimage import gaussian_filter, map_coordinates
 
-class RandomGamma():
+class RandomGamma:
 
     def __init__(self, scale: Tuple[float, float]) -> None:
         self.scale = scale
@@ -19,9 +19,10 @@ class RandomGamma():
     def __call__(self, image: torch.Tensor) -> torch.Tensor:
         gamma = random.uniform(*self.scale)
         if len(image.shape) != 4:
-            raise ValueError(f"Expected input of shape [C, Z, H, W], but only got {len(image.shape)} dimensions")
-        for c, z in zip(range(image.shape[0]), range(image.shape[1])):
-            image[c, z] = torchvision.transforms.functional.adjust_gamma(image[c, z], gamma=gamma)
+            raise ValueError(f"Expected input of shape [Z, C, H, W], but only got {len(image.shape)} dimensions")
+        for z in range(image.shape[0]):
+            for c in range(image.shape[1]):
+                image[z, c] = torchvision.transforms.functional.adjust_gamma(image[z, c], gamma=gamma)
         return image
 
 

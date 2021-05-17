@@ -88,8 +88,10 @@ def test_random_gamma() -> None:
     assert transformed_1.shape == torch.Size([1, 1, 256, 256])
 
     random.seed(0)
-    tensor_img = torch.ones([2, 2, 256, 256])
+    tensor_img = torch.ones([2, 3, 256, 256])
     transformed_2 = RandomGamma(scale=(0.3, 3))(tensor_img)
     # If you run on 1 channel, 1 Z dimension the gamma transform applied should be the same for all slices.
-    assert transformed_2.shape == torch.Size([2, 2, 256, 256])
+    assert transformed_2.shape == torch.Size([2, 3, 256, 256])
     assert torch.isclose(transformed_2[0], transformed_2[1]).all()
+    assert torch.isclose(transformed_2[0, 1], transformed_2[0, 2]).all() and \
+           torch.isclose(transformed_2[0, 0], transformed_2[0, 2]).all()
