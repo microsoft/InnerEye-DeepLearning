@@ -38,10 +38,8 @@ class ImageTransformationPipeline:
                  apply_pipeline_to_segmentation_maps: bool = False):
         """
         :param transforms: List of transformations to apply to images. Supports out of the boxes torchvision transforms
-        as they accept data of arbitrary dimension. If the data is [C, Z, H, W] they will apply the same transformation
-        to all leading dimensions (i.e. same transformation for all slices by default). You can also define your own
-        transform class but be aware that you function should expect input of shape [C, Z, H, W] and apply the same
-        transformation to each C, Z slice.
+        as they accept data of arbitrary dimension. You can also define your own transform class but be aware that you
+        function should expect input of shape [C, Z, H, W] and apply the same transformation to each Z slice.
         :param use_different_transformation_per_channel: if True, apply a different version of the augmentation pipeline
         for each channel. If False, applies the same transformation to each channel, separately.
         :param: apply_transform_to_segmentation_maps. If True, the pipeline will be applied to the segmentations field
@@ -104,7 +102,7 @@ class ImageTransformationPipeline:
         else:
             return item.clone_with_overrides(images=self.transform_image(item.images))
 
-    def __call__(self, data: Union[ScalarItem, torch.Tensor]) -> Union[ScalarItem, torch.Tensor]:
+    def __call__(self, data: Union["ScalarItem", torch.Tensor]) -> Union["ScalarItem", torch.Tensor]:
         from InnerEye.ML.dataset.scalar_sample import ScalarItem
         if isinstance(data, ScalarItem):
             return self.get_scalar_item_transformation(data)

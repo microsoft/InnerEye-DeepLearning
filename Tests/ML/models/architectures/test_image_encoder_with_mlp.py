@@ -109,12 +109,13 @@ class ImageEncoder(ScalarModelBase):
         return ModelTransformsPerExecutionMode(
             train=ImageTransformationPipeline(
                 transforms=[RandomAffine(10), ColorJitter(0.2)],
+                use_different_transformation_per_channel=True,
                 apply_pipeline_to_segmentation_maps=(
                         self.imaging_feature_type == ImagingFeatureType.Segmentation
                         or self.imaging_feature_type == ImagingFeatureType.ImageAndSegmentation)))
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
+# @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize(["encode_channels_jointly", "use_non_imaging_features",
                           "reduction_factor", "expected_num_reduced_features",
                           "kernel_size_per_encoding_block", "stride_size_per_encoding_block",
@@ -179,8 +180,10 @@ S3,week1,scan3.npy,True,6,60,Male,Val2
     )
     config_for_dataset.read_dataset_into_dataframe_and_pre_process()
 
-    dataset = ScalarDataset(config_for_dataset,
-                            sample_transforms=ImageTransformationPipeline([RandomAffine(10), ColorJitter(0.2)]))  # type: ignore
+    dataset = ScalarDataset(
+        config_for_dataset,
+        sample_transforms=ImageTransformationPipeline([RandomAffine(10), ColorJitter(0.2)],
+                                                      use_different_transformation_per_channel=True))  # type: ignore
     assert len(dataset) == 3
 
     config = ImageEncoder(
