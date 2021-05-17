@@ -12,11 +12,13 @@ import numpy as np
 import pandas as pd
 import pytest
 import torch
+from torchvision.transforms import ColorJitter, RandomAffine
 
 from InnerEye.Common import common_util
 from InnerEye.Common.common_util import logging_to_stdout
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.type_annotations import TupleInt3
+from InnerEye.ML.augmentations.transform_pipeline import ImageTransformationPipeline
 from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
 from InnerEye.ML.lightning_models import transfer_batch_to_device
 from InnerEye.ML.model_config_base import ModelTransformsPerExecutionMode
@@ -24,7 +26,6 @@ from InnerEye.ML.models.architectures.classification.image_encoder_with_mlp impo
     ImagingFeatureType
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.scalar_config import AggregationType, ScalarLoss, ScalarModelBase, get_non_image_features_dict
-from InnerEye.ML.utils.augmentation import RandAugmentSlice, ScalarItemAugmentation
 from InnerEye.ML.utils.dataset_util import CategoricalToOneHotEncoder
 from InnerEye.ML.utils.image_util import HDF5_NUM_SEGMENTATION_CLASSES, segmentation_to_one_hot
 from InnerEye.ML.utils.io_util import ImageAndSegmentations, NumpyFile
@@ -106,11 +107,11 @@ class ImageEncoder(ScalarModelBase):
         Get transforms to perform on image samples for each model execution mode.
         """
         return ModelTransformsPerExecutionMode(
-            train=ScalarItemAugmentation(
-                RandAugmentSlice(is_transformation_for_segmentation_maps=(
+            train=ImageTransformationPipeline(transforms=[RandomAffine(10),
+                                                          ColorJitter(0.2)],
+                                              apply_pipeline_to_segmentation_maps= (
                         self.imaging_feature_type == ImagingFeatureType.Segmentation
-                        or self.imaging_feature_type == ImagingFeatureType.ImageAndSegmentation))))
-
+                        or self.imaging_feature_type == ImagingFeatureType.ImageAndSegmentation)))
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize(["encode_channels_jointly", "use_non_imaging_features",
