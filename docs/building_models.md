@@ -283,5 +283,34 @@ runs are uploaded to the parent run, in the `CrossValResults` directory. This co
 There is also a directory `BaselineComparisons`, containing the Wilcoxon test results and
 scatterplots for the ensemble, as described above for single runs.
 
-### Augmentation 
-HERE ADD DOCUMENTATION
+### Augmentation for classification models.
+
+For classification models, you can define an augmentation pipeline to apply to your images at training, validation
+and test time. In order, to define such a series of transformations, you will need to overload the 
+`get_image_sample_transforms` method of your config class. This method expects you to return a
+`ModelTransformsPerExecutionMode`, one pipeline per execution mode. We also provide the `ImageTransformationPipeline`
+a class that ensures the correct conversion of a `ScalarItem` (item of the built-in `ScalarDataset`) prior to calling
+the transformation pipeline. 
+
+`ImageTransformationPipeline` takes three arguments for its constructor:
+ * `transforms`: a list of image transforms, in particular you can feed in standard [torchvision transforms](https://pytorch.org/vision/0.8/transforms.html) or
+any other transforms as long as they support an input [..., C, H, W] (where ... is an arbitrary number of 
+   leading dimensions, this is the standard for torchvision transforms.).
+* `apply_transform_to_segmentation_maps`: If True, the pipeline will be applied to the segmentations field
+        of the scalar item, else it will be applied to the images.
+* `use_different_transformation_per_channel`: if True, apply a different version of the augmentation pipeline
+        for each channel. If False, applies the same transformation to each channel, separately. Default to False.
+  
+Below you can find an example of `get_image_sample_transforms` that would resize your input images to 256 x 256, and at
+training time only apply random rotation of +/- 10 degrees, and apply some brightness distortion, 
+using standard pytorch vision transforms.
+
+```python
+def get_image_sample_transforms(self) -> ModelTransformsPerExecutionMode:
+    """
+    Get transforms to perform on image samples for each model execution mode.
+    """
+    return ModelTransformsPerExecutionMode(
+        train=ImageTransformationPipeline(transforms=[Resize(256), RandomAffine(degrees=10), ColorJitter(brightness=0.2)]),
+        val=ImageTransformationPipeline(transforms=[Resize(256)]))
+```
