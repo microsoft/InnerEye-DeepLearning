@@ -14,6 +14,11 @@ from yacs.config import CfgNode
 
 from InnerEye.ML.augmentations.image_transforms import AddGaussianNoise, ElasticTransform, ExpandChannels, RandomGamma
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from InnerEye.ML.dataset.scalar_sample import ScalarItem
+
 
 class ImageTransformationPipeline:
     """
@@ -84,9 +89,7 @@ class ImageTransformationPipeline:
             image = image.squeeze(1)
         return image.to(dtype=image.dtype)
 
-    from InnerEye.ML.dataset.scalar_sample import ScalarItem
-
-    def get_scalar_item_transformation(self, item: ScalarItem) -> ScalarItem:
+    def get_scalar_item_transformation(self, item: "ScalarItem") -> "ScalarItem":
         """
         This function returns the transformation around a ScalarItem, it will apply the pipeline to either the images
         or the segmentations and return a new ScalarItem with the transformed image.
