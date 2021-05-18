@@ -88,6 +88,25 @@ def submit_to_azureml(azure_config: AzureConfig,
     return azure_run
 
 
+def get_git_tags(azure_config: AzureConfig) -> Dict[str, str]:
+    """
+    Creates a dictionary with git-related information, like branch and commit ID. The dictionary key is a string
+    that can be used as a tag on an AzureML run, the dictionary value is the git information. If git information
+    is passed in via commandline arguments, those take precedence over information read out from the repository.
+    :param azure_config: An AzureConfig object specifying git-related commandline args.
+    :return: A dictionary mapping from tag name to git info.
+    """
+    git_information = azure_config.get_git_information()
+    return {
+        "source_repository": git_information.repository,
+        "source_branch": git_information.branch,
+        "source_id": git_information.commit_id,
+        "source_dirty": str(git_information.is_dirty),
+        "source_author": git_information.commit_author,
+        "source_message": git_information.commit_message,
+    }
+
+
 def set_run_tags(run: Run, azure_config: AzureConfig, commandline_args: str) -> None:
     """
     Set metadata for the run
@@ -95,7 +114,7 @@ def set_run_tags(run: Run, azure_config: AzureConfig, commandline_args: str) -> 
     :param azure_config: The configurations for the present AzureML job
     :param commandline_args: A string that holds all commandline arguments that were used for the present run.
     """
-    git_information = azure_config.get_git_information()
+    git_information = get_git_tags(azure_config)
     run.set_tags({
         "tag": azure_config.tag,
         "model_name": azure_config.model,
@@ -105,12 +124,7 @@ def set_run_tags(run: Run, azure_config: AzureConfig, commandline_args: str) -> 
         "build_number": str(azure_config.build_number),
         "build_user": azure_config.build_user,
         "build_user_email": azure_config.build_user_email,
-        "source_repository": git_information.repository,
-        "source_branch": git_information.branch,
-        "source_id": git_information.commit_id,
-        "source_message": git_information.commit_message,
-        "source_author": git_information.commit_author,
-        "source_dirty": str(git_information.is_dirty),
+        **git_information,
         "commandline_args": commandline_args,
         CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY: -1,
     })

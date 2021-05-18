@@ -60,6 +60,8 @@ with only minimum code changes required. See [the MD documentation](docs/bring_y
   model configs with custom behaviour while leveraging the existing InnerEye workflows.
 - ([#444](https://github.com/microsoft/InnerEye-DeepLearning/pull/444)) Added setup scripts and documentation to work
 with the FastMRI challenge datasets.
+- ([#444](https://github.com/microsoft/InnerEye-DeepLearning/pull/444)) Git-related information is now printed to the
+console for easier diagnostics.
 - ([#445](https://github.com/microsoft/InnerEye-DeepLearning/pull/445)) Adding test coverage for the `HelloContainer`
   model with multiple GPUs
 - ([#450](https://github.com/microsoft/InnerEye-DeepLearning/pull/450)) Adds the metric "Accuracy at threshold 0.5" to the classification report (`classification_crossval_report.ipynb`). 

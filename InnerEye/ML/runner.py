@@ -12,7 +12,6 @@ from pathlib import Path
 # flake8: noqa
 # Workaround for an issue with how AzureML and Pytorch Lightning interact: When spawning additional processes for DDP,
 # the working directory is not correctly picked up in sys.path
-
 print(f"Starting InnerEye runner at {sys.argv[0]}")
 innereye_root = Path(__file__).absolute().parent.parent.parent
 if (innereye_root / "InnerEye").is_dir():
@@ -35,9 +34,10 @@ from azureml.core import Run
 
 from InnerEye.Azure import azure_util
 from InnerEye.Azure.azure_config import AzureConfig, ParserResult, SourceConfig
-from InnerEye.Azure.azure_runner import create_runner_parser, parse_args_and_add_yaml_variables, \
+from InnerEye.Azure.azure_runner import create_runner_parser, get_git_tags, parse_args_and_add_yaml_variables, \
     parse_arguments, set_environment_variables_for_multi_node, submit_to_azureml
-from InnerEye.Azure.azure_util import get_all_environment_files, is_run_and_child_runs_completed
+from InnerEye.Azure.azure_util import RUN_CONTEXT, get_all_environment_files, is_offline_run_context, \
+    is_run_and_child_runs_completed
 from InnerEye.Azure.run_pytest import download_pytest_result, run_pytest
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE, \
@@ -47,9 +47,11 @@ from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.lightning_base import InnerEyeContainer
 from InnerEye.ML.model_config_base import ModelConfigBase
+from InnerEye.ML.model_training import is_global_rank_zero
 from InnerEye.ML.run_ml import MLRunner, ModelDeploymentHookSignature, PostCrossValidationHookSignature
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.lightning_container import LightningContainer
+
 
 
 def initialize_rpdb() -> None:
@@ -246,6 +248,24 @@ class Runner:
                              "runs failed.")
         return azure_run
 
+    def print_git_tags(self) -> None:
+        """
+        When running in AzureML, print all the tags that contain information about the git repository status,
+        for answering the question "which code version was used" from a log file only.
+        """
+        git_tags = get_git_tags(self.azure_config)
+        if is_offline_run_context(RUN_CONTEXT):
+            # When running on a VM outside AzureML, we can read git information from the current repository
+            tags_to_print = git_tags
+        else:
+            # When running in AzureML, the git repo information is not necessarily passed in, but we copy the git
+            # information into run tags after submitting the job, and can read it out here.
+            # Only print out those tags that were created from git-related information
+            tags_to_print = {key: value for key, value in RUN_CONTEXT.get_tags().items() if key in git_tags}
+        logging.info("Git repository information:")
+        for key, value in tags_to_print.items():
+            logging.info(f"    {key:20}: {value}")
+
     def run_in_situ(self) -> None:
         """
         Actually run the AzureML job; this method will typically run on an Azure VM.
@@ -254,6 +274,8 @@ class Runner:
         # build itself, but not the tons of debug information that AzureML submissions create.
         logging_to_stdout(self.azure_config.log_level)
         suppress_logging_noise()
+        if is_global_rank_zero():
+            self.print_git_tags()
         # For the PR build in AzureML, we can either pytest, or the training of the simple PR model. Running both
         # only works when using DDP_spawn, but that has as a side-effect that it messes up memory consumption of the
         # large models.
@@ -272,7 +294,6 @@ class Runner:
             # (https://github.com/microsoft/InnerEye-DeepLearning/issues/395)
             if self.azure_config.num_nodes > 1:
                 set_environment_variables_for_multi_node()
-            logging.info("Creating the output folder structure.")
             ml_runner = self.create_ml_runner()
             ml_runner.setup()
             ml_runner.start_logging_to_file()

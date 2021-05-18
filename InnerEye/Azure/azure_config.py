@@ -163,7 +163,7 @@ class AzureConfig(GenericConfig):
             # Is_dirty in the present settings ignores untracked files.
             is_dirty = git_repo.is_dirty()
         except:
-            logging.info("This folder does not seem to be a git repository.")
+            logging.debug("This folder does not seem to be a git repository.")
         return GitInformation(
             repository=repository,
             branch=branch,

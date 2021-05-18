@@ -21,7 +21,7 @@ from torch.utils.data import DataLoader
 
 from InnerEye.Azure import azure_util
 from InnerEye.Azure.azure_config import AzureConfig, INPUT_DATA_KEY
-from InnerEye.Azure.azure_runner import ENVIRONMENT_VERSION, ENV_OMPI_COMM_WORLD_RANK
+from InnerEye.Azure.azure_runner import ENVIRONMENT_VERSION, ENV_OMPI_COMM_WORLD_RANK, get_git_tags
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, \
     EFFECTIVE_RANDOM_SEED_KEY_NAME, IS_ENSEMBLE_KEY_NAME, MODEL_ID_KEY_NAME, PARENT_RUN_CONTEXT, \
     PARENT_RUN_ID_KEY_NAME, RUN_CONTEXT, RUN_RECOVERY_FROM_ID_KEY_NAME, RUN_RECOVERY_ID_KEY_NAME, \
@@ -318,6 +318,7 @@ class MLRunner:
         """
         assert PARENT_RUN_CONTEXT, "This function should only be called in a Hyperdrive run."
         run_tags_parent = PARENT_RUN_CONTEXT.get_tags()
+        git_tags = get_git_tags(self.azure_config)
         tags_to_copy = [
             "tag",
             "model_name",
@@ -326,12 +327,7 @@ class MLRunner:
             "friendly_name",
             "build_number",
             "build_user",
-            "source_repository",
-            "source_branch",
-            "source_id",
-            "source_message",
-            "source_author",
-            "source_dirty",
+            *git_tags.keys(),
             RUN_RECOVERY_FROM_ID_KEY_NAME
         ]
         new_tags = {tag: run_tags_parent.get(tag, "") for tag in tags_to_copy}
