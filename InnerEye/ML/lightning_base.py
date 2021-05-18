@@ -33,7 +33,8 @@ from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot, set_random_seed, validate_dataset_paths
 from InnerEye.ML.utils.model_util import generate_and_print_model_summary
 from InnerEye.ML.visualizers.patch_sampling import visualize_random_crops_for_dataset
-
+from InnerEye.ML.utils.csv_util import CSV_SUBJECT_HEADER
+from InnerEye.ML.dataset.full_image_dataset import convert_channels_to_file_paths
 
 class TrainAndValDataLightning(LightningDataModule):
     """
@@ -136,6 +137,40 @@ class InnerEyeContainer(LightningContainer):
         This hook reads the dataset file, and possibly sets required pre-processing objects, like one-hot encoder
         for categorical features, that need to be available before creating the model.
         """
+        # Following code validates segmentation training, validation and test data to ensure:
+        # 1) Files exist,
+        # 2) mask_id identifier is not empty,
+        # 3) consistency for input channels, ground_truth and mask_id,
+        # 4) ensures data is consistent with load_dataset_sources method prior running training, validation and testing.
+
+        full_failed_channel_info: str = ''
+
+        if self.config.is_segmentation_model:
+            # Creates a list with all the channels of interest
+            all_channels = self.config.image_channels + self.config.ground_truth_ids
+            # Mask_id is an optional field. If non-empty in the config, will check dataframe.
+            if self.config.mask_id:
+                all_channels += [self.config.mask_id]
+            # Root directory where data is stored
+            if self.config.local_dataset is None:
+                raise ValueError("Expecting that a dataset is available here.")
+            local_dataset_root_folder = self.config.local_dataset
+            # Iterate over train, validation and test dataset
+            dataset_splits = self.config.get_dataset_splits()
+            for split_data in [dataset_splits.train, dataset_splits.val, dataset_splits.test]:
+                unique_ids = set(split_data[CSV_SUBJECT_HEADER])
+                for patient_id in unique_ids:
+                    rows = split_data.loc[split_data[CSV_SUBJECT_HEADER] == patient_id]
+                    # Converts channels from data frame to file paths and gets errors if any
+                    __, failed_channel_info = convert_channels_to_file_paths(all_channels,
+                                                                              rows,
+                                                                              local_dataset_root_folder,
+                                                                              patient_id)
+                    full_failed_channel_info += failed_channel_info
+
+        if full_failed_channel_info:
+            raise ValueError(full_failed_channel_info)
+
         self.config.read_dataset_if_needed()
 
     def create_model(self) -> LightningModule:  # type: ignore
