@@ -17,6 +17,7 @@ from typing import Any, Dict, List, Optional
 from azureml.core import Environment, Experiment, Run, ScriptRunConfig
 from azureml.core.runconfig import MpiConfiguration, RunConfiguration
 from azureml.core.workspace import WORKSPACE_DEFAULT_BLOB_STORE_NAME
+from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 
 from InnerEye.Azure import azure_util
 from InnerEye.Azure.azure_config import AzureConfig, ParserResult, SourceConfig
@@ -243,6 +244,35 @@ def get_or_create_python_environment(azure_config: AzureConfig,
     return env
 
 
+def create_dataset_consumptions(azure_config: AzureConfig,
+                                all_azure_dataset_ids: List[str],
+                                all_dataset_mountpoints: List[str]) -> List[DatasetConsumptionConfig]:
+    """
+    Sets up all the dataset consumption objects for the datasets provided. Datasets that have an empty name will be
+    skipped.
+    :param azure_config: azure related configurations to use for model scale-out behaviour
+    :param all_azure_dataset_ids: The name of all datasets on blob storage that will be used for this run.
+    :param all_dataset_mountpoints: When using the datasets in AzureML, these are the per-dataset mount points.
+    :return: A list of DatasetConsumptionConfig, in the same order as datasets were provided in all_azure_dataset_ids,
+    omitting datasets with an empty name.
+    """
+    dataset_consumptions: List[DatasetConsumptionConfig] = []
+    if len(all_dataset_mountpoints) > 0:
+        if len(all_azure_dataset_ids) != len(all_dataset_mountpoints):
+            raise ValueError(f"The number of dataset mount points ({len(all_dataset_mountpoints)}) "
+                             f"must equal the number of Azure dataset IDs ({len(all_azure_dataset_ids)})")
+    else:
+        all_dataset_mountpoints = [""] * len(all_azure_dataset_ids)
+    for i, (dataset_id, mount_point) in enumerate(zip(all_azure_dataset_ids, all_dataset_mountpoints)):
+        if dataset_id:
+            dataset_consumption = azure_config.get_dataset_consumption(dataset_id, i, mount_point)
+            dataset_consumptions.append(dataset_consumption)
+        elif mount_point:
+            raise ValueError(f"Inconsistent setup: Dataset name at index {i} is empty, but a mount point has "
+                             f"been provided ('{mount_point}')")
+    return dataset_consumptions
+
+
 def create_run_config(azure_config: AzureConfig,
                       source_config: SourceConfig,
                       all_azure_dataset_ids: List[str],
@@ -253,24 +283,13 @@ def create_run_config(azure_config: AzureConfig,
     :param azure_config: azure related configurations to use for model scale-out behaviour
     :param source_config: configurations for model execution, such as name and execution mode
     :param all_azure_dataset_ids: The name of all datasets on blob storage that will be used for this run.
-    :param all_dataset_mountpoints: When using mounted datasets in AzureML, these are the per-dataset mount points.
+    :param all_dataset_mountpoints: When using the datasets in AzureML, these are the per-dataset mount points.
     :param environment_name: If specified, try to retrieve the existing Python environment with this name. If that
     is not found, create one from the Conda files provided in `source_config`. This parameter is meant to be used
     when running inference for an existing model.
     :return: The configured script run.
     """
-    dataset_consumptions = {}
-    if len(all_dataset_mountpoints) > 0:
-        if len(all_azure_dataset_ids) != len(all_dataset_mountpoints):
-            raise ValueError("The number of dataset mount points (in dataset_mountpoint and extra_dataset_mountpoints) "
-                             "must equal the number of Azure dataset IDs (in azure_dataset_id and "
-                             "extra_azure_dataset_ids)")
-    else:
-        all_dataset_mountpoints = [""] * len(all_azure_dataset_ids)
-    for i, (dataset_id, mount_point) in enumerate(zip(all_azure_dataset_ids, all_dataset_mountpoints)):
-        dataset_consumption = azure_config.get_dataset_consumption(dataset_id, i, mount_point)
-        dataset_consumptions.update({dataset_consumption.name: dataset_consumption})
-
+    dataset_consumptions = create_dataset_consumptions(azure_config, all_azure_dataset_ids, all_dataset_mountpoints)
     # AzureML seems to sometimes expect the entry script path in Linux format, hence convert to posix path
     entry_script_relative_path = source_config.entry_script.relative_to(source_config.root_folder).as_posix()
     logging.info(f"Entry script {entry_script_relative_path} ({source_config.entry_script} relative to "
@@ -294,7 +313,7 @@ def create_run_config(azure_config: AzureConfig,
         run_config.communicator = "IntelMpi"
         run_config.node_count = distributed_job_config.node_count
     if len(dataset_consumptions) > 0:
-        run_config.data = dataset_consumptions
+        run_config.data = {dataset.name: dataset for dataset in dataset_consumptions}
     # Use blob storage for storing the source, rather than the FileShares section of the storage account.
     run_config.source_directory_data_store = workspace.datastores.get(WORKSPACE_DEFAULT_BLOB_STORE_NAME).name
     script_run_config = ScriptRunConfig(

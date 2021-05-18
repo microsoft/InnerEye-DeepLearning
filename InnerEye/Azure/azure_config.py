@@ -255,6 +255,8 @@ class AzureConfig(GenericConfig):
         """
         if not self.azureml_datastore:
             raise ValueError("No value set for 'azureml_datastore' (name of the datastore in the AzureML workspace)")
+        if not azure_dataset_id:
+            raise ValueError("No dataset ID provided.")
         logging.info(f"Retrieving datastore '{self.azureml_datastore}' from AzureML workspace")
         workspace = self.get_workspace()
         datastore = Datastore.get(workspace, self.azureml_datastore)
@@ -278,18 +280,29 @@ class AzureConfig(GenericConfig):
         """
         Creates a configuration for using an AzureML dataset inside of an AzureML run. This will make the AzureML
         dataset with given name available as a named input, using INPUT_DATA_KEY as the key.
-        :param mountpoint: The path at which the dataset should be mounted, if using dataset mounting rather than
-        downloading.
+        :param mountpoint: The path at which the dataset should be made available.
         :param azure_dataset_id: The name of the dataset in blob storage to be used for this run. This can be an empty
         string to not use any datasets.
         :param dataset_index: suffix for the dataset name, dataset name will be set to INPUT_DATA_KEY_idx
         """
+        status = f"Dataset {azure_dataset_id} (index {dataset_index}) will be "
         azureml_dataset = self.get_or_create_dataset(azure_dataset_id=azure_dataset_id)
         if not azureml_dataset:
             raise ValueError(f"AzureML dataset {azure_dataset_id} could not be found or created.")
         named_input = azureml_dataset.as_named_input(f"{INPUT_DATA_KEY}_{dataset_index}")
         path_on_compute = mountpoint or None
-        return named_input.as_mount(path_on_compute) if self.use_dataset_mount else named_input.as_download()
+        if self.use_dataset_mount:
+            status += "mounted at "
+            result = named_input.as_mount(path_on_compute)
+        else:
+            status += "downloaded to "
+            result = named_input.as_download(path_on_compute)
+        if path_on_compute:
+            status += f"{path_on_compute}."
+        else:
+            status += "a randomly chosen folder."
+        logging.info(status)
+        return result
 
 
 @dataclass

@@ -294,14 +294,13 @@ class DatasetParams(param.Parameterized):
                                                            "to your custom datamodules when running outside of Azure "
                                                            "AML.")
     dataset_mountpoint: str = param.String(doc="The path at which the AzureML dataset should be made available via "
-                                               "mounting. This only affects jobs running in AzureML, and only when"
-                                               "submitted with the flag --use_dataset_mount=True. If empty, use a "
-                                               "random mount point.")
+                                               "mounting or downloading. This only affects jobs running in AzureML."
+                                               "If empty, use a random mount/download point.")
     extra_dataset_mountpoints: List[str] = \
         param.List(default=[], allow_None=False,
                    doc="The mounting points for the datasets given in extra_azure_dataset_ids, when running in "
-                       "AzureML. Use an empty string for all datasets where a randomly chosen mount point should be "
-                       "used.")
+                       "AzureML. Use an empty string for all datasets where a randomly chosen mount/download point "
+                       "should be used.")
 
     def all_azure_dataset_ids(self) -> List[str]:
         """
