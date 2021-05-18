@@ -143,9 +143,17 @@ def _test_mount_for_lightning_container(test_output_dirs: OutputFolderForTests,
     download_path = test_output_dirs.root_dir / "downloaded"
     mount_path = test_output_dirs.root_dir / "mounted"
     if not is_lightning_model:
-        for path in [download_path, mount_path]:
-            path.mkdir(exist_ok=True)
+        train_and_test_data = "train_and_test_data"
+        for path in [download_path, mount_path, test_output_dirs.root_dir]:
+            # If destination folder exists, delete content to ensure consistency and avoid 'FileExistsError'
+            if (path / train_and_test_data).is_dir():
+                shutil.rmtree(path / train_and_test_data)
+
+            # Creates directory structure and copy data
+            shutil.copytree(full_ml_test_data_path(train_and_test_data), path / train_and_test_data)
+            # Copy 'data.csv' file
             shutil.copy(full_ml_test_data_path(DATASET_CSV_FILE_NAME), path / DATASET_CSV_FILE_NAME)
+
     with mock.patch("InnerEye.ML.run_ml.MLRunner.is_offline_run", is_offline_run):
         with mock.patch("InnerEye.ML.run_ml.download_dataset", return_value=download_path):
             with mock.patch("InnerEye.ML.run_ml.try_to_mount_input_dataset", return_value=mount_path):
@@ -236,8 +244,6 @@ def test_mount_or_download(test_output_dirs: OutputFolderForTests) -> None:
         if not is_lightning_model:
             assert container.config.local_dataset == container.local_dataset
 
-        # With runs outside of AzureML, a local dataset should be used as-is. Azure dataset ID is ignored here.
-        shutil.copy(full_ml_test_data_path(DATASET_CSV_FILE_NAME), root / DATASET_CSV_FILE_NAME)
         container = _test_mount_for_lightning_container(test_output_dirs=test_output_dirs,
                                                         is_offline_run=True,
                                                         local_dataset=root,
