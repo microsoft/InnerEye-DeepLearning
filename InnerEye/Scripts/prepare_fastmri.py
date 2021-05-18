@@ -275,7 +275,6 @@ def create_datafactory_and_run(files_and_tokens: Dict[str, str],
             all_pipelines.extend(pipelines)
 
     print("Starting all pipelines")
-    exit(1)
     run_ids_per_pipeline = {}
     for pipeline in all_pipelines:
         run_result = adf_client.pipelines.create_run(resource_group_name=azure_config.resource_group,
