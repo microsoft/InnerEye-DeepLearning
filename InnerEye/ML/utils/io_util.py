@@ -424,7 +424,7 @@ def load_labels_from_dataset_source(dataset_source: PatientDatasetSource, check_
     labels = np.stack(
         [load_image(gt, ImageDataType.SEGMENTATION.value).image for gt in dataset_source.ground_truth_channels])
 
-    if check_exclusive and not (sum(labels) > 1.).any():  # type: ignore
+    if check_exclusive and (sum(labels) > 1.).any():  # type: ignore
         raise ValueError(f'The labels for patient {dataset_source.metadata.patient_id} are not mutually exclusive. '
                          'Some loss functions (e.g. SoftDice) may produce results on overlapping labels, while others (e.g. FocalLoss) will fail. '
                          'If you are sure that you want to use mutually exclusive labels, '

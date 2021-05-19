@@ -90,8 +90,7 @@ def test_load_images_from_dataset_source(
         if check_exclusive:
             with pytest.raises(ValueError) as mutually_exclusive_labels_error:
                 _test_load_images_from_channels(metadata, image_channel, ground_truth_channel, mask_channel, check_exclusive)
-                error_message = str(mutually_exclusive_labels_error.value)
-                assert 'not mutually exclusive' in error_message
+            assert 'not mutually exclusive' in str(mutually_exclusive_labels_error.value)
         else:
             _test_load_images_from_channels(metadata, image_channel, ground_truth_channel, mask_channel, check_exclusive)
 
