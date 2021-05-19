@@ -39,6 +39,7 @@ class BasicModel2Epochs(SegmentationModelBase):
             recovery_checkpoint_save_interval=1,
             use_mixed_precision=True,
             azure_dataset_id=AZURE_DATASET_ID,
+            dataset_mountpoint="/tmp/innereye",
             # Use an LR scheduler with a pronounced and clearly visible decay, to be able to easily see if that
             # is applied correctly in run recovery.
             l_rate=1e-4,

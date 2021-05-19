@@ -12,7 +12,6 @@ from pathlib import Path
 # flake8: noqa
 # Workaround for an issue with how AzureML and Pytorch Lightning interact: When spawning additional processes for DDP,
 # the working directory is not correctly picked up in sys.path
-
 print(f"Starting InnerEye runner at {sys.argv[0]}")
 innereye_root = Path(__file__).absolute().parent.parent.parent
 if (innereye_root / "InnerEye").is_dir():
@@ -28,16 +27,17 @@ if not runner_path.is_absolute():
     sys.argv[0] = str(runner_path.absolute())
 
 import logging
-from typing import Any, List, Optional, Tuple
+from typing import Optional, Tuple
 
 from azureml._base_sdk_common import user_agent
 from azureml.core import Run
 
 from InnerEye.Azure import azure_util
 from InnerEye.Azure.azure_config import AzureConfig, ParserResult, SourceConfig
-from InnerEye.Azure.azure_runner import create_runner_parser, parse_args_and_add_yaml_variables, \
+from InnerEye.Azure.azure_runner import create_runner_parser, get_git_tags, parse_args_and_add_yaml_variables, \
     parse_arguments, set_environment_variables_for_multi_node, submit_to_azureml
-from InnerEye.Azure.azure_util import get_all_environment_files, is_run_and_child_runs_completed
+from InnerEye.Azure.azure_util import RUN_CONTEXT, get_all_environment_files, is_offline_run_context, \
+    is_run_and_child_runs_completed
 from InnerEye.Azure.run_pytest import download_pytest_result, run_pytest
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE, \
@@ -45,10 +45,13 @@ from InnerEye.Common.common_util import FULL_METRICS_DATAFRAME_FILE, METRICS_AGG
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
+from InnerEye.ML.lightning_base import InnerEyeContainer
 from InnerEye.ML.model_config_base import ModelConfigBase
+from InnerEye.ML.model_training import is_global_rank_zero
 from InnerEye.ML.run_ml import MLRunner, ModelDeploymentHookSignature, PostCrossValidationHookSignature
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.lightning_container import LightningContainer
+
 
 
 def initialize_rpdb() -> None:
@@ -116,8 +119,7 @@ class Runner:
         # parsed.
         self.model_config: Optional[DeepLearningConfig] = None
         self.azure_config: AzureConfig = AzureConfig()
-        # This should be typed as LightningContainer, but we don't always have that imported
-        self.lightning_container: Any = None
+        self.lightning_container: LightningContainer = None  # type: ignore
 
     def parse_and_load_model(self) -> ParserResult:
         """
@@ -137,7 +139,6 @@ class Runner:
         azure_config.project_root = self.project_root
         self.azure_config = azure_config
         self.model_config = None
-        self.lightning_container = None
         if not azure_config.model:
             raise ValueError("Parameter 'model' needs to be set to tell InnerEye which model to run.")
         model_config_loader: ModelConfigLoader = ModelConfigLoader(**parser_result.args)
@@ -165,9 +166,10 @@ class Runner:
 
         if isinstance(config_or_container, LightningContainer):
             self.lightning_container = config_or_container
-        elif isinstance(config_or_container, DeepLearningConfig):
-            # Built-in InnerEye models: A fake container for these models will be created in MLRunner
+        elif isinstance(config_or_container, ModelConfigBase):
+            # Built-in InnerEye models use a fake container
             self.model_config = config_or_container
+            self.lightning_container = InnerEyeContainer(config_or_container)
         else:
             raise ValueError(f"Don't know how to handle a loaded configuration of type {type(config_or_container)}")
         if azure_config.extra_code_directory:
@@ -176,42 +178,6 @@ class Runner:
         else:
             logging.info("extra_code_directory is unset")
         return parser_result
-
-    def _get_property_from_config_or_container(self, name: str) -> Any:
-        """
-        Reads out a property or attribute from either the model configuration (if that is a built-in InnerEye
-        model) or the lightning container.
-        :param name: The name of the property to read.
-        :return: The property value, coming from either the model config or the container.
-        """
-        if isinstance(self.model_config, DeepLearningConfig):
-            return getattr(self.model_config, name)
-        elif self.lightning_container is not None:
-            return getattr(self.lightning_container, name)
-        else:
-            raise ValueError(f"Did not expect config of type {type(self.model_config)} and container of type "
-                             f"{type(self.lightning_container)}")
-
-    @property
-    def perform_cross_validation(self) -> bool:
-        """
-        Returns True if cross validation will be be performed as part of the training procedure.
-        """
-        return self._get_property_from_config_or_container("perform_cross_validation")
-
-    @property
-    def azure_dataset_id(self) -> str:
-        """
-        Returns the name of the Azure dataset that should be used.
-        """
-        return self._get_property_from_config_or_container("azure_dataset_id")
-
-    @property
-    def extra_azure_dataset_ids(self) -> List[str]:
-        """
-        Returns the name of the Azure dataset that should be used.
-        """
-        return self._get_property_from_config_or_container("extra_azure_dataset_ids")
 
     def run(self) -> Tuple[Optional[DeepLearningConfig], Optional[Run]]:
         """
@@ -226,8 +192,8 @@ class Runner:
         initialize_rpdb()
         user_agent.append(azure_util.INNEREYE_SDK_NAME, azure_util.INNEREYE_SDK_VERSION)
         self.parse_and_load_model()
-        if self.perform_cross_validation:
-            if self.lightning_container is not None:
+        if self.lightning_container.perform_cross_validation:
+            if self.model_config is None:
                 raise NotImplementedError("Cross validation for LightingContainer models is not yet supported.")
             # force hyperdrive usage if performing cross validation
             self.azure_config.hyperdrive = True
@@ -247,9 +213,11 @@ class Runner:
         """
         # The adal package creates a logging.info line each time it gets an authentication token, avoid that.
         logging.getLogger('adal-python').setLevel(logging.WARNING)
+        # Azure core prints full HTTP requests even in INFO mode
+        logging.getLogger('azure').setLevel(logging.WARNING)
         # PyJWT prints out warnings that are beyond our control
         warnings.filterwarnings("ignore", category=DeprecationWarning)
-        if isinstance(self.model_config, DeepLearningConfig) and not self.azure_dataset_id:
+        if isinstance(self.model_config, DeepLearningConfig) and not self.lightning_container.azure_dataset_id:
             raise ValueError("When running an InnerEye built-in model in AzureML, the 'azure_dataset_id' "
                              "property must be set.")
         hyperdrive_func = lambda run_config: self.model_config.get_hyperdrive_config(run_config)  # type: ignore
@@ -262,7 +230,9 @@ class Runner:
             upload_timeout_seconds=86400,
         )
         source_config.set_script_params_except_submit_flag()
-        azure_run = submit_to_azureml(self.azure_config, source_config, self.azure_dataset_id, self.extra_azure_dataset_ids)
+        azure_run = submit_to_azureml(self.azure_config, source_config,
+                                      self.lightning_container.all_azure_dataset_ids(),
+                                      self.lightning_container.all_dataset_mountpoints())
         logging.info("Job submission to AzureML done.")
         if self.azure_config.pytest_mark and self.azure_config.wait_for_completion:
             # The AzureML job can optionally run pytest. Attempt to download it to the current directory.
@@ -278,6 +248,24 @@ class Runner:
                              "runs failed.")
         return azure_run
 
+    def print_git_tags(self) -> None:
+        """
+        When running in AzureML, print all the tags that contain information about the git repository status,
+        for answering the question "which code version was used" from a log file only.
+        """
+        git_tags = get_git_tags(self.azure_config)
+        if is_offline_run_context(RUN_CONTEXT):
+            # When running on a VM outside AzureML, we can read git information from the current repository
+            tags_to_print = git_tags
+        else:
+            # When running in AzureML, the git repo information is not necessarily passed in, but we copy the git
+            # information into run tags after submitting the job, and can read it out here.
+            # Only print out those tags that were created from git-related information
+            tags_to_print = {key: value for key, value in RUN_CONTEXT.get_tags().items() if key in git_tags}
+        logging.info("Git repository information:")
+        for key, value in tags_to_print.items():
+            logging.info(f"    {key:20}: {value}")
+
     def run_in_situ(self) -> None:
         """
         Actually run the AzureML job; this method will typically run on an Azure VM.
@@ -286,6 +274,8 @@ class Runner:
         # build itself, but not the tons of debug information that AzureML submissions create.
         logging_to_stdout(self.azure_config.log_level)
         suppress_logging_noise()
+        if is_global_rank_zero():
+            self.print_git_tags()
         # For the PR build in AzureML, we can either pytest, or the training of the simple PR model. Running both
         # only works when using DDP_spawn, but that has as a side-effect that it messes up memory consumption of the
         # large models.
@@ -304,7 +294,6 @@ class Runner:
             # (https://github.com/microsoft/InnerEye-DeepLearning/issues/395)
             if self.azure_config.num_nodes > 1:
                 set_environment_variables_for_multi_node()
-            logging.info("Creating the output folder structure.")
             ml_runner = self.create_ml_runner()
             ml_runner.setup()
             ml_runner.start_logging_to_file()

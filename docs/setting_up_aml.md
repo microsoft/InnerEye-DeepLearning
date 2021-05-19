@@ -124,8 +124,9 @@ file `settings.yml`.
 Now that your service principal is created, you need to give permission for it to access and manage your AzureML workspace. 
 To do so:
 1. Go to your AzureML workspace. To find it you can type the name of your workspace in the search bar above.
-2. On the left of the page go to `Access control`. Then click on `+ Add` > `Add role assignment`. A pane will appear on the
- the right. Select `Role > Contributor` and leave `Assign access`. Finally in the `Select` field type the name
+1. On the `Overview` page, there is a link to the Resource Group that contains the workspace. Click on that.
+1. When on the Resource Group, navigate to `Access control`. Then click on `+ Add` > `Add role assignment`. A pane will appear on the
+ the right. Select `Role > Contributor`. In the `Select` field type the name
 of your Service Principal and select it. Finish by clicking `Save` at the bottom of the pane.
 
 Your Service Principal is now all set!

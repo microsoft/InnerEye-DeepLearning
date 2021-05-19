@@ -62,6 +62,10 @@ with only minimum code changes required. See [the MD documentation](docs/bring_y
   (`ScalarLoss.CustomClassification` and `CustomRegression`), prediction targets (`ScalarModelBase.target_names`),
   and reporting (`ModelConfigBase.generate_custom_report()`) in scalar configs, providing more flexibility for defining
   model configs with custom behaviour while leveraging the existing InnerEye workflows.
+- ([#444](https://github.com/microsoft/InnerEye-DeepLearning/pull/444)) Added setup scripts and documentation to work
+with the FastMRI challenge datasets.
+- ([#444](https://github.com/microsoft/InnerEye-DeepLearning/pull/444)) Git-related information is now printed to the
+console for easier diagnostics.
 - ([#445](https://github.com/microsoft/InnerEye-DeepLearning/pull/445)) Adding test coverage for the `HelloContainer`
   model with multiple GPUs
 - ([#450](https://github.com/microsoft/InnerEye-DeepLearning/pull/450)) Adds the metric "Accuracy at threshold 0.5" to the classification report (`classification_crossval_report.ipynb`). 
@@ -99,6 +103,9 @@ with only minimum code changes required. See [the MD documentation](docs/bring_y
   named `recovery_epoch=x.ckpt` instead of `recovery.ckpt` or `recovery-v0.ckpt`.
 - ([#451](https://github.com/microsoft/InnerEye-DeepLearning/pull/451)) Change the signature for function `generate_custom_report` 
   in `ModelConfigBase` to take only the path to the reports folder and a `ModelProcessing` object.
+- ([#444](https://github.com/microsoft/InnerEye-DeepLearning/pull/444)) The method `before_training_on_rank_zero` of
+ the `LightningContainer` class has been renamed to `before_training_on_global_rank_zero`. The order in which the
+ hooks are called has been changed.
 
 ### Fixed
 

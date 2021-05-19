@@ -183,7 +183,7 @@ class InnerEyeContainer(LightningContainer):
     def get_inference_data_module(self) -> LightningDataModule:
         return InferenceDataLightning(self.config)  # type: ignore
 
-    def before_training_on_rank_zero(self) -> None:
+    def before_training_on_global_rank_zero(self) -> None:
         # Save the dataset files for later use in cross validation analysis
         self.config.write_dataset_files()
         if isinstance(self.config, SegmentationModelBase):

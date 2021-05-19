@@ -17,6 +17,7 @@ from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.plugins import DDPPlugin
 from pytorch_lightning.utilities.exceptions import MisconfigurationException
 
+from InnerEye.Azure.azure_runner import ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK
 from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, change_working_directory
 from InnerEye.Common.resource_monitor import ResourceMonitor
@@ -34,18 +35,29 @@ TEMP_PREFIX = "temp/"
 T = TypeVar('T')
 
 
-def is_rank_zero() -> bool:
+def is_global_rank_zero() -> bool:
     """
     Tries to guess if the current process is running as DDP rank zero, before the training has actually started,
     by looking at environment variables.
-    :return: True if the current process is global_rank 0.
+    :return: True if the current process is global rank 0.
     """
-    global_rank = os.getenv("GLOBAL_RANK")
-    local_rank = os.getenv("LOCAL_RANK")
     # When doing multi-node training, this indicates which node the present job is on. This is set in
     # set_environment_variables_for_multi_node
-    node_rank = os.getenv("NODE_RANK", "0")
-    return global_rank is None and local_rank is None and node_rank == "0"
+    node_rank = os.getenv(ENV_NODE_RANK, "0")
+    return is_local_rank_zero() and node_rank == "0"
+
+
+def is_local_rank_zero() -> bool:
+    """
+    Tries to guess if the current process is running as DDP local rank zero (i.e., the process that is responsible for
+    GPU 0 on each node).
+    :return: True if the current process is local rank 0.
+    """
+    # The per-node jobs for rank zero do not have any of the rank-related environment variables set. PL will
+    # set them only once starting its child processes.
+    global_rank = os.getenv(ENV_GLOBAL_RANK)
+    local_rank = os.getenv(ENV_LOCAL_RANK)
+    return global_rank is None and local_rank is None
 
 
 def upload_output_file_as_temp(file_path: Path, outputs_folder: Path) -> None:
@@ -125,7 +137,13 @@ def create_lightning_trainer(container: LightningContainer,
     # Accelerator should be "ddp" when running large models in AzureML (when using DDP_spawn, we get out of GPU memory).
     # For unit tests, only "ddp_spawn" works
     accelerator = "ddp" if effective_num_gpus > 1 else None
-    plugins = [InnerEyeDDPPlugin(num_nodes=num_nodes, sync_batchnorm=True)] if effective_num_gpus > 1 else None
+    if effective_num_gpus > 1:
+        # Initialize the DDP plugin with find_unused_parameters=False by default. If True (default), it prints out
+        # lengthy warnings about the performance impact of find_unused_parameters
+        plugins = [InnerEyeDDPPlugin(num_nodes=num_nodes, sync_batchnorm=True,
+                                     find_unused_parameters=container.pl_find_unused_parameters)]
+    else:
+        plugins = []
     logging.info(f"Using {num_gpus} GPUs per node with accelerator '{accelerator}'")
     tensorboard_logger = TensorBoardLogger(save_dir=str(container.logs_folder), name="Lightning", version="")
     loggers = [tensorboard_logger, AzureMLLogger()]
@@ -152,6 +170,13 @@ def create_lightning_trainer(container: LightningContainer,
     callbacks = [best_checkpoint_callback, recovery_checkpoint_callback]
     if "callbacks" in kwargs:
         callbacks.append(kwargs.pop("callbacks"))  # type: ignore
+    is_azureml_run = not is_offline_run_context(RUN_CONTEXT)
+    progress_bar_refresh_rate = container.pl_progress_bar_refresh_rate
+    if progress_bar_refresh_rate is None and is_azureml_run:
+        # When running in AzureML, the default progress bar clutters the output files with thousands of lines.
+        progress_bar_refresh_rate = 50
+        logging.info(f"The progress bar refresh rate is not set. Using a default of {progress_bar_refresh_rate}. "
+                     f"To change, modify the pl_progress_bar_refresh_rate field of the container.")
     # Read out additional model-specific args here.
     # We probably want to keep essential ones like numgpu and logging.
     trainer = Trainer(default_root_dir=str(container.outputs_folder),
@@ -162,7 +187,7 @@ def create_lightning_trainer(container: LightningContainer,
                       num_sanity_val_steps=container.pl_num_sanity_val_steps,
                       callbacks=callbacks,
                       logger=loggers,
-                      progress_bar_refresh_rate=container.pl_progress_bar_refresh_rate,
+                      progress_bar_refresh_rate=progress_bar_refresh_rate,
                       num_nodes=num_nodes,
                       gpus=num_gpus,
                       precision=precision,
@@ -209,16 +234,24 @@ def model_train(checkpoint_handler: CheckpointHandler,
     checkpoint_path = checkpoint_handler.get_recovery_path_train()
     lightning_model = container.model
 
-    container.before_training_on_all_ranks()
     resource_monitor: Optional[ResourceMonitor] = None
     # Execute some bookkeeping tasks only once if running distributed:
-    if is_rank_zero():
+    if is_global_rank_zero():
         logging.info(f"Model checkpoints are saved at {container.checkpoint_folder}")
-        container.before_training_on_rank_zero()
         write_args_file(container.config if isinstance(container, InnerEyeContainer) else container,
                         outputs_folder=container.outputs_folder)
         if container.monitoring_interval_seconds > 0:
             resource_monitor = start_resource_monitor(container)
+
+    # Run all of the container-related operations consistently with changed outputs folder, even ones that
+    # should not rely on the current working directory, like get_data_module.
+    with change_working_directory(container.outputs_folder):
+        data_module = container.get_data_module()
+        if is_global_rank_zero():
+            container.before_training_on_global_rank_zero()
+        if is_local_rank_zero():
+            container.before_training_on_local_rank_zero()
+        container.before_training_on_all_ranks()
 
     # Create the trainer object. Backup the environment variables before doing that, in case we need to run a second
     # training in the unit tests.d
@@ -230,8 +263,9 @@ def model_train(checkpoint_handler: CheckpointHandler,
                                                        checkpoint_path,
                                                        num_nodes=num_nodes,
                                                        **container.get_trainer_arguments())
-    logging.info(f"GLOBAL_RANK: {os.getenv('GLOBAL_RANK')}, LOCAL_RANK {os.getenv('LOCAL_RANK')}. "
-                 f"trainer.global_rank: {trainer.global_rank}")
+    rank_info = ", ".join(f"{env}: {os.getenv(env)}"
+                          for env in [ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK])
+    logging.info(f"Environment variables: {rank_info}. trainer.global_rank: {trainer.global_rank}")
     # InnerEye models use this logger for diagnostics
     if isinstance(lightning_model, InnerEyeLightning):
         if storing_logger is None:
@@ -241,7 +275,6 @@ def model_train(checkpoint_handler: CheckpointHandler,
     logging.info("Starting training")
     # When training models that are not built-in InnerEye models, we have no guarantee that they write
     # files to the right folder. Best guess is to change the current working directory to where files should go.
-    data_module = container.get_data_module()
     with change_working_directory(container.outputs_folder):
         trainer.fit(lightning_model, datamodule=data_module)
         trainer.logger.close()  # type: ignore

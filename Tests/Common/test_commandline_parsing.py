@@ -12,6 +12,7 @@ from InnerEye.Common.common_util import logging_to_stdout
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.config import PhotometricNormalizationMethod, SegmentationModelBase
+from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.runner import Runner
 from Tests.ML.configs.DummyModel import DummyModel
 
@@ -63,7 +64,9 @@ def test_create_ml_runner_args(is_container: bool,
                     azure_config = runner.azure_config
                     container_or_legacy_config = runner.lightning_container if is_container else runner.model_config
     assert azure_config.model == model_name
+    assert container_or_legacy_config is not None
     if not is_container:
+        assert isinstance(container_or_legacy_config, DeepLearningConfig)
         assert container_or_legacy_config.norm_method == PhotometricNormalizationMethod.SimpleNorm
     if set_output_to or is_offline_run:
         # The actual output folder must be a subfolder of the folder given on the commandline. The folder will contain
