@@ -6,6 +6,7 @@ import argparse
 import logging
 import re
 import time
+import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, List, Tuple, Union
@@ -117,7 +118,7 @@ def create_datafactory_and_run(files_and_tokens: Dict[str, str],
                                          project_root=fixed_paths.repository_root_directory())
 
     # The data factory name. It must be globally unique.
-    data_factory_name = "fastmri-copy-data"
+    data_factory_name = "fastmri-copy-data-" + uuid.uuid4().hex[:8]
 
     # Get either the Service Principal authentication, if those are set already, or use interactive auth in the browser
     azureid_auth = get_azure_auth(azure_config)
