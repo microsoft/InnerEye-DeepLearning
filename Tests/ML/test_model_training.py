@@ -100,6 +100,7 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     train_config.class_weights = [0.5, 0.25, 0.25]
     train_config.store_dataset_sample = True
     train_config.recovery_checkpoint_save_interval = 1
+    train_config.check_exclusive = False
 
     if machine_has_gpu:
         expected_train_losses = [0.4552919, 0.4548529]
