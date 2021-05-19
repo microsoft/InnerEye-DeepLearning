@@ -33,6 +33,8 @@ jobs:
     variables:
       - name: tag
         value: 'TrainBasicModel'
+      - name: more_switches
+        value: '--log_level=DEBUG --use_dataset_mount=True'
     pool:
       vmImage: 'ubuntu-18.04'
     steps:
@@ -169,12 +171,16 @@ jobs:
           pytest_mark: ''
           max_run_duration: '30m'
 
+  # Run HelloContainer on 2 nodes. HelloContainer uses native Lighting test set inference, which can get
+  # confused after doing multi-node training in the same script.
   - job: TrainHelloContainer
     variables:
       - name: model
         value: 'HelloContainer'
       - name: tag
         value: 'HelloContainerPR'
+      - name: more_switches
+        value: '--num_nodes=2'
     pool:
       vmImage: 'ubuntu-18.04'
     steps:

@@ -19,7 +19,8 @@ from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.run_ml import MLRunner
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.configs.lightning_test_containers import DummyContainerWithModel, DummyContainerWithPlainLightning
+from Tests.ML.configs.lightning_test_containers import DummyContainerWithHooks, DummyContainerWithModel, \
+    DummyContainerWithPlainLightning
 from Tests.ML.util import default_runner
 
 
@@ -93,7 +94,7 @@ def test_innereye_container_init() -> None:
     """
     Test if the constructor of the InnerEye container copies attributes as expected.
     """
-    # The constructor should copy all fields that belong to either EssentialParams or DatasetParams from the
+    # The constructor should copy all fields that belong to either WorkflowParams or DatasetParams from the
     # config object to the container.
     for (attrib, type_) in [("weights_url", WorkflowParams), ("azure_dataset_id", DatasetParams)]:
         config = ModelConfigBase()
@@ -102,6 +103,18 @@ def test_innereye_container_init() -> None:
         setattr(config, attrib, "foo")
         container = InnerEyeContainer(config)
         assert getattr(container, attrib) == "foo"
+
+
+def test_copied_properties() -> None:
+    config = ModelConfigBase()
+    # This field lives in DatasetParams
+    config.azure_dataset_id = "foo"
+    # This field lives in WorkflowParams
+    config.number_of_cross_validation_splits = 5
+    assert config.perform_cross_validation
+    container = InnerEyeContainer(config)
+    assert container.azure_dataset_id == "foo"
+    assert container.perform_cross_validation
 
 
 def test_create_fastmri_container() -> None:
@@ -179,9 +192,12 @@ def test_container_to_str() -> None:
     print(s)
     assert "foo" in s
     assert "bar" in s
-    assert "param" not in s
-    assert "initialized" not in s
     assert "123456" in s
+    # These two are internal variables of the params library, and should be skipped.
+    # The extra spaces are on purpose, because there are fields in the container that contain the string "param".
+    # The output of __str__ is a big table in the format "    field_name        : field_value"
+    assert " param                " not in s
+    assert " initialized          " not in s
 
 
 def test_file_system_with_subfolders(test_output_dirs: OutputFolderForTests) -> None:
@@ -249,3 +265,18 @@ def test_extra_directory_available(test_output_dirs: OutputFolderForTests) -> No
     # Check default behavior (no extra datasets provided)
     container = _create_container()
     assert container.extra_local_dataset_paths == []
+
+
+def test_container_hooks(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test if the hooks before training are called at the right place and in the right order.
+    """
+    container = DummyContainerWithHooks()
+    container.local_dataset = test_output_dirs.root_dir
+    runner = MLRunner(model_config=None, container=container)
+    runner.setup()
+    runner.run()
+    # The hooks in DummyContainerWithHooks itself check that the hooks are called in the right order. Here,
+    # only check that they have all been called.
+    for file in ["global_rank_zero.txt", "local_rank_zero.txt", "all_ranks.txt"]:
+        assert (runner.container.outputs_folder / file).is_file(), f"Missing file: {file}"

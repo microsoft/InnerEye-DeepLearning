@@ -178,7 +178,8 @@ def submit_for_inference(args: SubmitForInferenceConfig, azure_config: AzureConf
                        "--model_id", model_id],
         conda_dependencies_files=conda_files,
     )
-    run_config = create_run_config(azure_config, source_config, environment_name=python_environment_name)
+    run_config = create_run_config(azure_config, source_config, environment_name=python_environment_name,
+                                   all_azure_dataset_ids=[], all_dataset_mountpoints=[])
     exp = Experiment(workspace=workspace, name=args.experiment_name)
     run = exp.submit(run_config)
     logging.info(f"Submitted run {run.id} in experiment {run.experiment.name}")

@@ -4,6 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 import copy
 import logging
+import os
 import shutil
 import time
 from pathlib import Path
@@ -13,21 +14,18 @@ import pandas as pd
 import stopit
 import torch.multiprocessing
 from azureml._restclient.constants import RunStatus
-from azureml.core import Model, Run
-from azureml.core import model
+from azureml.core import Model, Run, model
 from azureml.data import FileDataset
 from pytorch_lightning import LightningModule, seed_everything
-from pytorch_lightning.utilities.cloud_io import load as pl_load
 from torch.utils.data import DataLoader
 
 from InnerEye.Azure import azure_util
-from InnerEye.Azure.azure_config import AzureConfig
-from InnerEye.Azure.azure_runner import ENVIRONMENT_VERSION, INPUT_DATA_KEY, get_or_create_dataset
-from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, \
-    DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, EFFECTIVE_RANDOM_SEED_KEY_NAME, IS_ENSEMBLE_KEY_NAME, \
-    MODEL_ID_KEY_NAME, PARENT_RUN_CONTEXT, PARENT_RUN_ID_KEY_NAME, RUN_CONTEXT, RUN_RECOVERY_FROM_ID_KEY_NAME, \
-    RUN_RECOVERY_ID_KEY_NAME, create_run_recovery_id, is_offline_run_context, \
-    merge_conda_files, get_all_environment_files
+from InnerEye.Azure.azure_config import AzureConfig, INPUT_DATA_KEY
+from InnerEye.Azure.azure_runner import ENVIRONMENT_VERSION, ENV_OMPI_COMM_WORLD_RANK, get_git_tags
+from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, \
+    EFFECTIVE_RANDOM_SEED_KEY_NAME, IS_ENSEMBLE_KEY_NAME, MODEL_ID_KEY_NAME, PARENT_RUN_CONTEXT, \
+    PARENT_RUN_ID_KEY_NAME, RUN_CONTEXT, RUN_RECOVERY_FROM_ID_KEY_NAME, RUN_RECOVERY_ID_KEY_NAME, \
+    create_run_recovery_id, get_all_environment_files, is_offline_run_context, merge_conda_files
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import BASELINE_COMPARISONS_FOLDER, BASELINE_WILCOXON_RESULTS_FILE, \
     CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE, \
@@ -39,7 +37,7 @@ from InnerEye.Common.fixed_paths import INNEREYE_PACKAGE_NAME, LOG_FILE_NAME, PY
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, DeepLearningConfig, FINAL_ENSEMBLE_MODEL_FOLDER, \
-    FINAL_MODEL_FOLDER, ModelCategory, MultiprocessingStartMethod
+    FINAL_MODEL_FOLDER, ModelCategory, MultiprocessingStartMethod, load_checkpoint
 from InnerEye.ML.lightning_base import InnerEyeContainer
 from InnerEye.ML.lightning_container import InnerEyeInference, LightningContainer
 from InnerEye.ML.metrics import InferenceMetrics, InferenceMetricsForSegmentation
@@ -94,7 +92,7 @@ def download_dataset(azure_dataset_id: str,
     :return: A path on the local machine that contains the dataset.
     """
     logging.info("Trying to download dataset via AzureML datastore now.")
-    azure_dataset = get_or_create_dataset(azure_config, azure_dataset_id)
+    azure_dataset = azure_config.get_or_create_dataset(azure_dataset_id)
     if not isinstance(azure_dataset, FileDataset):
         raise ValueError(f"Expected to get a FileDataset, but got {type(azure_dataset)}")
     # The downloaded dataset may already exist from a previous run.
@@ -164,8 +162,6 @@ class MLRunner:
         :param output_subfolder: If provided, the output folder structure will have an additional subfolder,
         when running outside AzureML.
         """
-        if model_config is not None and container is not None:
-            raise ValueError("Only one of the two arguments 'model_config', 'container' must be provided.")
         self.model_config = model_config
         if container is None:
             assert isinstance(model_config, ModelConfigBase), \
@@ -322,6 +318,7 @@ class MLRunner:
         """
         assert PARENT_RUN_CONTEXT, "This function should only be called in a Hyperdrive run."
         run_tags_parent = PARENT_RUN_CONTEXT.get_tags()
+        git_tags = get_git_tags(self.azure_config)
         tags_to_copy = [
             "tag",
             "model_name",
@@ -330,12 +327,7 @@ class MLRunner:
             "friendly_name",
             "build_number",
             "build_user",
-            "source_repository",
-            "source_branch",
-            "source_id",
-            "source_message",
-            "source_author",
-            "source_dirty",
+            *git_tags.keys(),
             RUN_RECOVERY_FROM_ID_KEY_NAME
         ]
         new_tags = {tag: run_tags_parent.get(tag, "") for tag in tags_to_copy}
@@ -379,7 +371,8 @@ class MLRunner:
                 self.innereye_config.write_dataset_files()
                 self.create_activation_maps()
 
-        # Register the model, and then run inference as required. No models should be registered when running outside AzureML.
+        # Register the model, and then run inference as required. No models should be registered when running outside
+        # AzureML.
         if not self.is_offline_run:
             if self.should_register_model():
                 self.register_model(self.checkpoint_handler, ModelProcessing.DEFAULT)
@@ -387,15 +380,15 @@ class MLRunner:
         if not self.azure_config.only_register_model:
             if isinstance(self.container, InnerEyeContainer):
                 # Inference for the InnerEye built-in models
-                # We specify the ModelProcessing as DEFAULT here even if the run_recovery points to an ensemble run, because
-                # the current run is a single one. See the documentation of ModelProcessing for more details.
+                # We specify the ModelProcessing as DEFAULT here even if the run_recovery points to an ensemble run,
+                # because the current run is a single one. See the documentation of ModelProcessing for more details.
                 self.run_inference(self.checkpoint_handler, ModelProcessing.DEFAULT)
 
                 if self.container.generate_report:
                     self.generate_report(ModelProcessing.DEFAULT)
 
-                # If this is an cross validation run, and the present run is child run 0, then wait for the sibling runs,
-                # build the ensemble model, and write a report for that.
+                # If this is an cross validation run, and the present run is child run 0, then wait for the sibling
+                # runs, build the ensemble model, and write a report for that.
                 if self.container.number_of_cross_validation_splits > 0:
                     should_wait_for_other_child_runs = (not self.is_offline_run) and \
                                                        self.container.cross_validation_split_index == 0
@@ -406,7 +399,8 @@ class MLRunner:
                 # Inference for all models that are specified via LightningContainers.
                 with logging_section("Model inference"):
                     self.run_inference_for_lightning_models(self.checkpoint_handler.get_checkpoints_to_test())
-                # We can't enforce that files are written to the output folder, hence change the working directory manually
+                # We can't enforce that files are written to the output folder, hence change the working directory
+                # manually
                 with change_working_directory(self.container.outputs_folder):
                     self.container.create_report()
 
@@ -430,8 +424,7 @@ class MLRunner:
                 dataloaders.append((data.val_dataloader(), ModelExecutionMode.VAL))  # type: ignore
             if self.container.perform_training_set_inference:
                 dataloaders.append((data.train_dataloader(), ModelExecutionMode.TRAIN))  # type: ignore
-            map_location = "gpu" if self.container.use_gpu else "cpu"
-            checkpoint = pl_load(checkpoint_paths[0], map_location=map_location)
+            checkpoint = load_checkpoint(checkpoint_paths[0], use_gpu=self.container.use_gpu)
             lightning_model.load_state_dict(checkpoint['state_dict'])
             lightning_model.eval()
             with change_working_directory(self.container.outputs_folder):
@@ -450,7 +443,11 @@ class MLRunner:
             # Lightning does not cope with having two calls to .fit or .test in the same script. As a workaround for
             # now, restrict number of GPUs to 1, meaning that it will not start DDP.
             self.container.max_num_gpus = 1
-            trainer = create_lightning_trainer(self.container, num_nodes=1)[0]
+            # Without this, the trainer will think it should still operate in multi-node mode, and wrongly start
+            # searching for Horovod
+            if ENV_OMPI_COMM_WORLD_RANK in os.environ:
+                del os.environ[ENV_OMPI_COMM_WORLD_RANK]
+            trainer, _ = create_lightning_trainer(self.container, num_nodes=1)
             # When training models that are not built-in InnerEye models, we have no guarantee that they write
             # files to the right folder. Best guess is to change the current working directory to where files should go.
             with change_working_directory(self.container.outputs_folder):
@@ -589,14 +586,15 @@ class MLRunner:
             # The files for the final model can't live in the outputs folder. If they do: when registering the model,
             # the files may not yet uploaded by hosttools, and that may (or not) cause errors. Hence, place the folder
             # for the final models outside of "outputs", and upload manually.
-            model_subfolder = FINAL_MODEL_FOLDER if model_proc == ModelProcessing.DEFAULT else FINAL_ENSEMBLE_MODEL_FOLDER
+            model_subfolder = FINAL_MODEL_FOLDER if model_proc == ModelProcessing.DEFAULT \
+                else FINAL_ENSEMBLE_MODEL_FOLDER
             # This is the path under which AzureML will know the files: Either "final_model" or "final_ensemble_model"
             artifacts_path = model_subfolder
             final_model_folder = self.container.file_system_config.run_folder / model_subfolder
             # Copy all code from project and InnerEye into the model folder, and copy over checkpoints.
             # This increases the size of the data stored for the run. The other option would be to store all checkpoints
-            # right in the final model folder - however, then that would also contain any other checkpoints that the model
-            # produced or downloaded for recovery, bloating the final model file.
+            # right in the final model folder - however, then that would also contain any other checkpoints that the
+            # model produced or downloaded for recovery, bloating the final model file.
             self.copy_child_paths_to_folder(final_model_folder, checkpoint_paths)
             # If the present run is a child run of a Hyperdrive parent run, and we are building an ensemble model,
             # register it the model on the parent run.
@@ -804,7 +802,8 @@ class MLRunner:
                                                    run_context=PARENT_RUN_CONTEXT)
             checkpoint_handler.download_checkpoints_from_hyperdrive_child_runs(PARENT_RUN_CONTEXT)
 
-        # Register the model, and then run inference as required. No models should be registered when running outside AzureML.
+        # Register the model, and then run inference as required. No models should be registered when running outside
+        # AzureML.
         if not self.is_offline_run:
             if self.should_register_model():
                 self.register_model(checkpoint_handler, ModelProcessing.ENSEMBLE_CREATION)

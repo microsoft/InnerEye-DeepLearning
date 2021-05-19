@@ -228,3 +228,36 @@ class DummyContainerWithPlainLightning(LightningContainer):
 
     def get_data_module(self) -> LightningDataModule:
         return FixedRegressionData()  # type: ignore
+
+
+class DummyContainerWithHooks(LightningContainer):
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.num_epochs = 1
+        self.l_rate = 1e-1
+        # Let hooks write to current working directory, they should be executed with changed working directory
+        # that points to outputs folder.
+        self.hook_global_zero = Path("global_rank_zero.txt")
+        self.hook_local_zero = Path("local_rank_zero.txt")
+        self.hook_all = Path("all_ranks.txt")
+
+    def create_model(self) -> LightningModule:
+        return DummyRegression()
+
+    def get_data_module(self) -> LightningDataModule:
+        return FixedRegressionData()  # type: ignore
+
+    def before_training_on_global_rank_zero(self) -> None:
+        assert not self.hook_global_zero.is_file(), "before_training_on_global_rank_zero should only be called once"
+        self.hook_global_zero.touch()
+
+    def before_training_on_local_rank_zero(self) -> None:
+        assert self.hook_global_zero.is_file(), "before_training_on_global_rank_zero should have been called already"
+        assert not self.hook_local_zero.is_file(), "before_training_on_local_rank_zero should only be called once"
+        self.hook_local_zero.touch()
+
+    def before_training_on_all_ranks(self) -> None:
+        assert self.hook_local_zero.is_file(), "before_training_on_local_rank_zero should have been called already"
+        assert not self.hook_all.is_file(), "before_training_on_all_ranks should only be called once"
+        self.hook_all.touch()

@@ -293,6 +293,28 @@ class DatasetParams(param.Parameterized):
                                                        doc="This can be used to feed in additional datasets "
                                                            "to your custom datamodules when running outside of Azure "
                                                            "AML.")
+    dataset_mountpoint: str = param.String(doc="The path at which the AzureML dataset should be made available via "
+                                               "mounting or downloading. This only affects jobs running in AzureML."
+                                               "If empty, use a random mount/download point.")
+    extra_dataset_mountpoints: List[str] = \
+        param.List(default=[], allow_None=False,
+                   doc="The mounting points for the datasets given in extra_azure_dataset_ids, when running in "
+                       "AzureML. Use an empty string for all datasets where a randomly chosen mount/download point "
+                       "should be used.")
+
+    def all_azure_dataset_ids(self) -> List[str]:
+        """
+        Returns a list with all azure dataset IDs that are specified in self.azure_dataset_id and
+        self.extra_azure_dataset_ids
+        """
+        return [self.azure_dataset_id] + self.extra_azure_dataset_ids
+
+    def all_dataset_mountpoints(self) -> List[str]:
+        """
+        Returns a list with all dataset mount points that are specified in self.dataset_mountpoint and
+        self.extra_dataset_mountpoints
+        """
+        return [self.dataset_mountpoint] + self.extra_dataset_mountpoints
 
 
 class OutputParams(param.Parameterized):
@@ -454,7 +476,8 @@ class TrainerParams(param.Parameterized):
     use_mixed_precision: bool = param.Boolean(False, doc="If true, mixed precision training is activated during "
                                                          "training.")
     max_num_gpus: int = param.Integer(default=-1, doc="The maximum number of GPUS to use. If set to a value < 0, use"
-                                                      "all available GPUs.")
+                                                      "all available GPUs. In distributed training, this is the "
+                                                      "maximum number of GPUs per node.")
     pl_progress_bar_refresh_rate: Optional[int] = \
         param.Integer(default=None,
                       doc="PyTorch Lightning trainer flag 'progress_bar_refresh_rate': How often to refresh progress "
@@ -468,6 +491,10 @@ class TrainerParams(param.Parameterized):
                       doc="Controls the PyTorch Lightning trainer flags 'deterministic' and 'benchmark'. If "
                           "'pl_deterministic' is True, results are perfectly reproducible. If False, they are not, but "
                           "you may see training speed increases.")
+    pl_find_unused_parameters: bool = \
+        param.Boolean(default=False,
+                      doc="Controls the PyTorch Lightning flag 'find_unused_parameters' for the DDP plugin. "
+                          "Setting it to True comes with a performance hit.")
 
     @property
     def use_gpu(self) -> bool:
@@ -495,6 +522,7 @@ class TrainerParams(param.Parameterized):
         elif self.max_num_gpus > num_gpus:
             logging.warning(f"You requested max_num_gpus {self.max_num_gpus} but there are only {num_gpus} available.")
         return num_gpus
+
 
 class DeepLearningConfig(WorkflowParams,
                          DatasetParams,

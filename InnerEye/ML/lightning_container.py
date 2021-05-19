@@ -208,19 +208,31 @@ class LightningContainer(GenericConfig,
         """
         pass
 
-    def before_training_on_rank_zero(self) -> None:
+    def before_training_on_global_rank_zero(self) -> None:
         """
         A hook that will be called before starting model training, before creating the Lightning Trainer object.
-        In distributed training, this is only run on rank zero. It is executed after the before_training_on_all_ranks
-        hook.
+        In distributed training, this is only run on global rank zero (i.e, on the process that runs on node 0, GPU 0).
+        The order in which hooks are called is: before_training_on_global_rank_zero, before_training_on_local_rank_zero,
+        before_training_on_all_ranks.
+        """
+        pass
+
+    def before_training_on_local_rank_zero(self) -> None:
+        """
+        A hook that will be called before starting model training.
+        In distributed training, this hook will be called once per node (i.e., whenever the LOCAL_RANK environment
+        variable is zero).
+        The order in which hooks are called is: before_training_on_global_rank_zero, before_training_on_local_rank_zero,
+        before_training_on_all_ranks.
         """
         pass
 
     def before_training_on_all_ranks(self) -> None:
         """
         A hook that will be called before starting model training.
-        In distributed training, this hook will be called on all ranks. It is executed before the
-        the before_training_on_rank_zero hook.
+        In distributed training, this hook will be called on all ranks (i.e., once per GPU).
+        The order in which hooks are called is: before_training_on_global_rank_zero, before_training_on_local_rank_zero,
+        before_training_on_all_ranks.
         """
         pass
 
