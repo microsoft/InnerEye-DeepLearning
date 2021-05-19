@@ -72,27 +72,35 @@ def test_nii_load_zyx(test_output_dirs: OutputFolderForTests) -> None:
 @pytest.mark.parametrize("ground_truth_channel",
                          [None, known_nii_path, f"{good_h5_path}|segmentation|0|1", good_npy_path])
 @pytest.mark.parametrize("mask_channel", [None, known_nii_path, good_npy_path])
+@pytest.mark.parametrize("check_exclusive", [True, False])
 def test_load_images_from_dataset_source(
         metadata: Optional[str],
         image_channel: Optional[str],
         ground_truth_channel: Optional[str],
-        mask_channel: Optional[str]) -> None:
+        mask_channel: Optional[str],
+        check_exclusive: bool) -> None:
     """
     Test if images are loaded as expected from channels
     """
     # metadata, image and GT channels must be present. Mask is optional
     if None in [metadata, image_channel, ground_truth_channel]:
         with pytest.raises(Exception):
-            _test_load_images_from_channels(metadata, image_channel, ground_truth_channel, mask_channel)
+            _test_load_images_from_channels(metadata, image_channel, ground_truth_channel, mask_channel, check_exclusive)
     else:
-        _test_load_images_from_channels(metadata, image_channel, ground_truth_channel, mask_channel)
+        if check_exclusive:
+            with pytest.raises(ValueError) as mutually_exclusive_labels_error:
+                _test_load_images_from_channels(metadata, image_channel, ground_truth_channel, mask_channel, check_exclusive)
+            assert 'not mutually exclusive' in str(mutually_exclusive_labels_error.value)
+        else:
+            _test_load_images_from_channels(metadata, image_channel, ground_truth_channel, mask_channel, check_exclusive)
 
 
 def _test_load_images_from_channels(
         metadata: Any,
         image_channel: Any,
         ground_truth_channel: Any,
-        mask_channel: Any) -> None:
+        mask_channel: Any,
+        check_exclusive: bool) -> None:
     """
     Test if images are loaded as expected from channels
     """
@@ -102,7 +110,8 @@ def _test_load_images_from_channels(
             image_channels=[image_channel] * 2,
             ground_truth_channels=[ground_truth_channel] * 4,
             mask_channel=mask_channel
-        )
+        ),
+        check_exclusive=check_exclusive
     )
     if image_channel:
         image_with_header = io_util.load_image(image_channel)

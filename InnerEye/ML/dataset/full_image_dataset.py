@@ -250,7 +250,7 @@ class FullImageDataset(GeneralDataset):
     def get_samples_at_index(self, index: int) -> List[Sample]:
         # load the channels into memory
         ds = self.dataset_sources[self.dataset_indices[index]]
-        samples = [io_util.load_images_from_dataset_source(dataset_source=ds)]  # type: ignore
+        samples = [io_util.load_images_from_dataset_source(dataset_source=ds, check_exclusive=self.args.check_exclusive)]  # type: ignore
         return [Compose3D.apply(self.full_image_sample_transforms, x) for x in samples]
 
     def _load_dataset_sources(self) -> Dict[str, PatientDatasetSource]:
