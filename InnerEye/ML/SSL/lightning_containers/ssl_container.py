@@ -13,7 +13,7 @@ from pytorch_lightning import LightningModule
 from yacs.config import CfgNode
 
 from InnerEye.ML.SSL.datamodules_and_datasets.cifar_datasets import InnerEyeCIFAR10, InnerEyeCIFAR100
-from InnerEye.ML.SSL.datamodules_and_datasets.cxr_datasets import CheXpert, NIHCXR, RSNAKaggleCXR
+from InnerEye.ML.SSL.datamodules_and_datasets.cxr_datasets import CheXpert, CovidDataset, NIHCXR, RSNAKaggleCXR
 from InnerEye.ML.SSL.datamodules_and_datasets.datamodules import CombinedDataModule, InnerEyeVisionDataModule
 from InnerEye.ML.SSL.datamodules_and_datasets.transforms_utils import InnerEyeCIFARLinearHeadTransform, \
     InnerEyeCIFARTrainTransform, \
@@ -42,11 +42,12 @@ class EncoderName(Enum):
 
 
 class SSLDatasetName(Enum):
-    RSNAKaggleCXR = "RSNAKaggleCXR"
-    NIHCXR = "NIHCXR"
     CIFAR10 = "CIFAR10"
     CIFAR100 = "CIFAR100"
+    RSNAKaggleCXR = "RSNAKaggleCXR"
+    NIHCXR = "NIHCXR"
     CheXpert = "CheXpert"
+    Covid = "CovidDataset"
 
 
 InnerEyeDataModuleTypes = Union[InnerEyeVisionDataModule, CombinedDataModule]
@@ -62,11 +63,12 @@ class SSLContainer(LightningContainer):
     Note that this container is also used as the base class for SSLImageClassifier (finetuning container) as they share
     setup and datamodule methods.
     """
-    _SSLDataClassMappings = {SSLDatasetName.RSNAKaggleCXR.value: RSNAKaggleCXR,
-                             SSLDatasetName.NIHCXR.value: NIHCXR,
-                             SSLDatasetName.CIFAR10.value: InnerEyeCIFAR10,
+    _SSLDataClassMappings = {SSLDatasetName.CIFAR10.value: InnerEyeCIFAR10,
                              SSLDatasetName.CIFAR100.value: InnerEyeCIFAR100,
-                             SSLDatasetName.CheXpert.value: CheXpert}
+                             SSLDatasetName.RSNAKaggleCXR.value: RSNAKaggleCXR,
+                             SSLDatasetName.NIHCXR.value: NIHCXR,
+                             SSLDatasetName.CheXpert.value: CheXpert,
+                             SSLDatasetName.Covid.value: CovidDataset}
 
     ssl_augmentation_config = param.ClassSelector(class_=Path, allow_None=True,
                                                   doc="The path to the yaml config defining the parameters of the "
@@ -87,11 +89,13 @@ class SSLContainer(LightningContainer):
                                        "Used for debugging and tests.")
     linear_head_augmentation_config = param.ClassSelector(class_=Path,
                                                           doc="The path to the yaml config for the linear head "
-                                                             "augmentations")
+                                                              "augmentations")
     linear_head_dataset_name = param.ClassSelector(class_=SSLDatasetName,
                                                    doc="Name of the dataset to use for the linear head training")
     linear_head_batch_size = param.Integer(default=256, doc="Batch size for linear head tuning")
-    learning_rate_linear_head_during_ssl_training = param.Number(default=1e-4, doc="Learning rate for linear head training during SSL training.")
+    learning_rate_linear_head_during_ssl_training = param.Number(default=1e-4,
+                                                                 doc="Learning rate for linear head training during "
+                                                                     "SSL training.")
 
     def setup(self) -> None:
         from InnerEye.ML.SSL.lightning_containers.ssl_image_classifier import SSLClassifierContainer
@@ -173,7 +177,8 @@ class SSLContainer(LightningContainer):
             return self.data_module
         encoder_data_module = self._create_ssl_data_modules(is_ssl_encoder_module=True)
         linear_data_module = self._create_ssl_data_modules(is_ssl_encoder_module=False)
-        return CombinedDataModule(encoder_data_module, linear_data_module, self.use_balanced_binary_loss_for_linear_head)
+        return CombinedDataModule(encoder_data_module, linear_data_module,
+                                  self.use_balanced_binary_loss_for_linear_head)
 
     def _create_ssl_data_modules(self, is_ssl_encoder_module: bool) -> InnerEyeVisionDataModule:
         """
@@ -220,7 +225,10 @@ class SSLContainer(LightningContainer):
         applied on. If False, return only one transformation.
         :return: training transformation pipeline and validation transformation pipeline.
         """
-        if dataset_name in [SSLDatasetName.RSNAKaggleCXR.value, SSLDatasetName.NIHCXR.value, SSLDatasetName.CheXpert.value]:
+        if dataset_name in [SSLDatasetName.RSNAKaggleCXR.value,
+                            SSLDatasetName.NIHCXR.value,
+                            SSLDatasetName.CheXpert.value,
+                            SSLDatasetName.Covid.value]:
             assert augmentation_config is not None
             train_transforms, val_transforms = get_cxr_ssl_transforms(augmentation_config,
                                                                       return_two_views_per_sample=is_ssl_encoder_module,
