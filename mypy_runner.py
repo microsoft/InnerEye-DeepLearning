@@ -50,17 +50,37 @@ def main() -> int:
     """
     parser = ArgumentParser()
     parser.add_argument("-f", "--files", type=str, nargs='+', required=False, default=None,
-                        help="List of files to run mypy on. If not provided, run on current directory")
+                        help="List of files to run mypy on. "
+                             "Can be used along with `dirs_recursive` and `dirs_non_recursive`. "
+                             "If none of `files`, `dirs_recursive` or `dirs_non_recursive` are provided, "
+                             "run on the default set of files for the InnerEye repository")
+    parser.add_argument("-D", "--dirs_recursive", type=str, nargs='+', required=False, default=None,
+                        help="List of directories to run mypy on (recursively). "
+                             "Can be used along with `files` and `dirs_non_recursive`. "
+                             "If none of `files`, `dirs_recursive` or `dirs_non_recursive` are provided, "
+                             "run on the default set of files for the InnerEye repository")
+    parser.add_argument("-d", "--dirs_non_recursive", type=str, nargs='+', required=False, default=None,
+                        help="Look for python files in these directories (non-recursive) to run mypy on. "
+                             "Can be used along with `files` and `dirs_recursive`. "
+                             "If none of `files`, `dirs_recursive` or `dirs_non_recursive` are provided, "
+                             "run on the default set of files for the InnerEye repository")
     parser.add_argument("-m", "--mypy", type=str, required=False, default=None,
                         help="Path to mypy executable. If not provided, autodetect mypy executable.")
     args = parser.parse_args()
-    current_dir = Path(".")
+
+    file_list = []
+
     if args.files:
-        file_list = args.files
-    else:
-        file_list = list(str(f) for f in current_dir.glob('*.py'))
-        for dir in ["InnerEye", "Tests", "TestsOutsidePackage", "TestSubmodule"]:
-            file_list.append(dir)
+        file_list.extend(args.files)
+    if args.dirs_recursive:
+        file_list.extend(args.dirs_recursive)
+    if args.dirs_non_recursive:
+        for dir in args.dirs_non_recursive:
+            file_list.extend([str(f) for f in Path(dir).glob('*.py')])
+    if not file_list:
+        current_dir = Path(".")
+        file_list = [str(f) for f in current_dir.glob('*.py')]
+        file_list.extend(["InnerEye", "Tests", "TestsOutsidePackage", "TestSubmodule"])
 
     mypy = args.mypy or which("mypy")
     if not mypy:
