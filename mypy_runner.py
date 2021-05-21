@@ -78,7 +78,7 @@ def main() -> int:
         for dir in args.dirs_non_recursive:
             dir = Path(dir)
             if not dir.exists():
-                raise FileNotFoundError(f"Could not find directory {dir}")
+                raise FileNotFoundError(f"Could not find directory {dir}.")
             file_list.extend([str(f) for f in dir.glob('*.py')])
     if not file_list:
         current_dir = Path(".")
