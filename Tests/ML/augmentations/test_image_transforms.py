@@ -36,9 +36,9 @@ def test_add_gaussian_noise() -> None:
     transformed = AddGaussianNoise(std=0.05, p_apply=1)(test_tensor_1channel_1slice.clone())
     torch.manual_seed(10)
     noise = torch.randn(size=(1, *image_size)) * 0.05
-    assert torch.isclose(torch.clamp(test_tensor_1channel_1slice + noise, min_test_image, max_test_image),
-                         # type: ignore
-                         transformed).all()
+    assert torch.isclose(
+        torch.clamp(test_tensor_1channel_1slice + noise, min_test_image, max_test_image),  # type: ignore
+        transformed).all()
 
     # Test p_apply = 0
     untransformed = AddGaussianNoise(std=0.05, p_apply=0)(test_tensor_1channel_1slice.clone())
@@ -47,9 +47,9 @@ def test_add_gaussian_noise() -> None:
     # Check that it applies the same transform to all slices if number of slices > 1
     torch.manual_seed(10)
     transformed = AddGaussianNoise(std=0.05, p_apply=1)(test_tensor_2channels_2slices.clone())
-    assert torch.isclose(torch.clamp(test_tensor_2channels_2slices + noise, min_test_image, max_test_image),
-                         # type: ignore
-                         transformed).all()
+    assert torch.isclose(
+        torch.clamp(test_tensor_2channels_2slices + noise, min_test_image, max_test_image),  # type: ignore
+        transformed).all()
 
 
 def test_elastic_transform() -> None:
