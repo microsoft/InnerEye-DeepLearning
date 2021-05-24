@@ -32,17 +32,21 @@ def test_add_gaussian_noise() -> None:
     """
     Tests functionality of add gaussian noise
     """
+    # Test case of image with 1 channel, 1 slice (2D)
     torch.manual_seed(10)
     transformed = AddGaussianNoise(std=0.05, p_apply=1)(test_tensor_1channel_1slice.clone())
     torch.manual_seed(10)
-    noise = torch.randn(size=(1, 256, 256)) * 0.05
+    noise = torch.randn(size=(1, *image_size)) * 0.05
     assert torch.isclose(torch.clamp(test_tensor_1channel_1slice + noise, min_test_image, max_test_image),  # type: ignore
                          transformed).all()
-    # Check that it applies the same transform to all slices
+
+    # Test p_apply = 0
+    untransformed = AddGaussianNoise(std=0.05, p_apply=0)(test_tensor_1channel_1slice.clone())
+    assert torch.isclose(untransformed, test_tensor_1channel_1slice).all()
+
+    # Check that it applies the same transform to all slices if number of slices > 1
     torch.manual_seed(10)
     transformed = AddGaussianNoise(std=0.05, p_apply=1)(test_tensor_2channels_2slices.clone())
-    torch.manual_seed(10)
-    noise = torch.randn(size=(1, 256, 256)) * 0.05
     assert torch.isclose(torch.clamp(test_tensor_2channels_2slices + noise, min_test_image, max_test_image),  # type: ignore
                          transformed).all()
 
@@ -64,7 +68,7 @@ def test_expand_channels() -> None:
         ExpandChannels()(invalid_test_tensor)
 
     tensor_img = ExpandChannels()(test_tensor_1channel_1slice.clone())
-    assert tensor_img.shape == torch.Size([1, 3, 256, 256])
+    assert tensor_img.shape == torch.Size([1, 3, *image_size])
 
 
 def test_random_gamma() -> None:
