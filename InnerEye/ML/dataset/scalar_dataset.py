@@ -647,6 +647,34 @@ You now want to get the label from the "week0" row, and read out Scalar1 at week
     numerical_columns: ["scalar1"]
 """
 
+class ScalarItemAugmentation:
+    """
+    Wrapper around augmentation pipeline to apply image or/and segmentation transformations
+    to a ScalarItem inputs.
+    """
+
+    def __init__(self,
+                 image_transform: Optional[Callable] = None,
+                 segmentation_transform: Optional[Callable] = None) -> None:
+        """
+        :param image_transform: transformation function to apply to images field. If None, images field is unchanged by
+        call.
+        :param segmentation_transform: transformation function to apply to segmentations field. If None segmentations
+        field is unchanged by call.
+        """
+        self.image_transform = image_transform
+        self.segmentation_transform = segmentation_transform
+
+    def __call__(self, item: ScalarItem) -> ScalarItem:
+        if self.image_transform is not None:
+            if self.segmentation_transform is not None:
+                return item.clone_with_overrides(images=self.image_transform(item.images),
+                                                 segmentations=self.segmentation_transform(item.segmentations))
+            return item.clone_with_overrides(images=self.image_transform(item.images))
+
+        if self.segmentation_transform is not None:
+            item.clone_with_overrides(segmentations=self.segmentation_transform(item.segmentations))
+        return item
 
 class ScalarDatasetBase(GeneralDataset[ScalarModelBase], Generic[T]):
     """
@@ -661,7 +689,7 @@ class ScalarDatasetBase(GeneralDataset[ScalarModelBase], Generic[T]):
                  data_frame: Optional[pd.DataFrame] = None,
                  feature_statistics: Optional[FeatureStatistics] = None,
                  name: Optional[str] = None,
-                 sample_transforms: Optional[Callable[[ScalarItem], ScalarItem]] = None):
+                 sample_transform: Callable[[ScalarItem], ScalarItem] = ScalarItemAugmentation()):
         """
         High level class for the scalar dataset designed to be inherited for specific behaviour
         :param args: The model configuration object.
@@ -670,7 +698,7 @@ class ScalarDatasetBase(GeneralDataset[ScalarModelBase], Generic[T]):
         :param name: Name of the dataset, used for diagnostics logging
         """
         super().__init__(args, data_frame, name)
-        self.transforms = sample_transforms
+        self.transform = sample_transform
         self.feature_statistics = feature_statistics
         self.file_to_full_path: Optional[Dict[str, Path]] = None
         if args.traverse_dirs_when_loading:
@@ -725,7 +753,7 @@ class ScalarDatasetBase(GeneralDataset[ScalarModelBase], Generic[T]):
             center_crop_size=self.args.center_crop_size,
             image_size=self.args.image_size)
 
-        return Compose3D.apply(self.transforms, sample)  # type: ignore
+        return self.transform(sample)
 
     def create_status_string(self, items: List[T]) -> str:
         """
@@ -746,21 +774,21 @@ class ScalarDataset(ScalarDatasetBase[ScalarDataSource]):
                  data_frame: Optional[pd.DataFrame] = None,
                  feature_statistics: Optional[FeatureStatistics[ScalarDataSource]] = None,
                  name: Optional[str] = None,
-                 sample_transforms: Optional[Callable[[ScalarItem], ScalarItem]] = None):
+                 sample_transform: Callable[[ScalarItem], ScalarItem] = ScalarItemAugmentation()):
         """
         Creates a new scalar dataset from a dataframe.
         :param args: The model configuration object.
         :param data_frame: The dataframe to read from.
         :param feature_statistics: If given, the normalization factor for the non-image features is taken
         from the values provided. If None, the normalization factor is computed from the data in the present dataset.
-        :param sample_transforms: Sample transforms that should be applied.
+        :param sample_transform: Sample transforms that should be applied.
         :param name: Name of the dataset, used for diagnostics logging
         """
         super().__init__(args,
                          data_frame=data_frame,
                          feature_statistics=feature_statistics,
                          name=name,
-                         sample_transforms=sample_transforms)
+                         sample_transform=sample_transform)
         self.items = self.load_all_data_sources()
         self.standardize_non_imaging_features()
 

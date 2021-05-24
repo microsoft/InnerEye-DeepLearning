@@ -14,16 +14,13 @@ from yacs.config import CfgNode
 
 from InnerEye.ML.augmentations.image_transforms import AddGaussianNoise, ElasticTransform, ExpandChannels, RandomGamma
 
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from InnerEye.ML.dataset.scalar_sample import ScalarItem
+ImageData = Union[PIL.Image.Image, torch.Tensor]
 
 
 class ImageTransformationPipeline:
     """
     This class is the base class to classes built to define data augmentation transformations
-    for 3D or 2D image inputs.
+    for 3D or 2D image inputs (tensor or PIL.Image).
     In the case of 3D images, the transformations are applied slice by slices along the Z dimension (same transformation
     applied for each slice).
     The transformations are applied channel by channel, the user can specify whether to apply the same transformation
@@ -34,22 +31,18 @@ class ImageTransformationPipeline:
     # noinspection PyMissingConstructor
     def __init__(self,
                  transforms: Union[Callable, List[Callable]],
-                 use_different_transformation_per_channel: bool = False,
-                 apply_pipeline_to_segmentation_maps: bool = False):
+                 use_different_transformation_per_channel: bool = False):
         """
         :param transforms: List of transformations to apply to images. Supports out of the boxes torchvision transforms
         as they accept data of arbitrary dimension. You can also define your own transform class but be aware that you
         function should expect input of shape [C, Z, H, W] and apply the same transformation to each Z slice.
         :param use_different_transformation_per_channel: if True, apply a different version of the augmentation pipeline
         for each channel. If False, applies the same transformation to each channel, separately.
-        :param: apply_transform_to_segmentation_maps. If True, the pipeline will be applied to the segmentations field
-        of the scalar item, else it will be applied to the images.
         """
         self.use_different_transformation_per_channel = use_different_transformation_per_channel
         self.pipeline = Compose(transforms) if isinstance(transforms, List) else transforms
-        self.apply_pipeline_to_segmentation_maps = apply_pipeline_to_segmentation_maps
 
-    def transform_image(self, image: torch.Tensor) -> torch.Tensor:
+    def transform_image(self, image: ImageData) -> torch.Tensor:
         """
         Main function to apply the transformation pipeline to either slice by slice on one 3D-image or
         on the 2D image.
@@ -60,7 +53,7 @@ class ImageTransformationPipeline:
         :param image: batch of tensor images of size [C, Z, Y, X] or batch of 2D images as PIL Image
         """
 
-        def _convert_to_tensor_if_necessary(data: Union[PIL.Image.Image, torch.Tensor]) -> torch.Tensor:
+        def _convert_to_tensor_if_necessary(data: ImageData) -> torch.Tensor:
             return to_tensor(data) if isinstance(data, PIL.Image.Image) else data
 
         image = _convert_to_tensor_if_necessary(image)
@@ -87,25 +80,7 @@ class ImageTransformationPipeline:
             image = image.squeeze(1)
         return image.to(dtype=image.dtype)
 
-    def get_scalar_item_transformation(self, item: "ScalarItem") -> "ScalarItem":
-        """
-        This function returns the transformation around a ScalarItem, it will apply the pipeline to either the images
-        or the segmentations and return a new ScalarItem with the transformed image.
-        :param item: item to transform
-        :return: item with the new transformed image.
-        """
-        if self.apply_pipeline_to_segmentation_maps:
-            if item.segmentations is None:
-                raise ValueError("A segmentation data augmentation transform_pipeline has been"
-                                 "specified but no segmentations has been loaded.")
-            return item.clone_with_overrides(segmentations=self.transform_image(item.segmentations))
-        else:
-            return item.clone_with_overrides(images=self.transform_image(item.images))
-
-    def __call__(self, data: Union["ScalarItem", torch.Tensor]) -> Union["ScalarItem", torch.Tensor]:
-        from InnerEye.ML.dataset.scalar_sample import ScalarItem
-        if isinstance(data, ScalarItem):
-            return self.get_scalar_item_transformation(data)
+    def __call__(self, data: ImageData) -> torch.Tensor:
         return self.transform_image(data)
 
 

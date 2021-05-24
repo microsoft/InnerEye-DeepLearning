@@ -388,21 +388,27 @@ class ScalarModelBase(ModelConfigBase):
 
     def create_torch_datasets(self, dataset_splits: DatasetSplits) -> Dict[ModelExecutionMode, Any]:
         from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
-        image_transforms = self.get_image_sample_transforms()
-        train = ScalarDataset(args=self,
-                              data_frame=dataset_splits.train,
-                              name="training",
-                              sample_transforms=image_transforms.train)
-        val = ScalarDataset(args=self,
-                            data_frame=dataset_splits.val,
-                            feature_statistics=train.feature_statistics,
-                            name="validation",
-                            sample_transforms=image_transforms.val)
-        test = ScalarDataset(args=self,
-                             data_frame=dataset_splits.test,
-                             feature_statistics=train.feature_statistics,
-                             name="test",
-                             sample_transforms=image_transforms.test)
+        sample_transform = self.get_scalar_item_transform()
+        assert sample_transform.train is not None  # for mypy
+        assert sample_transform.val is not None  # for mypy
+        assert sample_transform.test is not None  # for mypy
+        train = ScalarDataset(
+            args=self,
+            data_frame=dataset_splits.train,
+            name="training",
+            sample_transform=sample_transform.train)
+        val = ScalarDataset(
+            args=self,
+            data_frame=dataset_splits.val,
+            feature_statistics=train.feature_statistics,
+            name="validation",
+            sample_transform=sample_transform.val)
+        test = ScalarDataset(
+            args=self,
+            data_frame=dataset_splits.test,
+            feature_statistics=train.feature_statistics,
+            name="test",
+            sample_transform=sample_transform.test)
 
         return {
             ModelExecutionMode.TRAIN: train,
@@ -471,13 +477,28 @@ class ScalarModelBase(ModelConfigBase):
     def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:
         return super().get_model_train_test_dataset_splits(dataset_df)
 
-    def get_image_sample_transforms(self) -> ModelTransformsPerExecutionMode:
+    def get_image_transform(self) -> ModelTransformsPerExecutionMode:
         """
-        Get transforms to perform on samples for each model execution mode.
+        Get transforms to apply to images for each model execution mode.
         By default only no transformation is performed.
-        For data augmentation, specify a Compose3D for the training execution mode.
         """
         return ModelTransformsPerExecutionMode()
+
+    def get_segmentation_transform(self) -> ModelTransformsPerExecutionMode:
+        """
+        Get transforms to apply on segmentations maps inputs for each model execution mode.
+        By default only no transformation is performed.
+        """
+        return ModelTransformsPerExecutionMode()
+
+    def get_scalar_item_transform(self) -> ModelTransformsPerExecutionMode:
+        from InnerEye.ML.dataset.scalar_dataset import ScalarItemAugmentation
+        image_transform = self.get_image_transform()
+        segmentation_transform = self.get_segmentation_transform()
+        return ModelTransformsPerExecutionMode(
+            train=ScalarItemAugmentation(image_transform.train, segmentation_transform.train),
+            val=ScalarItemAugmentation(image_transform.val, segmentation_transform.val),
+            test=ScalarItemAugmentation(image_transform.test, segmentation_transform.test))
 
 
 def get_non_image_features_dict(default_channels: List[str],

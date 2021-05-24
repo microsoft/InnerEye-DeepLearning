@@ -110,7 +110,7 @@ class ToySequenceModel(SequenceModelBase):
             proportion_val=0.1,
         )
 
-    def get_image_sample_transforms(self) -> ModelTransformsPerExecutionMode:
+    def get_image_transform(self) -> ModelTransformsPerExecutionMode:
         if self.use_combined_model:
             return ModelTransformsPerExecutionMode(
                 train=ImageTransformationPipeline(
