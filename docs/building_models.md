@@ -286,7 +286,7 @@ scatterplots for the ensemble, as described above for single runs.
 ### Augmentations for classification models.
 
 For classification models, you can define an augmentation pipeline to apply to your images input (resp. segmentations) at 
-training, validation and test time. In order, to define such a series of transformations, you will need to overload the 
+training, validation and test time. In order to define such a series of transformations, you will need to overload the 
 `get_image_transform`  (resp. `get_segmention_transform`) method of your config class. This method expects you to return 
 a `ModelTransformsPerExecutionMode`, that maps each execution mode to one transform function. We also provide the 
 `ImageTransformationPipeline` a class that creates a pipeline of transforms, from a list of individual transforms and 
