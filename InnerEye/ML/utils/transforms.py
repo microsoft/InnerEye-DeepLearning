@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import abc
 from functools import reduce
-from typing import Any, Callable, Generic, List, Optional, Tuple, Union
+from typing import Any, Generic, List, Optional, Tuple, Union
 
 import numpy as np
 import param

@@ -26,7 +26,6 @@ from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils.csv_util import CSV_CHANNEL_HEADER, CSV_SUBJECT_HEADER
 from InnerEye.ML.utils.dataset_util import CategoricalToOneHotEncoder
 from InnerEye.ML.utils.features_util import FeatureStatistics
-from InnerEye.ML.utils.transforms import Compose3D
 
 T = TypeVar('T', bound=ScalarDataSource)
 
@@ -67,12 +66,13 @@ def extract_label_classification(label_string: str, sample_id: str, num_classes:
     if isinstance(label_string, float):
         if math.isnan(label_string):
             if num_classes == 1:
-                # Pandas special case: When loading a dataframe with dtype=str, missing values can be encoded as NaN, and get into here.
+                # Pandas special case: When loading a dataframe with dtype=str, missing values can be encoded as NaN,
+                # and get into here.
                 return [label_string]
             else:
                 return [0] * num_classes
         else:
-            raise ValueError(f"Subject {sample_id}: Unexpected float input {label_string} - did you read the "	
+            raise ValueError(f"Subject {sample_id}: Unexpected float input {label_string} - did you read the "
                              f"dataframe column as a string?")
 
     if not label_string:
@@ -92,7 +92,7 @@ def extract_label_classification(label_string: str, sample_id: str, num_classes:
                 return [float(label_string)]
             else:
                 raise ValueError(f"Subject {sample_id}: Label string not recognized: '{label_string}'. "
-                             f"Should be one of true/false, yes/no or 0/1.")
+                                 f"Should be one of true/false, yes/no or 0/1.")
 
         if '|' in label_string or label_string.isdigit():
             classes = [int(a) for a in label_string.split('|')]
@@ -647,6 +647,7 @@ You now want to get the label from the "week0" row, and read out Scalar1 at week
     numerical_columns: ["scalar1"]
 """
 
+
 class ScalarItemAugmentation:
     """
     Wrapper around augmentation pipeline to apply image or/and segmentation transformations
@@ -675,6 +676,7 @@ class ScalarItemAugmentation:
         if self.segmentation_transform is not None:
             item.clone_with_overrides(segmentations=self.segmentation_transform(item.segmentations))
         return item
+
 
 class ScalarDatasetBase(GeneralDataset[ScalarModelBase], Generic[T]):
     """

@@ -11,12 +11,10 @@ from torchvision.transforms import CenterCrop, ColorJitter, RandomAffine, Random
     RandomResizedCrop, Resize, ToTensor
 from torchvision.transforms.functional import to_tensor
 
-from InnerEye.Common.common_util import is_windows
 from InnerEye.ML.augmentations.image_transforms import AddGaussianNoise, ElasticTransform, ExpandChannels, RandomGamma
 from InnerEye.ML.augmentations.transform_pipeline import ImageTransformationPipeline, \
     create_cxr_transforms_from_config
 
-# create_transform_pipeline_from_config
 from Tests.SSL.test_data_modules import cxr_augmentation_config
 
 import numpy as np

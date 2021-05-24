@@ -10,12 +10,10 @@ import pytest
 import torch
 from PIL import Image
 
-from scipy.ndimage import gaussian_filter, map_coordinates
 from torchvision.transforms.functional import to_pil_image, to_tensor
 
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.ML.augmentations.image_transforms import AddGaussianNoise, ElasticTransform, ExpandChannels, RandomGamma
-
 
 image_size = (256, 256)
 
@@ -26,7 +24,8 @@ test_tensor_2channels_2slices = torch.ones([2, 2, *image_size], dtype=torch.floa
 test_tensor_2channels_2slices[..., 100:150, 100:200] = 1 / 255.
 invalid_test_tensor = torch.ones([1, *image_size])
 test_pil_image = Image.open(str(full_ml_test_data_path() / "image_and_contour.png")).convert("RGB")
-test_image_as_tensor = to_tensor(test_pil_image).unsqueeze(0) # put in a [1, C, H, W] format
+test_image_as_tensor = to_tensor(test_pil_image).unsqueeze(0)  # put in a [1, C, H, W] format
+
 
 def test_add_gaussian_noise() -> None:
     """
@@ -37,7 +36,8 @@ def test_add_gaussian_noise() -> None:
     transformed = AddGaussianNoise(std=0.05, p_apply=1)(test_tensor_1channel_1slice.clone())
     torch.manual_seed(10)
     noise = torch.randn(size=(1, *image_size)) * 0.05
-    assert torch.isclose(torch.clamp(test_tensor_1channel_1slice + noise, min_test_image, max_test_image),  # type: ignore
+    assert torch.isclose(torch.clamp(test_tensor_1channel_1slice + noise, min_test_image, max_test_image),
+                         # type: ignore
                          transformed).all()
 
     # Test p_apply = 0
@@ -47,7 +47,8 @@ def test_add_gaussian_noise() -> None:
     # Check that it applies the same transform to all slices if number of slices > 1
     torch.manual_seed(10)
     transformed = AddGaussianNoise(std=0.05, p_apply=1)(test_tensor_2channels_2slices.clone())
-    assert torch.isclose(torch.clamp(test_tensor_2channels_2slices + noise, min_test_image, max_test_image),  # type: ignore
+    assert torch.isclose(torch.clamp(test_tensor_2channels_2slices + noise, min_test_image, max_test_image),
+                         # type: ignore
                          transformed).all()
 
 
@@ -58,10 +59,12 @@ def test_elastic_transform() -> None:
     np.random.seed(7)
     transformed_image = ElasticTransform(sigma=4, alpha=34, p_apply=1.0)(test_image_as_tensor.clone())
     transformed_pil = to_pil_image(transformed_image.squeeze(0))
-    expected_pil_image = Image.open(full_ml_test_data_path() / "elastic_transformed_image_and_contour.png").convert("RGB")
+    expected_pil_image = Image.open(full_ml_test_data_path() / "elastic_transformed_image_and_contour.png").convert(
+        "RGB")
     assert expected_pil_image == transformed_pil
     untransformed_image = ElasticTransform(sigma=4, alpha=34, p_apply=0.0)(test_image_as_tensor.clone())
     assert torch.isclose(test_image_as_tensor, untransformed_image).all()
+
 
 def test_expand_channels() -> None:
     with pytest.raises(ValueError):

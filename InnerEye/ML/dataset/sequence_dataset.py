@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import logging
 from collections import Counter, defaultdict
-from typing import Any, Callable, DefaultDict, Dict, Iterable, List, Optional, Union
+from typing import Any, Callable, DefaultDict, Dict, Iterable, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -18,7 +18,6 @@ from InnerEye.ML.dataset.scalar_sample import ScalarItem, SequenceDataSource
 from InnerEye.ML.dataset.sequence_sample import ClassificationItemSequence, ListOfSequences
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils.features_util import FeatureStatistics
-from InnerEye.ML.utils.transforms import Compose3D, Transform3D
 
 
 def get_longest_contiguous_sequence(items: List[SequenceDataSource],
@@ -290,7 +289,8 @@ class SequenceDataset(ScalarDatasetBase[SequenceDataSource]):
         """
         all_labels_per_target = torch.stack([seq.get_labels_at_target_indices(self.args.get_target_indices())
                                              for seq in self.items])  # [N, T, 1]
-        non_nan_and_nonzero_labels = list(filter(lambda x: not np.isnan(x) and x != 0, all_labels_per_target.flatten().tolist()))
+        non_nan_and_nonzero_labels = list(
+            filter(lambda x: not np.isnan(x) and x != 0, all_labels_per_target.flatten().tolist()))
         counts = dict(Counter(non_nan_and_nonzero_labels))
         if not len(counts.keys()) == 1 or 1 not in counts.keys():
             raise ValueError("get_class_counts supports only binary targets.")
