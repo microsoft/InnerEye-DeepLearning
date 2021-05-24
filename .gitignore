@@ -9,6 +9,7 @@ Tests/logs
 Tests/ML/models/logs
 saved_models/
 Tests/ML/test_data/outputs
+Tests/ML/test_data/cxr_test_dataset
 azureml-models
 # Tests
 junit

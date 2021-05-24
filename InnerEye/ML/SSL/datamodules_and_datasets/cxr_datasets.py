@@ -4,11 +4,12 @@
 #  ------------------------------------------------------------------------------------------
 import logging
 from pathlib import Path
-from typing import Any, Callable, List, Optional
+from typing import Any, Callable, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 from PIL import Image
+from torch.utils.data import Subset
 from torchvision.datasets import VisionDataset
 
 from InnerEye.Common.type_annotations import PathOrString
@@ -175,3 +176,39 @@ class CheXpert(InnerEyeCXRDatasetWithReturnIndex):
         self.dataset_dataframe.Path = self.dataset_dataframe.Path.apply(lambda x: x[strip_n:])
         self.indices = np.arange(len(self.dataset_dataframe))
         self.filenames = [self.root / p for p in self.dataset_dataframe.Path.values]
+
+
+class CovidDataset(InnerEyeCXRDatasetWithReturnIndex):
+    """
+    Dataset class to load CovidDataset dataset as datamodule for monitoring SSL training quality directly on
+    CovidDataset data.
+    We use CVX03 against CVX12 as proxy task.
+    """
+
+    def _prepare_dataset(self) -> None:
+        self.dataset_dataframe = pd.read_csv(self.root / "dataset.csv")
+        mapping = {0: 0, 3: 0, 1: 1, 2: 1}
+        # For monitoring purpose with use binary classification CV03vsCV12
+        self.dataset_dataframe["final_label"] = self.dataset_dataframe.final_label.apply(lambda x: mapping[x])
+        self.indices = np.arange(len(self.dataset_dataframe))
+        self.subject_ids = self.dataset_dataframe.subject.values
+        self.filenames = [self.root / file for file in self.dataset_dataframe.filepath.values]
+        self.targets = self.dataset_dataframe.final_label.values.astype(np.int64).reshape(-1)
+
+    @property
+    def num_classes(self) -> int:
+        return 2
+
+    def _split_dataset(self, val_split: float, seed: int) -> Tuple[Subset, Subset]:
+        """
+        Implements val - train split.
+        :param val_split: proportion to use for validation
+        :param seed: random seed for splitting
+        :return: dataset_train, dataset_val
+        """
+        shuffled_subject_ids = np.random.RandomState(seed).permutation(np.unique(self.subject_ids))
+        n_val = int(len(shuffled_subject_ids) * val_split)
+        val_subjects, train_subjects = shuffled_subject_ids[:n_val], shuffled_subject_ids[n_val:]
+        train_ids, val_ids = np.where(np.isin(self.subject_ids, train_subjects))[0], \
+                             np.where(np.isin(self.subject_ids, val_subjects))[0]
+        return Subset(self, train_ids), Subset(self, val_ids)

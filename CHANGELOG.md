@@ -13,6 +13,10 @@ created.
 
 ### Added
 
+- ([#454](https://github.com/microsoft/InnerEye-DeepLearning/pull/454)) Checking that labels are mutually exclusive.
+- ([#447](https://github.com/microsoft/InnerEye-DeepLearning/pull/447/)) Added a sanity check to ensure there are no
+  missing channels, nor missing files. If missing channels in the csv file or filenames associated with channels are
+  incorrect, pipeline exits with error report before running training or inference. 
 - ([#446](https://github.com/microsoft/InnerEye-DeepLearning/pull/446)) Guarding `save_outlier` so that it works when 
 institution id and series id columns are missing.
 - ([#441](https://github.com/microsoft/InnerEye-DeepLearning/pull/441)) Add script to move models from one AzureML workspace to another: `python InnerEye/Scripts/move_model.py`
@@ -58,6 +62,10 @@ with only minimum code changes required. See [the MD documentation](docs/bring_y
   (`ScalarLoss.CustomClassification` and `CustomRegression`), prediction targets (`ScalarModelBase.target_names`),
   and reporting (`ModelConfigBase.generate_custom_report()`) in scalar configs, providing more flexibility for defining
   model configs with custom behaviour while leveraging the existing InnerEye workflows.
+- ([#444](https://github.com/microsoft/InnerEye-DeepLearning/pull/444)) Added setup scripts and documentation to work
+with the FastMRI challenge datasets.
+- ([#444](https://github.com/microsoft/InnerEye-DeepLearning/pull/444)) Git-related information is now printed to the
+console for easier diagnostics.
 - ([#445](https://github.com/microsoft/InnerEye-DeepLearning/pull/445)) Adding test coverage for the `HelloContainer`
   model with multiple GPUs
 - ([#450](https://github.com/microsoft/InnerEye-DeepLearning/pull/450)) Adds the metric "Accuracy at threshold 0.5" to the classification report (`classification_crossval_report.ipynb`). 
@@ -76,6 +84,9 @@ with only minimum code changes required. See [the MD documentation](docs/bring_y
   Additionally, the `TrainHelloWorldAndHelloContainer` job in the PR build has been split into two jobs, `TrainHelloWorld` and
   `TrainHelloContainer`. A pytest marker `after_training_hello_container` has been added to run tests after training is
   finished in the `TrainHelloContainer` job.
+- ([#456](https://github.com/microsoft/InnerEye-DeepLearning/pull/456)) Adding configs to train Covid detection models.
+- ([#463](https://github.com/microsoft/InnerEye-DeepLearning/pull/463)) Add arguments `dirs_recursive` and
+  `dirs_non_recursive` to `mypy_runner.py` to let users specify a list of directories to run mypy on.
 
 ### Changed
 
@@ -94,6 +105,9 @@ with only minimum code changes required. See [the MD documentation](docs/bring_y
   named `recovery_epoch=x.ckpt` instead of `recovery.ckpt` or `recovery-v0.ckpt`.
 - ([#451](https://github.com/microsoft/InnerEye-DeepLearning/pull/451)) Change the signature for function `generate_custom_report` 
   in `ModelConfigBase` to take only the path to the reports folder and a `ModelProcessing` object.
+- ([#444](https://github.com/microsoft/InnerEye-DeepLearning/pull/444)) The method `before_training_on_rank_zero` of
+ the `LightningContainer` class has been renamed to `before_training_on_global_rank_zero`. The order in which the
+ hooks are called has been changed.
 - ([#458](https://github.com/microsoft/InnerEye-DeepLearning/pull/458)) Simplifying and generalizing the way we handle 
   data augmentations: The pipelining logic is now taken care of by a ImageTransformPipeline class that takes as 
   input a list of transforms to chain together. This pipeline takes of applying transforms on 3D or 2D images. 

@@ -23,6 +23,8 @@ from InnerEye.ML.utils.transforms import Compose3D
 from Tests.Common.test_util import full_ml_test_data_path
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import DummyPatientMetadata, load_train_and_test_data_channels
+from InnerEye.ML.lightning_base import InnerEyeContainer
+from InnerEye.ML.utils.split_dataset import DatasetSplits
 
 crop_size = [55, 55, 55]
 
@@ -417,6 +419,69 @@ def test_get_all_metadata(default_config: ModelConfigBase) -> None:
     df = default_config.get_dataset_splits().train
     assert PatientMetadata.from_dataframe(df, '1') == PatientMetadata(patient_id='1', institution="1")
     assert PatientMetadata.from_dataframe(df, '2') == PatientMetadata(patient_id='2', institution="2")
+
+
+def test_convert_channels_to_file_paths(default_config: ModelConfigBase) -> None:
+    """
+    Test unit for missing channels and missing files.
+    """
+    # Sets DummyModel config and container
+    container = InnerEyeContainer(default_config)
+
+    # 1 Should not return any errors given that no channels or files are missing
+    container.setup()
+
+    # 2 Creates InnerEyeContainer object with: missing channels: "channel1", "channel2", 'mask'
+    # for patients 1 and 4. Wrong file name for channel "mask", patient 2. Error report is generated
+    # for patients 1,2,4. Patient 3 should not generate any error as no channel, file is missing.
+
+    # Commented lines show missing and expected error reporting.
+    data_frame = [
+        # ["1",  "train_and_test_data/id1_channel1.nii.gz", "channel1",  "1"],
+        # ["1",  "train_and_test_data/id1_channel1.nii.gz", "channel2",  "1"],
+        # ["1",  "train_and_test_data/id1_mask.nii.gz",     "mask",      "1"],
+        ["1", "train_and_test_data/id1_region.nii.gz", "region", "1"],
+        ["1", "train_and_test_data/id1_region.nii.gz", "region_1", "1"],
+        ["2", "train_and_test_data/id2_channel1.nii.gz", "channel1", "2"],
+        ["2", "train_and_test_data/id2_channel1.nii.gz", "channel2", "2"],
+        ["2", "FILE_A", "mask", "2"],
+        ["2", "train_and_test_data/id2_region.nii.gz", "region", "2"],
+        ["2", "train_and_test_data/id2_region.nii.gz", "region_1", "2"],
+        ["3", "train_and_test_data/id2_channel1.nii.gz", "channel1", "3"],
+        ["3", "train_and_test_data/id2_channel1.nii.gz", "channel2", "3"],
+        ["3", "train_and_test_data/id2_mask.nii.gz", "mask", "3"],
+        ["3", "train_and_test_data/id2_region.nii.gz", "region", "3"],
+        ["3", "train_and_test_data/id2_region.nii.gz", "region_1", "3"],
+        # ["4",  "train_and_test_data/id2_channel1.nii.gz", "channel1",  "4"],
+        # ["4",  "train_and_test_data/id2_channel1.nii.gz", "channel2",  "4"],
+        # ["4",  "train_and_test_data/id2_mask.nii.gz",     "mask",      "4"],
+        ["4", "train_and_test_data/id2_region.nii.gz", "region", "4"],
+        ["4", "train_and_test_data/id2_region.nii.gz", "region_1", "4"]]
+
+    # 3 Overwrite get_model_train_test_dataset_splits method for subjects 1,2,3,4
+    class MyDummyModel(DummyModel):
+        def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:
+            return DatasetSplits(train=dataset_df[dataset_df.subject.isin(['1'])],
+                                 test=dataset_df[dataset_df.subject.isin(['2', '3'])],
+                                 val=dataset_df[dataset_df.subject.isin(['4'])])
+
+    config_missing_channels_and_files = MyDummyModel()
+    data_frame_with_missing_channels_and_files = pd.DataFrame(data_frame,
+                                                              columns=['subject', 'filePath', 'channel',
+                                                                       'institutionId'])
+    config_missing_channels_and_files._dataset_data_frame = data_frame_with_missing_channels_and_files
+    container_missing_files_channels = InnerEyeContainer(config_missing_channels_and_files)
+    with pytest.raises(ValueError) as e:
+        container_missing_files_channels.setup()
+
+    assert "Patient 1 does not have channel 'channel1'" in str(e.value)
+    assert "Patient 1 does not have channel 'channel2'" in str(e.value)
+    assert "Patient 1 does not have channel 'mask'" in str(e.value)
+    assert "Patient 2" in str(e.value) and "FILE_A does not exist" in str(e.value)
+    assert "Patient 3" not in str(e.value)
+    assert "Patient 4 does not have channel 'channel1'" in str(e.value)
+    assert "Patient 4 does not have channel 'channel2'" in str(e.value)
+    assert "Patient 4 does not have channel 'mask'" in str(e.value)
 
 
 def test_sample_metadata_field() -> None:

@@ -3,10 +3,11 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
+import os
 from abc import ABC
 from collections import Counter
 from pathlib import Path
-from typing import Any, Callable, Dict, Generic, List, Optional, TypeVar
+from typing import Any, Callable, Dict, Generic, List, Optional, TypeVar, Tuple
 
 import pandas as pd
 import torch.utils.data
@@ -249,7 +250,7 @@ class FullImageDataset(GeneralDataset):
     def get_samples_at_index(self, index: int) -> List[Sample]:
         # load the channels into memory
         ds = self.dataset_sources[self.dataset_indices[index]]
-        samples = [io_util.load_images_from_dataset_source(dataset_source=ds)]  # type: ignore
+        samples = [io_util.load_images_from_dataset_source(dataset_source=ds, check_exclusive=self.args.check_exclusive)]  # type: ignore
         return [Compose3D.apply(self.full_image_sample_transforms, x) for x in samples]
 
     def _load_dataset_sources(self) -> Dict[str, PatientDatasetSource]:
@@ -260,6 +261,39 @@ class FullImageDataset(GeneralDataset):
                                     ground_truth_channels=self.args.ground_truth_ids,
                                     mask_channel=self.args.mask_id
                                     )
+
+
+def convert_channels_to_file_paths(channels: List[str],
+                                   rows: pd.DataFrame,
+                                   local_dataset_root_folder: Path,
+                                   patient_id: str) -> Tuple[List[Path], str]:
+    """
+    Returns: 1) The full path for files specified in the training, validation and testing datasets, and
+             2) Missing channels or missing files.
+
+    :param channels: channel type defined in the configuration file
+    :param rows: Input Pandas dataframe object containing subjectIds, path of local dataset, channel information
+    :param local_dataset_root_folder: Root directory which points to the local dataset
+    :param patient_id: string which contains subject identifier
+    """
+    paths: List[Path] = []
+    failed_channel_info: str = ''
+
+    for channel_id in channels:
+        row = rows.loc[rows[CSV_CHANNEL_HEADER] == channel_id]
+        if len(row) == 0:
+            failed_channel_info += f"Patient {patient_id} does not have channel '{channel_id}'" + os.linesep
+        elif len(row) > 1:
+            failed_channel_info += f"Patient {patient_id} has more than one entry for channel '{channel_id}'" + \
+                                   os.linesep
+        else:
+            image_path = local_dataset_root_folder / row[CSV_PATH_HEADER].values[0]
+            if not image_path.is_file():
+                failed_channel_info += f"Patient {patient_id}, file {image_path} does not exist" + os.linesep
+            else:
+                paths.append(image_path)
+
+    return paths, failed_channel_info
 
 
 def load_dataset_sources(dataframe: pd.DataFrame,
@@ -300,17 +334,14 @@ def load_dataset_sources(dataframe: pd.DataFrame,
     def get_paths_for_channel_ids(channels: List[str]) -> List[Path]:
         if len(set(channels)) < len(channels):
             raise ValueError(f"ids have duplicated entries: {channels}")
-
-        paths: List[Path] = []
         rows = dataframe.loc[dataframe[CSV_SUBJECT_HEADER] == patient_id]
-        for channel_id in channels:
-            row = rows.loc[rows[CSV_CHANNEL_HEADER] == channel_id]
-            if len(row) == 0:
-                raise ValueError(f"Patient {patient_id} does not have channel '{channel_id}'")
-            elif len(row) > 1:
-                raise ValueError(f"Patient {patient_id} has more than one entry for channel '{channel_id}'")
-            image_path = local_dataset_root_folder / row[CSV_PATH_HEADER].values[0]
-            paths.append(image_path)
+        # converts channels to paths and makes second sanity check for channel data
+        paths, failed_channel_info = convert_channels_to_file_paths(channels, rows, local_dataset_root_folder,
+                                                                    patient_id)
+
+        if failed_channel_info:
+            raise ValueError(failed_channel_info)
+
         return paths
 
     dataset_sources = {}
