@@ -12,7 +12,8 @@ created.
 ## Upcoming
 
 ### Added
-
+- ([#465](https://github.com/microsoft/InnerEye-DeepLearning/pull/465/)) Added ability to run segmentation inference
+  module in the test data without or partial ground truth files. 
 - ([#454](https://github.com/microsoft/InnerEye-DeepLearning/pull/454)) Checking that labels are mutually exclusive.
 - ([#447](https://github.com/microsoft/InnerEye-DeepLearning/pull/447/)) Added a sanity check to ensure there are no
   missing channels, nor missing files. If missing channels in the csv file or filenames associated with channels are
