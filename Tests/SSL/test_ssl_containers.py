@@ -110,7 +110,7 @@ def test_load_innereye_ssl_container_cifar10_cifar100_resnet_byol() -> None:
     assert loaded_config.ssl_training_type == SSLTrainingType.BYOL
 
 
-# @pytest.mark.skipif(is_windows(), reason="Too slow on windows")
+@pytest.mark.skipif(is_windows(), reason="Too slow on windows")
 def test_innereye_ssl_container_rsna() -> None:
     """
     Test if we can get the config loader to load a Lightning container model, and then train locally.
