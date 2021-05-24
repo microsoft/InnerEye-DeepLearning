@@ -56,7 +56,8 @@ def test_elastic_transform() -> None:
     transformed_pil = to_pil_image(transformed_image.squeeze(0))
     expected_pil_image = Image.open(full_ml_test_data_path() / "elastic_transformed_image_and_contour.png").convert("RGB")
     assert expected_pil_image == transformed_pil
-
+    untransformed_image = ElasticTransform(sigma=4, alpha=34, p_apply=0.0)(test_image_as_tensor.clone())
+    assert torch.isclose(test_image_as_tensor, untransformed_image).all()
 
 def test_expand_channels() -> None:
     with pytest.raises(ValueError):
