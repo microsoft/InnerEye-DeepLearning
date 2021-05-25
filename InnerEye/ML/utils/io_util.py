@@ -421,6 +421,10 @@ def load_labels_from_dataset_source(dataset_source: PatientDatasetSource, check_
     :param check_exclusive: Check that the labels are mutually exclusive (defaults to True)
     :return: A label sample object containing ground-truth information.
     """
+
+    if not dataset_source.ground_truth_channels:
+        return None
+
     labels = np.stack(
         [load_image(gt, ImageDataType.SEGMENTATION.value).image for gt in dataset_source.ground_truth_channels])
 
@@ -502,6 +506,7 @@ def load_images_from_dataset_source(dataset_source: PatientDatasetSource, check_
     metadata = copy(dataset_source.metadata)
     metadata.image_header = images[0].header
     labels = load_labels_from_dataset_source(dataset_source, check_exclusive=check_exclusive)
+
     return Sample(image=image,
                   labels=labels,
                   mask=mask,

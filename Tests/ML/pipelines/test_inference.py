@@ -10,6 +10,7 @@ import pytest
 import torch
 from torch.nn import Parameter
 
+from InnerEye.Common.common_util import METRICS_AGGREGATES_FILE, SUBJECT_METRICS_FILE_NAME
 from InnerEye.Common import common_util
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.type_annotations import TupleInt3
@@ -18,12 +19,14 @@ from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel
 from InnerEye.ML.pipelines.ensemble import EnsemblePipeline
 from InnerEye.ML.pipelines.inference import InferencePipeline, FullImageInferencePipelineBase
 from InnerEye.ML.utils import image_util
+from InnerEye.ML.utils.metrics_util import MetricsPerPatientWriter
 from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
 from Tests.ML.configs.DummyModel import DummyModel
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 from InnerEye.ML.dataset.sample import Sample
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.model_testing import store_inference_results, evaluate_model_predictions
+from InnerEye.Common.metrics_constants import MetricType
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
@@ -206,11 +209,28 @@ class PyTorchMockModel(BaseSegmentationModel):
         return list()
 
 
+def create_config_from_dataset(input_list: List, train: List, val: List, test: List) -> DummyModel:
+    """
+    Creates an "DummyModel(SegmentationModelBase)" object given patient list
+    and training, validation and test subjects id.
+    """
+
+    class MyDummyModel(DummyModel):
+        def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:
+            return DatasetSplits(train=dataset_df[dataset_df.subject.isin(train)],
+                                 test=dataset_df[dataset_df.subject.isin(test)],
+                                 val=dataset_df[dataset_df.subject.isin(val)])
+
+    config = MyDummyModel()
+    df = pd.DataFrame(input_list, columns=['subject', 'filePath', 'channel', 'institutionId'])
+    config._dataset_data_frame = df
+    return config
+
+
 def test_evaluate_model_predictions() -> None:
     """
     Creates an 'InferencePipeline.Result' object using pre-defined volumes, stores results and evaluates metrics.
     """
-
     # Full dataset -- no missing channels
     input_list = [
         ["1", "train_and_test_data/id1_channel1.nii.gz", "channel1", "1"],
@@ -226,18 +246,8 @@ def test_evaluate_model_predictions() -> None:
         ["3", "train_and_test_data/id2_mask.nii.gz", "mask", "3"],
         ["3", "train_and_test_data/id2_region.nii.gz", "region", "3"]]
 
-    # Overwrite get_model_train_test_dataset_splits method for subjects 1,2,3
-    class MyDummyModel(DummyModel):
-        def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:
-            return DatasetSplits(train=dataset_df[dataset_df.subject.isin(['1'])],
-                                 test=dataset_df[dataset_df.subject.isin(['3'])],
-                                 val=dataset_df[dataset_df.subject.isin(['2'])])
-
-    config = MyDummyModel()
-    df = pd.DataFrame(input_list, columns=['subject', 'filePath', 'channel', 'institutionId'])
-    config._dataset_data_frame = df
+    config = create_config_from_dataset(input_list, train=['1'], val=['2'], test=['3'])
     ds = config.get_torch_dataset_for_inference(ModelExecutionMode.TEST)
-
     results_folder = config.outputs_folder
     if not results_folder.is_dir():
         results_folder.mkdir()
@@ -252,7 +262,7 @@ def test_evaluate_model_predictions() -> None:
         inference_result = InferencePipeline.Result(
             patient_id=sample.patient_id,
             posteriors=posteriors,
-            segmentation=sample.mask,
+            segmentation=np.argmax(posteriors, 0),
             voxel_spacing_mm=config.dataset_expected_spacing_xyz
         )
         store_inference_results(inference_result=inference_result,
@@ -261,12 +271,59 @@ def test_evaluate_model_predictions() -> None:
                                 image_header=sample.metadata.image_header)
 
         metadata, metrics_per_class = evaluate_model_predictions(
-            sample_index-1,
+            sample_index - 1,
             config=config,
             dataset=ds,
             results_folder=results_folder)
 
-        metrics_str_output = metrics_per_class.to_string()
-        assert 'Dice' in metrics_str_output
-        assert 'HausdorffDistance_millimeters' in metrics_str_output
-        assert 'MeanSurfaceDistance_millimeters' in metrics_str_output
+        hue_name = metrics_per_class.get_hue_names()[0]
+        assert 'Dice' in metrics_per_class.values(hue_name).keys()
+        assert 'HausdorffDistance_millimeters' in metrics_per_class.values(hue_name).keys()
+        assert 'MeanSurfaceDistance_millimeters' in metrics_per_class.values(hue_name).keys()
+
+    # Dataset -- subject 3 missing ground truth and mask
+    input_list = [
+        ["1", "train_and_test_data/id1_channel1.nii.gz", "channel1", "1"],
+        ["1", "train_and_test_data/id1_channel1.nii.gz", "channel2", "1"],
+        ["1", "train_and_test_data/id1_mask.nii.gz", "mask", "1"],
+        ["1", "train_and_test_data/id1_region.nii.gz", "region", "1"],
+        ["2", "train_and_test_data/id2_channel1.nii.gz", "channel1", "2"],
+        ["2", "train_and_test_data/id2_channel1.nii.gz", "channel2", "2"],
+        ["2", "train_and_test_data/id2_mask.nii.gz", "mask", "2"],
+        ["2", "train_and_test_data/id2_region.nii.gz", "region", "2"],
+        ["3", "train_and_test_data/id2_channel1.nii.gz", "channel1", "3"],
+        ["3", "train_and_test_data/id2_channel1.nii.gz", "channel2", "3"]]
+
+    config = create_config_from_dataset(input_list, train=['1'], val=['2'], test=['3'])
+    ds = config.get_torch_dataset_for_inference(ModelExecutionMode.TEST)
+    results_folder = config.outputs_folder
+    if not results_folder.is_dir():
+        results_folder.mkdir()
+
+    average_dice = list()
+    metrics_writer = MetricsPerPatientWriter()
+
+    for sample_index, sample in enumerate(ds, 1):
+        sample = Sample.from_dict(sample=sample)
+        posteriors = np.zeros((3,) + sample.mask.shape, 'float32')
+        posteriors[0][:] = 0.2
+        posteriors[1][:] = 0.6
+        posteriors[2][:] = 0.2
+
+        assert config.dataset_expected_spacing_xyz is not None
+        inference_result = InferencePipeline.Result(
+            patient_id=sample.patient_id,
+            posteriors=posteriors,
+            segmentation=np.argmax(posteriors, 0),
+            voxel_spacing_mm=config.dataset_expected_spacing_xyz
+        )
+        store_inference_results(inference_result=inference_result,
+                                config=config,
+                                results_folder=results_folder,
+                                image_header=sample.metadata.image_header)
+
+        metadata, metrics_per_class = evaluate_model_predictions(
+            sample_index - 1,
+            config=config,
+            dataset=ds,
+            results_folder=results_folder)

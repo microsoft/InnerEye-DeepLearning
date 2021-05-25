@@ -768,7 +768,8 @@ class SegmentationModelBase(ModelConfigBase):
                 mode: FullImageDataset(
                     self,
                     dataset_splits[mode],
-                    full_image_sample_transforms=full_image_transforms.test)  # type: ignore
+                    full_image_sample_transforms=full_image_transforms.test,  # type: ignore
+                    for_inference=for_inference)
                 for mode in ModelExecutionMode if len(dataset_splits[mode]) > 0
             }
 

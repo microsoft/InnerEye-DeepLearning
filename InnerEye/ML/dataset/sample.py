@@ -132,6 +132,7 @@ class PatientDatasetSource(SampleBase):
     ground_truth_channels: List[PathOrString]
     mask_channel: Optional[PathOrString]
     metadata: PatientMetadata
+    for_inference: bool
 
     def __post_init__(self) -> None:
         # make sure all properties are populated
@@ -139,7 +140,7 @@ class PatientDatasetSource(SampleBase):
 
         if not self.image_channels:
             raise ValueError("image_channels cannot be empty")
-        if not self.ground_truth_channels:
+        if not self.ground_truth_channels and not self.for_inference:
             raise ValueError("ground_truth_channels cannot be empty")
 
 
@@ -164,8 +165,8 @@ class Sample(SampleBase):
         ml_util.check_size_matches(arg1=self.image, arg2=self.mask,
                                    matching_dimensions=self._get_matching_dimensions())
 
-        ml_util.check_size_matches(arg1=self.image, arg2=self.labels,
-                                   matching_dimensions=self._get_matching_dimensions())
+        # ml_util.check_size_matches(arg1=self.image, arg2=self.labels,
+        #                            matching_dimensions=self._get_matching_dimensions())
 
     @property
     def patient_id(self) -> int:
