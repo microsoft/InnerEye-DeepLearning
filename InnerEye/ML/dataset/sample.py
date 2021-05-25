@@ -132,7 +132,7 @@ class PatientDatasetSource(SampleBase):
     ground_truth_channels: List[PathOrString]
     mask_channel: Optional[PathOrString]
     metadata: PatientMetadata
-    for_inference: bool
+    allow_incomplete_labels: bool
 
     def __post_init__(self) -> None:
         # make sure all properties are populated
@@ -140,7 +140,7 @@ class PatientDatasetSource(SampleBase):
 
         if not self.image_channels:
             raise ValueError("image_channels cannot be empty")
-        if not self.ground_truth_channels and not self.for_inference:
+        if not self.ground_truth_channels and not self.allow_incomplete_labels:
             raise ValueError("ground_truth_channels cannot be empty")
 
 
