@@ -209,7 +209,8 @@ class PyTorchMockModel(BaseSegmentationModel):
         return list()
 
 
-def create_config_from_dataset(input_list: List, train: List, val: List, test: List) -> DummyModel:
+def create_config_from_dataset(input_list: List[List[str]], train: List[str], val: List[str], test: List[str]) \
+        -> DummyModel:
     """
     Creates an "DummyModel(SegmentationModelBase)" object given patient list
     and training, validation and test subjects id.
