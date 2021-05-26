@@ -84,6 +84,9 @@ console for easier diagnostics.
   Additionally, the `TrainHelloWorldAndHelloContainer` job in the PR build has been split into two jobs, `TrainHelloWorld` and
   `TrainHelloContainer`. A pytest marker `after_training_hello_container` has been added to run tests after training is
   finished in the `TrainHelloContainer` job.
+- ([#456](https://github.com/microsoft/InnerEye-DeepLearning/pull/456)) Adding configs to train Covid detection models.
+- ([#463](https://github.com/microsoft/InnerEye-DeepLearning/pull/463)) Add arguments `dirs_recursive` and
+  `dirs_non_recursive` to `mypy_runner.py` to let users specify a list of directories to run mypy on.
 
 ### Changed
 
