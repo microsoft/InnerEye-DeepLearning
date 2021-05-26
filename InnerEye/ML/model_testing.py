@@ -232,10 +232,6 @@ def evaluate_model_predictions(process_id: int,
     sample = dataset.get_samples_at_index(index=process_id)[0]
     logging.info(f"Evaluating predictions for patient {sample.patient_id}")
 
-    if sample.labels is None:
-        logging.info(f"No ground truth provided for patient  {sample.patient_id}, skipping metrics evaluation.")
-        return sample.metadata, MetricsDict(hues=config.ground_truth_ids)
-
     patient_results_folder = get_patient_results_folder(results_folder, sample.patient_id)
     segmentation = load_nifti_image(patient_results_folder / DEFAULT_RESULT_IMAGE_NAME).image
     metrics_per_class = metrics.calculate_metrics_per_class(segmentation,

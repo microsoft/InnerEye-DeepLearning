@@ -85,14 +85,17 @@ def test_load_images_from_dataset_source(
     # metadata, image and GT channels must be present. Mask is optional
     if None in [metadata, image_channel, ground_truth_channel]:
         with pytest.raises(Exception):
-            _test_load_images_from_channels(metadata, image_channel, ground_truth_channel, mask_channel, check_exclusive)
+            _test_load_images_from_channels(metadata, image_channel, ground_truth_channel, mask_channel,
+                                            check_exclusive)
     else:
         if check_exclusive:
             with pytest.raises(ValueError) as mutually_exclusive_labels_error:
-                _test_load_images_from_channels(metadata, image_channel, ground_truth_channel, mask_channel, check_exclusive)
+                _test_load_images_from_channels(metadata, image_channel, ground_truth_channel, mask_channel,
+                                                check_exclusive)
             assert 'not mutually exclusive' in str(mutually_exclusive_labels_error.value)
         else:
-            _test_load_images_from_channels(metadata, image_channel, ground_truth_channel, mask_channel, check_exclusive)
+            _test_load_images_from_channels(metadata, image_channel, ground_truth_channel, mask_channel,
+                                            check_exclusive)
 
 
 def _test_load_images_from_channels(
@@ -109,7 +112,8 @@ def _test_load_images_from_channels(
             metadata=metadata,
             image_channels=[image_channel] * 2,
             ground_truth_channels=[ground_truth_channel] * 4,
-            mask_channel=mask_channel
+            mask_channel=mask_channel,
+            allow_incomplete_labels=False
         ),
         check_exclusive=check_exclusive
     )

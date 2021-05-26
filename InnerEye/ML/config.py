@@ -741,7 +741,7 @@ class SegmentationModelBase(ModelConfigBase):
         classes.update({x: i + 1 for i, x in enumerate(self.ground_truth_ids)})
         return classes
 
-    def create_and_set_torch_datasets(self, for_training: bool = True, allow_incomplete_labels: bool = True) -> None:
+    def create_and_set_torch_datasets(self, for_training: bool = True, for_inference: bool = True) -> None:
         """
         Creates torch datasets for all model execution modes, and stores them in the object.
         """
@@ -763,13 +763,13 @@ class SegmentationModelBase(ModelConfigBase):
                     cropped_sample_transforms=crop_transforms.val,  # type: ignore
                     full_image_sample_transforms=full_image_transforms.val),  # type: ignore
             }
-        if allow_incomplete_labels:
+        if for_inference:
             self._datasets_for_inference = {
                 mode: FullImageDataset(
                     self,
                     dataset_splits[mode],
                     full_image_sample_transforms=full_image_transforms.test,  # type: ignore
-                    allow_incomplete_labels=allow_incomplete_labels)
+                    allow_incomplete_labels=True)
                 for mode in ModelExecutionMode if len(dataset_splits[mode]) > 0
             }
 

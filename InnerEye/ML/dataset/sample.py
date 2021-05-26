@@ -165,8 +165,8 @@ class Sample(SampleBase):
         ml_util.check_size_matches(arg1=self.image, arg2=self.mask,
                                    matching_dimensions=self._get_matching_dimensions())
 
-        # ml_util.check_size_matches(arg1=self.image, arg2=self.labels,
-        #                            matching_dimensions=self._get_matching_dimensions())
+        ml_util.check_size_matches(arg1=self.image, arg2=self.labels,
+                                   matching_dimensions=self._get_matching_dimensions())
 
     @property
     def patient_id(self) -> int:

@@ -10,23 +10,20 @@ import pytest
 import torch
 from torch.nn import Parameter
 
-from InnerEye.Common.common_util import METRICS_AGGREGATES_FILE, SUBJECT_METRICS_FILE_NAME
 from InnerEye.Common import common_util
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel
 from InnerEye.ML.pipelines.ensemble import EnsemblePipeline
-from InnerEye.ML.pipelines.inference import InferencePipeline, FullImageInferencePipelineBase
+from InnerEye.ML.pipelines.inference import InferencePipeline
 from InnerEye.ML.utils import image_util
-from InnerEye.ML.utils.metrics_util import MetricsPerPatientWriter
 from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
 from Tests.ML.configs.DummyModel import DummyModel
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 from InnerEye.ML.dataset.sample import Sample
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.model_testing import store_inference_results, evaluate_model_predictions
-from InnerEye.Common.metrics_constants import MetricType
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
@@ -223,7 +220,15 @@ def create_config_from_dataset(input_list: List[List[str]], train: List[str], va
                                  val=dataset_df[dataset_df.subject.isin(val)])
 
     config = MyDummyModel()
-    df = pd.DataFrame(input_list, columns=['subject', 'filePath', 'channel', 'institutionId'])
+    # Sets two regions for ground truth
+    config.fg_ids = ["region", "region_1"]
+    config.ground_truth_ids = config.fg_ids
+    config.ground_truth_ids_display_names = config.fg_ids
+    config.colours = [(255, 255, 255)] * len(config.fg_ids)
+    config.fill_holes = [False] * len(config.fg_ids)
+    config.roi_interpreted_types = ["Organ"] * len(config.fg_ids)
+    config.check_exclusive = False
+    df = pd.DataFrame(input_list, columns=['subject', 'filePath', 'channel'])
     config._dataset_data_frame = df
     return config
 
@@ -232,77 +237,42 @@ def test_evaluate_model_predictions() -> None:
     """
     Creates an 'InferencePipeline.Result' object using pre-defined volumes, stores results and evaluates metrics.
     """
-    # Full dataset -- no missing channels
+    # Patient 3,4,5 are in test dataset such that:
+    # Patient 3 has one missing ground truth channel: "region"
+    # Patient 4 has all missing ground truth channels: "region", "region_1"
+    # Patient 5 has no missing ground truth channels.
     input_list = [
-        ["1", "train_and_test_data/id1_channel1.nii.gz", "channel1", "1"],
-        ["1", "train_and_test_data/id1_channel1.nii.gz", "channel2", "1"],
-        ["1", "train_and_test_data/id1_mask.nii.gz", "mask", "1"],
-        ["1", "train_and_test_data/id1_region.nii.gz", "region", "1"],
-        ["2", "train_and_test_data/id2_channel1.nii.gz", "channel1", "2"],
-        ["2", "train_and_test_data/id2_channel1.nii.gz", "channel2", "2"],
-        ["2", "train_and_test_data/id2_mask.nii.gz", "mask", "2"],
-        ["2", "train_and_test_data/id2_region.nii.gz", "region", "2"],
-        ["3", "train_and_test_data/id2_channel1.nii.gz", "channel1", "3"],
-        ["3", "train_and_test_data/id2_channel1.nii.gz", "channel2", "3"],
-        ["3", "train_and_test_data/id2_mask.nii.gz", "mask", "3"],
-        ["3", "train_and_test_data/id2_region.nii.gz", "region", "3"]]
+        ["1", "train_and_test_data/id1_channel1.nii.gz", "channel1"],
+        ["1", "train_and_test_data/id1_channel1.nii.gz", "channel2"],
+        ["1", "train_and_test_data/id1_mask.nii.gz", "mask"],
+        ["1", "train_and_test_data/id1_region.nii.gz", "region"],
+        ["1", "train_and_test_data/id1_region.nii.gz", "region_1"],
+        ["2", "train_and_test_data/id2_channel1.nii.gz", "channel1"],
+        ["2", "train_and_test_data/id2_channel1.nii.gz", "channel2"],
+        ["2", "train_and_test_data/id2_mask.nii.gz", "mask"],
+        ["2", "train_and_test_data/id2_region.nii.gz", "region"],
+        ["2", "train_and_test_data/id2_region.nii.gz", "region_1"],
+        ["3", "train_and_test_data/id2_channel1.nii.gz", "channel1"],
+        ["3", "train_and_test_data/id2_channel1.nii.gz", "channel2"],
+        ["3", "train_and_test_data/id2_mask.nii.gz", "mask"],
+        # ["3", "train_and_test_data/id2_region.nii.gz", "region"], # commented on purpose
+        ["3", "train_and_test_data/id2_region.nii.gz", "region_1"],
+        ["4", "train_and_test_data/id2_channel1.nii.gz", "channel1"],
+        ["4", "train_and_test_data/id2_channel1.nii.gz", "channel2"],
+        ["4", "train_and_test_data/id2_mask.nii.gz", "mask"],
+        # ["4", "train_and_test_data/id2_region.nii.gz", "region"], # commented on purpose
+        # ["4", "train_and_test_data/id2_region.nii.gz", "region_1"], # commented on purpose
+        ["5", "train_and_test_data/id2_channel1.nii.gz", "channel1"],
+        ["5", "train_and_test_data/id2_channel1.nii.gz", "channel2"],
+        ["5", "train_and_test_data/id2_mask.nii.gz", "mask"],
+        ["5", "train_and_test_data/id2_region.nii.gz", "region"],
+        ["5", "train_and_test_data/id2_region.nii.gz", "region_1"]]
 
-    config = create_config_from_dataset(input_list, train=['1'], val=['2'], test=['3'])
+    config = create_config_from_dataset(input_list, train=['1'], val=['2'], test=['3', '4', '5'])
     ds = config.get_torch_dataset_for_inference(ModelExecutionMode.TEST)
     results_folder = config.outputs_folder
     if not results_folder.is_dir():
         results_folder.mkdir()
-
-    for sample_index, sample in enumerate(ds, 1):
-        sample = Sample.from_dict(sample=sample)
-        posteriors = np.zeros((3,) + sample.mask.shape, 'float32')
-        posteriors[0][:] = 0.2
-        posteriors[1][:] = 0.6
-        posteriors[2][:] = 0.2
-
-        inference_result = InferencePipeline.Result(
-            patient_id=sample.patient_id,
-            posteriors=posteriors,
-            segmentation=np.argmax(posteriors, 0),
-            voxel_spacing_mm=config.dataset_expected_spacing_xyz
-        )
-        store_inference_results(inference_result=inference_result,
-                                config=config,
-                                results_folder=results_folder,
-                                image_header=sample.metadata.image_header)
-
-        metadata, metrics_per_class = evaluate_model_predictions(
-            sample_index - 1,
-            config=config,
-            dataset=ds,
-            results_folder=results_folder)
-
-        hue_name = metrics_per_class.get_hue_names()[0]
-        assert 'Dice' in metrics_per_class.values(hue_name).keys()
-        assert 'HausdorffDistance_millimeters' in metrics_per_class.values(hue_name).keys()
-        assert 'MeanSurfaceDistance_millimeters' in metrics_per_class.values(hue_name).keys()
-
-    # Dataset -- subject 3 missing ground truth and mask
-    input_list = [
-        ["1", "train_and_test_data/id1_channel1.nii.gz", "channel1", "1"],
-        ["1", "train_and_test_data/id1_channel1.nii.gz", "channel2", "1"],
-        ["1", "train_and_test_data/id1_mask.nii.gz", "mask", "1"],
-        ["1", "train_and_test_data/id1_region.nii.gz", "region", "1"],
-        ["2", "train_and_test_data/id2_channel1.nii.gz", "channel1", "2"],
-        ["2", "train_and_test_data/id2_channel1.nii.gz", "channel2", "2"],
-        ["2", "train_and_test_data/id2_mask.nii.gz", "mask", "2"],
-        ["2", "train_and_test_data/id2_region.nii.gz", "region", "2"],
-        ["3", "train_and_test_data/id2_channel1.nii.gz", "channel1", "3"],
-        ["3", "train_and_test_data/id2_channel1.nii.gz", "channel2", "3"]]
-
-    config = create_config_from_dataset(input_list, train=['1'], val=['2'], test=['3'])
-    ds = config.get_torch_dataset_for_inference(ModelExecutionMode.TEST)
-    results_folder = config.outputs_folder
-    if not results_folder.is_dir():
-        results_folder.mkdir()
-
-    average_dice = list()
-    metrics_writer = MetricsPerPatientWriter()
 
     for sample_index, sample in enumerate(ds, 1):
         sample = Sample.from_dict(sample=sample)
@@ -312,6 +282,7 @@ def test_evaluate_model_predictions() -> None:
         posteriors[2][:] = 0.2
 
         assert config.dataset_expected_spacing_xyz is not None
+
         inference_result = InferencePipeline.Result(
             patient_id=sample.patient_id,
             posteriors=posteriors,
@@ -328,3 +299,31 @@ def test_evaluate_model_predictions() -> None:
             config=config,
             dataset=ds,
             results_folder=results_folder)
+
+        # Patient 3 has one missing ground truth channel: "region"
+        if sample.metadata.patient_id == '3':
+            assert 'Dice' in metrics_per_class.values('region_1').keys()
+            assert 'HausdorffDistance_millimeters' in metrics_per_class.values('region_1').keys()
+            assert 'MeanSurfaceDistance_millimeters' in metrics_per_class.values('region_1').keys()
+            for hue_name in ['region', 'Default']:
+                assert len(metrics_per_class.values(hue_name).keys()) == 0
+                assert len(metrics_per_class.values(hue_name).keys()) == 0
+                assert len(metrics_per_class.values(hue_name).keys()) == 0
+
+        # Patient 4 has all missing ground truth channels: "region", "region_1"
+        if sample.metadata.patient_id == '4':
+            for hue_name in ['region_1', 'region', 'Default']:
+                assert len(metrics_per_class.values(hue_name).keys()) == 0
+                assert len(metrics_per_class.values(hue_name).keys()) == 0
+                assert len(metrics_per_class.values(hue_name).keys()) == 0
+
+        # Patient 5 has no missing ground truth channels
+        if sample.metadata.patient_id == '5':
+            assert len(metrics_per_class.values('Default').keys()) == 0
+            assert len(metrics_per_class.values('Default').keys()) == 0
+            assert len(metrics_per_class.values('Default').keys()) == 0
+            for hue_name in ['region_1', 'region']:
+                assert 'Dice' in metrics_per_class.values('region_1').keys()
+                assert 'HausdorffDistance_millimeters' in metrics_per_class.values(hue_name).keys()
+                assert 'MeanSurfaceDistance_millimeters' in metrics_per_class.values(hue_name).keys()
+

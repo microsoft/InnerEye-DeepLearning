@@ -275,7 +275,7 @@ def convert_channels_to_file_paths(channels: List[str],
     Returns: 1) The full path for files specified in the training, validation and testing datasets, and
              2) Missing channels or missing files.
 
-    :param allow_incomplete_labels:
+    :param allow_incomplete_labels: flag to enforce all ground truth labels
     :param channels: channel type defined in the configuration file
     :param rows: Input Pandas dataframe object containing subjectIds, path of local dataset, channel information
     :param local_dataset_root_folder: Root directory which points to the local dataset
@@ -288,6 +288,9 @@ def convert_channels_to_file_paths(channels: List[str],
         row = rows.loc[rows[CSV_CHANNEL_HEADER] == channel_id]
         if len(row) == 0 and not allow_incomplete_labels:
             failed_channel_info += f"Patient {patient_id} does not have channel '{channel_id}'" + os.linesep
+        elif len(row) == 0 and allow_incomplete_labels:
+            # Keeps track of missing channels order
+            paths.append(Path(''))
         elif len(row) > 1:
             failed_channel_info += f"Patient {patient_id} has more than one entry for channel '{channel_id}'" + \
                                    os.linesep
@@ -317,7 +320,7 @@ def load_dataset_sources(dataframe: pd.DataFrame,
     :param image_channels: The names of the image channels that should be used in the result.
     :param ground_truth_channels: The names of the ground truth channels that should be used in the result.
     :param mask_channel: The name of the mask channel that should be used in the result. This can be None.
-    :param allow_incomplete_labels: Boolean variable to indicate if executing for inference.
+    :param allow_incomplete_labels: Boolean variable to allow missing ground truth files.
     :return: A dictionary mapping from an integer subject ID to a PatientDatasetSource.
     """
     expected_headers = {CSV_SUBJECT_HEADER, CSV_PATH_HEADER, CSV_CHANNEL_HEADER}
@@ -361,7 +364,7 @@ def load_dataset_sources(dataframe: pd.DataFrame,
             metadata=metadata,
             image_channels=get_paths_for_channel_ids(channels=image_channels),  # type: ignore
             mask_channel=get_mask_channel_or_default(),
-            ground_truth_channels=get_paths_for_channel_ids(channels=ground_truth_channels), # type: ignore
+            ground_truth_channels=get_paths_for_channel_ids(channels=ground_truth_channels),  # type: ignore
             allow_incomplete_labels=allow_incomplete_labels)
 
     return dataset_sources

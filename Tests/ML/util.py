@@ -73,7 +73,8 @@ def load_train_and_test_data_channels(patient_ids: List[int],
         metadata=PatientMetadata(patient_id=z),
         image_channels=[file_name(z, c) for c in TEST_CHANNEL_IDS],
         mask_channel=file_name(z, TEST_MASK_ID),
-        ground_truth_channels=[file_name(z, TEST_GT_ID)]
+        ground_truth_channels=[file_name(z, TEST_GT_ID)],
+        allow_incomplete_labels=False
     ))
 
     samples = []

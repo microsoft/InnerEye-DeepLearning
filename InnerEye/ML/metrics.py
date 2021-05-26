@@ -242,14 +242,23 @@ def calculate_metrics_per_class(segmentation: np.ndarray,
                          f"the label tensor indicates that there are {number_of_classes - 1} classes.")
     binaries = binaries_from_multi_label_array(segmentation, number_of_classes)
 
-    all_classes_are_binary = [is_binary_array(ground_truth[label_id]) for label_id in range(ground_truth.shape[0])]
-    if not np.all(all_classes_are_binary):
+    binary_classes = [is_binary_array(ground_truth[label_id]) for label_id in range(ground_truth.shape[0])]
+
+    # If ground truth image is nan, then will not be used for metrics computation.
+    nan_images = [np.isnan(np.sum(ground_truth[label_id])) for label_id in range(ground_truth.shape[0])]
+
+    # Validates if not binary then nan
+    assert np.all(np.array(binary_classes) == ~np.array(nan_images))
+
+    #  Validates that all binary images should be 0 or 1
+    if not np.all(np.array(binary_classes)[~np.array(nan_images)]):
         raise ValueError("Ground truth values should be 0 or 1")
     overlap_measures_filter = sitk.LabelOverlapMeasuresImageFilter()
     hausdorff_distance_filter = sitk.HausdorffDistanceImageFilter()
     metrics = MetricsDict(hues=ground_truth_ids)
     for i, prediction in enumerate(binaries):
-        if i == 0:
+        # Skips if background image or nan_image
+        if i == 0 or nan_images[i]:
             continue
         check_size_matches(prediction, ground_truth[i], arg1_name="prediction", arg2_name="ground_truth")
         if not is_binary_array(prediction):
