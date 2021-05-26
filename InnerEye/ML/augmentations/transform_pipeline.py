@@ -61,10 +61,12 @@ class ImageTransformationPipeline:
         # If we have a 2D image [C, H, W] expand to [Z, C, H, W]. Build-in torchvision transforms allow such 4D inputs.
         if original_input_is_2d:
             image = image.unsqueeze(0)
-
         else:
             # Some transforms assume the order of dimension is [..., C, H, W] so permute first and last dimension to
             # obtain [Z, C, H, W]
+            if len(image.shape) != 4:
+                raise ValueError(f"ScalarDataset should load images as 4D tensor [C, Z, H, W]. The input tensor here"
+                                 f"was of shape {image.shape}. This is unexpected.")
             image = torch.transpose(image, 1, 0)
 
         if not self.use_different_transformation_per_channel:
