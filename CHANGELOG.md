@@ -109,14 +109,17 @@ console for easier diagnostics.
  the `LightningContainer` class has been renamed to `before_training_on_global_rank_zero`. The order in which the
  hooks are called has been changed.
 - ([#458](https://github.com/microsoft/InnerEye-DeepLearning/pull/458)) Simplifying and generalizing the way we handle 
-  data augmentations: The pipelining logic is now taken care of by a ImageTransformPipeline class that takes as 
-  input a list of transforms to chain together. This pipeline takes of applying transforms on 3D or 2D images. 
-  The user can choose to apply the same transformation for all channels (RGB example) or whether to apply different 
-  transformation for each channel (if each channel represents a different 
+  data augmentations for classification models. The pipelining logic is now taken care of by a ImageTransformPipeline 
+  class that takes as input a list of transforms to chain together. This pipeline takes of applying transforms on 3D or
+  2D images. The user can choose to apply the same transformation for all channels (RGB example) or whether to apply 
+  different transformation for each channel (if each channel represents a different 
   modality / time point for example). The pipeline can now work directly with out-of-the box torchvision transform 
   (as long as they support [..., C, H, W] inputs). This allows to get rid of nearly all of our custom augmentations 
   functions. The conversion from pipeline of image transformation to ScalarItemAugmentation is now taken care of under 
-  the hood, the user does not need to call this wrapper for each config class.
+  the hood, the user does not need to call this wrapper for each config class. In models derived from ScalarModelConfig
+  to change which augmentations are applied to the images inputs (resp. segmentations inputs), users can override
+  `get_image_transform` (resp. `get_segmentation_transform`). These two functions replace the old 
+  `get_image_sample_transforms` method. See `docs/building_models.md` for more information on augmentations.
 
 ### Fixed
 
