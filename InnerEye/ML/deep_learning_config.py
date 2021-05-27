@@ -302,11 +302,29 @@ class DatasetParams(param.Parameterized):
                        "AzureML. Use an empty string for all datasets where a randomly chosen mount/download point "
                        "should be used.")
 
+    def validate(self) -> None:
+        if not self.azure_dataset_id and self.local_dataset is None:
+            raise ValueError("Either of local_dataset or azure_dataset_id must be set.")
+
+        if not self.azure_dataset_id and len(self.extra_azure_dataset_ids) > 0:
+            raise ValueError("Please specify an azure dataset in azure_dataset_id "
+                             "before adding datasets to extra_azure_dataset_ids.")
+
+        if not self.local_dataset and len(self.extra_local_dataset_paths) > 0:
+            raise ValueError("Please specify a local dataset in local_dataset "
+                             "before adding datasets to extra_local_dataset_paths.")
+
+        if not self.dataset_mountpoint and len(self.extra_dataset_mountpoints) > 0:
+            raise ValueError("Please specify a mountpoint for your first dataset using dataset_mountpoint "
+                             "before adding mountpoints to extra_dataset_mountpoints.")
+
     def all_azure_dataset_ids(self) -> List[str]:
         """
         Returns a list with all azure dataset IDs that are specified in self.azure_dataset_id and
         self.extra_azure_dataset_ids
         """
+        if not self.azure_dataset_id:
+            return []
         return [self.azure_dataset_id] + self.extra_azure_dataset_ids
 
     def all_dataset_mountpoints(self) -> List[str]:
@@ -314,6 +332,8 @@ class DatasetParams(param.Parameterized):
         Returns a list with all dataset mount points that are specified in self.dataset_mountpoint and
         self.extra_dataset_mountpoints
         """
+        if not self.dataset_mountpoint:
+            return []
         return [self.dataset_mountpoint] + self.extra_dataset_mountpoints
 
 
@@ -621,9 +641,7 @@ class DeepLearningConfig(WorkflowParams,
         """
         WorkflowParams.validate(self)
         OptimizerParams.validate(self)
-
-        if self.azure_dataset_id is None and self.local_dataset is None:
-            raise ValueError("Either of local_dataset or azure_dataset_id must be set.")
+        DatasetParams.validate(self)
 
     @property
     def model_category(self) -> ModelCategory:
