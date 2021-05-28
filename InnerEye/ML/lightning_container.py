@@ -152,6 +152,7 @@ class LightningContainer(GenericConfig,
     def validate(self) -> None:
         WorkflowParams.validate(self)
         OptimizerParams.validate(self)
+        DatasetParams.validate(self)
 
     def setup(self) -> None:
         """

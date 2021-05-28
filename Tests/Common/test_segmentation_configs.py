@@ -5,6 +5,7 @@
 import random
 import string
 from typing import List
+from pathlib import Path
 
 import pytest
 
@@ -86,7 +87,8 @@ def test_head_and_neck_base() -> None:
     Check we can instantiate HeadAndNeckBase class.
     """
     ground_truth_ids = DEFAULT_HEAD_AND_NECK_GROUND_TRUTH_IDS
-    config = HeadAndNeckBase(ground_truth_ids)
+    config = HeadAndNeckBase(local_dataset=Path("foo"),
+                             ground_truth_ids=ground_truth_ids)
     assert config.ground_truth_ids == ground_truth_ids
 
 
@@ -104,6 +106,7 @@ def test_head_and_neck_base_with_optional_params() -> None:
     slice_exclusion_rules = generate_random_slice_exclusion_rules(ground_truth_ids)
     summed_probability_rules = generate_random_summed_probability_rules(ground_truth_ids)
     config = HeadAndNeckBase(
+        local_dataset=Path("foo"),
         ground_truth_ids=ground_truth_ids,
         ground_truth_ids_display_names=ground_truth_ids_display_names,
         colours=colours,
@@ -122,69 +125,39 @@ def test_head_and_neck_base_with_optional_params() -> None:
     assert config.summed_probability_rules == summed_probability_rules
 
 
-def test_head_and_neck_base_with_invalid_slice_exclusion_rule() -> None:
+@pytest.mark.parametrize(["slice_exclusion_rules", "invalid_ground_truth"],
+                         [([SliceExclusionRule("brainstem2", "spinal_cord", False)], "brainstem2"),
+                          ([SliceExclusionRule("brainstem", "spinal_cord2", False)], "spinal_cord2")])
+def test_head_and_neck_base_with_invalid_slice_exclusion_rule(slice_exclusion_rules: List[SliceExclusionRule],
+                                                              invalid_ground_truth: str) -> None:
     """
     Check that an invalid slice exclusion rule raises an Exception.
     """
     ground_truth_ids = DEFAULT_HEAD_AND_NECK_GROUND_TRUTH_IDS
-    slice_exclusion_rules = [SliceExclusionRule("brainstem2", "spinal_cord", False)]
     with pytest.raises(Exception) as e:
         assert HeadAndNeckBase(
+            local_dataset=Path("foo"),
             ground_truth_ids=ground_truth_ids,
             slice_exclusion_rules=slice_exclusion_rules)
-    assert str(e.value) == "slice_exclusion_rules: brainstem2 not in ground truth IDs"
+    assert str(e.value) == f"slice_exclusion_rules: {invalid_ground_truth} not in ground truth IDs"
 
 
-def test_head_and_neck_base_with_invalid_slice_exclusion_rule2() -> None:
-    """
-    Check that an invalid slice exclusion rule raises a Exception.
-    """
-    ground_truth_ids = DEFAULT_HEAD_AND_NECK_GROUND_TRUTH_IDS
-    slice_exclusion_rules = [SliceExclusionRule("brainstem", "spinal_cord2", False)]
-    with pytest.raises(Exception) as e:
-        assert HeadAndNeckBase(
-            ground_truth_ids=ground_truth_ids,
-            slice_exclusion_rules=slice_exclusion_rules)
-    assert str(e.value) == "slice_exclusion_rules: spinal_cord2 not in ground truth IDs"
-
-
-def test_head_and_neck_base_with_invalid_summed_probability_rule() -> None:
+@pytest.mark.parametrize(["summed_probability_rules", "invalid_ground_truth"],
+                         [([SummedProbabilityRule("spinal_cord2", "brainstem", "external")], "spinal_cord2"),
+                          ([SummedProbabilityRule("spinal_cord", "brainstem2", "external")], "brainstem2"),
+                          ([SummedProbabilityRule("spinal_cord", "brainstem", "external2")], "external2")])
+def test_head_and_neck_base_with_invalid_summed_probability_rule(
+        summed_probability_rules: List[SummedProbabilityRule], invalid_ground_truth: str) -> None:
     """
     Check that an invalid summed probability rule raises a ValueError.
     """
     ground_truth_ids = DEFAULT_HEAD_AND_NECK_GROUND_TRUTH_IDS
-    summed_probability_rules = [SummedProbabilityRule("spinal_cord2", "brainstem", "external")]
     with pytest.raises(ValueError) as e:
         assert HeadAndNeckBase(
+            local_dataset=Path("foo"),
             ground_truth_ids=ground_truth_ids,
             summed_probability_rules=summed_probability_rules)
-    assert str(e.value) == "SummedProbabilityRule.validate: spinal_cord2 not in ground truth IDs"
-
-
-def test_head_and_neck_base_with_invalid_summed_probability_rule2() -> None:
-    """
-    Check that an invalid summed probability rule raises a ValueError.
-    """
-    ground_truth_ids = DEFAULT_HEAD_AND_NECK_GROUND_TRUTH_IDS
-    summed_probability_rules = [SummedProbabilityRule("spinal_cord", "brainstem2", "external")]
-    with pytest.raises(ValueError) as e:
-        assert HeadAndNeckBase(
-            ground_truth_ids=ground_truth_ids,
-            summed_probability_rules=summed_probability_rules)
-    assert str(e.value) == "SummedProbabilityRule.validate: brainstem2 not in ground truth IDs"
-
-
-def test_head_and_neck_base_with_invalid_summed_probability_rule3() -> None:
-    """
-    Check that an invalid summed probability rule raises a ValueError.
-    """
-    ground_truth_ids = DEFAULT_HEAD_AND_NECK_GROUND_TRUTH_IDS
-    summed_probability_rules = [SummedProbabilityRule("spinal_cord", "brainstem", "external2")]
-    with pytest.raises(ValueError) as e:
-        assert HeadAndNeckBase(
-            ground_truth_ids=ground_truth_ids,
-            summed_probability_rules=summed_probability_rules)
-    assert str(e.value) == "SummedProbabilityRule.validate: external2 not in ground truth IDs"
+    assert str(e.value) == f"SummedProbabilityRule.validate: {invalid_ground_truth} not in ground truth IDs"
 
 
 def test_head_and_neck_paper_with_no_ground_truth_ids() -> None:
@@ -192,7 +165,7 @@ def test_head_and_neck_paper_with_no_ground_truth_ids() -> None:
     Check that passing num_structures = default generates all default structures.
     """
     ground_truth_ids = DEFAULT_HEAD_AND_NECK_GROUND_TRUTH_IDS
-    config = HeadAndNeckPaper()
+    config = HeadAndNeckPaper(local_dataset=Path("foo"),)
     assert config.ground_truth_ids == ground_truth_ids
 
 
@@ -201,7 +174,8 @@ def test_head_and_neck_paper_with_0_ground_truth_ids() -> None:
     Check that passing num_structures = 0 raises ValueError exception.
     """
     with pytest.raises(ValueError) as e:
-        assert HeadAndNeckPaper(num_structures=0)
+        assert HeadAndNeckPaper(local_dataset=Path("foo"),
+                                num_structures=0)
     assert str(e.value) == f"num structures must be between 0 and {len(DEFAULT_HEAD_AND_NECK_GROUND_TRUTH_IDS)}"
 
 
@@ -212,7 +186,8 @@ def test_head_and_neck_paper_with_some_ground_truth_ids(
     Check that passing a num_structures between 1 and len(defaults) generates the correct subset.
     """
     ground_truth_ids = DEFAULT_HEAD_AND_NECK_GROUND_TRUTH_IDS[:ground_truth_count]
-    config = HeadAndNeckPaper(num_structures=ground_truth_count)
+    config = HeadAndNeckPaper(local_dataset=Path("foo"),
+                              num_structures=ground_truth_count)
     assert config.ground_truth_ids == ground_truth_ids
 
 
@@ -222,7 +197,8 @@ def test_head_and_neck_paper_with_too_many_ground_truth_ids() -> None:
     """
     ground_truth_count = len(DEFAULT_HEAD_AND_NECK_GROUND_TRUTH_IDS) + 2
     with pytest.raises(ValueError) as e:
-        assert HeadAndNeckPaper(num_structures=ground_truth_count)
+        assert HeadAndNeckPaper(local_dataset=Path("foo"),
+                                num_structures=ground_truth_count)
     assert str(e.value) == f"num structures must be between 0 and {len(DEFAULT_HEAD_AND_NECK_GROUND_TRUTH_IDS)}"
 
 
@@ -241,6 +217,7 @@ def test_head_and_neck_paper_with_optional_params(
     slice_exclusion_rules = generate_random_slice_exclusion_rules(ground_truth_ids)
     summed_probability_rules = generate_random_summed_probability_rules(ground_truth_ids)
     config = HeadAndNeckPaper(
+        local_dataset=Path("foo"),
         num_structures=ground_truth_count,
         ground_truth_ids_display_names=ground_truth_ids_display_names,
         colours=colours,
@@ -266,7 +243,8 @@ def test_head_and_neck_paper_with_mismatched_display_names_raises() -> None:
     ground_truth_count = len(DEFAULT_HEAD_AND_NECK_GROUND_TRUTH_IDS) - 2
     ground_truth_ids_display_names = generate_random_display_ids(ground_truth_count - 1)
     with pytest.raises(ValueError) as e:
-        assert HeadAndNeckPaper(num_structures=ground_truth_count,
+        assert HeadAndNeckPaper(local_dataset=Path("foo"),
+                                num_structures=ground_truth_count,
                                 ground_truth_ids_display_names=ground_truth_ids_display_names)
     assert str(e.value) == "len(ground_truth_ids_display_names)!=len(ground_truth_ids)"
 
@@ -278,7 +256,9 @@ def test_head_and_neck_paper_with_mismatched_colours_raises() -> None:
     ground_truth_count = len(DEFAULT_HEAD_AND_NECK_GROUND_TRUTH_IDS) - 2
     colours = generate_random_colours_list(RANDOM_COLOUR_GENERATOR, ground_truth_count - 1)
     with pytest.raises(ValueError) as e:
-        assert HeadAndNeckPaper(num_structures=ground_truth_count, colours=colours)
+        assert HeadAndNeckPaper(local_dataset=Path("foo"),
+                                num_structures=ground_truth_count,
+                                colours=colours)
     assert str(e.value) == "len(ground_truth_ids_display_names)!=len(colours)"
 
 
@@ -289,7 +269,9 @@ def test_head_and_neck_paper_with_mismatched_fill_holes_raises() -> None:
     ground_truth_count = len(DEFAULT_HEAD_AND_NECK_GROUND_TRUTH_IDS) - 2
     fill_holes = generate_random_fill_holes(ground_truth_count - 1)
     with pytest.raises(ValueError) as e:
-        assert HeadAndNeckPaper(num_structures=ground_truth_count, fill_holes=fill_holes)
+        assert HeadAndNeckPaper(local_dataset=Path("foo"),
+                                num_structures=ground_truth_count,
+                                fill_holes=fill_holes)
     assert str(e.value) == "len(ground_truth_ids_display_names)!=len(fill_holes)"
 
 
@@ -300,7 +282,9 @@ def test_head_and_neck_paper_with_mismatched_class_weights_raises() -> None:
     ground_truth_count = len(DEFAULT_HEAD_AND_NECK_GROUND_TRUTH_IDS) - 2
     class_weights = generate_random_class_weights(ground_truth_count - 1)
     with pytest.raises(ValueError) as e:
-        assert HeadAndNeckPaper(num_structures=ground_truth_count, class_weights=class_weights)
+        assert HeadAndNeckPaper(local_dataset=Path("foo"),
+                                num_structures=ground_truth_count,
+                                class_weights=class_weights)
     assert str(e.value) == "class_weights needs to be equal to number of ground_truth_ids + 1"
 
 
@@ -309,7 +293,8 @@ def test_prostate_base() -> None:
     Check that ProstateBase class can be instantiated.
     """
     ground_truth_ids = DEFAULT_PROSTATE_GROUND_TRUTH_IDS
-    config = ProstateBase(ground_truth_ids)
+    config = ProstateBase(local_dataset=Path("foo"),
+                          ground_truth_ids=ground_truth_ids)
     assert config.ground_truth_ids == ground_truth_ids
 
 
@@ -325,7 +310,8 @@ def test_prostate_base_with_optional_params() -> None:
     class_weights = generate_random_class_weights(ground_truth_count + 1)
     largest_connected_component_foreground_classes = DEFAULT_PROSTATE_GROUND_TRUTH_IDS[1:3]
     config = ProstateBase(
-        ground_truth_ids,
+        local_dataset=Path("foo"),
+        ground_truth_ids=ground_truth_ids,
         ground_truth_ids_display_names=ground_truth_ids_display_names,
         colours=colours,
         fill_holes=fill_holes,
