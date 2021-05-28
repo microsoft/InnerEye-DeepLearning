@@ -85,7 +85,7 @@ class CovidHierarchicalModel(ScalarModelBase):
         self.num_classes = 3
 
     @property
-    def l_rate(self) -> float:
+    def l_rate(self) -> float:  # type: ignore
         return 1e-5 if self.use_pretrained_model else 1e-4
 
     def validate(self) -> None:
