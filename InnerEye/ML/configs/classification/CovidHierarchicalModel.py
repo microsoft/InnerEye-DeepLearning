@@ -84,11 +84,8 @@ class CovidHierarchicalModel(ScalarModelBase):
                          **kwargs)
         self.num_classes = 3
 
-    @property
-    def l_rate(self) -> float:  # type: ignore
-        return 1e-5 if self.use_pretrained_model else 1e-4
-
     def validate(self) -> None:
+        self.l_rate = 1e-5 if self.use_pretrained_model else 1e-4
         super().validate()
         if not self.use_pretrained_model and self.freeze_encoder:
             raise ValueError("No encoder to freeze when training from scratch. You requested training from scratch and"
