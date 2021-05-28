@@ -128,6 +128,7 @@ console for easier diagnostics.
 - ([#450](https://github.com/microsoft/InnerEye-DeepLearning/pull/450)) Delete unused `classification_report.ipynb`.
 - ([#455](https://github.com/microsoft/InnerEye-DeepLearning/pull/455)) Removed the AzureRunner conda environment.
   The full InnerEye conda environment is needed to submit a training job to AzureML.
+- ([#468](https://github.com/microsoft/InnerEye-DeepLearning/pull/468)) Removed the `KneeSinglecoil` example model
 
 ### Deprecated
 
