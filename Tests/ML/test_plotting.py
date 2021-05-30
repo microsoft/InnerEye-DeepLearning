@@ -147,17 +147,21 @@ def test_plot_normalization_result(test_output_dirs: OutputFolderForTests) -> No
     Tests plotting of before/after histograms in photometric normalization.
     :return:
     """
+    number_of_gt_classes = 2
     size = (3, 3, 3)
     image = np.zeros((1,) + size)
     for i, (z, y, x) in enumerate(itertools.product(range(size[0]), range(size[1]), range(size[2]))):
         image[0, z, y, x] = i
-    labels = np.zeros((2,) + size)
+    labels = np.zeros((number_of_gt_classes,) + size)
+    # Initializes 'missing_labels_list' to 'False' for the given number of gt classes
+    missing_labels_list = [False] * number_of_gt_classes
     labels[1, 1, 1, 1] = 1
     sample = Sample(
         image=image,
         labels=labels,
         mask=np.ones(size),
-        metadata=DummyPatientMetadata
+        metadata=DummyPatientMetadata,
+        missing_labels=missing_labels_list
     )
     config = SegmentationModelBase(norm_method=PhotometricNormalizationMethod.CtWindow, window=4, level=13,
                                    should_validate=False)
@@ -169,13 +173,16 @@ def test_plot_normalization_result(test_output_dirs: OutputFolderForTests) -> No
 
 
 def test_plot_contours_for_all_classes(test_output_dirs: OutputFolderForTests) -> None:
+    number_of_gt_classes = 3
     size = (3, 3, 3)
     image = np.zeros((1,) + size)
     for i, (z, y, x) in enumerate(itertools.product(range(size[0]), range(size[1]), range(size[2]))):
         image[0, z, y, x] = i
     # Create a fake label array: For each class, there is exactly 1 pixel foreground, at the z slice that is
     # equal to the class index
-    labels = np.zeros((3,) + size)
+    labels = np.zeros((number_of_gt_classes,) + size)
+    # Initializes 'missing_labels_list' to 'False' for the given number of gt classes
+    missing_labels_list = [False] * number_of_gt_classes
     labels[0, 0, 1, 1] = 1
     labels[1, 1, 1, 1] = 1
     labels[2, 2, 1, 1] = 1
@@ -190,7 +197,8 @@ def test_plot_contours_for_all_classes(test_output_dirs: OutputFolderForTests) -
         image=image,
         labels=labels,
         mask=np.ones(size),
-        metadata=DummyPatientMetadata
+        metadata=DummyPatientMetadata,
+        missing_labels=missing_labels_list
     )
     plots = plotting.plot_contours_for_all_classes(sample,
                                                    segmentation,

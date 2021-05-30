@@ -412,36 +412,32 @@ def load_image_in_known_formats(file: Path,
         raise ValueError(f"Unsupported image file type for path {file}")
 
 
-def load_labels_from_dataset_source(dataset_source: PatientDatasetSource, check_exclusive: bool = True,
-                                    mask_size: Optional[Tuple[int]] = None) -> np.ndarray:
+def load_labels_from_dataset_source(dataset_source: PatientDatasetSource, check_exclusive: bool = True) -> \
+        Tuple[Optional[np.ndarray], List[bool]]:
     """
     Load labels containing segmentation binary labels in one-hot-encoding.
     In the future, this function will be used to load global class and non-imaging information as well.
 
-    :type mask_size: Image size, tuple if integers.
     :param dataset_source: The dataset source for which channels are to be loaded into memory.
     :param check_exclusive: Check that the labels are mutually exclusive (defaults to True)
-    :return: A label sample object containing ground-truth information.
+    :return A label sample object containing ground-truth information if channel is provided
+            If no ground-truth channels provided, label is None
+            If some ground-truth channels provided are provided, then they are loaded
+            Background is loaded if at least one ground-truth channel is provided and is the first element of the tensor
+    :return A list of booleans indicating if ground-truth channel is missing
     """
 
-    if not dataset_source.allow_incomplete_labels:
-        labels = np.stack(
-            [load_image(gt, ImageDataType.SEGMENTATION.value).image for gt in dataset_source.ground_truth_channels])
-    else:
-        assert mask_size is not None
-        label_list = []
-        for gt in dataset_source.ground_truth_channels:
-            if str(gt) == '.':
-                label_list.append(np.full(mask_size, np.NAN, ImageDataType))
-            else:
-                label_list.append(load_image(gt, ImageDataType.SEGMENTATION.value).image)
-        labels = np.stack(label_list)
+    label_list = []
+    missing_labels = [True] * len(dataset_source.ground_truth_channels)
+    for i, gt in enumerate(dataset_source.ground_truth_channels):
+        if gt is not None:
+            label_list.append(load_image(gt, ImageDataType.SEGMENTATION.value).image)
+            missing_labels[i] = False
 
-    # If ground truth image is nan, then will not be used to check check_exclusive.
-    not_nan_label_images = [labels[label_id] for label_id in range(labels.shape[0])
-                            if not np.isnan(np.sum(labels[label_id]))]
-
-    if check_exclusive and (sum(np.array(not_nan_label_images)) > 1.).any():  # type: ignore
+    if len(label_list) == 0:
+        return None, missing_labels
+    labels = np.stack(label_list)
+    if check_exclusive and (sum(np.array(label_list)) > 1.).any():  # type: ignore
         raise ValueError(f'The labels for patient {dataset_source.metadata.patient_id} are not mutually exclusive. '
                          'Some loss functions (e.g. SoftDice) may produce results on overlapping labels, while others '
                          '(e.g. FocalLoss) will fail. '
@@ -455,7 +451,7 @@ def load_labels_from_dataset_source(dataset_source: PatientDatasetSource, check_
     for c in range(len(labels)):
         background[labels[c] == 1] = 0
     background = background[np.newaxis, ...]
-    return np.vstack((background, labels))
+    return np.vstack((background, labels)), missing_labels
 
 
 def load_image(path: PathOrString, image_type: Optional[Type] = float) -> ImageWithHeader:
@@ -520,12 +516,21 @@ def load_images_from_dataset_source(dataset_source: PatientDatasetSource, check_
     # create raw sample to return
     metadata = copy(dataset_source.metadata)
     metadata.image_header = images[0].header
-    labels = load_labels_from_dataset_source(dataset_source, check_exclusive=check_exclusive, mask_size=mask.shape)
+    labels, missing_labels = load_labels_from_dataset_source(dataset_source, check_exclusive=check_exclusive)
+
+    # All class labels are counted, including missing or no missing ground truth class labels
+    assert len(missing_labels) == len(dataset_source.ground_truth_channels)
+    # Number of missing labels corresponds to the number of None objects in 'dataset_source.ground_truth_channels'
+    assert missing_labels.count(True) == dataset_source.ground_truth_channels.count(None)
+    # Number of not missing labels corresponds the number of provided ground truth (file name) channels.
+    assert missing_labels.count(False) == len(dataset_source.ground_truth_channels) - \
+           dataset_source.ground_truth_channels.count(None)
 
     return Sample(image=image,
                   labels=labels,
                   mask=mask,
-                  metadata=metadata)
+                  metadata=metadata,
+                  missing_labels=missing_labels)
 
 
 def store_image_as_short_nifti(image: np.ndarray,

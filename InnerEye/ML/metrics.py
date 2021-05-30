@@ -223,55 +223,63 @@ def _add_zero_distances(num_segmented_surface_pixels: int, seg2ref_distance_map_
 
 def calculate_metrics_per_class(segmentation: np.ndarray,
                                 ground_truth: np.ndarray,
+                                missing_labels: List[bool],
                                 ground_truth_ids: List[str],
                                 voxel_spacing: TupleFloat3,
                                 patient_id: Optional[int] = None) -> MetricsDict:
     """
-    Calculate the dice for all foreground structures (the background class is completely ignored).
-    Returns a MetricsDict with metrics for each of the foreground
+    Calculate the dice for provided foreground structures (the background class is completely ignored).
+    Returns a MetricsDict with metrics values for provided foreground class
     structures. Metrics are NaN if both ground truth and prediction are all zero for a class.
-    :param ground_truth_ids: The names of all foreground classes.
     :param segmentation: predictions multi-value array with dimensions: [Z x Y x X]
-    :param ground_truth: ground truth binary array with dimensions: [C x Z x Y x X]
+    :param ground_truth: ground truth binary array with dimensions: [C x Z x Y x X]. Note that the value of the 'C'
+                        dimension is function on the provided ground truth channels. The minimal value for
+                        C is 2: one background channel and one ground truth channel provided
+    :param missing_labels: list of booleans, if boolean variable is True, indicates that given channel was not provided
+                         and length of list is number of all foreground classes
+    :param ground_truth_ids: The names of all foreground classes
     :param voxel_spacing: voxel_spacing in 3D Z x Y x X
     :param patient_id: for logging
     """
-    number_of_classes = ground_truth.shape[0]
-    if len(ground_truth_ids) != (number_of_classes - 1):
-        raise ValueError(f"Received {len(ground_truth_ids)} foreground class names, but "
-                         f"the label tensor indicates that there are {number_of_classes - 1} classes.")
-    binaries = binaries_from_multi_label_array(segmentation, number_of_classes)
+    # For 'ground_truth', the expected C dimension is (Background Channel) + (Provided Ground Truth Channels)
+    # We can resolve the number of provided channels by subtracting the number of ground truth channels that were
+    # not provided from the number of classes
+    assert ground_truth is not None
+    assert ground_truth.shape[0] >= 2
+    num_classes_including_background = len(ground_truth_ids) + 1
+    if len(ground_truth_ids) - missing_labels.count(True) != (ground_truth.shape[0] - 1):
+        raise ValueError(f"Received {len(ground_truth_ids) - missing_labels.count(True)} foreground class names, but "
+                         f"the label tensor indicates that there are {num_classes_including_background - 1} classes.")
+    binaries = binaries_from_multi_label_array(segmentation, num_classes_including_background)
 
+    # Note that: i) binary_classes >= 2 since we count background class and at least one ground truth image class,
+    # ii) binary_classes <= num_classes_including_background-1
     binary_classes = [is_binary_array(ground_truth[label_id]) for label_id in range(ground_truth.shape[0])]
 
-    # If ground truth image is nan, then will not be used for metrics computation.
-    nan_images = [np.isnan(np.sum(ground_truth[label_id])) for label_id in range(ground_truth.shape[0])]
-
-    # Validates if not binary then nan
-    assert np.all(np.array(binary_classes) == ~np.array(nan_images))
-
     #  Validates that all binary images should be 0 or 1
-    if not np.all(np.array(binary_classes)[~np.array(nan_images)]):
+    if not np.all(binary_classes):
         raise ValueError("Ground truth values should be 0 or 1")
     overlap_measures_filter = sitk.LabelOverlapMeasuresImageFilter()
     hausdorff_distance_filter = sitk.HausdorffDistanceImageFilter()
     metrics = MetricsDict(hues=ground_truth_ids)
+
+    ground_truth_index_counter = 1
     for i, prediction in enumerate(binaries):
         # Skips if background image or nan_image
-        if i == 0 or nan_images[i]:
+        if i == 0:
             continue
-        check_size_matches(prediction, ground_truth[i], arg1_name="prediction", arg2_name="ground_truth")
-        if not is_binary_array(prediction):
-            raise ValueError("Predictions values should be 0 or 1")
-        # simpleitk returns a Dice score of 0 if both ground truth and prediction are all zeros.
+        # Skips if ground truth channel was not provided
+        if missing_labels[i-1]:
+            continue
         # We want to be able to fish out those cases, and treat them specially later.
         prediction_zero = np.all(prediction == 0)
-        gt_zero = np.all(ground_truth[i] == 0)
+        gt_zero = np.all(ground_truth[ground_truth_index_counter] == 0)
         dice = mean_surface_distance = hausdorff_distance = math.nan
         if not (prediction_zero and gt_zero):
             prediction_image = sitk.GetImageFromArray(prediction.astype(np.uint8))
             prediction_image.SetSpacing(sitk.VectorDouble(reverse_tuple_float3(voxel_spacing)))
-            ground_truth_image = sitk.GetImageFromArray(ground_truth[i].astype(np.uint8))
+            # Use 'ground_truth_index_counter' to index the 'C' dimension
+            ground_truth_image = sitk.GetImageFromArray(ground_truth[ground_truth_index_counter].astype(np.uint8))
             ground_truth_image.SetSpacing(sitk.VectorDouble(reverse_tuple_float3(voxel_spacing)))
             overlap_measures_filter.Execute(prediction_image, ground_truth_image)
             dice = overlap_measures_filter.GetDiceCoefficient()
@@ -296,6 +304,7 @@ def calculate_metrics_per_class(segmentation: np.ndarray,
         add_metric(MetricType.DICE, dice)
         add_metric(MetricType.HAUSDORFF_mm, hausdorff_distance)
         add_metric(MetricType.MEAN_SURFACE_DIST_mm, mean_surface_distance)
+        ground_truth_index_counter += 1
     return metrics
 
 

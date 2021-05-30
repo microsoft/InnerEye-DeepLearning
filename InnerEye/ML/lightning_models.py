@@ -116,6 +116,7 @@ class SegmentationLightning(InnerEyeLightning):
             ground_truth=cropped_sample.labels_center_crop,
             allow_multiple_classes_for_each_pixel=True)[:, 1:]
         # Number of foreground voxels per class, across all crops
+        assert cropped_sample.labels is not None
         foreground_voxels = metrics_util.get_number_of_voxels_per_class(cropped_sample.labels)[:, 1:]
         # Store Dice and voxel count per sample in the minibatch. We need a custom aggregation logic for Dice
         # because it can be NaN. Also use custom logging for voxel count because Lightning's batch-size weighted

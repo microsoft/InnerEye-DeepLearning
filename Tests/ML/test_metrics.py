@@ -33,21 +33,23 @@ def test_calculate_dice1() -> None:
     g1 = "g1"
     zero = np.zeros((3, 3, 3))
     one = np.ones((3, 3, 3))
+    missing_labels = [False]
 
     # ground truth is expected in one-hot encoding, but the segmentation is a map with class indices in each voxel
-    def assert_metrics(segmentation: np.ndarray, ground_truth: np.ndarray, expected_dice: float) -> None:
-        a = metrics.calculate_metrics_per_class(segmentation, ground_truth,
+    def assert_metrics(segmentation: np.ndarray, ground_truth: np.ndarray, missing_label: List[bool],
+                       expected_dice: float) -> None:
+        a = metrics.calculate_metrics_per_class(segmentation, ground_truth, missing_label,
                                                 voxel_spacing=(1, 1, 1), ground_truth_ids=[g1])
         assert a.get_hue_names(include_default=False) == [g1]
         assert equal_respecting_nan(a.get_single_metric(MetricType.DICE, hue=g1), expected_dice)
 
     # Case 1: Ground truth says everything is class 1, and segmentation says the same
-    assert_metrics(one, np.stack([zero, one]), expected_dice=1.0)
+    assert_metrics(one, np.stack([zero, one]), missing_labels, expected_dice=1.0)
     # Case 2: Ground truth says everything is class 0, but segmentation says it's class 1
-    assert_metrics(one, np.stack([one, zero]), expected_dice=0.0)
+    assert_metrics(one, np.stack([one, zero]), missing_labels, expected_dice=0.0)
     # Case 3: Ground truth says everything is class 0, and segmentation says the same: This means that class 1
     # is correctly predicted, but empty ground truth and empty prediction are indicated by Dice NaN
-    assert_metrics(zero, np.stack([one, zero]), expected_dice=math.nan)
+    assert_metrics(zero, np.stack([one, zero]), missing_labels, expected_dice=math.nan)
 
 
 def equal_respecting_nan(v1: float, v2: float) -> bool:
@@ -72,7 +74,10 @@ def test_calculate_dice2(prediction_list: list, expected_dice: float) -> None:
     ground_truth_values = expand([0, 0, 1])
     ground_truth = np.stack([1 - ground_truth_values, ground_truth_values])
     prediction = expand(prediction_list)
-    m = metrics.calculate_metrics_per_class(prediction, ground_truth, voxel_spacing=(1, 1, 1), ground_truth_ids=[g1])
+    # Since there is only label, 'missing_labels' list to have only element
+    missing_labels_list = [False]
+    m = metrics.calculate_metrics_per_class(prediction, ground_truth, missing_labels_list,
+                                            voxel_spacing=(1, 1, 1), ground_truth_ids=[g1])
     assert m.get_single_metric(MetricType.DICE, hue=g1) == expected_dice
 
 
@@ -83,10 +88,15 @@ def test_calculate_hd() -> None:
     prediction1 = np.ones_like(prediction0)
     gt_all_zero = np.stack([prediction1, prediction0])
     gt_all_one = np.stack([prediction0, prediction1])
+    # Since there is only label, 'missing_labels' list to have only element
+    missing_labels_list = [False]
 
-    def assert_metrics(prediction: np.ndarray, ground_truth: np.ndarray, expected: Optional[float],
+    def assert_metrics(prediction: np.ndarray, ground_truth: np.ndarray,
+                       missing_labels: List[bool],
+                       expected: Optional[float],
                        voxel_spacing: TupleFloat3 = (1, 1, 1)) -> float:
-        m = metrics.calculate_metrics_per_class(prediction, ground_truth, voxel_spacing=voxel_spacing,
+        m = metrics.calculate_metrics_per_class(prediction, ground_truth, missing_labels,
+                                                voxel_spacing=voxel_spacing,
                                                 ground_truth_ids=[g1])
         actual = m.get_single_metric(MetricType.HAUSDORFF_mm, hue=g1)
         if expected is not None:
@@ -94,8 +104,8 @@ def test_calculate_hd() -> None:
         return actual
 
     # check an infinity value if either the prediction or gt have no foreground
-    assert_metrics(prediction0, gt_all_one, math.inf)
-    assert_metrics(prediction1, gt_all_zero, math.inf)
+    assert_metrics(prediction0, gt_all_one, missing_labels_list, math.inf)
+    assert_metrics(prediction1, gt_all_zero, missing_labels_list, math.inf)
 
     def generate_random_prediction() -> np.ndarray:
         result = np.round(np.random.uniform(size=prediction0.shape))
@@ -106,12 +116,16 @@ def test_calculate_hd() -> None:
 
     random_prediction = generate_random_prediction()
     matching_gt = np.stack([1 - random_prediction, random_prediction])
-    assert_metrics(random_prediction, matching_gt, 0.0)
+    # Since there is only label, 'missing_labels' list to have only element
+    missing_labels_list = [False]
+    assert_metrics(random_prediction, matching_gt, missing_labels_list, 0.0)
     # check voxel spacing is being used as expected
     random_prediction2 = generate_random_prediction()
     non_matching_gt = np.stack([1 - random_prediction2, random_prediction2])
-    without_spacing = assert_metrics(random_prediction, non_matching_gt, voxel_spacing=(1, 1, 1), expected=None)
-    with_spacing = assert_metrics(random_prediction, non_matching_gt, voxel_spacing=(2.0, 2.0, 2.0), expected=None)
+    without_spacing = assert_metrics(random_prediction, non_matching_gt, missing_labels_list,
+                                     voxel_spacing=(1, 1, 1), expected=None)
+    with_spacing = assert_metrics(random_prediction, non_matching_gt, missing_labels_list,
+                                  voxel_spacing=(2.0, 2.0, 2.0), expected=None)
     assert without_spacing != with_spacing
 
 
@@ -125,7 +139,10 @@ def test_calculate_hd_exact() -> None:
 
     ground_truth = np.stack(np.stack([1 - ground_truth, ground_truth]))
     g1 = "g1"
-    m = metrics.calculate_metrics_per_class(prediction, ground_truth, voxel_spacing=(1, 2, 3), ground_truth_ids=[g1])
+    # Since there is only label, 'missing_labels' list to have only element
+    missing_labels_list = [False]
+    m = metrics.calculate_metrics_per_class(prediction, ground_truth, missing_labels_list,
+                                            voxel_spacing=(1, 2, 3), ground_truth_ids=[g1])
     assert m.get_single_metric(MetricType.HAUSDORFF_mm, hue=g1) == 6
     assert m.get_single_metric(MetricType.MEAN_SURFACE_DIST_mm, hue=g1) == 6
 

@@ -25,6 +25,9 @@ class_assignments = np.random.randint(2, size=image_size)
 valid_labels = np.zeros((number_of_classes,) + image_size)
 for c in range(number_of_classes):
     valid_labels[c, class_assignments == c] = 1
+# Since we have 5 classes and all ground truth class labels are provided, initialize 'missing_labels_list' to
+# to 'False' with  length 5
+missing_labels_list = [False] * number_of_classes
 valid_crop_size = (2, 2, 2)
 valid_full_crop_size = image_size
 valid_class_weights = [0.5] + [0.5 / (number_of_classes - 1)] * (number_of_classes - 1)
@@ -37,7 +40,8 @@ def test_valid_full_crop() -> None:
     sample, _ = augmentation.random_crop(sample=Sample(image=valid_image_4d,
                                                        labels=valid_labels,
                                                        mask=valid_mask,
-                                                       metadata=metadata),
+                                                       metadata=metadata,
+                                                       missing_labels=missing_labels_list),
                                          crop_size=valid_full_crop_size,
                                          class_weights=valid_class_weights)
 
@@ -60,36 +64,37 @@ def test_invalid_arrays(image: Any, labels: Any, mask: Any, class_weights: Any) 
     if not (np.array_equal(image, valid_image_4d) and np.array_equal(labels, valid_labels)
             and np.array_equal(mask, valid_mask) and class_weights == valid_class_weights):
         with pytest.raises(Exception):
-            augmentation.random_crop(Sample(metadata=DummyPatientMetadata, image=image, labels=labels, mask=mask),
-                                     valid_crop_size, class_weights)
+            augmentation.random_crop(Sample(metadata=DummyPatientMetadata, image=image, labels=labels, mask=mask,
+                                            missing_labels=missing_labels_list), valid_crop_size, class_weights)
 
 
 @pytest.mark.parametrize("crop_size", [None, ["a"], 5])
 def test_invalid_crop_arg(crop_size: Any) -> None:
     with pytest.raises(Exception):
         augmentation.random_crop(
-            Sample(metadata=DummyPatientMetadata, image=valid_image_4d, labels=valid_labels, mask=valid_mask),
-            crop_size, valid_class_weights)
+            Sample(metadata=DummyPatientMetadata, image=valid_image_4d, labels=valid_labels, mask=valid_mask,
+                   missing_labels=missing_labels_list), crop_size, valid_class_weights)
 
 
 @pytest.mark.parametrize("crop_size", [[2, 2], [2, 2, 2, 2], [10, 10, 10]])
 def test_invalid_crop_size(crop_size: Any) -> None:
     with pytest.raises(Exception):
         augmentation.random_crop(
-            Sample(metadata=DummyPatientMetadata, image=valid_image_4d, labels=valid_labels, mask=valid_mask),
-            crop_size, valid_class_weights)
+            Sample(metadata=DummyPatientMetadata, image=valid_image_4d, labels=valid_labels, mask=valid_mask,
+                   missing_labels=missing_labels_list), crop_size, valid_class_weights)
 
 
 def test_random_crop_no_fg() -> None:
     with pytest.raises(Exception):
         augmentation.random_crop(Sample(metadata=DummyPatientMetadata, image=valid_image_4d, labels=valid_labels,
-                                        mask=np.zeros_like(valid_mask)),
-                                 valid_crop_size, valid_class_weights)
+                                        mask=np.zeros_like(valid_mask), missing_labels=missing_labels_list),
+                                        valid_crop_size, valid_class_weights)
 
     with pytest.raises(Exception):
         augmentation.random_crop(Sample(metadata=DummyPatientMetadata, image=valid_image_4d,
-                                        labels=np.zeros_like(valid_labels), mask=valid_mask),
-                                 valid_crop_size, valid_class_weights)
+                                        labels=np.zeros_like(valid_labels), mask=valid_mask,
+                                        missing_labels=missing_labels_list),
+                                        valid_crop_size, valid_class_weights)
 
 
 @pytest.mark.parametrize("crop_size", [valid_crop_size])
@@ -103,13 +108,15 @@ def test_random_crop(crop_size: Any) -> None:
         image=valid_image_4d,
         labels=valid_labels,
         mask=valid_mask,
-        metadata=DummyPatientMetadata
-    ), crop_size, valid_class_weights)
+        metadata=DummyPatientMetadata,
+        missing_labels=missing_labels_list),
+        crop_size, valid_class_weights)
 
     expected_img_crop_size = (valid_image_4d.shape[0], *crop_size)
     expected_labels_crop_size = (valid_labels.shape[0], *crop_size)
 
     assert sample.image.shape == expected_img_crop_size
+    assert sample.labels is not None
     assert sample.labels.shape == expected_labels_crop_size
     assert sample.mask.shape == tuple(crop_size)
 
@@ -133,7 +140,7 @@ def test_valid_class_weights(class_weights: List[float]) -> None:
     labels[class2][3, 2, 3] = 1
 
     mask = np.ones_like(valid_mask)
-    sample = Sample(image=image, labels=labels, mask=mask, metadata=DummyPatientMetadata)
+    sample = Sample(image=image, labels=labels, mask=mask, metadata=DummyPatientMetadata, missing_labels=missing_labels_list)
 
     crop_size = (1, 1, 1)
     total_crops = 200

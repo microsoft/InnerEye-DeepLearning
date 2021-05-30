@@ -110,6 +110,7 @@ class CroppingDataset(FullImageDataset):
             mask_center_crop = image_util.get_center_crop(image=sample.mask, crop_shape=center_size)
             labels_center_crop = np.zeros(shape=[len(sample.labels)] + list(center_size),  # type: ignore
                                           dtype=ImageDataType.SEGMENTATION.value)
+            assert sample.labels is not None
             for c in range(len(sample.labels)):  # type: ignore
                 labels_center_crop[c] = image_util.get_center_crop(
                     image=sample.labels[c],
@@ -120,6 +121,7 @@ class CroppingDataset(FullImageDataset):
             image=sample.image,
             mask=sample.mask,
             labels=sample.labels,
+            missing_labels=sample.missing_labels,
             mask_center_crop=mask_center_crop,
             labels_center_crop=labels_center_crop,
             center_indices=center_point,

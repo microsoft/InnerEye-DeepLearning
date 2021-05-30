@@ -112,8 +112,7 @@ def _test_load_images_from_channels(
             metadata=metadata,
             image_channels=[image_channel] * 2,
             ground_truth_channels=[ground_truth_channel] * 4,
-            mask_channel=mask_channel,
-            allow_incomplete_labels=False
+            mask_channel=mask_channel
         ),
         check_exclusive=check_exclusive
     )
@@ -124,6 +123,7 @@ def _test_load_images_from_channels(
         if mask_channel:
             assert np.array_equal(sample.mask, image_with_header.image)
         if ground_truth_channel:
+            assert sample.labels is not None
             assert list(sample.labels.shape) == [5] + list(image_with_header.image.shape)
             assert np.all(sample.labels[0] == 0) and np.all(sample.labels[1:] == 1)
 

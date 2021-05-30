@@ -127,12 +127,12 @@ class SampleBase:
 class PatientDatasetSource(SampleBase):
     """
     Dataset source locations for channels associated with a given patient in a particular dataset.
+    Please note that "ground_truth_channels" is optional.
     """
     image_channels: List[PathOrString]
-    ground_truth_channels: List[PathOrString]
+    ground_truth_channels: List[Optional[PathOrString]]
     mask_channel: Optional[PathOrString]
     metadata: PatientMetadata
-    allow_incomplete_labels: bool
 
     def __post_init__(self) -> None:
         # make sure all properties are populated
@@ -140,8 +140,6 @@ class PatientDatasetSource(SampleBase):
 
         if not self.image_channels:
             raise ValueError("image_channels cannot be empty")
-        if not self.ground_truth_channels and not self.allow_incomplete_labels:
-            raise ValueError("ground_truth_channels cannot be empty")
 
 
 @dataclass(frozen=True)
@@ -154,9 +152,10 @@ class Sample(SampleBase):
     image: Union[np.ndarray, torch.Tensor]
     # (Batches if from data loader) x Z x Y x X
     mask: Union[np.ndarray, torch.Tensor]
-    # (Batches if from data loader) x Classes x Z X Y x X
-    labels: Union[np.ndarray, torch.Tensor]
+    # (Batches if from data loader) x Classes x Z X Y x X, where the first class is background
+    labels: Optional[Union[np.ndarray, torch.Tensor]]
     metadata: PatientMetadata
+    missing_labels: List[bool]
 
     def __post_init__(self) -> None:
         # make sure all properties are populated
@@ -164,9 +163,9 @@ class Sample(SampleBase):
 
         ml_util.check_size_matches(arg1=self.image, arg2=self.mask,
                                    matching_dimensions=self._get_matching_dimensions())
-
-        ml_util.check_size_matches(arg1=self.image, arg2=self.labels,
-                                   matching_dimensions=self._get_matching_dimensions())
+        if self.labels is not None:
+            ml_util.check_size_matches(arg1=self.image, arg2=self.labels,
+                                       matching_dimensions=self._get_matching_dimensions())
 
     @property
     def patient_id(self) -> int:

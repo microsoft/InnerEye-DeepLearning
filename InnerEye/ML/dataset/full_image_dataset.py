@@ -270,7 +270,7 @@ def convert_channels_to_file_paths(channels: List[str],
                                    rows: pd.DataFrame,
                                    local_dataset_root_folder: Path,
                                    patient_id: str,
-                                   allow_incomplete_labels: bool = False) -> Tuple[List[Path], str]:
+                                   allow_incomplete_labels: bool = False) -> Tuple[List[Optional[Path]], str]:
     """
     Returns: 1) The full path for files specified in the training, validation and testing datasets, and
              2) Missing channels or missing files.
@@ -281,7 +281,7 @@ def convert_channels_to_file_paths(channels: List[str],
     :param local_dataset_root_folder: Root directory which points to the local dataset
     :param patient_id: string which contains subject identifier
     """
-    paths: List[Path] = []
+    paths: List[Optional[Path]] = []
     failed_channel_info: str = ''
 
     for channel_id in channels:
@@ -290,7 +290,7 @@ def convert_channels_to_file_paths(channels: List[str],
             failed_channel_info += f"Patient {patient_id} does not have channel '{channel_id}'" + os.linesep
         elif len(row) == 0 and allow_incomplete_labels:
             # Keeps track of missing channels order
-            paths.append(Path(''))
+            paths.append(None)
         elif len(row) > 1:
             failed_channel_info += f"Patient {patient_id} has more than one entry for channel '{channel_id}'" + \
                                    os.linesep
@@ -344,7 +344,7 @@ def load_dataset_sources(dataframe: pd.DataFrame,
         else:
             return paths[0]
 
-    def get_paths_for_channel_ids(channels: List[str]) -> List[Path]:
+    def get_paths_for_channel_ids(channels: List[str]) -> List[Optional[Path]]:
         if len(set(channels)) < len(channels):
             raise ValueError(f"ids have duplicated entries: {channels}")
         rows = dataframe.loc[dataframe[CSV_SUBJECT_HEADER] == patient_id]
@@ -364,7 +364,6 @@ def load_dataset_sources(dataframe: pd.DataFrame,
             metadata=metadata,
             image_channels=get_paths_for_channel_ids(channels=image_channels),  # type: ignore
             mask_channel=get_mask_channel_or_default(),
-            ground_truth_channels=get_paths_for_channel_ids(channels=ground_truth_channels),  # type: ignore
-            allow_incomplete_labels=allow_incomplete_labels)
+            ground_truth_channels=get_paths_for_channel_ids(channels=ground_truth_channels))  # type: ignore
 
     return dataset_sources
