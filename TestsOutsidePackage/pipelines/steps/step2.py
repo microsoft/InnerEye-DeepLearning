@@ -5,73 +5,17 @@
 
 import argparse
 import logging
-import pandas as pd
 from pathlib import Path
-from typing import Tuple
-import numpy as np
+
+from azureml.core.run import Run
 import torch
 from torch import nn
-from torch.utils.data import Dataset as TorchDataset, DataLoader, random_split
+from torch.optim import SGD
+from torch.utils.data import DataLoader, random_split
 
+from model.regression import LinearRegressionDataset, LinearRegressionModel, train_loop, ml_test_loop
 
 logging.getLogger().setLevel(logging.INFO)
-
-
-class LinearRegressionModel(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.model = nn.Linear(in_features=1, out_features=1, bias=True)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:  # type: ignore
-        return self.model(x)
-
-
-class LinearRegressionDataset(TorchDataset):
-    def __init__(self, filename: Path, x_col: str, y_col: str):
-        df = pd.read_csv(filename)
-        xs = df[x_col][:].values
-        ys = df[y_col][:].values
-
-        self.x = torch.from_numpy(xs.reshape(-1, 1).astype(np.float32))
-        self.y = torch.from_numpy(ys.reshape(-1, 1).astype(np.float32))
-
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
-        return self.x[idx], self.y[idx]
-
-    def __len__(self):
-        return len(self.x)
-
-
-def train_loop(dataloader, model, loss_fn, optimizer):
-    size = len(dataloader.dataset)
-    for batch, (X, y) in enumerate(dataloader):
-        # Compute prediction and loss
-        pred = model(X)
-        loss = loss_fn(pred, y)
-
-        # Backpropagation
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-
-        if batch % 100 == 0:
-            loss, current = loss.item(), batch * len(X)
-            logging.info(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
-
-
-def ml_test_loop(dataloader, model, loss_fn):
-    size = len(dataloader.dataset)
-    test_loss, correct = 0, 0
-
-    with torch.no_grad():
-        for X, y in dataloader:
-            pred = model(X)
-            test_loss += loss_fn(pred, y).item()
-            correct += (pred.argmax(1) == y).type(torch.float).sum().item()
-
-    test_loss /= size
-    correct /= size
-    logging.info(f"Test Error: \n Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f} \n")
 
 
 def test_linear_regression(csv_file_path: Path) -> nn.Module:
@@ -91,13 +35,17 @@ def test_linear_regression(csv_file_path: Path) -> nn.Module:
     weight_decay = 1e-4
     epochs = 200
 
-    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=momentum, weight_decay=weight_decay)
+    optimizer = SGD(model.parameters(), lr=learning_rate, momentum=momentum, weight_decay=weight_decay)
     loss_fn = nn.MSELoss()
+
+    run = Run.get_context()
 
     for t in range(epochs):
         logging.info(f"Epoch {t+1}\n-------------------------------")
         train_loop(train_dataloader, model, loss_fn, optimizer)
-        ml_test_loop(test_dataloader, model, loss_fn)
+        loss = ml_test_loop(test_dataloader, model, loss_fn)
+        run.log('loss', loss)
+        run.parent.log('train_loss', loss)
 
     return model
 
