@@ -115,5 +115,5 @@ class Lung(SegmentationModelBase):
             primary_metric_goal=PrimaryMetricGoal.MINIMIZE,
             max_total_runs=12,
             max_concurrent_runs=2,
-            max_duration_minutes=30,  # Max 2 hours per experiment
+            max_duration_minutes=2*60,
         )
