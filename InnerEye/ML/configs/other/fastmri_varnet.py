@@ -133,25 +133,6 @@ class KneeMulticoil(FastMri):
                                        test_path="multicoil_test_v2")
 
 
-class KneeSinglecoil(FastMri):
-    """
-    A model configuration to train a VarNet model on the knee_singlecoil dataset, with 4x acceleration.
-    """
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.azure_dataset_id = "knee_singlecoil"
-        # If the Azure nodes run out of disk space when downloading the dataset, re-submit with the
-        # --use_dataset_mount=True flag. The dataset will be mounted to the fixed path given here.
-        self.dataset_mountpoint = "/tmp/knee_singlecoil"
-
-    def get_data_module(self) -> LightningDataModule:
-        return get_fastmri_data_module(azure_dataset_id=self.azure_dataset_id,
-                                       local_dataset=self.local_dataset,
-                                       sample_rate=self.sample_rate,
-                                       test_path="singlecoil_test_v2")
-
-
 class BrainMulticoil(FastMri):
     """
     A model configuration to train a VarNet model on the brain_multicoil dataset, with 4x acceleration.
