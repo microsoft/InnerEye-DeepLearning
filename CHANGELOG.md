@@ -9,7 +9,21 @@ For each Pull Request, the affected code parts should be briefly described and a
 Once a release is done, the "Upcoming" section becomes the release changelog, and a new empty "Upcoming" should be
 created.
 
+
 ## Upcoming
+
+### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+### Deprecated
+
+
+## 0.3 (2021-06-01)
 
 ### Added
 
@@ -140,8 +154,9 @@ console for easier diagnostics.
 - ([#450](https://github.com/microsoft/InnerEye-DeepLearning/pull/450)) Delete unused `classification_report.ipynb`.
 - ([#455](https://github.com/microsoft/InnerEye-DeepLearning/pull/455)) Removed the AzureRunner conda environment.
   The full InnerEye conda environment is needed to submit a training job to AzureML.
--  ([#458](https://github.com/microsoft/InnerEye-DeepLearning/pull/458)) Getting rid of all the unused code for 
+- ([#458](https://github.com/microsoft/InnerEye-DeepLearning/pull/458)) Getting rid of all the unused code for 
    RandAugment & Co. The user has now instead complete freedom to specify the set of augmentations to use.
+- ([#468](https://github.com/microsoft/InnerEye-DeepLearning/pull/468)) Removed the `KneeSinglecoil` example model
 
 ### Deprecated
 
