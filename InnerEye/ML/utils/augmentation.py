@@ -28,8 +28,8 @@ def random_select_patch_center(sample: Sample, class_weights: List[float] = None
                           voxel belongs to (must sum to 1), uniform distribution assumed if none provided.
     :return numpy int array (3x1) containing patch center spatial coordinates
     """
-    assert sample.labels is not None
     num_classes = sample.labels.shape[0]
+
     if class_weights is not None:
         if len(class_weights) != num_classes:
             raise Exception("A weight must be provided for each class, found weights:{}, expected:{}"
@@ -111,8 +111,7 @@ def random_crop(sample: Sample,
     """
     Randomly crops images, mask, and labels arrays according to the crop_size argument.
     The selection of the center is dependant on background probability.
-    By default it does not center on background
-    All class labels must be provided.
+    By default it does not center on background.
 
     :param sample: A set of Image channels, ground truth labels and mask to randomly crop.
     :param crop_size: The size of the crop expressed as a list of 3 ints, one per spatial dimension.
@@ -123,16 +122,12 @@ def random_crop(sample: Sample,
     crop.
     :raises ValueError: If there are shape mismatches among the arguments or if the crop size is larger than the image.
     """
-    assert sample.labels is not None
-    # Ensures no missing class labels
-    assert sample.missing_labels.count(True) == 0
     slicers, center = slicers_for_random_crop(sample, crop_size, class_weights)
     sample = Sample(
         image=sample.image[:, slicers[0], slicers[1], slicers[2]],
         labels=sample.labels[:, slicers[0], slicers[1], slicers[2]],
         mask=sample.mask[slicers[0], slicers[1], slicers[2]],
-        metadata=sample.metadata,
-        missing_labels=sample.missing_labels
+        metadata=sample.metadata
     )
     return sample, center
 

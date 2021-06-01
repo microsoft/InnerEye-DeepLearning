@@ -247,7 +247,6 @@ def plot_normalization_result(loaded_images: Sample,
     """
     # Labels are encoded with background and a single foreground class. We need the
     # slice with largest number of foreground voxels
-    assert loaded_images.labels is not None
     ground_truth = loaded_images.labels[class_index, ...]
     largest_gt_slice = get_largest_z_slice(ground_truth)
     first_channel = loaded_images.image[channel_index, ...]
@@ -290,7 +289,6 @@ def plot_contours_for_all_classes(sample: Sample,
     :param channel_index: The index of the image channel that should be plotted.
     :return: The paths to all generated PNG files.
     """
-    assert sample.labels is not None
     check_size_matches(sample.labels[0], segmentation)
     num_classes = sample.labels.shape[0]
     if len(foreground_class_names) != num_classes - 1:

@@ -28,7 +28,6 @@ from InnerEye.ML.utils.split_dataset import DatasetSplits
 
 crop_size = [55, 55, 55]
 
-
 @pytest.fixture
 def num_dataload_workers() -> int:
     """PyTorch support for multiple dataloader workers is flaky on Windows (so return 0)"""
@@ -143,26 +142,21 @@ def normalize_fn(default_config: SegmentationModelBase) -> PhotometricNormalizat
 
 def test_dataset_content(default_config: ModelConfigBase, gt_image: np.ndarray,
                          cropping_dataset: CroppingDataset, full_image_dataset: FullImageDataset) -> None:
-    # Content is compared with the split training set, since it was use as argument
-    # for 'full_image_dataset' and  'cropping_dataset'
-    assert len(full_image_dataset) == len(cropping_dataset) == \
-           len(set(default_config.get_dataset_splits().train.subject))
+    # check number of patients
+    assert len(full_image_dataset) == len(cropping_dataset) == 2
     assert len(np.unique(gt_image)) == default_config.number_of_classes
 
 
-def test_sample(random_image_crop: Any, random_mask_crop: Any, random_label_crop: Any, random_patient_id: Any,
-                default_config: ModelConfigBase) -> None:
+def test_sample(random_image_crop: Any, random_mask_crop: Any, random_label_crop: Any, random_patient_id: Any) -> None:
     """
     Tests that after creating and extracting a sample we obtain the same result
     :return:
     """
-    missing_labels_list = [False] * default_config.number_of_classes
     metadata = PatientMetadata(patient_id='42', institution="foo")
     sample = Sample(image=random_image_crop,
                     mask=random_mask_crop,
                     labels=random_label_crop,
-                    metadata=metadata,
-                    missing_labels=missing_labels_list)
+                    metadata=metadata)
 
     patched_sample = CroppedSample(image=random_image_crop,
                                    mask=random_mask_crop,
@@ -170,7 +164,6 @@ def test_sample(random_image_crop: Any, random_mask_crop: Any, random_label_crop
                                    mask_center_crop=random_mask_crop,
                                    labels_center_crop=random_label_crop,
                                    metadata=metadata,
-                                   missing_labels=missing_labels_list,
                                    center_indices=np.zeros((1, 3)))
 
     extracted_sample = sample.get_dict()
@@ -190,10 +183,8 @@ def test_sample(random_image_crop: Any, random_mask_crop: Any, random_label_crop
     assert extracted_sample["metadata"] == extracted_patched_sample["metadata"] == metadata
 
 
-def test_cropping_dataset_as_data_loader(cropping_dataset: CroppingDataset, num_dataload_workers: int,
-                                         default_config: ModelConfigBase) -> None:
-    # Set batch size number of training classes 'default_config'
-    batch_size = len(set(default_config.get_dataset_splits().train.subject))
+def test_cropping_dataset_as_data_loader(cropping_dataset: CroppingDataset, num_dataload_workers: int) -> None:
+    batch_size = 2
     loader = cropping_dataset.as_data_loader(shuffle=True, batch_size=batch_size,
                                              num_dataload_workers=num_dataload_workers)
     for i, item in enumerate(loader):
@@ -271,17 +262,11 @@ def test_cropping_dataset_has_reproducible_randomness(cropping_dataset: Cropping
 
 
 def test_csv_dataset_as_data_loader(normalize_fn: Any,
-                                    full_image_dataset: FullImageDataset, num_dataload_workers: int,
-                                    default_config: ModelConfigBase) -> None:
-
-    # Set batch size number of training classes 'default_config'
-    batch_size = len(set(default_config.get_dataset_splits().train.subject))
+                                    full_image_dataset: FullImageDataset, num_dataload_workers: int) -> None:
+    batch_size = 2
     # load the original images separately for comparison
-    # expected number of patients is 3
     expected_samples = load_train_and_test_data_channels(patient_ids=list(range(1, batch_size + 1)),
                                                          normalization_fn=normalize_fn)
-    # expected number of patients is 3, since we use the training set derived 'default_config' which is derived from
-    # class 'DummyModel'
     csv_dataset_loader = full_image_dataset.as_data_loader(batch_size=batch_size, shuffle=True,
                                                            num_dataload_workers=num_dataload_workers)
     for i, batch in enumerate(csv_dataset_loader):
@@ -305,30 +290,24 @@ def test_full_image_dataset_no_mask(full_image_dataset_no_mask: FullImageDataset
 
 @pytest.mark.parametrize("crop_size", [(4, 4, 4), (8, 6, 4)])
 def test_create_possibly_padded_sample_for_cropping(crop_size: Any) -> None:
-    number_gt_classes = 2
-    missing_label_list = [False] * number_gt_classes
     image_size = [4] * 3
     image = np.random.uniform(size=[1] + image_size)
-    labels = np.zeros(shape=[number_gt_classes] + image_size)
+    labels = np.zeros(shape=[2] + image_size)
     mask = np.zeros(shape=image_size, dtype=ImageDataType.MASK.value)
 
     cropped_sample = CroppingDataset.create_possibly_padded_sample_for_cropping(
-        sample=Sample(image=image, labels=labels, mask=mask, metadata=DummyPatientMetadata,
-                      missing_labels=missing_label_list),
+        sample=Sample(image=image, labels=labels, mask=mask, metadata=DummyPatientMetadata),
         crop_size=crop_size,
         padding_mode=PaddingMode.Zero
     )
 
     assert cropped_sample.image.shape[-3:] == crop_size
-    assert cropped_sample.labels is not None
     assert cropped_sample.labels.shape[-3:] == crop_size
     assert cropped_sample.mask.shape[-3:] == crop_size
 
 
 @pytest.mark.parametrize("use_mask", [False, True])
 def test_cropped_sample(use_mask: bool) -> None:
-    number_of_gt_classes = 2
-    missing_label_list = [False] * number_of_gt_classes
     ml_util.set_random_seed(1)
     image_size = [4] * 3
     crop_size = (2, 2, 2)
@@ -336,7 +315,7 @@ def test_cropped_sample(use_mask: bool) -> None:
 
     # create small image sample for random cropping
     image = np.random.uniform(size=[1] + image_size)
-    labels = np.zeros(shape=[number_of_gt_classes] + image_size)
+    labels = np.zeros(shape=[2] + image_size)
     # Two foreground points in the corners at (0, 0, 0) and (3, 3, 3)
     labels[0] = 1
     labels[0, 0, 0, 0] = 0
@@ -361,8 +340,7 @@ def test_cropped_sample(use_mask: bool) -> None:
         image=image,
         labels=labels,
         mask=mask,
-        metadata=DummyPatientMetadata,
-        missing_labels=missing_label_list
+        metadata=DummyPatientMetadata
     )
 
     for _ in range(0, 100):
@@ -376,7 +354,6 @@ def test_cropped_sample(use_mask: bool) -> None:
         if expected_center is not None:
             assert list(cropped_sample.center_indices) == expected_center  # type: ignore
             assert np.array_equal(cropped_sample.image, sample.image[:, crop_slicer, crop_slicer, crop_slicer])
-            assert sample.labels is not None
             assert np.array_equal(cropped_sample.labels, sample.labels[:, crop_slicer, crop_slicer, crop_slicer])
             assert np.array_equal(cropped_sample.mask, sample.mask[crop_slicer, crop_slicer, crop_slicer])
         else:
@@ -512,8 +489,6 @@ def test_sample_metadata_field() -> None:
     Test that the string constant we use to identify the metadata field is really matching the
     field name in SampleWithMetadata
     """
-    number_of_classes = 2
-    missing_labels_list = [False] * number_of_classes
     batch_size = 5
     xyz = (6, 7, 8)
     shape = (batch_size,) + xyz
@@ -521,11 +496,9 @@ def test_sample_metadata_field() -> None:
     s = Sample(metadata=DummyPatientMetadata,
                image=zero,
                mask=zero,
-               labels=torch.zeros((batch_size,) + (number_of_classes,) + xyz),
-               missing_labels=missing_labels_list)
+               labels=torch.zeros((batch_size,) + (2,) + xyz))
     fields = vars(s)
-    # Assert fields for: 1) metadata, 2) image, 3) mask, 4) labels, 5) missing_labels
-    assert len(fields) == 5
+    assert len(fields) == 4
     assert SAMPLE_METADATA_FIELD in fields
     # Lightning attempts to determine the batch size by trying to find a tensor field in the sample.
     # This only works if any field other than Metadata is first.
@@ -549,15 +522,12 @@ def test_custom_collate() -> None:
     assert result[foo].tolist() == [1, 2]
 
 
-def test_sample_construct_copy(random_image_crop: Any, random_mask_crop: Any, random_label_crop: Any,
-                               default_config: SegmentationModelBase) -> None:
-    missing_labels_list = [False] * default_config.number_of_classes
+def test_sample_construct_copy(random_image_crop: Any, random_mask_crop: Any, random_label_crop: Any) -> None:
     sample = Sample(
         image=random_image_crop,
         mask=random_mask_crop,
         labels=random_label_crop,
-        metadata=PatientMetadata(patient_id='1'),
-        missing_labels=missing_labels_list
+        metadata=PatientMetadata(patient_id='1')
     )
 
     sample_clone = sample.clone_with_overrides()

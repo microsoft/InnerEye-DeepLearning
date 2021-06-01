@@ -229,32 +229,23 @@ def evaluate_model_predictions(process_id: int,
     :param results_folder: Path to results folder
     :returns [PatientMetadata, list[list]]: Patient metadata and list of computed metrics for each image.
     """
-
     sample = dataset.get_samples_at_index(index=process_id)[0]
-    assert sample.missing_labels is not None
-    if sample.labels is None:
-        logging.info(f"Ground truth label were not provided for patient {sample.patient_id}, skipping evaluation from "
-                     f"predictions")
-        return sample.metadata, MetricsDict(hues=config.ground_truth_ids)
-
     logging.info(f"Evaluating predictions for patient {sample.patient_id}")
 
     patient_results_folder = get_patient_results_folder(results_folder, sample.patient_id)
     segmentation = load_nifti_image(patient_results_folder / DEFAULT_RESULT_IMAGE_NAME).image
     metrics_per_class = metrics.calculate_metrics_per_class(segmentation,
                                                             sample.labels,
-                                                            sample.missing_labels,
                                                             ground_truth_ids=config.ground_truth_ids,
                                                             voxel_spacing=sample.image_spacing,
                                                             patient_id=sample.patient_id)
     thumbnails_folder = results_folder / THUMBNAILS_FOLDER
     thumbnails_folder.mkdir(exist_ok=True)
-    if sample.missing_labels.count(True) == 0:
-        plotting.plot_contours_for_all_classes(sample,
-                                               segmentation=segmentation,
-                                               foreground_class_names=config.ground_truth_ids,
-                                               result_folder=thumbnails_folder,
-                                               image_range=config.output_range)
+    plotting.plot_contours_for_all_classes(sample,
+                                           segmentation=segmentation,
+                                           foreground_class_names=config.ground_truth_ids,
+                                           result_folder=thumbnails_folder,
+                                           image_range=config.output_range)
     return sample.metadata, metrics_per_class
 
 

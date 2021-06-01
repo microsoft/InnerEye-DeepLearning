@@ -37,8 +37,6 @@ def test_visualize_patch_sampling(test_output_dirs: OutputFolderForTests,
     shape = (10, 30, 30)
     foreground_classes = ["fg"]
     class_weights = equally_weighted_classes(foreground_classes)
-    # Initializes 'missing_labels_list' to 'False'
-    missing_labels_list = [False] * len(foreground_classes)
     config = SegmentationModelBase(should_validate=False,
                                    crop_size=(2, 10, 10),
                                    class_weights=class_weights)
@@ -58,8 +56,7 @@ def test_visualize_patch_sampling(test_output_dirs: OutputFolderForTests,
                     mask=mask,
                     labels=labels,
                     metadata=PatientMetadata(patient_id='123',
-                                             image_header=image_header),
-                    missing_labels=missing_labels_list)
+                                             image_header=image_header))
     expected_folder = full_ml_test_data_path("patch_sampling")
     heatmap = visualize_random_crops(sample, config, output_folder=output_folder)
     expected_heatmap = expected_folder / ("sampled_to_boundary.npy" if labels_to_boundary else "sampled_center.npy")
@@ -104,8 +101,6 @@ def test_visualize_patch_sampling_2d(test_output_dirs: OutputFolderForTests) -> 
     set_random_seed(0)
     shape = (1, 20, 30)
     foreground_classes = ["fg"]
-    # Initializes 'missing_labels_list' to 'False'
-    missing_labels_list = [False] * len(foreground_classes)
     class_weights = equally_weighted_classes(foreground_classes)
     config = SegmentationModelBase(should_validate=False,
                                    crop_size=(1, 5, 10),
@@ -121,8 +116,7 @@ def test_visualize_patch_sampling_2d(test_output_dirs: OutputFolderForTests) -> 
                     mask=mask,
                     labels=labels,
                     metadata=PatientMetadata(patient_id='123',
-                                             image_header=image_header),
-                    missing_labels=missing_labels_list)
+                                             image_header=image_header))
     heatmap = visualize_random_crops(sample, config, output_folder=output_folder)
     expected_folder = full_ml_test_data_path("patch_sampling")
     expected_heatmap = expected_folder / "sampling_2d.npy"
