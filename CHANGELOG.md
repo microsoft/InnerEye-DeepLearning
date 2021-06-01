@@ -9,7 +9,21 @@ For each Pull Request, the affected code parts should be briefly described and a
 Once a release is done, the "Upcoming" section becomes the release changelog, and a new empty "Upcoming" should be
 created.
 
+
 ## Upcoming
+
+### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+### Deprecated
+
+
+## 0.3 (2021-06-01)
 
 ### Added
 
@@ -108,6 +122,18 @@ console for easier diagnostics.
 - ([#444](https://github.com/microsoft/InnerEye-DeepLearning/pull/444)) The method `before_training_on_rank_zero` of
  the `LightningContainer` class has been renamed to `before_training_on_global_rank_zero`. The order in which the
  hooks are called has been changed.
+- ([#458](https://github.com/microsoft/InnerEye-DeepLearning/pull/458)) Simplifying and generalizing the way we handle 
+  data augmentations for classification models. The pipelining logic is now taken care of by a ImageTransformPipeline 
+  class that takes as input a list of transforms to chain together. This pipeline takes of applying transforms on 3D or
+  2D images. The user can choose to apply the same transformation for all channels (RGB example) or whether to apply 
+  different transformation for each channel (if each channel represents a different 
+  modality / time point for example). The pipeline can now work directly with out-of-the box torchvision transform 
+  (as long as they support [..., C, H, W] inputs). This allows to get rid of nearly all of our custom augmentations 
+  functions. The conversion from pipeline of image transformation to ScalarItemAugmentation is now taken care of under 
+  the hood, the user does not need to call this wrapper for each config class. In models derived from ScalarModelConfig
+  to change which augmentations are applied to the images inputs (resp. segmentations inputs), users can override
+  `get_image_transform` (resp. `get_segmentation_transform`). These two functions replace the old 
+  `get_image_sample_transforms` method. See `docs/building_models.md` for more information on augmentations.
 
 ### Fixed
 
@@ -128,6 +154,8 @@ console for easier diagnostics.
 - ([#450](https://github.com/microsoft/InnerEye-DeepLearning/pull/450)) Delete unused `classification_report.ipynb`.
 - ([#455](https://github.com/microsoft/InnerEye-DeepLearning/pull/455)) Removed the AzureRunner conda environment.
   The full InnerEye conda environment is needed to submit a training job to AzureML.
+- ([#458](https://github.com/microsoft/InnerEye-DeepLearning/pull/458)) Getting rid of all the unused code for 
+   RandAugment & Co. The user has now instead complete freedom to specify the set of augmentations to use.
 - ([#468](https://github.com/microsoft/InnerEye-DeepLearning/pull/468)) Removed the `KneeSinglecoil` example model
 
 ### Deprecated
