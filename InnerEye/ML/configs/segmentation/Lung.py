@@ -93,16 +93,16 @@ class Lung(SegmentationModelBase):
         :param run_config: The configuration for running an individual experiment.
         :return: An Azure HyperDrive run configuration (configured PyTorch environment).
         """
-        crop_sizes = [f'{z}, {x}, {x}' for x in range(128, 512, 32) for z in [64, 112]]
+        crop_sizes = [f'{z}, {x}, {x}' for x in range(128, 512, 64) for z in [64, 112]]
 
         parameter_space = {
             'crop_size': choice(crop_sizes),
             'feature_channels': choice(16, 32),
-            'l_rate_step_step_size': choice(20, 40, 75),
+            'l_rate_step_step_size': choice(40, 75),
             'l_rate': choice(0.0005, 0.001, 0.01),
-            'train_batch_size': choice(1, 2, 4, 8, 16, 32),
-            'num_epochs': choice(50, 80, 150),
-            'loss_type': choice("SoftDice", "Focal")
+            'train_batch_size': choice(1, 2, 4, 8, 16, 32, 64),
+            'num_epochs': choice(80, 150),
+            #  'loss_type': choice("SoftDice", "Focal")
         }
 
         param_sampling = BayesianParameterSampling(parameter_space)
@@ -115,5 +115,4 @@ class Lung(SegmentationModelBase):
             primary_metric_goal=PrimaryMetricGoal.MINIMIZE,
             max_total_runs=12,
             max_concurrent_runs=2,
-            max_duration_minutes=2*60,
         )
