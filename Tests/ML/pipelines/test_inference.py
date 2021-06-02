@@ -307,23 +307,17 @@ def test_evaluate_model_predictions() -> None:
             assert 'MeanSurfaceDistance_millimeters' in metrics_per_class.values('region_1').keys()
             for hue_name in ['region', 'Default']:
                 assert len(metrics_per_class.values(hue_name).keys()) == 0
-                assert len(metrics_per_class.values(hue_name).keys()) == 0
-                assert len(metrics_per_class.values(hue_name).keys()) == 0
 
         # Patient 4 has all missing ground truth channels: "region", "region_1"
         if sample.metadata.patient_id == '4':
             for hue_name in ['region_1', 'region', 'Default']:
                 assert len(metrics_per_class.values(hue_name).keys()) == 0
-                assert len(metrics_per_class.values(hue_name).keys()) == 0
-                assert len(metrics_per_class.values(hue_name).keys()) == 0
 
         # Patient 5 has no missing ground truth channels
         if sample.metadata.patient_id == '5':
             assert len(metrics_per_class.values('Default').keys()) == 0
-            assert len(metrics_per_class.values('Default').keys()) == 0
-            assert len(metrics_per_class.values('Default').keys()) == 0
             for hue_name in ['region_1', 'region']:
-                assert 'Dice' in metrics_per_class.values('region_1').keys()
+                assert 'Dice' in metrics_per_class.values(hue_name).keys()
                 assert 'HausdorffDistance_millimeters' in metrics_per_class.values(hue_name).keys()
                 assert 'MeanSurfaceDistance_millimeters' in metrics_per_class.values(hue_name).keys()
 

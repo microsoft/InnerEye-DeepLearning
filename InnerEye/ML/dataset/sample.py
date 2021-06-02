@@ -129,10 +129,10 @@ class PatientDatasetSource(SampleBase):
     Dataset source locations for channels associated with a given patient in a particular dataset.
     """
     image_channels: List[PathOrString]
-    ground_truth_channels: List[PathOrString]
+    ground_truth_channels: List[Optional[PathOrString]]
     mask_channel: Optional[PathOrString]
     metadata: PatientMetadata
-    allow_incomplete_labels: bool
+    allow_incomplete_labels: Optional[bool] = False
 
     def __post_init__(self) -> None:
         # make sure all properties are populated
@@ -140,8 +140,12 @@ class PatientDatasetSource(SampleBase):
 
         if not self.image_channels:
             raise ValueError("image_channels cannot be empty")
-        if not self.ground_truth_channels and not self.allow_incomplete_labels:
+
+        if not self.ground_truth_channels:
             raise ValueError("ground_truth_channels cannot be empty")
+
+        if self.ground_truth_channels.count(None) > 0 and not self.allow_incomplete_labels:
+            raise ValueError("all ground_truth_channels must be provided")
 
 
 @dataclass(frozen=True)

@@ -7,6 +7,7 @@ from typing import Any, Dict, Iterable, List, Optional, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
+import sys
 from matplotlib import colors
 from matplotlib.pyplot import Axes
 
@@ -98,6 +99,8 @@ def resize_and_save(width_inch: int, height_inch: int, filename: PathOrString, d
     """
     fig = plt.gcf()
     fig.set_size_inches(width_inch, height_inch)
+    # Workaround for Exception in Tkinter callback
+    fig.canvas.start_event_loop(sys.float_info.min)
     plt.savefig(filename, dpi=dpi, bbox_inches='tight', pad_inches=0.1)
 
 
@@ -303,6 +306,10 @@ def plot_contours_for_all_classes(sample: Sample,
         if class_index == 0:
             continue
         ground_truth = sample.labels[class_index, ...]
+
+        if np.isnan(ground_truth[0, 0, 0]):
+            continue
+
         largest_gt_slice = get_largest_z_slice(ground_truth)
         labels_at_largest_gt = ground_truth[largest_gt_slice]
         segmentation_at_largest_gt = binary[largest_gt_slice, ...]

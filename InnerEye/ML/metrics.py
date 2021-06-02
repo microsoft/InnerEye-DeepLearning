@@ -230,6 +230,7 @@ def calculate_metrics_per_class(segmentation: np.ndarray,
     Calculate the dice for all foreground structures (the background class is completely ignored).
     Returns a MetricsDict with metrics for each of the foreground
     structures. Metrics are NaN if both ground truth and prediction are all zero for a class.
+    If first element of a ground truth image channel is NaN, the image is flagged as NaN and not use.
     :param ground_truth_ids: The names of all foreground classes.
     :param segmentation: predictions multi-value array with dimensions: [Z x Y x X]
     :param ground_truth: ground truth binary array with dimensions: [C x Z x Y x X]
@@ -245,7 +246,7 @@ def calculate_metrics_per_class(segmentation: np.ndarray,
     binary_classes = [is_binary_array(ground_truth[label_id]) for label_id in range(ground_truth.shape[0])]
 
     # If ground truth image is nan, then will not be used for metrics computation.
-    nan_images = [np.isnan(np.sum(ground_truth[label_id])) for label_id in range(ground_truth.shape[0])]
+    nan_images = [np.isnan(ground_truth[label_id][0, 0, 0]) for label_id in range(ground_truth.shape[0])]
 
     # Validates if not binary then nan
     assert np.all(np.array(binary_classes) == ~np.array(nan_images))

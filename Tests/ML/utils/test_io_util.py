@@ -112,8 +112,7 @@ def _test_load_images_from_channels(
             metadata=metadata,
             image_channels=[image_channel] * 2,
             ground_truth_channels=[ground_truth_channel] * 4,
-            mask_channel=mask_channel,
-            allow_incomplete_labels=False
+            mask_channel=mask_channel
         ),
         check_exclusive=check_exclusive
     )
