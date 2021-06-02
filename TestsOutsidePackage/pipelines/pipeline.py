@@ -7,6 +7,7 @@ import os
 import logging
 from pathlib import Path
 import shutil
+from typing import List
 
 from azureml.core import Workspace, Experiment, Dataset as AMLDataset
 from azureml.core.compute import AmlCompute
@@ -29,6 +30,14 @@ train_csv_file_path = "train_pipeline.csv"
 test_csv_file_path = "test_pipeline.csv"
 datastore_target_path = "test_pipeline_path"
 model_file_name = "linear_regression.pt"
+step1_name = "1_data_preparation"
+step1_script = "step1.py"
+step2_name = "2_train"
+step2_script = "step2.py"
+step3_name = "3_test"
+step3_script = "step3.py"
+step4_name = "4_register"
+step4_script = "step4.py"
 
 
 def line_func(x: np.ndarray, a: float, b: float) -> np.ndarray:
@@ -66,6 +75,19 @@ def prepare_test_data(datastore: AbstractDatastore) -> None:
     datastore.upload_files([test_csv_file_path], target_path=datastore_target_path, overwrite=True)
     logging.info("Upload call completed")
 
+
+def create_step_folder(src_folder_path: Path, temp_folder: Path, step_name: str,
+                       scripts: List[str], folders: List[str]) -> Path:
+    dest_folder_path = temp_folder / step_name
+    dest_folder_path.mkdir()
+
+    for script in scripts:
+        shutil.copyfile(src_folder_path / script, dest_folder_path / script)
+
+    for folder in folders:
+        shutil.copytree(src_folder_path / folder, dest_folder_path / folder)
+
+    return dest_folder_path
 
 def create_pipeline(ws: Workspace, datastore: AbstractDatastore, aml_compute: AmlCompute,
                     exp: Experiment) -> Run:
@@ -114,15 +136,10 @@ def create_pipeline(ws: Workspace, datastore: AbstractDatastore, aml_compute: Am
 
     temp_folder.mkdir(exist_ok=True)
 
-    step1_folder = temp_folder / "step1"
-    step1_folder.mkdir()
-    shutil.copyfile(steps_src_folder_path / 'step1.py', step1_folder / 'step1.py')
-    shutil.copytree(steps_src_folder_path / "model", step1_folder / 'model')
+    step1_folder = create_step_folder(steps_src_folder_path, temp_folder, step1_name, [step1_script], [])
 
-    logging.info('Source directory for the step is %s.', os.path.realpath(step1_folder))
-
-    step1 = PythonScriptStep(script_name="step1.py",
-                             name="1_data_preparation",
+    step1 = PythonScriptStep(script_name=step1_script,
+                             name=step1_name,
                              arguments=[
                                  "--input_step1_folder", step1_input_dataset_consumption,
                                  "--input_step1_file", train_csv_file_path,
@@ -136,16 +153,11 @@ def create_pipeline(ws: Workspace, datastore: AbstractDatastore, aml_compute: Am
                              allow_reuse=True)
     logging.info("Step1 created: %s", step1)
 
-    step2_folder = temp_folder / "step2"
-    step2_folder.mkdir()
-    shutil.copyfile(steps_src_folder_path / 'step2.py', step2_folder / 'step2.py')
-    shutil.copytree(steps_src_folder_path / "model", step2_folder / 'model')
-
-    logging.info('Source directory for the step is %s.', os.path.realpath(step2_folder))
+    step2_folder = create_step_folder(steps_src_folder_path, temp_folder, "step2", [step2_script], ['model'])
 
     # All steps use the same Azure Machine Learning compute target as well
-    step2 = PythonScriptStep(script_name="step2.py",
-                             name="2_train",
+    step2 = PythonScriptStep(script_name=step2_script,
+                             name=step2_name,
                              arguments=[
                                  "--input_step2_folder", step2_input_dataset_consumption,
                                  "--input_step2_file", "step1.csv",
@@ -159,15 +171,10 @@ def create_pipeline(ws: Workspace, datastore: AbstractDatastore, aml_compute: Am
                              allow_reuse=True)
     logging.info("Step2 created: %s", step2)
 
-    step3_folder = temp_folder / "step3"
-    step3_folder.mkdir()
-    shutil.copyfile(steps_src_folder_path / 'step3.py', step3_folder / 'step3.py')
-    shutil.copytree(steps_src_folder_path / "model", step3_folder / 'model')
+    step3_folder = create_step_folder(steps_src_folder_path, temp_folder, "step3", [step3_script], ['model'])
 
-    logging.info('Source directory for the step is %s.', os.path.realpath(step3_folder))
-
-    step3 = PythonScriptStep(script_name="step3.py",
-                             name="3_test",
+    step3 = PythonScriptStep(script_name=step3_script,
+                             name=step3_name,
                              arguments=[
                                  "--input_step3_data_folder", step1_input_dataset_consumption,
                                  "--input_step3_data_file", test_csv_file_path,
@@ -183,7 +190,23 @@ def create_pipeline(ws: Workspace, datastore: AbstractDatastore, aml_compute: Am
                              allow_reuse=True)
     logging.info("Step3 created")
 
-    pipeline1 = Pipeline(workspace=ws, steps=[step3])
+    step4_folder = create_step_folder(steps_src_folder_path, temp_folder, "step4", [step4_script], ['model'])
+
+    register_model_step = PythonScriptStep(script_name=step4_script,
+                                           name=step4_name,
+                                           arguments=[
+                                               "--input_step4_model_folder", step3_input_dataset_consumption,
+                                               "--input_step4_model_file", model_file_name],
+                                           compute_target=aml_compute,
+                                           runconfig=run_config,
+                                           inputs=[step3_input_dataset_consumption],
+                                           source_directory=step4_folder,
+                                           allow_reuse=True)
+    logging.info("Step4 created")
+
+    register_model_step.run_after(step3)
+
+    pipeline1 = Pipeline(workspace=ws, steps=[step3, register_model_step])
     logging.info("Pipeline is built")
 
     pipeline1.validate()
