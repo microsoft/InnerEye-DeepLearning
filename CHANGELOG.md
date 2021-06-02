@@ -18,6 +18,8 @@ created.
 
 ### Fixed
 
+- ([#472](https://github.com/microsoft/InnerEye-DeepLearning/pull/472)) Correct model path for moving ensemble models.
+
 ### Removed
 
 ### Deprecated
