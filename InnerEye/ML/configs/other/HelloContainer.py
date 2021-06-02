@@ -80,12 +80,20 @@ class HelloRegression(LightningModule):
         return self.model(x)
 
     def training_step(self, batch: Dict[str, torch.Tensor], *args: Any, **kwargs: Any) -> torch.Tensor:  # type: ignore
+        loss = self.shared_step(batch)
+        self.log("loss", loss, on_epoch=True, on_step=False)
+        return loss
+
+    def validation_step(self, batch: Dict[str, torch.Tensor], *args: Any, **kwargs: Any) -> torch.Tensor:  # type: ignore
+        loss = self.shared_step(batch)
+        self.log("val_loss", loss, on_epoch=True, on_step=False)
+        return loss
+
+    def shared_step(self, batch: Dict[str, torch.Tensor]):
         input = batch["x"]
         target = batch["y"]
         prediction = self.forward(input)
-        loss = torch.nn.functional.mse_loss(prediction, target)
-        self.log("loss", loss, on_epoch=True, on_step=False)
-        return loss
+        return torch.nn.functional.mse_loss(prediction, target)
 
     def configure_optimizers(self) -> Tuple[List[Optimizer], List[_LRScheduler]]:
         optimizer = Adam(self.parameters(), lr=1e-1)
@@ -96,10 +104,7 @@ class HelloRegression(LightningModule):
         self.test_mse = []
 
     def test_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> torch.Tensor:  # type: ignore
-        input = batch["x"]
-        target = batch["y"]
-        prediction = self.forward(input)
-        loss = torch.nn.functional.mse_loss(prediction, target)
+        loss = self.shared_step(batch)
         self.test_mse.append(loss)
         return loss
 
