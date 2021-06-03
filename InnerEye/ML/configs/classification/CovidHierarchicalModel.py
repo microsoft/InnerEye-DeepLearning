@@ -14,11 +14,12 @@ from pytorch_lightning import LightningModule
 from torchvision.transforms import Compose
 
 from InnerEye.Common.common_util import ModelProcessing, get_best_epoch_results_path
-from InnerEye.ML.SSL.datamodules_and_datasets.transforms_utils import create_chest_xray_transform
+
 from InnerEye.ML.SSL.lightning_containers.ssl_container import EncoderName
 
 from InnerEye.ML.SSL.lightning_modules.ssl_classifier_module import SSLClassifier
-from InnerEye.ML.SSL.utils import create_ssl_encoder, create_ssl_image_classifier, load_ssl_augmentation_config
+from InnerEye.ML.SSL.utils import create_ssl_encoder, create_ssl_image_classifier, load_yaml_augmentation_config
+from InnerEye.ML.augmentations.transform_pipeline import create_cxr_transforms_from_config
 from InnerEye.ML.common import ModelExecutionMode
 
 from InnerEye.ML.configs.ssl.CXR_SSL_configs import path_linear_head_augmentation_cxr
@@ -32,7 +33,6 @@ from InnerEye.ML.models.architectures.classification.image_encoder_with_mlp impo
 from InnerEye.ML.reports.notebook_report import generate_notebook, get_ipynb_report_name, str_or_empty
 
 from InnerEye.ML.scalar_config import ScalarLoss, ScalarModelBase
-from InnerEye.ML.utils.augmentation import ScalarItemAugmentation
 from InnerEye.ML.utils.run_recovery import RunRecovery
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 
@@ -114,13 +114,11 @@ class CovidHierarchicalModel(ScalarModelBase):
 
     # noinspection PyTypeChecker
     def get_image_sample_transforms(self) -> ModelTransformsPerExecutionMode:
-        config = load_ssl_augmentation_config(path_linear_head_augmentation_cxr)
-        train_transforms = ScalarItemAugmentation(
-            Compose(
-                [DicomPreparation(), create_chest_xray_transform(config, apply_augmentations=True)]))
-        val_transforms = ScalarItemAugmentation(
-            Compose(
-                [DicomPreparation(), create_chest_xray_transform(config, apply_augmentations=False)]))
+        config = load_yaml_augmentation_config(path_linear_head_augmentation_cxr)
+        train_transforms = Compose(
+            [DicomPreparation(), create_cxr_transforms_from_config(config, apply_augmentations=True)])
+        val_transforms = Compose(
+            [DicomPreparation(), create_cxr_transforms_from_config(config, apply_augmentations=False)])
 
         return ModelTransformsPerExecutionMode(train=train_transforms,
                                                val=val_transforms,

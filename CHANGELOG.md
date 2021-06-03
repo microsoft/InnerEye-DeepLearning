@@ -12,8 +12,24 @@ created.
 ## Upcoming
 
 ### Added
+
 - ([#465](https://github.com/microsoft/InnerEye-DeepLearning/pull/465/)) Added ability to run segmentation inference
   module in the test data without or partial ground truth files. 
+
+### Changed
+
+### Fixed
+
+- ([#472](https://github.com/microsoft/InnerEye-DeepLearning/pull/472)) Correct model path for moving ensemble models.
+
+### Removed
+
+### Deprecated
+
+## 0.3 (2021-06-01)
+
+### Added
+
 - ([#454](https://github.com/microsoft/InnerEye-DeepLearning/pull/454)) Checking that labels are mutually exclusive.
 - ([#447](https://github.com/microsoft/InnerEye-DeepLearning/pull/447/)) Added a sanity check to ensure there are no
   missing channels, nor missing files. If missing channels in the csv file or filenames associated with channels are
@@ -109,6 +125,18 @@ console for easier diagnostics.
 - ([#444](https://github.com/microsoft/InnerEye-DeepLearning/pull/444)) The method `before_training_on_rank_zero` of
  the `LightningContainer` class has been renamed to `before_training_on_global_rank_zero`. The order in which the
  hooks are called has been changed.
+- ([#458](https://github.com/microsoft/InnerEye-DeepLearning/pull/458)) Simplifying and generalizing the way we handle 
+  data augmentations for classification models. The pipelining logic is now taken care of by a ImageTransformPipeline 
+  class that takes as input a list of transforms to chain together. This pipeline takes of applying transforms on 3D or
+  2D images. The user can choose to apply the same transformation for all channels (RGB example) or whether to apply 
+  different transformation for each channel (if each channel represents a different 
+  modality / time point for example). The pipeline can now work directly with out-of-the box torchvision transform 
+  (as long as they support [..., C, H, W] inputs). This allows to get rid of nearly all of our custom augmentations 
+  functions. The conversion from pipeline of image transformation to ScalarItemAugmentation is now taken care of under 
+  the hood, the user does not need to call this wrapper for each config class. In models derived from ScalarModelConfig
+  to change which augmentations are applied to the images inputs (resp. segmentations inputs), users can override
+  `get_image_transform` (resp. `get_segmentation_transform`). These two functions replace the old 
+  `get_image_sample_transforms` method. See `docs/building_models.md` for more information on augmentations.
 
 ### Fixed
 
@@ -129,6 +157,9 @@ console for easier diagnostics.
 - ([#450](https://github.com/microsoft/InnerEye-DeepLearning/pull/450)) Delete unused `classification_report.ipynb`.
 - ([#455](https://github.com/microsoft/InnerEye-DeepLearning/pull/455)) Removed the AzureRunner conda environment.
   The full InnerEye conda environment is needed to submit a training job to AzureML.
+- ([#458](https://github.com/microsoft/InnerEye-DeepLearning/pull/458)) Getting rid of all the unused code for 
+   RandAugment & Co. The user has now instead complete freedom to specify the set of augmentations to use.
+- ([#468](https://github.com/microsoft/InnerEye-DeepLearning/pull/468)) Removed the `KneeSinglecoil` example model
 
 ### Deprecated
 
