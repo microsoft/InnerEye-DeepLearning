@@ -436,9 +436,9 @@ class SegmentationModelBase(ModelConfigBase):
                                             "in the same order as in ground_truth_ids_display_names")
 
     roi_interpreted_types: List[str] = param.List(None, class_=str, bounds=(1, None), instantiate=False,
-                                                    allow_None=True,
-                                                    doc="List of str with the ROI interpreted Types. Possible values "
-                                                        "(None, CTV, ORGAN, EXTERNAL)")
+                                                  allow_None=True,
+                                                  doc="List of str with the ROI interpreted Types. Possible values "
+                                                      "(None, CTV, ORGAN, EXTERNAL)")
 
     interpreter: str = param.String("Default_Interpreter", doc="The interpreter that created the DICOM-RT file")
 
@@ -480,11 +480,13 @@ class SegmentationModelBase(ModelConfigBase):
                                                  "of the first N subjects in the training set will be "
                                                  "written to the outputs folder.")
     #: If true an error is raised in InnerEye.ML.utils.io_util.load_labels_from_dataset_source if the labels are not
-    #: mutually exclusive. Some loss functions (e.g. SoftDice) may produce results on overlapping labels, but others (e.g.
+    #: mutually exclusive. Some loss functions (e.g. SoftDice) may produce results on overlapping labels, but others
+    # (e.g.
     #: FocalLoss) will fail with a cryptic error message. Set to false if you are sure that you want to use labels that
     #: are not mutually exclusive.
 
-    check_exclusive: bool = param.Boolean(True, doc="Raise an error if the segmentation labels are not mutually exclusive.")
+    check_exclusive: bool = param.Boolean(True,
+                                          doc="Raise an error if the segmentation labels are not mutually exclusive.")
 
     def __init__(self, center_size: Optional[TupleInt3] = None,
                  inference_stride_size: Optional[TupleInt3] = None,
@@ -800,4 +802,10 @@ class SegmentationModelBase(ModelConfigBase):
         Get transforms to perform on cropped samples for each model execution mode.
         By default no transformation is performed.
         """
-        return ModelTransformsPerExecutionMode()
+        from InnerEye.ML.photometric_normalization import BasicAugmentations
+        from InnerEye.ML.utils.transforms import Compose3D
+
+        transforms = Compose3D(transforms=[BasicAugmentations()])
+        return ModelTransformsPerExecutionMode(train=transforms,
+                                               val=None,
+                                               test=None)

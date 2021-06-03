@@ -21,6 +21,7 @@ class WindowNormalizationForScalarItem(Transform3D[ScalarItem]):
     """
     Transform3D to apply window normalization to "images" of a ScalarItem.
     """
+
     # noinspection PyMissingConstructor
     def __init__(self,
                  output_range: Tuple[float, float] = (0, 1),
@@ -349,3 +350,37 @@ def mri_window(image_in: np.ndarray,
             plt.show()
 
     return imout, status
+
+
+class BasicAugmentations(Transform3D[Sample]):
+    def __call__(self, sample: Sample) -> Sample:
+        image, labels = self.transform(
+            image=sample.image,
+            labels=sample.labels,
+            patient_id=sample.patient_id)
+        return sample.clone_with_overrides(
+            image=image,
+            labels=labels,
+        )
+
+    @staticmethod
+    def transform(image: Union[np.ndarray, torch.Tensor],
+                  labels: Union[np.ndarray, torch.Tensor],
+                  patient_id: Optional[int] = None) -> \
+            Tuple[Union[np.ndarray, torch.Tensor], Union[np.ndarray, torch.Tensor]]:
+        import torchio as tio
+        subject = tio.Subject(
+            image=tio.ScalarImage(tensor=image),  # This should be a 4D tensor but it is not
+            labels=tio.LabelMap(tensor=labels)
+        )
+        augment = tio.Compose([
+            tio.RandomAffine(
+                scales=(0.9, 1.2),
+                degrees=20),
+            tio.RandomNoise(p=0.5),
+            tio.RandomMotion(p=0.1),
+            tio.RandomBlur(p=0.1),
+        ])
+        transformed_subject = augment(subject)
+        print(f'"Rotating subject {patient_id}')
+        return transformed_subject.image.numpy(), transformed_subject.labels.numpy()
