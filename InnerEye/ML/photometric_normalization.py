@@ -370,7 +370,7 @@ class BasicAugmentations(Transform3D[Sample]):
             Tuple[Union[np.ndarray, torch.Tensor], Union[np.ndarray, torch.Tensor]]:
         import torchio as tio
         subject = tio.Subject(
-            image=tio.ScalarImage(tensor=image),  # This should be a 4D tensor but it is not
+            image=tio.ScalarImage(tensor=image),
             labels=tio.LabelMap(tensor=labels)
         )
         augment = tio.Compose([
