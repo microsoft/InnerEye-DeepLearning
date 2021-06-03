@@ -3,8 +3,8 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-import os
 import logging
+from os import environ
 from pathlib import Path
 import shutil
 from typing import List
@@ -12,8 +12,9 @@ from typing import List
 from azureml.core import Workspace, Experiment, Dataset as AMLDataset
 from azureml.core.compute import AmlCompute
 from azureml.core.conda_dependencies import CondaDependencies
+from azureml.core.environment import Environment
 from azureml.core.run import Run
-from azureml.core.runconfig import DEFAULT_CPU_IMAGE, RunConfiguration
+from azureml.core.runconfig import DEFAULT_CPU_IMAGE, DockerConfiguration, RunConfiguration
 from azureml.data.abstract_datastore import AbstractDatastore
 from azureml.data.datapath import DataPath
 from azureml.data.output_dataset_config import OutputFileDatasetConfig
@@ -89,6 +90,7 @@ def create_step_folder(src_folder_path: Path, temp_folder: Path, step_name: str,
 
     return dest_folder_path
 
+
 def create_pipeline(ws: Workspace, datastore: AbstractDatastore, aml_compute: AmlCompute,
                     exp: Experiment) -> Run:
     prepare_train_data(datastore)
@@ -113,20 +115,15 @@ def create_pipeline(ws: Workspace, datastore: AbstractDatastore, aml_compute: Am
     processed_data3 = OutputFileDatasetConfig(name='processed_data3',
                                               destination=(datastore, '/data')).as_mount()
 
-    # create a new runconfig object
     run_config = RunConfiguration()
 
-    # enable Docker
-    run_config.environment.docker.enabled = True
+    docker_configuration = DockerConfiguration(use_docker=True)
 
-    # set Docker base image to the default CPU-based image
-    run_config.environment.docker.base_image = DEFAULT_CPU_IMAGE
+    run_config.docker = docker_configuration
 
-    # use conda_dependencies.yml to create a conda environment in the Docker image for execution
-    run_config.environment.python.user_managed_dependencies = False
+    environment = Environment.from_conda_specification(name="test_pipelines", file_path="environment.yml")
 
-    # specify CondaDependencies obj
-    run_config.environment.python.conda_dependencies = CondaDependencies("environment.yml")
+    run_config.environment = environment
 
     steps_src_folder_path = Path('./steps')
     temp_folder = Path('./temp')

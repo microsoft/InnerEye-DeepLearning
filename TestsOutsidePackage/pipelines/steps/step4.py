@@ -5,30 +5,24 @@
 
 import argparse
 import logging
-from pathlib import Path
 
-import torch
-from azureml.core import Workspace, Experiment, Model
-from azureml.core import Run
-
-from model.regression import LinearRegressionModel
+from azureml.core import Model, Run
 
 logging.getLogger().setLevel(logging.INFO)
 
 
 def step4(input_model_folder: str, input_model_file: str) -> None:
 
-    input_model_file_path = Path(input_model_folder) / input_model_file
-
-    model = LinearRegressionModel()
-    model.load_state_dict(torch.load(input_model_file_path))
-
     ws = Run.get_context().experiment.workspace
 
-    model = Model.register(workspace=ws, model_name='test_regression_model', model_path=input_model_folder,
+    model = Model.register(workspace=ws,
+                           model_name='test_regression_model',
+                           model_path=input_model_folder,
+                           child_paths=[input_model_file],
                            model_framework=Model.Framework.PYTORCH,
                            model_framework_version="1.2",
                            description="test regression model")
+    logging.info("Registered model id: %s, version: %s", model.id, model.version)
 
 
 def main() -> None:
