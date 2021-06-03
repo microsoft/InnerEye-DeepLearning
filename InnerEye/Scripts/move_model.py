@@ -10,6 +10,8 @@ import json
 from attr import dataclass
 from azureml.core import Environment, Model, Workspace
 
+from InnerEye.ML.deep_learning_config import FINAL_MODEL_FOLDER, FINAL_ENSEMBLE_MODEL_FOLDER
+
 PYTHON_ENVIRONMENT_NAME = "python_environment_name"
 MODEL_PATH = "MODEL"
 ENVIRONMENT_PATH = "ENVIRONMENT"
@@ -70,7 +72,11 @@ def upload_model(ws: Workspace, config: MoveModelConfig) -> Model:
     with open(model_path / MODEL_JSON, 'r') as f:
         model_dict = json.load(f)
 
-    new_model = Model.register(ws, model_path=str(model_path / "final_model"), model_name=model_dict['name'],
+    # Find the folder containing the final model.
+    final_model_path = model_path / FINAL_MODEL_FOLDER
+    full_model_path = final_model_path if final_model_path.exists() else model_path / FINAL_ENSEMBLE_MODEL_FOLDER
+
+    new_model = Model.register(ws, model_path=str(full_model_path), model_name=model_dict['name'],
                                tags=model_dict['tags'], properties=model_dict['properties'],
                                description=model_dict['description'])
     env = Environment.load_from_directory(str(environment_path))
