@@ -39,7 +39,7 @@ class Lung(SegmentationModelBase):
             fill_holes=[False] * len(fg_classes),
             roi_interpreted_types=["ORGAN"] * len(fg_classes),
             largest_connected_component_foreground_classes=["lung_r", "lung_l", "heart"],
-            num_dataload_workers=8,
+            num_dataload_workers=2,
             norm_method=PhotometricNormalizationMethod.CtWindow,
             level=40,
             window=400,

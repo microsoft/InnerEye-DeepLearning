@@ -74,7 +74,7 @@ class CovidHierarchicalModel(ScalarModelBase):
                          non_image_feature_channels=[],
                          numerical_columns=[],
                          use_mixed_precision=False,
-                         num_dataload_workers=12,
+                         num_dataload_workers=2,
                          multiprocessing_start_method=MultiprocessingStartMethod.fork,
                          train_batch_size=64,
                          optimizer_type=OptimizerType.Adam,
