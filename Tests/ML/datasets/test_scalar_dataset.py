@@ -652,7 +652,7 @@ S4,label,,False,3.0
                            traverse_dirs_when_loading=True,
                            local_dataset=test_output_dirs.root_dir)
     raw_dataset = ScalarDataset(args, data_frame=df)
-    normalized = ScalarDataset(args, data_frame=df, sample_transforms=WindowNormalizationForScalarItem())
+    normalized = ScalarDataset(args, data_frame=df, sample_transform=WindowNormalizationForScalarItem())
     assert len(raw_dataset) == 4
     for i in range(4):
         raw_item = raw_dataset[i]

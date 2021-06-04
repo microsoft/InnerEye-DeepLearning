@@ -45,7 +45,7 @@ extract all the AWS access tokens from the `curl` commands.
 
 Then run the script to download the dataset as follows, providing the path the the file with the curl commands
 and the connection string as commandline arguments, enclosed in quotes:
-`python InnerEye/Scripts/prepare_fastmri.py --curl curl.txt --connection_string "<your_connection_string"` --location westeurope
+`python InnerEye/Scripts/prepare_fastmri.py --curl curl.txt --connection_string "<your_connection_string>"` --location westeurope
 
 This script will
 - Authenticate against Azure either using the Service Principal credentials that you set up in Step 3 of the
@@ -83,8 +83,8 @@ If set up correctly, this is the Azure storage account that holds all datasets u
 Hence, after the downloading completes, you are ready to use the InnerEye toolbox to submit an AzureML job that uses
 the FastMRI data.
 
-There are 3 example models already coded up in the InnerEye toolbox, defined in 
-[fastmri_varnet.py](../InnerEye/ML/configs/other/fastmri_varnet.py): `KneeSinglecoil`, `KneeMulticoil`, and 
+There are 2 example models already coded up in the InnerEye toolbox, defined in 
+[fastmri_varnet.py](../InnerEye/ML/configs/other/fastmri_varnet.py): `KneeMulticoil` and 
 `BrainMulticoil`. As with all InnerEye models, you can start a training run by specifying the name of the class 
 that defines the model, like this:
 ```shell script
@@ -152,4 +152,46 @@ python InnerEye/ML/runner.py --model BrainMulticoil --azureml=True --use_dataset
 This job should pick up the existing cache file, and output a message like "Copying a pre-computed dataset cache 
 file ..."
 
-The same trick can of course be applied to the other models as well (`KneeSinglecoil`, `KneeMulticoil`).
+The same trick can of course be applied to other models as well (`KneeMulticoil`).
+
+
+# Running on a GPU machine
+
+You can of course run the InnerEye fastMRI models on a reasonably large machine with a GPU for development and 
+debugging purposes. Before running, we recommend to download the datasets using a tool 
+like [azcopy](http://aka.ms/azcopy) into a folder, for example the `datasets` folder at the repository root.
+
+To use `azcopy`, you will need the access key to the storage account that holds your data - it's the same storage
+account that was used when creating the Data Factory that downloaded the data.
+- To get that, navigate to the [Azure Portal](https://portal.azure.com), and search for the storage account 
+that you created to hold your datasets (Step 4 in [AzureML setup](setting_up_aml.md)). 
+- On the left hand navigation, there is a section "Access Keys". Select that and copy out one of the two keys (_not_
+the connection strings). The key is a base64 encoded string, it should not contain any special characters apart from 
+`+`, `/`, `.` and `=`
+
+Then run this script in the repository root folder:
+```shell script
+mkdir datasets
+azcopy --source-key <storage_account_key> --source https://<your_storage_acount>.blob.core.windows.net/datasets/brain_multicoil --destination datasets/brain_multicoil --recursive
+```
+Replace `brain_multicoil` with any of the other datasets names if needed.
+
+If you follow these suggested folder structures, there is no further change necessary to the models. You can then
+run, for example, the `BrainMulticoil` model by dropping the `--azureml=True` flag like this:
+```shell script
+python InnerEye/ML/runner.py --model BrainMulticoil
+```
+The code will recognize that an Azure dataset named `brain_multicoil` is already present in the `datasets` folder,
+and skip the download.
+
+If you choose to download the dataset to a different folder, for example `/foo/brain_multicoil`, you will need to
+make a small adjustment to the model in [fastmri_varnet.py](../InnerEye/ML/configs/other/fastmri_varnet.py),
+and add the `local_dataset` argument like this:
+```python
+class BrainMulticoil(FastMri):
+    def __init__(self) -> None:
+        super().__init__()
+        self.azure_dataset_id = "brain_multicoil"
+        self.local_dataset = Path("/foo/brain_multicoil")
+        self.dataset_mountpoint = "/tmp/brain_multicoil"
+```

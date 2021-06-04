@@ -283,3 +283,35 @@ runs are uploaded to the parent run, in the `CrossValResults` directory. This co
 There is also a directory `BaselineComparisons`, containing the Wilcoxon test results and
 scatterplots for the ensemble, as described above for single runs.
 
+### Augmentations for classification models.
+
+For classification models, you can define an augmentation pipeline to apply to your images input (resp. segmentations) at 
+training, validation and test time. In order to define such a series of transformations, you will need to overload the 
+`get_image_transform`  (resp. `get_segmention_transform`) method of your config class. This method expects you to return 
+a `ModelTransformsPerExecutionMode`, that maps each execution mode to one transform function. We also provide the 
+`ImageTransformationPipeline` a class that creates a pipeline of transforms, from a list of individual transforms and 
+ensures the correct conversion of 2D or 3D PIL.Image or tensor inputs to the obtained pipeline.
+
+`ImageTransformationPipeline` takes two arguments for its constructor:
+ * `transforms`: a list of image transforms, in particular you can feed in standard [torchvision transforms](https://pytorch.org/vision/0.8/transforms.html) or
+any other transforms as long as they support an input `[Z, C, H, W]` (where Z is the 3rd dimension (1 for 2D images), 
+   C number of channels, H and W the height and width of each 2D slide - this is supported for standard torchvision 
+   transforms.). You can also define your own transforms as long as they expect such a `[Z, C, H, W]` input. You can
+   find some examples of custom transforms class in `InnerEye/ML/augmentation/image_transforms.py`.
+* `use_different_transformation_per_channel`: if True, apply a different version of the augmentation pipeline
+        for each channel. If False, applies the same transformation to each channel, separately. Default to False.
+  
+Below you can find an example of `get_image_transform` that would resize your input images to 256 x 256, and at
+training time only apply random rotation of +/- 10 degrees, and apply some brightness distortion, 
+using standard pytorch vision transforms.
+
+```python
+def get_image_transform(self) -> ModelTransformsPerExecutionMode:
+    """
+    Get transforms to perform on image samples for each model execution mode.
+    """
+    return ModelTransformsPerExecutionMode(
+        train=ImageTransformationPipeline(transforms=[Resize(256), RandomAffine(degrees=10), ColorJitter(brightness=0.2)]),
+        val=ImageTransformationPipeline(transforms=[Resize(256)]),
+        test=ImageTransformationPipeline(transforms=[Resize(256)]))
+```

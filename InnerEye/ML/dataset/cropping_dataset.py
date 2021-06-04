@@ -8,12 +8,13 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 import pandas as pd
 
+from InnerEye.ML.augmentations.augmentation_for_segmentation_utils import random_crop
 from InnerEye.Common.common_util import any_pairwise_larger
 from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.config import PaddingMode, SegmentationModelBase
 from InnerEye.ML.dataset.full_image_dataset import FullImageDataset
 from InnerEye.ML.dataset.sample import CroppedSample, Sample
-from InnerEye.ML.utils import augmentation, image_util
+from InnerEye.ML.utils import image_util
 from InnerEye.ML.utils.image_util import pad_images
 from InnerEye.ML.utils.io_util import ImageDataType
 from InnerEye.ML.utils.transforms import Compose3D
@@ -96,7 +97,7 @@ class CroppingDataset(FullImageDataset):
         :return: CroppedSample
         """
         # crop the original raw sample
-        sample, center_point = augmentation.random_crop(
+        sample, center_point = random_crop(
             sample=sample,
             crop_size=crop_size,
             class_weights=class_weights
