@@ -18,6 +18,9 @@ created.
 
 ### Fixed
 
+- ([#475](https://github.com/microsoft/InnerEye-DeepLearning/pull/475)) Bug in AML SDK meant that we could not train
+any large models anymore because data loaders ran out of memory.
+
 ### Removed
 
 ### Deprecated
