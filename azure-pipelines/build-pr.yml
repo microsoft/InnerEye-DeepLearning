@@ -203,7 +203,7 @@ jobs:
       - name: tag
         value: 'LungPR'
       - name: more_switches
-        value: '--restrict_subjects=4,4,1 --num_epochs=1 --train_batch_size=4'
+        value: '--restrict_subjects=4,4,1 --num_epochs=1 --train_batch_size=4 --feature_channels=16'
     pool:
       vmImage: 'ubuntu-18.04'
     steps:
