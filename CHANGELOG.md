@@ -20,6 +20,7 @@ created.
 
 - ([#475](https://github.com/microsoft/InnerEye-DeepLearning/pull/475)) Bug in AML SDK meant that we could not train
 any large models anymore because data loaders ran out of memory.
+- ([#472](https://github.com/microsoft/InnerEye-DeepLearning/pull/472)) Correct model path for moving ensemble models.
 
 ### Removed
 
