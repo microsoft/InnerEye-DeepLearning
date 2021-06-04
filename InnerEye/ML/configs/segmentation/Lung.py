@@ -60,9 +60,7 @@ class Lung(SegmentationModelBase):
             use_mixed_precision=True,
             use_model_parallel=True,
             monitoring_interval_seconds=0,
-            loss_type=SegmentationLoss.Mixture,
-            mixture_loss_components=[MixtureLossComponent(0.5, SegmentationLoss.Focal, 0.2),
-                                     MixtureLossComponent(0.5, SegmentationLoss.SoftDice, 0.1)],
+            loss_type=SegmentationLoss.SoftDice,
             check_exclusive=False,
         )
         self.add_and_validate(kwargs)
