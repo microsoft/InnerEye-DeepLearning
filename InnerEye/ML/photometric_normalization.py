@@ -356,8 +356,7 @@ class BasicAugmentations(Transform3D[Sample]):
     def __call__(self, sample: Sample) -> Sample:
         image, labels = self.transform(
             image=sample.image,
-            labels=sample.labels,
-            patient_id=sample.patient_id)
+            labels=sample.labels)
         return sample.clone_with_overrides(
             image=image,
             labels=labels,
@@ -365,8 +364,7 @@ class BasicAugmentations(Transform3D[Sample]):
 
     @staticmethod
     def transform(image: Union[np.ndarray, torch.Tensor],
-                  labels: Union[np.ndarray, torch.Tensor],
-                  patient_id: Optional[int] = None) -> \
+                  labels: Union[np.ndarray, torch.Tensor]) -> \
             Tuple[Union[np.ndarray, torch.Tensor], Union[np.ndarray, torch.Tensor]]:
         import torchio as tio
         subject = tio.Subject(
@@ -374,13 +372,13 @@ class BasicAugmentations(Transform3D[Sample]):
             labels=tio.LabelMap(tensor=labels)
         )
         augment = tio.Compose([
-            tio.RandomAffine(
-                scales=(0.9, 1.2),
-                degrees=20),
-            tio.RandomNoise(p=0.5),
-            tio.RandomMotion(p=0.1),
-            tio.RandomBlur(p=0.1),
+            tio.OneOf({
+                tio.RandomAffine(
+                    degrees=20),
+                tio.RandomNoise(),
+                tio.RandomMotion(),
+                tio.RandomBlur(),
+            }, p=0.5)
         ])
         transformed_subject = augment(subject)
-        print(f'"Rotating subject {patient_id}')
         return transformed_subject.image.numpy(), transformed_subject.labels.numpy()

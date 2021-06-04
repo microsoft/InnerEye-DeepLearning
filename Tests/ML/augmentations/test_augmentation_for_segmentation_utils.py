@@ -8,9 +8,14 @@ from typing import Any, List
 import numpy as np
 import pytest
 
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.ML.augmentations.augmentation_for_segmentation_utils import random_crop
 from InnerEye.ML.dataset.sample import Sample
-from InnerEye.ML.utils import ml_util
+from InnerEye.ML.photometric_normalization import BasicAugmentations
+from InnerEye.ML.utils import io_util, ml_util
+from InnerEye.ML.utils.image_util import ImageHeader, get_unit_image_header
+from InnerEye.ML.utils.io_util import ImageWithHeader, load_nifti_image
+from InnerEye.ML.utils.transforms import Compose3D, LinearTransform
 
 from Tests.ML.util import DummyPatientMetadata
 
@@ -28,6 +33,35 @@ valid_crop_size = (2, 2, 2)
 valid_full_crop_size = image_size
 valid_class_weights = [0.5] + [0.5 / (number_of_classes - 1)] * (number_of_classes - 1)
 crop_size_requires_padding = (9, 8, 12)
+
+
+def test_basic_augmentation_segmentation() -> None:
+    def _load_and_scale_image(name: str) -> ImageWithHeader:
+        image_with_header = load_nifti_image(full_ml_test_data_path(name))
+        return ImageWithHeader(
+            image=np.where(image_with_header.image < 200, 0, 1),
+            header=image_with_header.header
+        )
+
+    transforms = BasicAugmentations()
+    metadata = DummyPatientMetadata
+    image_with_header = load_nifti_image(full_ml_test_data_path("posterior_bladder.nii.gz"))
+    image = image_with_header.image
+    labels = _load_and_scale_image("posterior_bladder.nii.gz").image
+    image_with_channel = np.expand_dims(image, axis=0)
+    labels_with_channel = np.expand_dims(labels, axis=0)
+    sample = Sample(image=image_with_channel,
+                    labels=labels_with_channel,
+                    mask=labels_with_channel,
+                    metadata=metadata)
+    for i in range(10):
+        transformed_sample = transforms(sample)
+
+        io_util.store_as_nifti(transformed_sample.image[0], image_with_header.header,
+                                           file_name=f"/tmp/test{i}.nii.gz", image_type="short")
+
+        io_util.store_as_nifti(transformed_sample.labels[0], image_with_header.header,
+                               file_name=f"/tmp/test_seg{i}.nii.gz", image_type="short")
 
 
 def test_valid_full_crop() -> None:
