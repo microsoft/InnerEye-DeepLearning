@@ -426,10 +426,11 @@ def load_labels_from_dataset_source(dataset_source: PatientDatasetSource, check_
 
     if check_exclusive and (sum(labels) > 1.).any():  # type: ignore
         raise ValueError(f'The labels for patient {dataset_source.metadata.patient_id} are not mutually exclusive. '
-                         'Some loss functions (e.g. SoftDice) may produce results on overlapping labels, while others (e.g. FocalLoss) will fail. '
-                         'If you are sure that you want to use mutually exclusive labels, '
-                         'then re-run with the check_exclusive flag set to false in the settings file. '
-                         'Note that this is the first error encountered, other samples/patients may also have overlapping labels.')
+                         'Some loss functions (e.g. SoftDice) may produce results on overlapping labels, while others '
+                         '(e.g. FocalLoss) will fail. If you are sure that you want to use labels that are not '
+                         'mutually exclusive, then re-run with the check_exclusive flag set to false in the model '
+                         'config. Note that this is the first error encountered, other patients may also have '
+                         'overlapping labels.')
 
     # Add the background binary map
     background = np.ones_like(labels[0])

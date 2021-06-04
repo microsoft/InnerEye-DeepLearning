@@ -536,7 +536,7 @@ class DeepLearningConfig(WorkflowParams,
     _model_category: ModelCategory = param.ClassSelector(class_=ModelCategory,
                                                          doc="The high-level model category described by this config.")
 
-    num_dataload_workers: int = param.Integer(8, bounds=(0, None),
+    num_dataload_workers: int = param.Integer(2, bounds=(0, None),
                                               doc="The number of data loading workers (processes). When set to 0,"
                                                   "data loading is running in the same process (no process startup "
                                                   "cost, hence good for use in unit testing. However, it "
