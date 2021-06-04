@@ -7,7 +7,7 @@ from typing import Any
 import numpy
 import pandas as pd
 
-from InnerEye.ML.config import MixtureLossComponent, PhotometricNormalizationMethod, SegmentationLoss, \
+from InnerEye.ML.config import PhotometricNormalizationMethod, SegmentationLoss, \
     SegmentationModelBase, equally_weighted_classes
 from InnerEye.ML.deep_learning_config import OptimizerType
 from InnerEye.ML.utils.split_dataset import DatasetSplits
