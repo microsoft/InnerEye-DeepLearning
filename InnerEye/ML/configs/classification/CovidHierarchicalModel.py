@@ -100,7 +100,7 @@ class CovidHierarchicalModel(ScalarModelBase):
             test_series = pd.read_csv(test_set_ids_csv).series
 
             all_series = dataset_df.series.values
-            check_all_test_series = all([series in all_series for series in test_series])
+            check_all_test_series = all(test_series.isin(all_series))
             if not check_all_test_series:
                 raise ValueError(f"Not all test series from {test_set_ids_csv} were found in the dataset.")
 
