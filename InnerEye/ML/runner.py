@@ -47,11 +47,10 @@ from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.lightning_base import InnerEyeContainer
 from InnerEye.ML.model_config_base import ModelConfigBase
-from InnerEye.ML.model_training import is_global_rank_zero
+from InnerEye.ML.model_training import is_global_rank_zero, is_local_rank_zero
 from InnerEye.ML.run_ml import MLRunner, ModelDeploymentHookSignature, PostCrossValidationHookSignature
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.lightning_container import LightningContainer
-
 
 
 def initialize_rpdb() -> None:
@@ -188,7 +187,7 @@ class Runner:
         """
         # Usually, when we set logging to DEBUG, we want diagnostics about the model
         # build itself, but not the tons of debug information that AzureML submissions create.
-        logging_to_stdout(logging.INFO)
+        logging_to_stdout(logging.INFO if is_local_rank_zero() else "ERROR")
         initialize_rpdb()
         user_agent.append(azure_util.INNEREYE_SDK_NAME, azure_util.INNEREYE_SDK_VERSION)
         self.parse_and_load_model()
@@ -272,7 +271,8 @@ class Runner:
         """
         # Only set the logging level now. Usually, when we set logging to DEBUG, we want diagnostics about the model
         # build itself, but not the tons of debug information that AzureML submissions create.
-        logging_to_stdout(self.azure_config.log_level)
+        # Suppress the logging from all processes but the one for GPU 0 on each node, to make log files more readable
+        logging_to_stdout(self.azure_config.log_level if is_local_rank_zero() else "ERROR")
         suppress_logging_noise()
         if is_global_rank_zero():
             self.print_git_tags()
