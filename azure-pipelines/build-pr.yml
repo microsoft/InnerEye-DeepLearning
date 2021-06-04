@@ -195,7 +195,8 @@ jobs:
           test_run_title: tests_after_training_hello_container
 
   # Run the Lung model. This is a large model requiring a docker image with large memory. This tests against
-  # regressions in AML when requesting more than the default amount of memory.
+  # regressions in AML when requesting more than the default amount of memory. This needs to run with all subjects to
+  # trigger the bug, total runtime 10min
   - job: TrainLung
     variables:
       - name: model
@@ -203,7 +204,7 @@ jobs:
       - name: tag
         value: 'LungPR'
       - name: more_switches
-        value: '--restrict_subjects=4,4,1 --num_epochs=1 --train_batch_size=4 --feature_channels=16'
+        value: '--num_epochs=1 --feature_channels=16 --show_patch_sampling=0 --train_batch_size=4 --perform_validation_and_test_set_inference=False'
     pool:
       vmImage: 'ubuntu-18.04'
     steps:
