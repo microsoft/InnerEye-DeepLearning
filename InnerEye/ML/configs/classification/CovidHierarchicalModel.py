@@ -1,6 +1,8 @@
 import codecs
 import logging
 import pickle
+import random
+import math
 from pathlib import Path
 
 from typing import Any, Callable
@@ -106,7 +108,9 @@ class CovidHierarchicalModel(ScalarModelBase):
 
             test_set_subjects = dataset_df[dataset_df.series.isin(test_series)].subject.values
             train_and_val_series = dataset_df[~dataset_df.subject.isin(test_set_subjects)].series.values
-            num_val_samples = 400
+            random.seed(42)
+            random.shuffle(train_and_val_series)
+            num_val_samples = math.floor(0.1*len(train_and_val_series))
             val_series = train_and_val_series[:num_val_samples]
             train_series = train_and_val_series[num_val_samples:]
 
