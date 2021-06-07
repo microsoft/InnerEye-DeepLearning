@@ -2,15 +2,19 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-
 from typing import Any, List
 
 import numpy as np
 import pytest
+import random
+import torch
 
-from InnerEye.ML.augmentations.augmentation_for_segmentation_utils import random_crop
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
+from InnerEye.Common.output_directories import OutputFolderForTests
+from InnerEye.ML.augmentations.augmentation_for_segmentation_utils import BasicAugmentations, random_crop
 from InnerEye.ML.dataset.sample import Sample
-from InnerEye.ML.utils import ml_util
+from InnerEye.ML.utils import io_util, ml_util
+from InnerEye.ML.utils.io_util import ImageWithHeader, load_nifti_image
 
 from Tests.ML.util import DummyPatientMetadata
 
@@ -28,6 +32,67 @@ valid_crop_size = (2, 2, 2)
 valid_full_crop_size = image_size
 valid_class_weights = [0.5] + [0.5 / (number_of_classes - 1)] * (number_of_classes - 1)
 crop_size_requires_padding = (9, 8, 12)
+
+
+def test_basic_augmentation_segmentation(test_output_dirs: OutputFolderForTests) -> None:
+    def _load_and_scale_image(name: str) -> ImageWithHeader:
+        image_with_header = load_nifti_image(full_ml_test_data_path(name))
+        return ImageWithHeader(
+            image=np.where(image_with_header.image < 200, 0, 1),
+            header=image_with_header.header
+        )
+
+    seed = 0
+    torch.manual_seed(seed)
+    torch.use_deterministic_algorithms(True)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)  # if you are using multi-GPU.
+    np.random.seed(seed)  # Numpy module.
+    random.seed(seed)  # Python random module.
+    torch.manual_seed(seed)
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
+    transforms = BasicAugmentations()
+    metadata = DummyPatientMetadata
+    image_with_header = load_nifti_image(full_ml_test_data_path("posterior_bladder.nii.gz"))
+    image = image_with_header.image
+    labels = _load_and_scale_image("posterior_bladder.nii.gz").image
+    image_with_channel = np.expand_dims(image, axis=0)
+    labels_with_channel = np.expand_dims(labels, axis=0)
+    sample = Sample(image=image_with_channel,
+                    labels=labels_with_channel,
+                    mask=labels_with_channel,
+                    metadata=metadata)
+    no_transform = 0
+    for i in range(5):
+        transformed_sample = transforms(sample)
+
+        if np.array_equal(transformed_sample.image[0], image):
+            no_transform += 1
+
+        image_path = f"{test_output_dirs.root_dir}/test{i}.nii.gz"
+        io_util.store_as_nifti(transformed_sample.image[0], image_with_header.header,
+                               file_name=image_path, image_type=np.short)
+
+        seg_path = f"{test_output_dirs.root_dir}/test_seg{i}.nii.gz"
+        io_util.store_as_nifti(transformed_sample.labels[0], image_with_header.header,
+                               file_name=seg_path, image_type=np.short)
+
+        # f"augmentation_baselines/test{i}.nii.gz"),
+        expected_image_transform = load_nifti_image(full_ml_test_data_path(image_path), np.short)
+        # f"augmentation_baselines/test_seg{i}.nii.gz"),
+        expected_seg_transform = load_nifti_image(full_ml_test_data_path(seg_path), np.short)
+        print(i)
+        print(expected_image_transform.image.max())
+        print(transformed_sample.image[0].astype(np.short).max())
+        assert np.array_equal(expected_image_transform.image,
+                              transformed_sample.image[0].astype(np.short))
+        assert np.array_equal(expected_seg_transform.image,
+                              transformed_sample.labels[0].astype(np.short))
+
+    # Check that half of the samples are the same image
+    print(no_transform)
+    assert no_transform == 2
 
 
 def test_valid_full_crop() -> None:
