@@ -385,7 +385,7 @@ class SegmentationModelBase(ModelConfigBase):
                                                           "in a batch for each training epoch")
 
     #: If True apply basic 3D augmentations
-    augmentations: bool = param.Boolean(True, doc="If True apply basic 3D augmentations")
+    augmentations: bool = param.Boolean(False, doc="If True apply basic 3D augmentations")
 
     #: List of (name, container) pairs, where name is a descriptive name and container is a Azure ML storage account
     #: container name to be used for statistical comparisons
