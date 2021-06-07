@@ -62,6 +62,12 @@ def test_create_parser() -> None:
         parsed = ParamClass.parse_args(arg)
         assert getattr(parsed, expected_key) == expected_value
 
+    def check_fails(arg: List[str], expected_key: str) -> None:
+        with pytest.raises(SystemExit) as e:
+            ParamClass.parse_args(arg)
+        assert e.type == SystemExit
+        assert e.value.code == 2
+
     check(["--name=foo"], "name", "foo")
     check(["--seed", "42"], "seed", 42)
     check(["--seed", ""], "seed", 42)
@@ -81,6 +87,8 @@ def test_create_parser() -> None:
     check(["--flag=True"], "flag", True)
     check(["--flag=false"], "flag", False)
     check(["--flag=False"], "flag", False)
+    check_fails(["--flag=Falsf"], "flag")
+    check_fails(["--flag=Truf"], "flag")
     # Check that default values are created as expected, and that the non-overridable parameters
     # are omitted.
     defaults = vars(ParamClass.create_argparser().parse_args([]))

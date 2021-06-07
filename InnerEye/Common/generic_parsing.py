@@ -122,7 +122,12 @@ class GenericConfig(param.Parameterized):
             :return: Type
             """
             if isinstance(_p, param.Boolean):
-                p_type: Union[type, Callable] = lambda x: (str(x).lower() == 'true')
+                def parse_bool(x: str) -> bool:
+                    sx = str(x).lower()
+                    if sx == 'true' or sx == 'false':
+                        return sx == 'true'
+                    raise ValueError(f"Invalid value {x}, please supply one of True, true, false or False.")
+                p_type = parse_bool
             elif isinstance(_p, param.Integer):
                 p_type = lambda x: _p.default if x == "" else int(x)
             elif isinstance(_p, param.Number):
