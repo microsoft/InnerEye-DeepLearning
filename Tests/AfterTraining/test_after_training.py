@@ -13,6 +13,7 @@ up the most recently run AzureML job from most_recent_run.txt
 import os
 import shutil
 import sys
+import time
 from pathlib import Path
 from typing import List
 from unittest import mock
@@ -225,14 +226,14 @@ def test_recovery_on_2_nodes(test_output_dirs: OutputFolderForTests):
                  "--azureml", "True",
                  "--num_nodes", "2",
                  "--run_recovery_id", str(get_most_recent_run_id(fallback_run_id_for_local_execution=FALLBACK_2NODE_RUN)),
-                 "--num_epochs", "3",
-                 "--wait_for_completion", "True"
+                 "--num_epochs", "3"
                  ]
     script = str(repository_root_directory() / "InnerEye" / "ML" / "runner.py")
     with mock.patch("sys.argv", [script] + args_list):
         main()
-    print(get_most_recent_run_id())
     run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_2NODE_RUN)
+    while run.status not in [RunStatus.COMPLETED, RunStatus.FAILED]:
+        time.sleep(10)
     assert run.status == RunStatus.COMPLETED
     files = run.get_file_names()
     # There are two nodes, so there should be one log file per node.
