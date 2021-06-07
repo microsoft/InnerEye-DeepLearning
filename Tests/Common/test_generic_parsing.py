@@ -85,6 +85,8 @@ def test_create_parser() -> None:
     check(["--integers=1,2,3"], "integers", [1, 2, 3])
     check(["--flag=true"], "flag", True)
     check(["--flag=True"], "flag", True)
+    check(["--flag"], "flag", True)
+    check(["--flag"], "flag", True)
     check(["--flag=false"], "flag", False)
     check(["--flag=False"], "flag", False)
     check_fails(["--flag=Falsf"], "flag")

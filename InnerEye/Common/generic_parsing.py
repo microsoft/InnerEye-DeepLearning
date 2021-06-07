@@ -162,7 +162,11 @@ class GenericConfig(param.Parameterized):
             return p_type
 
         for k, p in cls.get_overridable_parameters().items():
-            parser.add_argument("--" + k, help=p.doc, type=_get_basic_type(p), default=p.default)
+            if isinstance(p, param.Boolean):
+                parser.add_argument("--" + k, help=p.doc, type=_get_basic_type(p), default=p.default,
+                                    nargs='?', const=not p.default)
+            else:
+                parser.add_argument("--" + k, help=p.doc, type=_get_basic_type(p), default=p.default)
 
         return parser
 
