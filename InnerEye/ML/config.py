@@ -384,6 +384,9 @@ class SegmentationModelBase(ModelConfigBase):
     store_dataset_sample: bool = param.Boolean(False, doc="If True save image and segmentations for one image"
                                                           "in a batch for each training epoch")
 
+    #: If True apply basic 3D augmentations
+    augmentations: bool = param.Boolean(True, doc="If True apply basic 3D augmentations")
+
     #: List of (name, container) pairs, where name is a descriptive name and container is a Azure ML storage account
     #: container name to be used for statistical comparisons
     comparison_blob_storage_paths: List[Tuple[str, str]] = param.List(
@@ -793,8 +796,9 @@ class SegmentationModelBase(ModelConfigBase):
         from InnerEye.ML.augmentations.augmentation_for_segmentation_utils import BasicAugmentations
 
         photometric_transformation = Compose3D(transforms=[PhotometricNormalization(self, use_gpu=False)])
-        training_transformation = Compose3D(
+        training_augmentations = Compose3D(
             transforms=[PhotometricNormalization(self, use_gpu=False), BasicAugmentations()])
+        training_transformation = training_augmentations if self.augmentations else photometric_transformation
         return ModelTransformsPerExecutionMode(train=training_transformation,
                                                val=photometric_transformation,
                                                test=photometric_transformation)
