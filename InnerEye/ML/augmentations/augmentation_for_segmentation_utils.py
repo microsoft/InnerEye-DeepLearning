@@ -3,14 +3,16 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import random
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 import numpy as np
+import torch
 
 from InnerEye.Common.common_util import any_pairwise_larger
 from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.dataset.sample import Sample
+from InnerEye.ML.utils.transforms import Transform3D
 
 
 def random_select_patch_center(sample: Sample, class_weights: List[float] = None) -> np.ndarray:
@@ -126,3 +128,45 @@ def random_crop(sample: Sample,
         metadata=sample.metadata
     )
     return sample, center
+
+
+class BasicAugmentations(Transform3D[Sample]):
+    """
+    Transform3D for basic augmentations on a SegmentationSample
+    """
+
+    def __call__(self, sample: Sample) -> Sample:
+        image, labels = self.transform(
+            image=sample.image,
+            labels=sample.labels)
+        return sample.clone_with_overrides(
+            image=image,
+            labels=labels,
+        )
+
+    @staticmethod
+    def transform(image: Union[np.ndarray, torch.Tensor],
+                  labels: Union[np.ndarray, torch.Tensor]) -> \
+            Tuple[np.ndarray, np.ndarray]:
+        """
+        Applies 1 transform with 0.5 probability
+        :param image: channels x image dimensions
+        :param labels: channels x image dimensions
+        :return: A tuple of image channels transformed and labels transformed
+        """
+        import torchio as tio
+        subject = tio.Subject(
+            image=tio.ScalarImage(tensor=image),
+            labels=tio.LabelMap(tensor=labels)
+        )
+        augment = tio.Compose([
+            tio.OneOf({
+                tio.RandomAffine(
+                    degrees=20),
+                tio.RandomNoise(),
+                tio.RandomMotion(),
+                tio.RandomBlur(),
+            }, p=0.5)
+        ])
+        transformed_subject = augment(subject)
+        return transformed_subject.image.numpy(), transformed_subject.labels.numpy()

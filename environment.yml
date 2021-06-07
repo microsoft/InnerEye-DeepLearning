@@ -61,5 +61,6 @@ dependencies:
       - tabulate==0.8.7
       - tensorboard==2.3.0
       - tensorboardX==2.1
+      - torchio==0.18.40
       - torchprof==1.3.3
       - yacs==0.1.8
