@@ -30,7 +30,7 @@ from InnerEye.Common import common_util, fixed_paths, fixed_paths_for_tests
 from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, get_best_epoch_results_path
 from InnerEye.Common.fixed_paths import DEFAULT_AML_LOGS_DIR, DEFAULT_RESULT_IMAGE_NAME, \
     DEFAULT_RESULT_ZIP_DICOM_NAME, \
-    PYTHON_ENVIRONMENT_NAME
+    PYTHON_ENVIRONMENT_NAME, repository_root_directory
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.spawn_subprocess import spawn_and_monitor_subprocess
@@ -227,7 +227,8 @@ def test_recovery_on_2_nodes(test_output_dirs: OutputFolderForTests):
                  "--run_recovery_id", str(get_most_recent_run_id(fallback_run_id_for_local_execution=FALLBACK_2NODE_RUN)),
                  "--num_epochs", "3",
                  ]
-    with mock.patch("sys.argv", [""] + args_list):
+    script = str(repository_root_directory() / "InnerEye" / "ML" / "runner.py")
+    with mock.patch("sys.argv", [script] + args_list):
         main()
     print(get_most_recent_run_id())
     run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_2NODE_RUN)
