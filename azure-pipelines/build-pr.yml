@@ -193,3 +193,23 @@ jobs:
         parameters:
           pytest_mark: after_training_hello_container
           test_run_title: tests_after_training_hello_container
+
+  # Run the Lung model. This is a large model requiring a docker image with large memory. This tests against
+  # regressions in AML when requesting more than the default amount of memory. This needs to run with all subjects to
+  # trigger the bug, total runtime 10min
+  - job: TrainLung
+    variables:
+      - name: model
+        value: 'Lung'
+      - name: tag
+        value: 'LungPR'
+      - name: more_switches
+        value: '--num_epochs=1 --feature_channels=16 --show_patch_sampling=0 --train_batch_size=4 --perform_validation_and_test_set_inference=False'
+    pool:
+      vmImage: 'ubuntu-18.04'
+    steps:
+      - template: train_template.yml
+        parameters:
+          wait_for_completion: 'True'
+          pytest_mark: ''
+          max_run_duration: '30m'
