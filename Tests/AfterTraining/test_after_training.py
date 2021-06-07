@@ -226,7 +226,8 @@ def test_recovery_on_2_nodes(test_output_dirs: OutputFolderForTests):
                  "--azureml", "True",
                  "--num_nodes", "2",
                  "--run_recovery_id", str(get_most_recent_run_id(fallback_run_id_for_local_execution=FALLBACK_2NODE_RUN)),
-                 "--num_epochs", "3"
+                 "--num_epochs", "3",
+                 "--max_nums_gpus", "1"
                  ]
     script = str(repository_root_directory() / "InnerEye" / "ML" / "runner.py")
     with mock.patch("sys.argv", [script] + args_list):
