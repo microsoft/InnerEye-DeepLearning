@@ -110,7 +110,7 @@ class CovidHierarchicalModel(ScalarModelBase):
             train_and_val_series = dataset_df[~dataset_df.subject.isin(test_set_subjects)].series.values
             random.seed(42)
             random.shuffle(train_and_val_series)
-            num_val_samples = math.floor(0.11*len(train_and_val_series))
+            num_val_samples = math.floor(len(train_and_val_series) / 9)
             val_series = train_and_val_series[:num_val_samples]
             train_series = train_and_val_series[num_val_samples:]
 
