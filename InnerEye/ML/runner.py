@@ -192,8 +192,6 @@ class Runner:
         user_agent.append(azure_util.INNEREYE_SDK_NAME, azure_util.INNEREYE_SDK_VERSION)
         self.parse_and_load_model()
         if self.lightning_container.perform_cross_validation:
-            if self.model_config is None:
-                raise NotImplementedError("Cross validation for LightingContainer models is not yet supported.")
             # force hyperdrive usage if performing cross validation
             self.azure_config.hyperdrive = True
         run_object: Optional[Run] = None
@@ -219,14 +217,14 @@ class Runner:
         if isinstance(self.model_config, DeepLearningConfig) and not self.lightning_container.azure_dataset_id:
             raise ValueError("When running an InnerEye built-in model in AzureML, the 'azure_dataset_id' "
                              "property must be set.")
-        hyperdrive_func = lambda run_config: self.model_config.get_hyperdrive_config(run_config)  # type: ignore
         source_config = SourceConfig(
             root_folder=self.project_root,
             entry_script=Path(sys.argv[0]).resolve(),
             conda_dependencies_files=get_all_environment_files(self.project_root),
-            hyperdrive_config_func=hyperdrive_func,
+            hyperdrive_config_func=(self.model_config.get_hyperdrive_config if self.model_config
+                                    else self.lightning_container.get_hyperdrive_config),
             # For large jobs, upload of results can time out because of large checkpoint files. Default is 600
-            upload_timeout_seconds=86400,
+            upload_timeout_seconds=86400
         )
         source_config.set_script_params_except_submit_flag()
         # Reduce the size of the snapshot by adding unused folders to amlignore. The Test* subfolders are only needed

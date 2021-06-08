@@ -10,6 +10,8 @@ from unittest import mock
 import pandas as pd
 import pytest
 from pytorch_lightning import LightningModule
+from azureml.core import ScriptRunConfig
+from azureml.train.hyperdrive.runconfig import HyperDriveConfig
 
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import ModelExecutionMode
@@ -19,7 +21,7 @@ from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.run_ml import MLRunner
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.configs.lightning_test_containers import DummyContainerWithHooks, DummyContainerWithModel, \
+from Tests.ML.configs.lightning_test_containers import DummyContainerWithAzureDataset, DummyContainerWithHooks, DummyContainerWithModel, \
     DummyContainerWithPlainLightning
 from Tests.ML.util import default_runner
 
@@ -280,3 +282,33 @@ def test_container_hooks(test_output_dirs: OutputFolderForTests) -> None:
     # only check that they have all been called.
     for file in ["global_rank_zero.txt", "local_rank_zero.txt", "all_ranks.txt"]:
         assert (runner.container.outputs_folder / file).is_file(), f"Missing file: {file}"
+
+@pytest.mark.parametrize("number_of_cross_validation_splits", [0, 2])
+def test_get_hyperdrive_config(number_of_cross_validation_splits: int,
+                               test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Testing that the hyperdrive config returned for the lightnig container is right for submitting
+    to AzureML.
+
+    Note that because the function get_hyperdrive_config now lives in the super class WorkflowParams,
+    it is also tested for other aspects of functionality by a test of the same name in
+    Tests.ML.test_model_config_base.
+    """
+    container = DummyContainerWithAzureDataset()
+    container.number_of_cross_validation_splits = number_of_cross_validation_splits
+    run_config = ScriptRunConfig(
+        source_directory=str(test_output_dirs.root_dir),
+        script=str(Path("something.py")),
+        arguments=["foo"],
+        compute_target="EnormousCluster")
+    if number_of_cross_validation_splits == 0:
+        with pytest.raises(NotImplementedError) as not_implemented_error:
+            container.get_hyperdrive_config(run_config=run_config)
+        assert 'Parameter search is not implemented' in str(not_implemented_error.value)
+        # The error should be thrown by 
+        #     InnerEye.ML.lightning_container.LightningContainer.get_parameter_search_hyperdrive_config
+        # since number_of_cross_validation_splits == 0 implies a parameter search hyperdrive config and
+        # not a cross validation one.
+    else:
+        hd_config = container.get_hyperdrive_config(run_config=run_config)
+        assert isinstance(hd_config, HyperDriveConfig)
