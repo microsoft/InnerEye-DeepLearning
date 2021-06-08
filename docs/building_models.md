@@ -83,6 +83,8 @@ this case, you would simply omit the `azureml` flag, and instead of specifying
 `azure_dataset_id` in the class constructor, you can instead use `local_dataset="my/data/folder"`,
 where the folder `my/data/folder` contains a `dataset.csv` file and all the files that are referenced therein.
 
+If your dataset is small you can try `--apply_augmentations=True` for segmentation models this will apply `BasicAugmentations(Transform3D[Sample])`.
+
 
 ### Training using multiple machines
 To speed up training in AzureML, you can use multiple machines, by specifying the additional
