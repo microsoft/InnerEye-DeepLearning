@@ -114,6 +114,17 @@ class GenericConfig(param.Parameterized):
         :param parser: Parser to add properties to.
         """
 
+        def parse_bool(x: str) -> bool:
+            """
+            Parse a string as a bool. Supported values are case insensitive and one of "true" or "false".
+            :param x: string to test.
+            :return: Bool value if string valid, otherwise a ValueError is raised.
+            """
+            sx = str(x).lower()
+            if sx in ('true', 'false'):
+                return sx == 'true'
+            raise ValueError(f"Invalid value {x}, please supply one of True, true, false or False.")
+
         def _get_basic_type(_p: param.Parameter) -> Union[type, Callable]:
             """
             Given a parameter, get its basic Python type, e.g.: param.Boolean -> bool.
@@ -122,11 +133,6 @@ class GenericConfig(param.Parameterized):
             :return: Type
             """
             if isinstance(_p, param.Boolean):
-                def parse_bool(x: str) -> bool:
-                    sx = str(x).lower()
-                    if sx == 'true' or sx == 'false':
-                        return sx == 'true'
-                    raise ValueError(f"Invalid value {x}, please supply one of True, true, false or False.")
                 p_type: Callable = parse_bool
             elif isinstance(_p, param.Integer):
                 p_type = lambda x: _p.default if x == "" else int(x)
@@ -163,8 +169,9 @@ class GenericConfig(param.Parameterized):
 
         for k, p in cls.get_overridable_parameters().items():
             if isinstance(p, param.Boolean):
-                parser.add_argument("--" + k, help=p.doc, type=_get_basic_type(p), default=p.default,
-                                    nargs='?', const=not p.default)
+                name_prefix = "--no-" if p.default else "--"
+                parser.add_argument(name_prefix + k, help=p.doc, type=parse_bool, default=p.default,
+                                    nargs='?', const=not p.default, dest=k)
             else:
                 parser.add_argument("--" + k, help=p.doc, type=_get_basic_type(p), default=p.default)
 

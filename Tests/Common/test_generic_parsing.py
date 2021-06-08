@@ -19,7 +19,8 @@ class ParamEnum(Enum):
 class ParamClass(GenericConfig):
     name: str = param.String(None, doc="Name")
     seed: int = param.Integer(42, doc="Seed")
-    flag: int = param.Boolean(False, doc="Flag")
+    flag: bool = param.Boolean(False, doc="Flag")
+    not_flag: bool = param.Boolean(True, doc="Not Flag")
     number: float = param.Number(3.14)
     integers: List[int] = param.List(None, class_=int)
     optional_int: Optional[int] = param.Integer(None, doc="Optional int")
@@ -40,6 +41,7 @@ def test_overridable_parameter() -> None:
     param_dict = ParamClass.get_overridable_parameters()
     assert "name" in param_dict
     assert "flag" in param_dict
+    assert "not_flag" in param_dict
     assert "seed" in param_dict
     assert "number" in param_dict
     assert "integers" in param_dict
@@ -85,10 +87,12 @@ def test_create_parser() -> None:
     check(["--integers=1,2,3"], "integers", [1, 2, 3])
     check(["--flag=true"], "flag", True)
     check(["--flag=True"], "flag", True)
-    check(["--flag"], "flag", True)
-    check(["--flag"], "flag", True)
     check(["--flag=false"], "flag", False)
     check(["--flag=False"], "flag", False)
+    check(["--flag"], "flag", True)
+    check(["--flag"], "flag", True)
+    check(["--no-not_flag"], "not_flag", False)
+    check(["--no-not_flag"], "not_flag", False)
     check_fails(["--flag=Falsf"], "flag")
     check_fails(["--flag=Truf"], "flag")
     # Check that default values are created as expected, and that the non-overridable parameters
@@ -98,6 +102,8 @@ def test_create_parser() -> None:
     assert defaults["tuple1"] == (1, 2.3)
     assert defaults["int_tuple"] == (1, 1, 1)
     assert defaults["enum"] == ParamEnum.EnumValue1
+    assert not defaults["flag"]
+    assert defaults["not_flag"]
     assert "readonly" not in defaults
     assert "constant" not in defaults
     assert "_non_override" not in defaults
