@@ -1,10 +1,12 @@
 # How to setup Azure Machine Learning for InnerEye
 
-
 In order to be able to train models on Azure Machine Learning (AML) you will need to setup your environment in the 
 Azure Portal first. In this document we will walk you through this process step-by-step.
 
-In short, you will need to:
+**Note**: If you already have Azure Machine Learning setup and want to point InnerEye to the correct subscription, workspace,
+cluster, etc. then you can skip to the [last step in this doc](#step-6-update-the-variables-in-settings.yml).
+
+To set up Azure Machine Learning, you will need to:
 * Set up an Azure Machine Learning (AzureML) Workspace
 * Create a compute cluster to run your experiments.
 * Optional: Register your application to create a Service Principal Object.
@@ -12,14 +14,13 @@ In short, you will need to:
 want to re-use the storage account that is created with the AzureML workspace - in both cases, you can skip this step.
 * Update your [settings.yml](/InnerEye/settings.yml) file and KeyVault with your own credentials.
 
-Once you're done with these steps, you will be ready for the next steps described in [Creating a dataset](https://github.com/microsoft/InnerEye-createdataset), 
-[Building models in Azure ML](building_models.md) and 
-[Sample segmentation and classification tasks](sample_tasks.md).
-
 **Prerequisite**: an Azure account and a corresponding Azure subscription. See the 
 [Get started with Azure](https://azure.microsoft.com/en-us/get-started/) page
 for more information on how to set up your account and your subscription. Here are more detailed instructions on how to
 [manage accounts and subscriptions with Azure](https://docs.microsoft.com/en-us/azure/cost-management-billing/manage/).
+
+Once you're done with these steps, you will be ready for the next steps described in [Creating a dataset](https://github.com/microsoft/InnerEye-createdataset),
+[Building models in Azure ML](building_models.md) and [Sample segmentation and classification tasks](sample_tasks.md).
 
 ## Automatic Deployment
 
@@ -73,13 +74,13 @@ and if that is not sufficient, reducing the `crop_size`, bearing in mind though 
 impact on the model's accuracy.
 
 You need to ensure that your Azure subscription actually has a quota for accessing GPU machines. To see your quota,
-find your newly created AzureML workspace in the [Azure portal](http://portal.azure.com), using the search bar at the
+find your newly created AzureML workspace in the [Azure portal](https://aka.ms/portal), using the search bar at the
 top. Then choose "Usage and Quotas" in the left hand navigation. You should see your actual core usage and your quota,
 like "0/100" meaning that you are using 0 nodes out of a quota of 100. If you don't see a quota for both dedicated AND
 low priority nodes, click on the "Request Quota" button at the bottom of the page to create a ticket with Azure support.
 
 Details about creating compute clusters can be found 
-[here](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-set-up-training-targets#set-up-in-azure-machine-learning-studio).
+[here](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-create-attach-compute-studio#amlcompute).
 Note down the name of your compute cluster - this will later go into the `cluster` entry of your settings
 file `settings.yml`.
 
@@ -173,19 +174,27 @@ create a container called "datasets".
 ### Step 6: Update the variables in `settings.yml`
 The [settings.yml](../InnerEye/settings.yml) file is used to store your Azure setup. In order to be able to
 train your model you will need to update this file using the settings for your Azure subscription.
-1. You will first need to retrieve your `tenant_id`. You can find your tenant id by navigating to
-`Azure Active Directory > Properties > Tenant ID` (use the search bar above to access the `Azure Active Directory` 
-resource. Copy and paste the GUID to the `tenant_id` field of the `.yml` file. More information about Azure tenants can be found 
-[here](https://docs.microsoft.com/en-us/azure/active-directory/develop/quickstart-create-new-tenant).
-2. You then need to retrieve your subscription id. In the search bar look for `Subscriptions`. Then in the subscriptions list,
-look for the subscription you are using for your workspace. Copy the value of the `Subscription ID` in the corresponding 
-field of [settings.yml](../InnerEye/settings.yml).
-3. Copy the application ID of your Service Principal that you retrieved earlier (cf. Step 3) to the `application_id` field.
-If you did not set up a Service Principal, fill that with an empty string or leave out altogether.
-6. Update the `resource_group:` field with your resource group name (created in Step 1).
-7. Update the `workspace_name:` field with the name of the AzureML workspace created in Step 1.
-8. Update the `cluster:` field with the name of your own compute cluster (Step 2). If you chose automatic
-deployment, this cluster will be called "NC24-LowPrio"
+1. You will first need to retrieve your `tenant_id`. You can find your tenant id by navigating to the [Azure portal](https://aka.ms/portal) >
+   `Azure Active Directory > Properties > Tenant ID` (use the search bar above to access the `Azure Active Directory` resource).
+   Copy and paste the GUID to the `tenant_id` field of the `.yml` file. More information about Azure tenants can be found
+   [here](https://docs.microsoft.com/en-us/azure/active-directory/develop/quickstart-create-new-tenant).
+1. You then need to retrieve your subscription id. In the search bar on [Azure portal](https://aka.ms/portal) look for `Subscriptions`. Then in the subscriptions list,
+   look for the subscription you are using for your workspace. Copy the value of the `Subscription ID` in the corresponding
+   field of [settings.yml](../InnerEye/settings.yml).
+1. Copy the application ID of your Service Principal that you retrieved earlier (cf. Step 3) to the `application_id` field.
+   If you did not set up a Service Principal, fill that with an empty string or leave out altogether.
+1. Update the `resource_group` field with your resource group name (created in Step 1). You can see a list of all
+   resource groups in your subscription by searching for `Resource groups` in the search bar on [Azure portal](https://aka.ms/portal).
+1. Update the `workspace_name` field with the name of the AzureML workspace created in Step 1. You can see a list of all
+   Machine Learning workspaces in your subscription by searching for `Machine Learning` in the search bar on [Azure portal](https://aka.ms/portal).
+1. Update the `cluster` field with the name of your own compute cluster (Step 2). If you chose automatic deployment,
+   this cluster will be called "NC24-LowPrio". You can find the names of all the compute clusters in your
+   workspace by navigating to the [Azure Machine Learning Studio](https://ml.azure.com/) (making sure you are in the
+   correct workspace) and clicking on Compute > Compute clusters.
+
+**Tip**: You can usually see the workspace name displayed on the upper right corner on
+[Azure Machine Learning Studio](https://ml.azure.com/). Click on this to open the side panel, and select View all properties in Azure Portal,
+where you can see the subscription id and resource group in the Overview tab.
 
 Leave all other fields as they are for now.
 
