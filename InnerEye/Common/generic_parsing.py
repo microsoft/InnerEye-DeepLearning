@@ -172,27 +172,36 @@ class GenericConfig(param.Parameterized):
 
             return p_type
 
-        def add_boolean_arg(parser: argparse.ArgumentParser, k: str, p: Parameter) -> None:
+        def add_boolean_argument(parser: argparse.ArgumentParser, k: str, p: Parameter) -> None:
             """
             Add a boolean argument.
-            If the default is False then allow --flag (to set it True) and --flag=Bool.
-            If the default is True then allow --no-flag (to set it to False) and --flag=Bool.
-            :param parser: parser to add argument to
+            If the parameter default is False then allow --flag (to set it True) and --flag=Bool as usual.
+            If the parameter default is True then allow --no-flag (to set it to False) and --flag=Bool as usual.
+            :param parser: parser to add a boolean argument to.
             :param k: argument name.
             :param p: boolean parameter.
             """
             if not p.default:
-                parser.add_argument("--" + k, help=p.doc, type=parse_bool, default=p.default,
-                                    nargs=argparse.OPTIONAL, const=not p.default)
+                # If the parameter default is False then use nargs="?" (argparse.OPTIONAL).
+                # This means that the argument is optional.
+                # If it is not supplied, i.e. in the --flag mode, use the "const" value, i.e. True.
+                # Otherwise, i.e. in the --flag=value mode, try to parse the argument as a bool.
+                parser.add_argument("--" + k, help=p.doc, type=parse_bool, default=False,
+                                    nargs=argparse.OPTIONAL, const=True)
             else:
+                # If the parameter default is True then create an exclusive group of arguments.
+                # Either --flag=value as usual
+                # Or --no-flag to store False in the parameter k.
                 group = parser.add_mutually_exclusive_group(required=False)
                 group.add_argument("--" + k, help=p.doc, type=parse_bool)
                 group.add_argument('--no-' + k, dest=k, action='store_false')
                 parser.set_defaults(**{k: p.default})
 
         for k, p in cls.get_overridable_parameters().items():
+            # param.Booleans need to be handled separately, they are more complicated because they have
+            # an optional argument.
             if isinstance(p, param.Boolean):
-                add_boolean_arg(parser, k, p)
+                add_boolean_argument(parser, k, p)
             else:
                 parser.add_argument("--" + k, help=p.doc, type=_get_basic_type(p), default=p.default)
 

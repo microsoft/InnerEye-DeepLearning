@@ -85,30 +85,18 @@ def test_create_parser() -> None:
     check(["--enum=2"], "enum", ParamEnum.EnumValue2)
     check(["--floats=1,2,3.14"], "floats", [1., 2., 3.14])
     check(["--integers=1,2,3"], "integers", [1, 2, 3])
-    check(["--flag=on"], "flag", True)
-    check(["--flag=On"], "flag", True)
-    check(["--flag=t"], "flag", True)
-    check(["--flag=T"], "flag", True)
-    check(["--flag=true"], "flag", True)
-    check(["--flag=True"], "flag", True)
-    check(["--flag=y"], "flag", True)
-    check(["--flag=Y"], "flag", True)
-    check(["--flag=yes"], "flag", True)
-    check(["--flag=Yes"], "flag", True)
-    check(["--flag=1"], "flag", True)
-    check(["--flag=off"], "flag", False)
-    check(["--flag=Off"], "flag", False)
-    check(["--flag=f"], "flag", False)
-    check(["--flag=F"], "flag", False)
-    check(["--flag=false"], "flag", False)
-    check(["--flag=False"], "flag", False)
-    check(["--flag=n"], "flag", False)
-    check(["--flag=N"], "flag", False)
-    check(["--flag=no"], "flag", False)
-    check(["--flag=No"], "flag", False)
-    check(["--flag=0"], "flag", False)
-    check(["--not_flag=false"], "not_flag", False)
-    check(["--not_flag=true"], "not_flag", True)
+    # Check all the ways of passing in True, with and without the first letter capitialized
+    for flag in ('on', 't', 'true', 'y', 'yes', '1'):
+        check([f"--flag={flag}"], "flag", True)
+        check([f"--flag={flag.capitalize()}"], "flag", True)
+        check([f"--not_flag={flag}"], "not_flag", True)
+        check([f"--not_flag={flag.capitalize()}"], "not_flag", True)
+    # Check all the ways of passing in False, with and without the first letter capitialized
+    for flag in ('off', 'f', 'false', 'n', 'no', '0'):
+        check([f"--flag={flag}"], "flag", False)
+        check([f"--flag={flag.capitalize()}"], "flag", False)
+        check([f"--not_flag={flag}"], "not_flag", False)
+        check([f"--not_flag={flag.capitalize()}"], "not_flag", False)
     # Check that passing no value to flag sets it to True (the opposite of its default)
     check(["--flag"], "flag", True)
     # Check that no-flag is not an option
@@ -117,7 +105,7 @@ def test_create_parser() -> None:
     check_fails(["--not_flag"])
     # Check that --no-not_flag is an option and sets it to False (the opposite of its default)
     check(["--no-not_flag"], "not_flag", False)
-    # Check that both cannot be passed at the same time
+    # Check that both not_flag and no-not_flag cannot be passed at the same time
     check_fails(["--not_flag=false", "--no-not_flag"])
     # Check that invalid bools are caught
     check_fails(["--flag=Falsf"])
