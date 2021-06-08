@@ -84,6 +84,7 @@ this case, you would simply omit the `azureml` flag, and instead of specifying
 where the folder `my/data/folder` contains a `dataset.csv` file and all the files that are referenced therein.
 
 If your dataset is small you can try `--apply_augmentations=True` for segmentation models this will apply `BasicAugmentations(Transform3D[Sample])`.
+This will apply one of these transforms with 0.5 probability: `RandomAffine(degrees=20), RandomNoise(), RandomMotion(), RandomBlur()`
 
 
 ### Training using multiple machines
