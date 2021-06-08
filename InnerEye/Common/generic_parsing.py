@@ -116,13 +116,17 @@ class GenericConfig(param.Parameterized):
 
         def parse_bool(x: str) -> bool:
             """
-            Parse a string as a bool. Supported values are case insensitive and one of "true" or "false".
+            Parse a string as a bool. Supported values are case insensitive and one of:
+            'on', 't', 'true', 'y', 'yes', '1' for True
+            'off', 'f', 'false', 'n', 'no', '0' for False.
             :param x: string to test.
             :return: Bool value if string valid, otherwise a ValueError is raised.
             """
             sx = str(x).lower()
-            if sx in ('true', 'false'):
-                return sx == 'true'
+            if sx in ('on', 't', 'true', 'y', 'yes', '1'):
+                return True
+            if sx in ('off', 'f', 'false', 'n', 'no', '0'):
+                return False
             raise ValueError(f"Invalid value {x}, please supply one of True, true, false or False.")
 
         def _get_basic_type(_p: param.Parameter) -> Union[type, Callable]:
