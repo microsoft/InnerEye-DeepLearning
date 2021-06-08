@@ -88,7 +88,7 @@ def test_basic_augmentation_segmentation(test_output_dirs: OutputFolderForTests)
 
     # Check that half of the samples are the same image
     print(no_transform)
-    assert no_transform > 1
+    assert no_transform > 0
 
 
 def test_valid_full_crop() -> None:
