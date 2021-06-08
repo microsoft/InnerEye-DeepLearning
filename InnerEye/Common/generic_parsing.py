@@ -9,6 +9,7 @@ import logging
 from typing import Any, Callable, Dict, List, Optional, Set, Type, Union
 
 import param
+from param.parameterized import Parameter
 
 from InnerEye.Common.common_util import is_private_field_name
 from InnerEye.Common.type_annotations import T
@@ -171,10 +172,27 @@ class GenericConfig(param.Parameterized):
 
             return p_type
 
-        for k, p in cls.get_overridable_parameters().items():
-            if isinstance(p, param.Boolean) and not p.default:
+        def add_boolean_arg(parser: argparse.ArgumentParser, k: str, p: Parameter) -> None:
+            """
+            Add a boolean argument.
+            If the default is False then allow --flag (to set it True) and --flag=Bool.
+            If the default is True then allow --no-flag (to set it to False) and --flag=Bool.
+            :param parser: parser to add argument to
+            :param k: argument name.
+            :param p: boolean parameter.
+            """
+            if not p.default:
                 parser.add_argument("--" + k, help=p.doc, type=parse_bool, default=p.default,
                                     nargs=argparse.OPTIONAL, const=not p.default)
+            else:
+                group = parser.add_mutually_exclusive_group(required=False)
+                group.add_argument("--" + k, help=p.doc, type=parse_bool)
+                group.add_argument('--no-' + k, dest=k, action='store_false')
+                parser.set_defaults(**{k: p.default})
+
+        for k, p in cls.get_overridable_parameters().items():
+            if isinstance(p, param.Boolean):
+                add_boolean_arg(parser, k, p)
             else:
                 parser.add_argument("--" + k, help=p.doc, type=_get_basic_type(p), default=p.default)
 

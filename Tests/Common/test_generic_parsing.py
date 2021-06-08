@@ -109,8 +109,17 @@ def test_create_parser() -> None:
     check(["--flag=0"], "flag", False)
     check(["--not_flag=false"], "not_flag", False)
     check(["--not_flag=true"], "not_flag", True)
+    # Check that passing no value to flag sets it to True (the opposite of its default)
     check(["--flag"], "flag", True)
+    # Check that no-flag is not an option
+    check_fails(["--no-flag"])
+    # Check that passing no value to not_flag fails
     check_fails(["--not_flag"])
+    # Check that --no-not_flag is an option and sets it to False (the opposite of its default)
+    check(["--no-not_flag"], "not_flag", False)
+    # Check that both cannot be passed at the same time
+    check_fails(["--not_flag=false", "--no-not_flag"])
+    # Check that invalid bools are caught
     check_fails(["--flag=Falsf"])
     check_fails(["--flag=Truf"])
     # Check that default values are created as expected, and that the non-overridable parameters
