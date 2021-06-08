@@ -798,7 +798,7 @@ class SegmentationModelBase(ModelConfigBase):
         photometric_transformation = Compose3D(transforms=[PhotometricNormalization(self, use_gpu=False)])
         training_augmentations = Compose3D(
             transforms=[PhotometricNormalization(self, use_gpu=False), BasicAugmentations()])
-        training_transformation = training_augmentations if self.augmentations else photometric_transformation
+        training_transformation = training_augmentations if self.apply_augmentations else photometric_transformation
         return ModelTransformsPerExecutionMode(train=training_transformation,
                                                val=photometric_transformation,
                                                test=photometric_transformation)
