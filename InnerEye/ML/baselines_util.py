@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Tuple
@@ -173,3 +174,49 @@ def get_comparison_baselines(outputs_folder: Path, azure_config: AzureConfig,
         else:
             raise ValueError(f"could not find comparison data for run {run_rec_id}")
     return comparison_baselines
+
+
+def compare_files(expected: Path, actual: Path) -> str:
+    """
+    Compares two individual files for regression testing. It returns an empty string if the two files appear identical.
+    If the files are not identical, an error message with details is return. Presently, only .txt and .csv files can
+    be compared.
+    :param expected:
+    :param actual:
+    :return:
+    """
+    if expected.suffix == ".txt" or expected.suffix == ".csv":
+        # Compare line-by-line to avoid issues with line separators
+        expected_lines = expected.read_text().splitlines()
+        actual_lines = actual.read_text().splitlines()
+        if expected_lines != actual_lines:
+            return "Contents mismatch"
+    else:
+        raise ValueError(f"Don't know how to compare these files: {expected}")
+
+
+def compare_folder_contents(expected: Path, actual: Path):
+    """
+    Compares the set of files that are present in two folders. Each file that is present in the "expected" folder
+    must be also present in the "actual" folder, with exactly the same contents, in the same folder structure.
+    For example, if there is a file "<expected>/foo/bar/contents.txt", then there must also be a file
+    "<actual>/foo/bar/contents.txt"
+    If a file is missing, or does not have the expected contents, an exception is raised.
+    :param expected: A folder with files that are expected to be present.
+    :param actual: The output folder of the training run.
+    """
+    messages = []
+    if not expected.is_dir():
+        raise ValueError(f"Folder does not exist: {expected}")
+    for file in expected.rglob("**/*"):
+        file_relative = file.relative_to(expected)
+        actual_file = actual / file_relative
+        if actual_file.is_file():
+            message = compare_files(expected=file, actual=actual_file)
+        else:
+            message = "Missing file"
+        if message:
+            messages.append(f"{message}: {file_relative}")
+    if messages:
+        raise ValueError(f"Some expected files were missing or did not have the expected contents:{os.linesep}"
+                         f"{os.linesep.join(messages)}")

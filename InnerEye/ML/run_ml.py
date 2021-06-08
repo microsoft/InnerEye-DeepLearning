@@ -34,6 +34,7 @@ from InnerEye.Common.common_util import BASELINE_COMPARISONS_FOLDER, BASELINE_WI
     change_working_directory, get_best_epoch_results_path, is_windows, logging_section, logging_to_file, \
     print_exception, remove_file_or_directory
 from InnerEye.Common.fixed_paths import INNEREYE_PACKAGE_NAME, LOG_FILE_NAME, PYTHON_ENVIRONMENT_NAME
+from InnerEye.ML.baselines_util import compare_folder_contents
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, DeepLearningConfig, FINAL_ENSEMBLE_MODEL_FOLDER, \
@@ -403,6 +404,10 @@ class MLRunner:
                 # manually
                 with change_working_directory(self.container.outputs_folder):
                     self.container.create_report()
+
+        if self.container.regression_test_folder:
+            compare_folder_contents(expected=self.container.regression_test_folder,
+                                    actual=self.container.outputs_folder)
 
     def run_inference_for_lightning_models(self, checkpoint_paths: List[Path]) -> None:
         """
