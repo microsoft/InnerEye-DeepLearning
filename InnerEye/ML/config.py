@@ -483,7 +483,6 @@ class SegmentationModelBase(ModelConfigBase):
     #: mutually exclusive. Some loss functions (e.g. SoftDice) may produce results on overlapping labels, but others (e.g.
     #: FocalLoss) will fail with a cryptic error message. Set to false if you are sure that you want to use labels that
     #: are not mutually exclusive.
-
     check_exclusive: bool = param.Boolean(True, doc="Raise an error if the segmentation labels are not mutually exclusive.")
 
     def __init__(self, center_size: Optional[TupleInt3] = None,

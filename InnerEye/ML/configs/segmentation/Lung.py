@@ -7,7 +7,7 @@ from typing import Any
 import numpy
 import pandas as pd
 
-from InnerEye.ML.config import MixtureLossComponent, PhotometricNormalizationMethod, SegmentationLoss, \
+from InnerEye.ML.config import PhotometricNormalizationMethod, SegmentationLoss, \
     SegmentationModelBase, equally_weighted_classes
 from InnerEye.ML.deep_learning_config import OptimizerType
 from InnerEye.ML.utils.split_dataset import DatasetSplits
@@ -39,7 +39,7 @@ class Lung(SegmentationModelBase):
             fill_holes=[False] * len(fg_classes),
             roi_interpreted_types=["ORGAN"] * len(fg_classes),
             largest_connected_component_foreground_classes=["lung_r", "lung_l", "heart"],
-            num_dataload_workers=8,
+            num_dataload_workers=2,
             norm_method=PhotometricNormalizationMethod.CtWindow,
             level=40,
             window=400,
@@ -60,9 +60,8 @@ class Lung(SegmentationModelBase):
             use_mixed_precision=True,
             use_model_parallel=True,
             monitoring_interval_seconds=0,
-            loss_type=SegmentationLoss.Mixture,
-            mixture_loss_components=[MixtureLossComponent(0.5, SegmentationLoss.Focal, 0.2),
-                                     MixtureLossComponent(0.5, SegmentationLoss.SoftDice, 0.1)],
+            loss_type=SegmentationLoss.SoftDice,
+            check_exclusive=False,
         )
         self.add_and_validate(kwargs)
 
