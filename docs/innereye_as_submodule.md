@@ -74,12 +74,12 @@ The example below creates a new flavour of the Glaucoma model in `InnerEye/ML/co
 All that needs to be done is change the dataset. We will do this by subclassing GlaucomaPublic in a new config 
 stored in `InnerEyeLocal/configs`
 1. Create folder `InnerEyeLocal/configs`
-1. Create a config file called GlaucomaPublicExt.py there which extends the GlaucomaPublic class that looks like
+1. Create a config file `InnerEyeLocal/configs/GlaucomaPublicExt.py` which extends the `GlaucomaPublic` class 
+like this:
 ```python
 from InnerEye.ML.configs.classification.GlaucomaPublic import GlaucomaPublic
 
-
-class GlaucomaPublicExt(GlaucomaPublic):
+class MyGlaucomaModel(GlaucomaPublic):
     def __init__(self) -> None:
         super().__init__()
         self.azure_dataset_id="name_of_your_dataset_on_azure"
@@ -90,6 +90,6 @@ is found by the runner. Set `extra_code_directory` to `InnerEyeLocal`.
 #### Start Training
 Run the following to start a job on AzureML: 
 ```
-python myrunner.py --azureml=True --model=GlaucomaPublicExt
+python myrunner.py --azureml=True --model=MyGlaucomaModel
 ```
 See [Model Training](building_models.md) for details on training outputs, resuming training, testing models and model ensembles.

@@ -27,13 +27,26 @@ description below).
 ### Setting up training
 
 You have two options for running the Glaucoma model:
-- You can directly work on a fork of the InnerEye repository. In this case, you need to modify `AZURE_DATASET_ID`
-in `GlaucomaPublic.py` to match the dataset upload location, called `name_of_your_dataset_on_azure` above. 
-If you choose that, you can start training via
+- You can directly work on a fork of the InnerEye repository. Create a config file `InnerEye/ML/configs/MyGlaucoma.py`
+ which extends the GlaucomaPublic class like this:
+```python
+from InnerEye.ML.configs.classification.GlaucomaPublic import GlaucomaPublic
+
+class MyGlaucomaModel(GlaucomaPublic):
+    def __init__(self) -> None:
+        super().__init__()
+        self.azure_dataset_id="name_of_your_dataset_on_azure"
+``` 
+The value for `self.azure_dataset_id` should match the dataset upload location, called 
+`name_of_your_dataset_on_azure` above. 
+
+Once that config is in place, you can start training in AzureML via
 ```
-python InnerEye/ML/runner.py --model=GlaucomaPublic --azureml=True
+python InnerEye/ML/runner.py --model=MyGlaucomaModel --azureml=True
 ```
-- Alternatively, you can use InnerEye-DeepLearning via a submodule. Please check [here](innereye_as_submodule.md).
+
+As an alternative to working with a fork of the repository, you can use InnerEye-DeepLearning via a submodule. 
+Please check [here](innereye_as_submodule.md) for details.
 
 
 ## Sample segmentation task: Segmentation of Lung CT
