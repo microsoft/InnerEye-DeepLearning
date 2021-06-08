@@ -233,7 +233,7 @@ def calculate_metrics_per_class(segmentation: np.ndarray,
     If first element of a ground truth image channel is NaN, the image is flagged as NaN and not use.
     :param ground_truth_ids: The names of all foreground classes.
     :param segmentation: predictions multi-value array with dimensions: [Z x Y x X]
-    :param ground_truth: ground truth binary array with dimensions: [C x Z x Y x X]
+    :param ground_truth: ground truth binary array with dimensions: [C x Z x Y x X].
     :param voxel_spacing: voxel_spacing in 3D Z x Y x X
     :param patient_id: for logging
     """
@@ -248,7 +248,7 @@ def calculate_metrics_per_class(segmentation: np.ndarray,
     # If ground truth image is nan, then will not be used for metrics computation.
     nan_images = [np.isnan(ground_truth[label_id][0, 0, 0]) for label_id in range(ground_truth.shape[0])]
 
-    # Validates if not binary then nan
+    # Compares element-wise if not binary then nan and checks all elements are True.
     assert np.all(np.array(binary_classes) == ~np.array(nan_images))
 
     #  Validates that all binary images should be 0 or 1

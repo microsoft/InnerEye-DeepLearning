@@ -418,9 +418,9 @@ def load_labels_from_dataset_source(dataset_source: PatientDatasetSource, check_
     Load labels containing segmentation binary labels in one-hot-encoding.
     In the future, this function will be used to load global class and non-imaging information as well.
 
-    :type image_size: Image size, tuple if integers.
+    :type image_size: Image size, tuple of integers.
     :param dataset_source: The dataset source for which channels are to be loaded into memory.
-    :param check_exclusive: Check that the labels are mutually exclusive (defaults to True)
+    :param check_exclusive: Check that the labels are mutually exclusive (defaults to True).
     :return: A label sample object containing ground-truth information.
     """
 
@@ -428,6 +428,7 @@ def load_labels_from_dataset_source(dataset_source: PatientDatasetSource, check_
         assert image_size is not None
 
     label_list = []
+    # label_list keeps track of missing ground truth channels
     for gt in dataset_source.ground_truth_channels:
         if gt is None:
             label_list.append(np.full(image_size, np.NAN, ImageDataType))

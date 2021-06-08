@@ -272,14 +272,15 @@ def convert_channels_to_file_paths(channels: List[str],
                                    patient_id: str,
                                    allow_incomplete_labels: bool = False) -> Tuple[List[Optional[Path]], str]:
     """
-    Returns: 1) The full path for files specified in the training, validation and testing datasets, and
-             2) Missing channels or missing files.
+    Returns: 1) A list of path file objects specified in the training, validation and testing datasets, and
+             2) a string with description of missing channels, files and more than one channel per patient.
 
-    :param allow_incomplete_labels: flag to enforce all ground truth labels
     :param channels: channel type defined in the configuration file
     :param rows: Input Pandas dataframe object containing subjectIds, path of local dataset, channel information
     :param local_dataset_root_folder: Root directory which points to the local dataset
     :param patient_id: string which contains subject identifier
+    :param allow_incomplete_labels: boolean flag. If false, all ground truth files must be provided. If true, ground
+                                    truth files are optional
     """
     paths: List[Optional[Path]] = []
     failed_channel_info = ''
@@ -320,7 +321,8 @@ def load_dataset_sources(dataframe: pd.DataFrame,
     :param image_channels: The names of the image channels that should be used in the result.
     :param ground_truth_channels: The names of the ground truth channels that should be used in the result.
     :param mask_channel: The name of the mask channel that should be used in the result. This can be None.
-    :param allow_incomplete_labels: Boolean variable to allow missing ground truth files.
+    :param allow_incomplete_labels: Boolean flag. If false, all ground truth files must be provided. If true, ground
+                                    truth files are optional. Default value is false.
     :return: A dictionary mapping from an integer subject ID to a PatientDatasetSource.
     """
     expected_headers = {CSV_SUBJECT_HEADER, CSV_PATH_HEADER, CSV_CHANNEL_HEADER}
@@ -338,19 +340,19 @@ def load_dataset_sources(dataframe: pd.DataFrame,
     def get_mask_channel_or_default() -> Optional[Path]:
         if mask_channel is None:
             return None
-        paths = get_paths_for_channel_ids(channels=[mask_channel])
+        paths = get_paths_for_channel_ids(channels=[mask_channel], allow_incomplete_labels_flag=allow_incomplete_labels)
         if len(paths) == 0:
             return None
         else:
             return paths[0]
 
-    def get_paths_for_channel_ids(channels: List[str]) -> List[Optional[Path]]:
+    def get_paths_for_channel_ids(channels: List[str], allow_incomplete_labels_flag: bool) -> List[Optional[Path]]:
         if len(set(channels)) < len(channels):
             raise ValueError(f"ids have duplicated entries: {channels}")
         rows = dataframe.loc[dataframe[CSV_SUBJECT_HEADER] == patient_id]
         # converts channels to paths and makes second sanity check for channel data
         paths, failed_channel_info = convert_channels_to_file_paths(channels, rows, local_dataset_root_folder,
-                                                                    patient_id, allow_incomplete_labels)
+                                                                    patient_id, allow_incomplete_labels_flag)
 
         if failed_channel_info:
             raise ValueError(failed_channel_info)
@@ -362,9 +364,11 @@ def load_dataset_sources(dataframe: pd.DataFrame,
         metadata = PatientMetadata.from_dataframe(dataframe, patient_id)
         dataset_sources[patient_id] = PatientDatasetSource(
             metadata=metadata,
-            image_channels=get_paths_for_channel_ids(channels=image_channels),  # type: ignore
+            image_channels=get_paths_for_channel_ids(channels=image_channels,  # type: ignore
+                                                     allow_incomplete_labels_flag=allow_incomplete_labels),
             mask_channel=get_mask_channel_or_default(),
-            ground_truth_channels=get_paths_for_channel_ids(channels=ground_truth_channels),  # type: ignore
+            ground_truth_channels=get_paths_for_channel_ids(channels=ground_truth_channels,  # type: ignore
+                                                            allow_incomplete_labels_flag=allow_incomplete_labels),
             allow_incomplete_labels=allow_incomplete_labels)
 
     return dataset_sources
