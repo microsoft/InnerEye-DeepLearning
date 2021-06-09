@@ -4,7 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
 import shutil
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Callable, Dict, List, Optional, Set, Tuple
 
 import pandas as pd
 import pytest
@@ -104,41 +104,48 @@ def create_file_list_for_segmentation_recovery_run(test_config_ensemble: PlotCro
                                        folder="main_1570466706163110")
 
 
-def replace_optional_path_prefix(path: Optional[Path], src_prefix_path: Path,
-                                 dst_prefix_path) -> Optional[Path]:
-    return dst_prefix_path / path.relative_to(src_prefix_path) if path else None
-
-
 def copy_file_list(files: List[RunResultFiles], src_prefix_path: Path,
-                   dst_prefix_path) -> List[RunResultFiles]:
+                   dst_prefix_path: Path, transformer: Callable) -> List[RunResultFiles]:
     file_copies = []
     files_copied = []
 
     for file in files:
-        dst_dataset_csv_file = replace_optional_path_prefix(file.dataset_csv_file, src_prefix_path,
-                                                            dst_prefix_path)
-        if dst_dataset_csv_file and dst_dataset_csv_file not in files_copied:
-            dst_dataset_csv_file.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy(file.dataset_csv_file, dst_dataset_csv_file)
-            files_copied.append(dst_dataset_csv_file)
+        if not file.dataset_csv_file:
+            dataset_csv_file: Optional[Path] = None
+        else:
+            # Replace prefix path
+            dst_dataset_csv_file = dst_prefix_path / file.dataset_csv_file.relative_to(src_prefix_path)
+            if dst_dataset_csv_file not in files_copied:
+                dst_dataset_csv_file.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy(file.dataset_csv_file, dst_dataset_csv_file)
+                files_copied.append(dst_dataset_csv_file)
+                transformer(dst_dataset_csv_file)
+            dataset_csv_file = dst_dataset_csv_file
 
         file_copy = RunResultFiles(execution_mode=file.execution_mode,
                                    metrics_file=file.metrics_file,
-                                   dataset_csv_file=dst_dataset_csv_file,
+                                   dataset_csv_file=dataset_csv_file,
                                    run_recovery_id=file.run_recovery_id,
                                    split_index=file.split_index)
         file_copies.append(file_copy)
 
     return file_copies
 
+
+def drop_series_id(path: Path) -> None:
+    df = pd.read_csv(path)
+    dropped_df = df.drop(CSV_SERIES_HEADER, axis=1)
+    dropped_df.to_csv(path)
+
+
 @pytest.mark.after_training_ensemble_run
 def test_metrics_preparation_for_segmentation_missing_columns(test_config: PlotCrossValidationConfig,
                                                               test_output_dirs: OutputFolderForTests) -> None:
     files = create_file_list_for_segmentation_recovery_run(test_config)
 
-    files_copied = copy_file_list(files, full_ml_test_data_path(), test_output_dirs.root_dir)
+    files_copied = copy_file_list(files, full_ml_test_data_path(), test_output_dirs.root_dir, drop_series_id)
 
-    downloaded_metrics = load_dataframes(files, test_config)
+    downloaded_metrics = load_dataframes(files_copied, test_config)
     assert test_config.run_recovery_id
     for mode in test_config.execution_modes_to_download():
         expected_df = _get_metrics_df(test_config.run_recovery_id, mode)
