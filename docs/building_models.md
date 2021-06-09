@@ -83,6 +83,20 @@ this case, you would simply omit the `azureml` flag, and instead of specifying
 `azure_dataset_id` in the class constructor, you can instead use `local_dataset="my/data/folder"`,
 where the folder `my/data/folder` contains a `dataset.csv` file and all the files that are referenced therein.
 
+### Boolean Options
+
+Note that for command line options that take a boolean argument, and that are `False` by default, there are multiple ways of setting the option. For example alternatives to  `--azureml` include:
+* `--azureml=True`, or `--azureml=true`, or `--azureml=T`, or `--azureml=t`
+* `--azureml=Yes`, or `--azureml=yes`, or `--azureml=Y`, or `--azureml=y`
+* `--azureml=On`, or `--azureml=on`
+* `--azureml=1`
+
+Conversely, for command line options that take a boolean argument, and that are `True` by default, there are multiple ways of un-setting the option. For example alternatives to `--no-train` include:
+* `--train=False`, or `--train=false`, or `--train=F`, or `--train=f`
+* `--train=No`, or `--train=no`, or `--train=N`, or `--train=n`
+* `--train=Off`, or `--train=off`
+* `--train=0`
+
 
 ### Training using multiple machines
 To speed up training in AzureML, you can use multiple machines, by specifying the additional
