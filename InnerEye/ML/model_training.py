@@ -194,7 +194,7 @@ def create_lightning_trainer(container: LightningContainer,
                       sync_batchnorm=True,
                       terminate_on_nan=container.detect_anomaly,
                       resume_from_checkpoint=str(resume_from_checkpoint) if resume_from_checkpoint else None,
-                      plugins=[], # plugins
+                      plugins=plugins,
                       **kwargs)
     return trainer, storing_logger
 
