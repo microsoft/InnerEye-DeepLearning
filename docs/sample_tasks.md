@@ -10,28 +10,26 @@ Before trying tp train these models, you should have followed steps to set up an
 This example is based on the paper [A feature agnostic approach for glaucoma detection in OCT volumes](https://arxiv.org/pdf/1807.04855v3.pdf).
 
 ### Downloading and preparing the dataset
-1. The dataset is available [here](https://zenodo.org/record/1481223#.Xs-ehzPiuM_) <sup>[[1]](#1)</sup>.
+The dataset is available [here](https://zenodo.org/record/1481223#.Xs-ehzPiuM_) <sup>[[1]](#1)</sup>.
 
-1. After downloading and extracting the zip file, run the [create_glaucoma_dataset_csv.py](https://github.com/microsoft/InnerEye-DeepLearning/blob/main/InnerEye/Scripts/create_glaucoma_dataset_csv.py)
+After downloading and extracting the zip file, run the [create_glaucoma_dataset_csv.py](https://github.com/microsoft/InnerEye-DeepLearning/blob/main/InnerEye/Scripts/create_glaucoma_dataset_csv.py)
  script on the extracted folder.
 ```
 python create_dataset_csv.py /path/to/extracted/folder
 ```
 This will convert the dataset to csv form and create a file `dataset.csv`.
  
-1.  Upload this folder (with the images and `dataset.csv`) to Azure Blob Storage. For details on creating a storage account, 
+Finally, upload this folder (with the images and `dataset.csv`) to Azure Blob Storage. For details on creating a storage account, 
 see [Setting up AzureML](setting_up_aml.md#step-4-create-a-storage-account-for-your-datasets). The dataset should go
 into a container called `datasets`, with a folder name of your choice (`name_of_your_dataset_on_azure` in the 
 description below).
 
-### Setting up training
+### Creating the model configuration and starting training
 
-You have two options for running the Glaucoma model:
-- You can directly work on a fork of the InnerEye repository. Create a config file `InnerEye/ML/configs/MyGlaucoma.py`
+Next, you need to create a configuration file `InnerEye/ML/configs/MyGlaucoma.py`
  which extends the GlaucomaPublic class like this:
 ```python
 from InnerEye.ML.configs.classification.GlaucomaPublic import GlaucomaPublic
-
 class MyGlaucomaModel(GlaucomaPublic):
     def __init__(self) -> None:
         super().__init__()
@@ -55,38 +53,45 @@ This example is based on the [Lung CT Segmentation Challenge 2017](https://wiki.
 
 ### Downloading and preparing the dataset
 
-1. The dataset <sup>[[3]](#3)[[4]](#4)</sup> can be downloaded [here](https://wiki.cancerimagingarchive.net/display/Public/Lung+CT+Segmentation+Challenge+2017#021ca3c9a0724b0d9df784f1699d35e2).
-1. The next step is to convert the dataset from DICOM-RT to NIFTI. Before this, place the downloaded dataset in another
- parent folder, which we will call `datasets`. This file structure is expected by the converison tool.
-1. Use the [InnerEye-CreateDataset](https://github.com/microsoft/InnerEye-createdataset) to create a NIFTI dataset
- from the downloaded (DICOM) files.
+The dataset <sup>[[3]](#3)[[4]](#4)</sup> can be downloaded [here](https://wiki.cancerimagingarchive.net/display/Public/Lung+CT+Segmentation+Challenge+2017#021ca3c9a0724b0d9df784f1699d35e2).
+
+You need to convert the dataset from DICOM-RT to NIFTI. Before this, place the downloaded dataset in another
+ parent folder, which we will call `datasets`. This file structure is expected by the conversion tool.
+
+Next, use the 
+[InnerEye-CreateDataset](https://github.com/microsoft/InnerEye-createdataset) commandline tools to create a 
+NIFTI dataset from the downloaded (DICOM) files.
 After installing the tool, run
 ```batch
 InnerEye.CreateDataset.Runner.exe dataset --datasetRootDirectory=<path to the 'datasets' folder> --niftiDatasetDirectory=<output folder name for converted dataset> --dicomDatasetDirectory=<name of downloaded folder inside 'datasets'> --geoNorm 1;1;3
 ```
 Now, you should have another folder under `datasets` with the converted Nifti files.
 The `geonorm` tag tells the tool to normalize the voxel sizes during conversion.
-1.  Upload this folder (with the images and dataset.csv) to Azure Blob Storage. For details on creating a storage account, 
+
+Finally, upload this folder (with the images and dataset.csv) to Azure Blob Storage. For details on creating a storage account, 
 see [Setting up AzureML](setting_up_aml.md#step-4-create-a-storage-account-for-your-datasets). All files should go
-into a folder in the `datasets` container, for example `my_lung_dataset`.
-1. You can then modify the example model configuration in [Lung.py](../InnerEye/ML/configs/segmentation/Lung.py), and
-add the `azure_dataset_id` field, so that it looks like:
+into a folder in the `datasets` container, for example `my_lung_dataset`. This folder name will need to go into the
+`azure_dataset_id` field of the model configuration, see below.
+
+### Creating the model configuration and starting training
+You can then create a new model configuration, based on the template 
+[Lung.py](../InnerEye/ML/configs/segmentation/Lung.py). To do this, create a file 
+`InnerEye/ML/configs/segmentation/MyLungModel.py`, where you create a subclass of the template Lung model, and
+add the `azure_dataset_id` field (i.e., the name of the folder that contains the uploaded data from above), 
+so that it looks like:
 ```python
-class Lung(SegmentationModelBase):
-    def __init__(self, **kwargs: Any) -> None:
-        fg_classes = ["spinalcord", "lung_r", "lung_l", "heart", "esophagus"]
-        fg_display_names = ["SpinalCord", "Lung_R", "Lung_L", "Heart", "Esophagus"]
-        super().__init__(
-            azure_dataset_id="my_lung_dataset",
-            architecture="UNet3D",
-            feature_channels=[32],
-...
+from InnerEye.ML.configs.segmentation.Lung import Lung
+class MyLungModel(Lung):
+    def __init__(self) -> None:
+        super().__init__()
+        self.azure_dataset_id = "my_lung_dataset"
 ```
-If you are using InnerEye as a submodule, please add a new configuration that is a subclass of `Lung`, and set
-the `azure_dataset_id` field there, as described for the Glaucoma model [here](innereye_as_submodule.md).
-1. You can now run the following command to start a job on AzureML:
+If you are using InnerEye as a submodule, please add this configuration in your private configuration folder, 
+as described for the Glaucoma model [here](innereye_as_submodule.md).
+
+You can now run the following command to start a job on AzureML:
 ```
-python InnerEye/ML/runner.py --azureml=True --model=Lung
+python InnerEye/ML/runner.py --azureml=True --model=MyLungModel
 ```
 See [Model Training](building_models.md) for details on training outputs, resuming training, testing models and model ensembles.
  
