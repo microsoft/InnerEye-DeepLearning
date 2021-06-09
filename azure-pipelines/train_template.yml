@@ -7,7 +7,7 @@ steps:
       branch_prefix="refs/heads/"
       full_branch_name=$(Build.SourceBranch)
       branch_name_without_prefix=${full_branch_name#$branch_prefix}
-      python ./InnerEye/ML/runner.py --azureml=True --model="$(model)" --train="$(train)" $(more_switches) --number_of_cross_validation_splits="$(number_of_cross_validation_splits)" --wait_for_completion="${{parameters.wait_for_completion}}" --max_run_duration="${{parameters.max_run_duration}}" --pytest_mark="${{parameters.pytest_mark}}" --cluster="$(cluster)" --run_recovery_id="$(run_recovery_id)" --tag="$(tag)" --build_number=$(Build.BuildId) --build_user="$(Build.RequestedFor)" --build_user_email="" --build_branch="$branch_name_without_prefix" --build_source_repository="$(Build.Repository.Name)"
+      python ./InnerEye/ML/runner.py --azureml --model="$(model)" --train="$(train)" $(more_switches) --number_of_cross_validation_splits="$(number_of_cross_validation_splits)" --wait_for_completion="${{parameters.wait_for_completion}}" --max_run_duration="${{parameters.max_run_duration}}" --pytest_mark="${{parameters.pytest_mark}}" --cluster="$(cluster)" --run_recovery_id="$(run_recovery_id)" --tag="$(tag)" --build_number=$(Build.BuildId) --build_user="$(Build.RequestedFor)" --build_user_email="" --build_branch="$branch_name_without_prefix" --build_source_repository="$(Build.Repository.Name)"
     env:
       PYTHONPATH: $(Build.SourcesDirectory)/
       APPLICATION_KEY: $(InnerEyeDeepLearningServicePrincipalKey)

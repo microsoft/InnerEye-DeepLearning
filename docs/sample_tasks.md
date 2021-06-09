@@ -30,7 +30,7 @@ You have two options for running the Glaucoma model:
 in `GlaucomaPublic.py` to match the dataset upload location, called `name_of_your_dataset_on_azure` above. 
 If you choose that, you can start training via
 ```
-python InnerEye/ML/runner.py --model=GlaucomaPublic --azureml=True
+python InnerEye/ML/runner.py --model=GlaucomaPublic --azureml
 ```
 - Alternatively, you can create a separate runner and a separate model configuration folder. The steps described
 below refer to this route.
@@ -61,7 +61,7 @@ is found by the runner. Set `extra_code_directory` to `InnerEyeLocal`.
 #### Start Training
 Run the following to start a job on AzureML
 ```
-python InnerEyeLocal/ML/runner.py --azureml=True --model=GlaucomaPublicExt
+python InnerEyeLocal/ML/runner.py --azureml --model=GlaucomaPublicExt
 ```
 See [Model Training](building_models.md) for details on training outputs, resuming training, testing models and model ensembles.
 
@@ -110,7 +110,7 @@ is found by the runner. Set `extra_code_directory` to `InnerEyeLocal`.
 ### Start Training
 Run the following to start a job on AzureML
 ```
-python InnerEyeLocal/ML/runner.py --azureml=True --model=LungExt --train=True
+python InnerEyeLocal/ML/runner.py --azureml --model=LungExt
 ```
 See [Model Training](building_models.md) for details on training outputs, resuming training, testing models and model ensembles.
  

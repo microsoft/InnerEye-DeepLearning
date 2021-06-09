@@ -75,7 +75,7 @@ The InnerEye runner will check if there is a dataset in the AzureML workspace al
 
 * Train a new model, for example `Prostate`:
 ```shell script
-python InnerEyeLocal/ML/runner.py --azureml=True --model=Prostate --train=True
+python InnerEyeLocal/ML/runner.py --azureml --model=Prostate
 ```
 
 Alternatively, you can train the model on your current machine if it is powerful enough. In
@@ -88,7 +88,7 @@ where the folder `my/data/folder` contains a `dataset.csv` file and all the file
 To speed up training in AzureML, you can use multiple machines, by specifying the additional
 `--num_nodes` argument. For example, to use 2 machines to train, specify:
 ```shell script
-python InnerEyeLocal/ML/runner.py --azureml=True --model=Prostate --num_nodes=2
+python InnerEyeLocal/ML/runner.py --azureml --model=Prostate --num_nodes=2
 ```
 On each of the 2 machines, all available GPUs will be used. Model inference will always use only one machine.
 
@@ -149,18 +149,18 @@ run recovery ID without the final underscore and digit.
 To evaluate an existing model on a test set, you can use models from previous runs in AzureML or from local checkpoints.
 
 #### From a previus run in AzureML:
-This is similar to continuing training using a run_recovery object, but you will need to set `--train` to `False`. 
+This is similar to continuing training using a run_recovery object, but you will need to set `--no-train`.
 Thus your command should look like this:
 
 ```shell script
-python Inner/ML/runner.py --azureml=True --model=Prostate --train=False --cluster=my_cluster_name \
+python Inner/ML/runner.py --azureml --model=Prostate --no-train --cluster=my_cluster_name \
    --run_recovery_id=foo_bar:foo_bar_12345_abcd --start_epoch=120
 ```
 #### From a local checkpoint:
 To evaluate a model using a local checkpoint, use the local_weights_path to specify the path to the model checkpoint 
 and set train to `False`.
 ```shell script
-python Inner/ML/runner.py --model=Prostate --train=False --local_weights_path=path_to_your_checkpoint
+python Inner/ML/runner.py --model=Prostate --no-train --local_weights_path=path_to_your_checkpoint
 ```
 
 Alternatively, to submit an AzureML run to apply a model to a single image on your local disc, 
