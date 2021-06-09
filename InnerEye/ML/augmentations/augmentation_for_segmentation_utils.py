@@ -159,14 +159,12 @@ class BasicAugmentations(Transform3D[Sample]):
             image=tio.ScalarImage(tensor=image),
             labels=tio.LabelMap(tensor=labels)
         )
+
         augment = tio.Compose([
-            tio.OneOf({
-                tio.RandomAffine(
-                    degrees=20),
-                tio.RandomNoise(),
-                tio.RandomMotion(),
-                tio.RandomBlur(),
-            }, p=0.5)
+            tio.RandomAffine(default_pad_value=0, degrees=20, p=0.2),
+            tio.RandomNoise(p=0.2),
+            tio.RandomMotion(p=0.2),
+            tio.RandomBlur(p=0.2)
         ])
         transformed_subject = augment(subject)
         return transformed_subject.image.numpy(), transformed_subject.labels.numpy()

@@ -793,17 +793,12 @@ class SegmentationModelBase(ModelConfigBase):
         """
         from InnerEye.ML.utils.transforms import Compose3D
         from InnerEye.ML.photometric_normalization import PhotometricNormalization
-        from InnerEye.ML.augmentations.augmentation_for_segmentation_utils import BasicAugmentations
         from InnerEye.ML.utils.transforms import Transform3D
         from InnerEye.ML.dataset.sample import Sample
 
-        photometric_normalization = PhotometricNormalization(self, use_gpu=False)
         photometric_transformation: Compose3D[Transform3D[Sample]] = Compose3D(
-            transforms=[photometric_normalization])
-        training_augmentations: Compose3D[Transform3D[Sample]] = Compose3D(
-            transforms=[photometric_normalization, BasicAugmentations()])
-        training_transformation = training_augmentations if self.apply_augmentations else photometric_transformation
-        return ModelTransformsPerExecutionMode(train=training_transformation,
+            transforms=[PhotometricNormalization(self, use_gpu=False)])
+        return ModelTransformsPerExecutionMode(train=photometric_transformation,
                                                val=photometric_transformation,
                                                test=photometric_transformation)
 
@@ -812,4 +807,16 @@ class SegmentationModelBase(ModelConfigBase):
         Get transforms to perform on cropped samples for each model execution mode.
         By default no transformation is performed.
         """
-        return ModelTransformsPerExecutionMode()
+        from InnerEye.ML.utils.transforms import Compose3D
+        from InnerEye.ML.photometric_normalization import PhotometricNormalization
+        from InnerEye.ML.utils.transforms import Transform3D
+        from InnerEye.ML.dataset.sample import Sample
+        from InnerEye.ML.augmentations.augmentation_for_segmentation_utils import BasicAugmentations
+
+        photometric_normalization = PhotometricNormalization(self, use_gpu=False)
+        photometric_transformation: Compose3D[Transform3D[Sample]] = Compose3D(
+            transforms=[photometric_normalization])
+        training_augmentations: Compose3D[Transform3D[Sample]] = Compose3D(
+            transforms=[BasicAugmentations(), photometric_normalization])
+        training_transformation = training_augmentations if self.apply_augmentations else photometric_transformation
+        return ModelTransformsPerExecutionMode(train=training_transformation)
