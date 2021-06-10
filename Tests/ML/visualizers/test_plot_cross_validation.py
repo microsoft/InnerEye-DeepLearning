@@ -7,7 +7,6 @@ from typing import Dict, List, Optional, Set, Tuple
 
 import pandas as pd
 import pytest
-from pytest import raises
 from azureml.core import Run
 from pandas.core.dtypes.common import is_string_dtype
 
