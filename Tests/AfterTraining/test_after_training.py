@@ -13,7 +13,6 @@ up the most recently run AzureML job from most_recent_run.txt
 import os
 import shutil
 import sys
-import time
 from pathlib import Path
 from typing import List
 from unittest import mock
