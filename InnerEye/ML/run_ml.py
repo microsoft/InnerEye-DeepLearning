@@ -222,8 +222,7 @@ class MLRunner:
                                                     azure_config=self.azure_config,
                                                     project_root=self.project_root,
                                                     run_context=RUN_CONTEXT)
-        if is_global_rank_zero():
-            self.checkpoint_handler.download_recovery_checkpoints_or_weights()
+        self.checkpoint_handler.download_recovery_checkpoints_or_weights(is_global_rank_zero())
 
         # A lot of the code for the built-in InnerEye models expects the output paths directly in the config files.
         if isinstance(self.container, InnerEyeContainer):

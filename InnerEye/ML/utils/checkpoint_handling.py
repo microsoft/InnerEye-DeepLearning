@@ -57,7 +57,7 @@ class CheckpointHandler:
             if not path.is_dir():
                 raise NotADirectoryError(f"Does not exist or is not a directory: {path}")
 
-    def download_recovery_checkpoints_or_weights(self) -> None:
+    def download_recovery_checkpoints_or_weights(self, is_global_rank_zero: bool) -> None:
         """
         Download checkpoints from a run recovery object or from a weights url. Set the checkpoints path based on the
         run_recovery_object, weights_url or local_weights_path.
@@ -65,7 +65,8 @@ class CheckpointHandler:
         """
         if self.azure_config.run_recovery_id:
             run_to_recover = self.azure_config.fetch_run(self.azure_config.run_recovery_id.strip())
-            self.run_recovery = RunRecovery.download_all_checkpoints_from_run(self.output_params, run_to_recover)
+            self.run_recovery = RunRecovery.download_all_checkpoints_from_run(self.output_params, run_to_recover,
+                                                                              only_return_path=is_global_rank_zero)
         else:
             self.run_recovery = None
 
@@ -73,7 +74,8 @@ class CheckpointHandler:
             run_to_recover = self.azure_config.fetch_run(self.azure_config.pretraining_run_recovery_id.strip())
             run_recovery_object = RunRecovery.download_all_checkpoints_from_run(self.output_params,
                                                                                 run_to_recover,
-                                                                                EXTRA_RUN_SUBFOLDER)
+                                                                                EXTRA_RUN_SUBFOLDER,
+                                                                                only_return_path=is_global_rank_zero)
             self.container.extra_downloaded_run_id = run_recovery_object
         else:
             self.container.extra_downloaded_run_id = None

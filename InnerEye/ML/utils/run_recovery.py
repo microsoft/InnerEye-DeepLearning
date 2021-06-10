@@ -63,7 +63,8 @@ class RunRecovery:
 
     @staticmethod
     def download_all_checkpoints_from_run(config: OutputParams, run: Run,
-                                          subfolder: Optional[str] = None) -> RunRecovery:
+                                          subfolder: Optional[str] = None,
+                                          only_return_path: bool = False) -> RunRecovery:
         """
         Downloads all checkpoints of the provided run inside the checkpoints folder.
         :param config: Model related configs.
@@ -77,11 +78,12 @@ class RunRecovery:
 
         destination_folder = config.checkpoint_folder / subfolder if subfolder else config.checkpoint_folder
 
-        download_outputs_from_run(
-            blobs_path=Path(CHECKPOINT_FOLDER),
-            destination=destination_folder,
-            run=run
-        )
+        if not only_return_path:
+            download_outputs_from_run(
+                blobs_path=Path(CHECKPOINT_FOLDER),
+                destination=destination_folder,
+                run=run
+            )
         time.sleep(60)  # Needed because AML is not fast enough to download
         return RunRecovery(checkpoints_roots=[destination_folder])
 
