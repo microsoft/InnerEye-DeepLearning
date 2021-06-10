@@ -44,7 +44,7 @@ from InnerEye.ML.metrics import InferenceMetrics, InferenceMetricsForSegmentatio
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
 from InnerEye.ML.model_testing import model_test
-from InnerEye.ML.model_training import create_lightning_trainer, model_train
+from InnerEye.ML.model_training import create_lightning_trainer, is_global_rank_zero, model_train
 from InnerEye.ML.reports.notebook_report import generate_classification_crossval_notebook, \
     generate_classification_multilabel_notebook, generate_classification_notebook, generate_segmentation_notebook, \
     get_ipynb_report_name, reports_folder
@@ -222,7 +222,7 @@ class MLRunner:
                                                     azure_config=self.azure_config,
                                                     project_root=self.project_root,
                                                     run_context=RUN_CONTEXT)
-        self.checkpoint_handler.download_recovery_checkpoints_or_weights()
+        self.checkpoint_handler.download_recovery_checkpoints_or_weights(only_return_path=not is_global_rank_zero())
 
         # A lot of the code for the built-in InnerEye models expects the output paths directly in the config files.
         if isinstance(self.container, InnerEyeContainer):
