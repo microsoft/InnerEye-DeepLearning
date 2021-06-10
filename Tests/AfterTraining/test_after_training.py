@@ -15,6 +15,7 @@ import shutil
 import sys
 from pathlib import Path
 from typing import List
+from unittest import mock
 
 import numpy as np
 import pytest
@@ -29,7 +30,7 @@ from InnerEye.Common import common_util, fixed_paths, fixed_paths_for_tests
 from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, get_best_epoch_results_path
 from InnerEye.Common.fixed_paths import DEFAULT_AML_LOGS_DIR, DEFAULT_RESULT_IMAGE_NAME, \
     DEFAULT_RESULT_ZIP_DICOM_NAME, \
-    PYTHON_ENVIRONMENT_NAME
+    PYTHON_ENVIRONMENT_NAME, repository_root_directory
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.spawn_subprocess import spawn_and_monitor_subprocess
@@ -38,6 +39,7 @@ from InnerEye.ML.configs.segmentation.BasicModel2Epochs import BasicModel2Epochs
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, ModelCategory
 from InnerEye.ML.model_inference_config import read_model_inference_config
 from InnerEye.ML.reports.notebook_report import get_html_report_name
+from InnerEye.ML.runner import main
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.utils.image_util import get_unit_image_header
 from InnerEye.ML.utils.io_util import zip_random_dicom_series
@@ -351,3 +353,37 @@ def test_training_2nodes(test_output_dirs: OutputFolderForTests) -> None:
     assert "initializing ddp: GLOBAL_RANK: 1, MEMBER: 2/4" in log0_txt
     assert "initializing ddp: GLOBAL_RANK: 2, MEMBER: 3/4" in log1_txt
     assert "initializing ddp: GLOBAL_RANK: 3, MEMBER: 4/4" in log1_txt
+
+
+@pytest.mark.after_training_2node
+def test_recovery_on_2_nodes(test_output_dirs: OutputFolderForTests) -> None:
+    args_list = ["--model", "BasicModel2EpochsMoreData",
+                 "--azureml", "True",
+                 "--num_nodes", "2",
+                 "--run_recovery_id",
+                 str(get_most_recent_run_id(fallback_run_id_for_local_execution=FALLBACK_2NODE_RUN)),
+                 "--num_epochs", "4",
+                 "--wait_for_completion", "True"
+                 ]
+    script = str(repository_root_directory() / "InnerEye" / "ML" / "runner.py")
+    with mock.patch("sys.argv", [script] + args_list):
+        main()
+    run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_2NODE_RUN)
+    assert run.status == RunStatus.COMPLETED
+    files = run.get_file_names()
+    # There are two nodes, so there should be one log file per node.
+    log0_path = "azureml-logs/70_driver_log_0.txt"
+    log1_path = "azureml-logs/70_driver_log_1.txt"
+    assert log0_path in files, "Node rank 0 log file is missing"
+    assert log1_path in files, "Node rank 1 log file is missing"
+    # Download both log files and check their contents
+    log0 = test_output_dirs.root_dir / log0_path
+    log1 = test_output_dirs.root_dir / log1_path
+    run.download_file(log0_path, output_file_path=str(log0))
+    run.download_file(log1_path, output_file_path=str(log1))
+    log0_txt = log0.read_text()
+    log1_txt = log1.read_text()
+    assert "Downloading multiple files from run" in log0_txt
+    assert "Downloading multiple files from run" not in log1_txt
+    assert "Loading checkpoint that was created at (epoch = 2, global_step = 2)" in log0_txt
+    assert "Loading checkpoint that was created at (epoch = 2, global_step = 2)" in log1_txt
