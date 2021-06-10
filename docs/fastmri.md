@@ -88,7 +88,7 @@ There are 2 example models already coded up in the InnerEye toolbox, defined in
 `BrainMulticoil`. As with all InnerEye models, you can start a training run by specifying the name of the class 
 that defines the model, like this:
 ```shell script
-python InnerEye/ML/runner.py --model KneeMulticoil --azureml=True --num_nodes=4
+python InnerEye/ML/runner.py --model KneeMulticoil --azureml --num_nodes=4
 ```
 This will start an AzureML job with 4 nodes training at the same time. Depending on how you set up your compute
 cluster, this will use a different number of GPUs: For example, if your cluster uses ND24 virtual machines, where 
@@ -110,7 +110,7 @@ Note that the download times depend on the type of Azure storage account that yo
 using Premium storage accounts for optimal performance.
 
 You can avoid the time to download the dataset, by specifying that the data is always read on-the-fly from the network.
-For that, just add the `--use_dataset_mount=True` flag to the commandline. This may impact training throughput if
+For that, just add the `--use_dataset_mount` flag to the commandline. This may impact training throughput if
 the storage account cannot provide the data quick enough - however, we have not observed a drop in GPU utilization even
 when training on 8 nodes in parallel. For more details around dataset mounting please refer to the next section.
 
@@ -122,9 +122,9 @@ Downloading the dataset can - depending on the types of nodes - already make the
 
 The InnerEye toolbox has a way of working around that problem, by reading the dataset on-the-fly from the network, 
 rather than downloading it at the start of the job. You can trigger this behaviour by supplying an additional 
-commandline argument `--use_dataset_mount=True`, for example:
+commandline argument `--use_dataset_mount`, for example:
 ```shell script
-python InnerEye/ML/runner.py --model BrainMulticoil --azureml=True --num_nodes=4 --use_dataset_mount=True
+python InnerEye/ML/runner.py --model BrainMulticoil --azureml --num_nodes=4 --use_dataset_mount
 ```
 With this flag, the InnerEye training script will start immediately, without downloading data beforehand. 
 However, the fastMRI data module generates a cache file before training, and to build that, it needs to traverse the 
@@ -133,7 +133,7 @@ creating this cache file. This can be avoided by copying the cache file from a p
 More specifically, you need to follow these steps:
 * Start a training job, training for only 1 epoch, like
 ```shell script
-python InnerEye/ML/runner.py --model BrainMulticoil --azureml=True --use_dataset_mount=True --num_epochs=1
+python InnerEye/ML/runner.py --model BrainMulticoil --azureml --use_dataset_mount --num_epochs=1
 ```
 * Wait until the job starts has finished creating the cache file - the job will print out a message 
 "Saving dataset cache to dataset_cache.pkl", visible in the log file `azureml-logs/70_driver_log.txt`, about 1-2 hours
@@ -147,7 +147,7 @@ folder that was previously created by the Azure Data Factory. You can do that vi
  `brain_multicoil`. Once in that folder, press the "Upload" button at the top and select the `dataset_cache.pkl` file.
 * Start the training job again, this time you can start multi-node training right away, like this:
 ```shell script
-python InnerEye/ML/runner.py --model BrainMulticoil --azureml=True --use_dataset_mount=True --num_nodes=8. This new
+python InnerEye/ML/runner.py --model BrainMulticoil --azureml --use_dataset_mount --num_nodes=8. This new
 ```
 This job should pick up the existing cache file, and output a message like "Copying a pre-computed dataset cache 
 file ..."
@@ -177,7 +177,7 @@ azcopy --source-key <storage_account_key> --source https://<your_storage_acount>
 Replace `brain_multicoil` with any of the other datasets names if needed.
 
 If you follow these suggested folder structures, there is no further change necessary to the models. You can then
-run, for example, the `BrainMulticoil` model by dropping the `--azureml=True` flag like this:
+run, for example, the `BrainMulticoil` model by dropping the `--azureml` flag like this:
 ```shell script
 python InnerEye/ML/runner.py --model BrainMulticoil
 ```
