@@ -104,8 +104,18 @@ def create_file_list_for_segmentation_recovery_run(test_config_ensemble: PlotCro
                                        folder="main_1570466706163110")
 
 
-def copy_file_list(files: List[RunResultFiles], src_prefix_path: Path,
-                   dst_prefix_path: Path, transformer: Callable) -> List[RunResultFiles]:
+def copy_run_result_files(files: List[RunResultFiles], src_prefix_path: Path,
+                          dst_prefix_path: Path, transformer: Callable) -> List[RunResultFiles]:
+    """
+    Copy dataset_csv_files from a list of RunResultFiles to a working directory, and then
+    transform them using a callback.
+
+    :param files: List of RunResultFiles to copy.
+    :param src_prefix_path: Shared prefix path for the dataset_csv_files to be removed.
+    :param dst_prefix_path: Shared prefix path to use for the copied dataset_csv_files.
+    :param transformer: Callback function to apply to the copied dataset_csv_files.
+    :return: New list of RunResultFiles pointing at the copied files.
+    """
     file_copies = []
     files_copied = []
 
@@ -133,34 +143,33 @@ def copy_file_list(files: List[RunResultFiles], src_prefix_path: Path,
 
 
 @pytest.mark.after_training_ensemble_run
-@pytest.mark.parametrize("column", [CSV_INSTITUTION_HEADER, CSV_SERIES_HEADER])
-def test_metrics_preparation_for_segmentation_missing_columns(column: str,
-                                                              test_config: PlotCrossValidationConfig,
-                                                              test_output_dirs: OutputFolderForTests) -> None:
-    def drop_series_id(path: Path) -> None:
-        df = pd.read_csv(path)
-        dropped_df = df.drop(column, axis=1)
-        dropped_df.to_csv(path)
-
-    files = create_file_list_for_segmentation_recovery_run(test_config)
-
-    files_copied = copy_file_list(files, full_ml_test_data_path(), test_output_dirs.root_dir, drop_series_id)
-
-    downloaded_metrics = load_dataframes(files_copied, test_config)
-    assert downloaded_metrics
-
-
-@pytest.mark.after_training_ensemble_run
-def test_metrics_preparation_for_segmentation(test_config: PlotCrossValidationConfig) -> None:
+@pytest.mark.parametrize("drop_column", [None, CSV_INSTITUTION_HEADER, CSV_SERIES_HEADER])
+def test_metrics_preparation_for_segmentation(drop_column: Optional[str],
+                                              test_config: PlotCrossValidationConfig,
+                                              test_output_dirs: OutputFolderForTests) -> None:
     """
     Test if metrics dataframes can be loaded and prepared. The files in question are checked in, but
     were downloaded from a run, ID given in DEFAULT_ENSEMBLE_RUN_RECOVERY_ID.
+    Additionally test that CSV_INSTITUTION_HEADER or CSV_SERIES_HEADER can be dropped from the dataset_csv_file.
     """
     files = create_file_list_for_segmentation_recovery_run(test_config)
+    if drop_column:
+        def drop_csv_column(path: Path) -> None:
+            """
+            Load a csv file, drop a column, and save the csv file.
+            :param path: Path to csv file.
+            """
+            df = pd.read_csv(path)
+            dropped_df = df.drop(drop_column, axis=1)
+            dropped_df.to_csv(path)
+        files = copy_run_result_files(files, full_ml_test_data_path(), test_output_dirs.root_dir, drop_csv_column)
     downloaded_metrics = load_dataframes(files, test_config)
     assert test_config.run_recovery_id
     for mode in test_config.execution_modes_to_download():
         expected_df = _get_metrics_df(test_config.run_recovery_id, mode)
+        if drop_column:
+            # If dropped a column from dataset_csv_file, remove it from expected dataframe.
+            expected_df[drop_column] = ''
         # Drop the "mode" column, because that was added after creating the test data
         metrics = downloaded_metrics[mode]
         assert metrics is not None
