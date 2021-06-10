@@ -90,6 +90,6 @@ is found by the runner. Set `extra_code_directory` to `InnerEyeLocal`.
 #### Start Training
 Run the following to start a job on AzureML: 
 ```
-python myrunner.py --azureml=True --model=MyGlaucomaModel
+python myrunner.py --azureml --model=MyGlaucomaModel
 ```
 See [Model Training](building_models.md) for details on training outputs, resuming training, testing models and model ensembles.
