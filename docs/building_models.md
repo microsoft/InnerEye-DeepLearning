@@ -83,8 +83,8 @@ this case, you would simply omit the `azureml` flag, and instead of specifying
 `azure_dataset_id` in the class constructor, you can instead use `local_dataset="my/data/folder"`,
 where the folder `my/data/folder` contains a `dataset.csv` file and all the files that are referenced therein.
 
-If your dataset is small you can try `--apply_augmentations=True` for segmentation models this will apply `BasicAugmentations(Transform3D[Sample])`.
-This will apply one of these transforms with 0.5 probability: `RandomAffine(degrees=20), RandomNoise(), RandomMotion(), RandomBlur()`
+If your dataset is small you can try `--apply_augmentations=True` and increase the `--num_epochs=` for segmentation models. This will apply `BasicAugmentations(Transform3D[Sample])`.
+This will apply these transforms: `RandomAffine(degrees=20), RandomNoise(), RandomMotion(), RandomBlur()`
 
 
 ### Training using multiple machines
