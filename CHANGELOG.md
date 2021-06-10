@@ -32,6 +32,7 @@ any large models anymore because data loaders ran out of memory.
 
 ### Added
 
+- ([#489](https://github.com/microsoft/InnerEye-DeepLearning/pull/489)) Remove portal query for outliers.
 - ([#454](https://github.com/microsoft/InnerEye-DeepLearning/pull/454)) Checking that labels are mutually exclusive.
 - ([#447](https://github.com/microsoft/InnerEye-DeepLearning/pull/447/)) Added a sanity check to ensure there are no
   missing channels, nor missing files. If missing channels in the csv file or filenames associated with channels are
