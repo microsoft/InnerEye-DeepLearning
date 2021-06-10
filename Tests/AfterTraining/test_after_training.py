@@ -219,38 +219,6 @@ def test_submit_for_inference(use_dicom: bool, test_output_dirs: OutputFolderFor
     submit_for_inference.main(args, project_root=fixed_paths.repository_root_directory())
     assert seg_path.exists(), f"Result file {seg_path} was not created"
 
-@pytest.mark.after_training_2node
-def test_recovery_on_2_nodes(test_output_dirs: OutputFolderForTests) -> None:
-    args_list = ["--model", "BasicModel2EpochsMoreData",
-                 "--azureml", "True",
-                 "--num_nodes", "2",
-                 "--run_recovery_id", str(get_most_recent_run_id(fallback_run_id_for_local_execution=FALLBACK_2NODE_RUN)),
-                 "--num_epochs", "4",
-                 "--max_num_gpus", "1",
-                 "--wait_for_completion", "True"
-                 ]
-    script = str(repository_root_directory() / "InnerEye" / "ML" / "runner.py")
-    with mock.patch("sys.argv", [script] + args_list):
-        main()
-    run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_2NODE_RUN)
-    assert run.status == RunStatus.COMPLETED
-    files = run.get_file_names()
-    # There are two nodes, so there should be one log file per node.
-    log0_path = "azureml-logs/70_driver_log_0.txt"
-    log1_path = "azureml-logs/70_driver_log_1.txt"
-    assert log0_path in files, "Node rank 0 log file is missing"
-    assert log1_path in files, "Node rank 1 log file is missing"
-    # Download both log files and check their contents
-    log0 = test_output_dirs.root_dir / log0_path
-    log1 = test_output_dirs.root_dir / log1_path
-    run.download_file(log0_path, output_file_path=str(log0))
-    run.download_file(log1_path, output_file_path=str(log1))
-    log0_txt = log0.read_text()
-    log1_txt = log1.read_text()
-    assert "Downloading multiple files from run" in log0_txt
-    assert "Downloading multiple files from run" not in log1_txt
-    assert "Loading checkpoint that was created at (epoch = 2, global_step = 2)" in log0_txt
-    assert "Loading checkpoint that was created at (epoch = 2, global_step = 2)" in log1_txt
 
 def _check_presence_cross_val_metrics_file(split: str, mode: ModelExecutionMode, available_files: List[str]) -> bool:
     return f"{CROSSVAL_RESULTS_FOLDER}/{split}/{mode.value}/metrics.csv" in available_files
@@ -385,3 +353,37 @@ def test_training_2nodes(test_output_dirs: OutputFolderForTests) -> None:
     assert "initializing ddp: GLOBAL_RANK: 1, MEMBER: 2/4" in log0_txt
     assert "initializing ddp: GLOBAL_RANK: 2, MEMBER: 3/4" in log1_txt
     assert "initializing ddp: GLOBAL_RANK: 3, MEMBER: 4/4" in log1_txt
+
+
+@pytest.mark.after_training_2node
+def test_recovery_on_2_nodes(test_output_dirs: OutputFolderForTests) -> None:
+    args_list = ["--model", "BasicModel2EpochsMoreData",
+                 "--azureml", "True",
+                 "--num_nodes", "2",
+                 "--run_recovery_id",
+                 str(get_most_recent_run_id(fallback_run_id_for_local_execution=FALLBACK_2NODE_RUN)),
+                 "--num_epochs", "4",
+                 "--wait_for_completion", "True"
+                 ]
+    script = str(repository_root_directory() / "InnerEye" / "ML" / "runner.py")
+    with mock.patch("sys.argv", [script] + args_list):
+        main()
+    run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_2NODE_RUN)
+    assert run.status == RunStatus.COMPLETED
+    files = run.get_file_names()
+    # There are two nodes, so there should be one log file per node.
+    log0_path = "azureml-logs/70_driver_log_0.txt"
+    log1_path = "azureml-logs/70_driver_log_1.txt"
+    assert log0_path in files, "Node rank 0 log file is missing"
+    assert log1_path in files, "Node rank 1 log file is missing"
+    # Download both log files and check their contents
+    log0 = test_output_dirs.root_dir / log0_path
+    log1 = test_output_dirs.root_dir / log1_path
+    run.download_file(log0_path, output_file_path=str(log0))
+    run.download_file(log1_path, output_file_path=str(log1))
+    log0_txt = log0.read_text()
+    log1_txt = log1.read_text()
+    assert "Downloading multiple files from run" in log0_txt
+    assert "Downloading multiple files from run" not in log1_txt
+    assert "Loading checkpoint that was created at (epoch = 2, global_step = 2)" in log0_txt
+    assert "Loading checkpoint that was created at (epoch = 2, global_step = 2)" in log1_txt
