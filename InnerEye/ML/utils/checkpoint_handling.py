@@ -62,6 +62,9 @@ class CheckpointHandler:
         Download checkpoints from a run recovery object or from a weights url. Set the checkpoints path based on the
         run_recovery_object, weights_url or local_weights_path.
         This is called at the start of training.
+        :param: only_return_path: if True, return a RunRecovery object with the path to the checkpoint without actually
+        downloading the checkpoints. This is useful to avoid duplicating checkpoint download when running on multiple
+        nodes. If False, return the RunRecovery object and download the checkpoint to disk.
         """
         if self.azure_config.run_recovery_id:
             run_to_recover = self.azure_config.fetch_run(self.azure_config.run_recovery_id.strip())

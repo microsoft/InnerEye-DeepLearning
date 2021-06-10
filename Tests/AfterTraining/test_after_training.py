@@ -220,7 +220,7 @@ def test_submit_for_inference(use_dicom: bool, test_output_dirs: OutputFolderFor
     assert seg_path.exists(), f"Result file {seg_path} was not created"
 
 @pytest.mark.after_training_2node
-def test_recovery_on_2_nodes(test_output_dirs: OutputFolderForTests):
+def test_recovery_on_2_nodes(test_output_dirs: OutputFolderForTests) -> None:
     args_list = ["--model", "BasicModel2EpochsMoreData",
                  "--azureml", "True",
                  "--num_nodes", "2",
