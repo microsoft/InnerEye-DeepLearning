@@ -275,16 +275,16 @@ def test_save_outliers(test_config: PlotCrossValidationConfig,
     test_config.outlier_range = 0
     assert test_config.run_recovery_id
     dataset_split_metrics = {x: _get_metrics_df(test_config.run_recovery_id, x) for x in [ModelExecutionMode.VAL]}
-    save_outliers(test_config, dataset_split_metrics, test_config.outputs_directory)
+    outliers_paths = save_outliers(test_config, dataset_split_metrics, test_config.outputs_directory)
     filename = f"{ModelExecutionMode.VAL.value}_outliers.txt"
-    assert_text_files_match(full_file=test_config.outputs_directory / filename, expected_file=full_ml_test_data_path(filename))
+    assert_text_files_match(full_file=outliers_paths[ModelExecutionMode.VAL], expected_file=full_ml_test_data_path(filename))
     # Now test without the CSV_INSTITUTION_HEADER and CSV_SERIES_HEADER columns, which will be missing in institutions' environments
     dataset_split_metrics_pruned = {
         x: _get_metrics_df(test_config.run_recovery_id, x).drop(columns=[CSV_INSTITUTION_HEADER, CSV_SERIES_HEADER], errors="ignore") 
         for x in [ModelExecutionMode.VAL]}
-    save_outliers(test_config, dataset_split_metrics_pruned, test_config.outputs_directory)
+    outliers_paths = save_outliers(test_config, dataset_split_metrics_pruned, test_config.outputs_directory)
     test_data_filename = f"{ModelExecutionMode.VAL.value}_outliers_pruned.txt"
-    assert_text_files_match(full_file=test_config.outputs_directory / filename, expected_file=full_ml_test_data_path(test_data_filename))
+    assert_text_files_match(full_file=outliers_paths[ModelExecutionMode.VAL], expected_file=full_ml_test_data_path(test_data_filename))
 
 
 def test_create_portal_query_for_outliers() -> None:

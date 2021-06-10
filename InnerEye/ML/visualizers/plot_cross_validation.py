@@ -652,18 +652,20 @@ def plot_metrics(config: PlotCrossValidationConfig,
 
 
 def save_outliers(config: PlotCrossValidationConfig,
-                  dataset_split_metrics: Dict[ModelExecutionMode, pd.DataFrame], root: Path) -> None:
+                  dataset_split_metrics: Dict[ModelExecutionMode, pd.DataFrame],
+                  root: Path) -> Dict[ModelExecutionMode, Path]:
     """
     Given the dataframe for the downloaded metrics identifies outliers (score < mean - 3sd) across the splits
     and saves them in a file outlier.csv in the provided root.
     :param config: PlotCrossValidationConfig
     :param dataset_split_metrics: Mapping between model execution mode and a dataframe containing all metrics for it
     :param root: Root directory to the results for Train/Test and Val datasets
-    :return:
+    :return: Dictionary of mode and file path.
     """
     stats_columns = ['count', 'mean', 'min', 'max']
+    outliers_paths = {}
     for mode, df in dataset_split_metrics.items():
-        outliers_std = str(root / "{}_outliers.txt".format(mode.value))
+        outliers_std = root / "{}_outliers.txt".format(mode.value)
         with open(outliers_std, 'w') as f:
             # to make sure no columns or rows are truncated
             with DEFAULT_PD_DISPLAY_CONTEXT:
@@ -691,6 +693,9 @@ def save_outliers(config: PlotCrossValidationConfig,
                         f.write("No outliers found")
 
         print("Saved outliers to: {}".format(outliers_std))
+        outliers_paths[mode] = outliers_std
+
+    return outliers_paths
 
 
 def create_portal_query_for_outliers(df: pd.DataFrame) -> str:
