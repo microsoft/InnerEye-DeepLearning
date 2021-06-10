@@ -226,7 +226,7 @@ def test_recovery_on_2_nodes(test_output_dirs: OutputFolderForTests):
                  "--azureml", "True",
                  "--num_nodes", "2",
                  "--run_recovery_id", str(get_most_recent_run_id(fallback_run_id_for_local_execution=FALLBACK_2NODE_RUN)),
-                 "--num_epochs", "3",
+                 "--num_epochs", "4",
                  "--max_num_gpus", "1",
                  "--wait_for_completion", "True"
                  ]
@@ -250,6 +250,8 @@ def test_recovery_on_2_nodes(test_output_dirs: OutputFolderForTests):
     log1_txt = log1.read_text()
     assert "Downloading multiple files from run" in log0_txt
     assert "Downloading multiple files from run" not in log1_txt
+    assert "Loading checkpoint that was created at (epoch = 2, global_step = 2)" in log0_txt
+    assert "Loading checkpoint that was created at (epoch = 2, global_step = 2)" in log1_txt
 
 def _check_presence_cross_val_metrics_file(split: str, mode: ModelExecutionMode, available_files: List[str]) -> bool:
     return f"{CROSSVAL_RESULTS_FOLDER}/{split}/{mode.value}/metrics.csv" in available_files
