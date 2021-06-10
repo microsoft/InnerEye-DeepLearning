@@ -26,6 +26,7 @@ description below).
 
 ### Creating the model configuration and starting training
 
+
 Next, you need to create a configuration file `InnerEye/ML/configs/MyGlaucoma.py`
  which extends the GlaucomaPublic class like this:
 ```python
@@ -40,7 +41,7 @@ The value for `self.azure_dataset_id` should match the dataset upload location, 
 
 Once that config is in place, you can start training in AzureML via
 ```
-python InnerEye/ML/runner.py --model=MyGlaucomaModel --azureml=True
+python InnerEye/ML/runner.py --model=MyGlaucomaModel --azureml
 ```
 
 As an alternative to working with a fork of the repository, you can use InnerEye-DeepLearning via a submodule. 
@@ -91,7 +92,7 @@ as described for the Glaucoma model [here](innereye_as_submodule.md).
 
 You can now run the following command to start a job on AzureML:
 ```
-python InnerEye/ML/runner.py --azureml=True --model=MyLungModel
+python InnerEye/ML/runner.py --azureml --model=MyLungModel
 ```
 See [Model Training](building_models.md) for details on training outputs, resuming training, testing models and model ensembles.
  

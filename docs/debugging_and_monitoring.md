@@ -12,7 +12,7 @@ To quickly access this script from PyCharm, there is a template PyCharm run conf
 `Template: Tensorboard monitoring` in the repository. Create a copy of that, and modify the commandline 
 arguments with your jobs to monitor.
 
-* **New jobs**: when queuing a new AzureML job, pass `--tensorboard=True`, which will automatically start a new TensorBoard
+* **New jobs**: when queuing a new AzureML job, pass `--tensorboard`, which will automatically start a new TensorBoard
 session, monitoring the newly queued job. 
 
 ### Resource Monitor
