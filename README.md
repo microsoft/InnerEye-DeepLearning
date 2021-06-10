@@ -100,8 +100,17 @@ Further detailed instructions, including setup in Azure, are here:
 1. [Debugging and monitoring models](docs/debugging_and_monitoring.md)
 1. [Model diagnostics](docs/model_diagnostics.md)
 1. [Move a model to a different workspace](docs/move_model.md)   
-1. [Deployment](docs/deploy_on_aml.md)
 1. [Working with FastMRI models](docs/fastmri.md)
+
+## Deployment
+We offer a companion set of open-sourced tools that help to integrate trained CT segmentation models with clinical
+software systems:
+- The [InnerEye-Gateway](https://github.com/microsoft/InnerEye-Gateway) is a Windows service running in a DICOM network,
+that can route anonymized DICOM images to an inference service.
+- The [InnerEye-Inference](https://github.com/microsoft/InnerEye-Inference) component offers a REST API that integrates
+with the InnnEye-Gateway, to run inference on InnerEye-DeepLearning models.
+
+Details can be found [here](docs/deploy_on_aml.md).
 
 ![docs/deployment.png](docs/deployment.png)
 
