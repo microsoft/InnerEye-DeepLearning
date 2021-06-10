@@ -4,29 +4,13 @@
 
 In order to work with the solution, your OS environment will need [git](https://git-scm.com/) and [git lfs](https://git-lfs.github.com/) installed. Depending on the OS that you are running the installation instructions may vary. Please refer to respective documentation sections on the tools' websites for detailed instructions. 
 
-## Using the InnerEye code as a git submodule of your project
-You have two options for working with our codebase:
-* You can fork the InnerEye-DeepLearning repository, and work off that.
-* Or you can create your project that uses the InnerEye-DeepLearning code, and include InnerEye-DeepLearning as a git
-submodule.
-
-If you go down the second route, here's the list of files you will need in your project (that's the same as those
-given in [this document](building_models.md))
-* `environment.yml`: Conda environment with python, pip, pytorch
-* `settings.yml`: A file similar to `InnerEye\settings.yml` containing all your Azure settings
-* A folder like `ML` that contains your additional code, and model configurations.
-* A file `ML/runner.py` that invokes the InnerEye training runner, but that points the code to your environment and Azure
-settings; see the [Building models](building_models.md) instructions for details.
-
-You then need to add the InnerEye code as a git submodule, in folder `innereye-submodule`:
-```shell script
-git submodule add https://github.com/microsoft/InnerEye-DeepLearning innereye-submodule
-```
-Then configure your Python IDE to consume *both* your repository root *and* the `innereye-submodule` subfolder as inputs.
-In Pycharm, you would do that by going to Settings/Project Structure. Mark your repository root as "Source", and 
-`innereye-submodule` as well.
-
 We recommend using PyCharm or VSCode as the Python editor. 
+
+You have two options for working with our codebase:
+* You can fork the InnerEye-DeepLearning repository, and work off that. We recommend that because it is easiest to set up.
+* Or you can create your project that uses the InnerEye-DeepLearning code, and include InnerEye-DeepLearning as a git
+submodule. We only recommended that if you are very handy with Python. More details about this option 
+[are here](innereye_as_submodule.md).
 
 ## Windows Subsystem for Linux Setup
 When developing on a Windows machine, we recommend using [the Windows Subsystem for Linux, WSL2](https://docs.microsoft.com/en-us/windows/wsl/about).
