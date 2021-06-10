@@ -426,3 +426,7 @@ class InnerEyeDDPPlugin(DDPPlugin):
             # with dataloaders delay between 1-10 seconds
             delay = np.random.uniform(1, 5, 1)[0]
             sleep(delay)
+
+    def init_ddp_connection(self, global_rank: Optional[int] = None, world_size: Optional[int] = None) -> None:
+        os.environ["NCCL_ASYNC_ERROR_HANDLING"] = 1
+        super().init_ddp_connection(global_rank=global_rank, world_size=world_size)
