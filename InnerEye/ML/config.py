@@ -814,9 +814,7 @@ class SegmentationModelBase(ModelConfigBase):
         from InnerEye.ML.augmentations.augmentation_for_segmentation_utils import BasicAugmentations
 
         photometric_normalization = PhotometricNormalization(self, use_gpu=False)
-        photometric_transformation: Compose3D[Transform3D[Sample]] = Compose3D(
-            transforms=[photometric_normalization])
         training_augmentations: Compose3D[Transform3D[Sample]] = Compose3D(
             transforms=[BasicAugmentations(), photometric_normalization])
-        training_transformation = training_augmentations if self.apply_augmentations else photometric_transformation
+        training_transformation = training_augmentations if self.apply_augmentations else None
         return ModelTransformsPerExecutionMode(train=training_transformation)
