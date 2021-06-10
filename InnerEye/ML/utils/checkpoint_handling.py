@@ -63,10 +63,11 @@ class CheckpointHandler:
         run_recovery_object, weights_url or local_weights_path.
         This is called at the start of training.
         """
+        only_return_path = not is_global_rank_zero
         if self.azure_config.run_recovery_id:
             run_to_recover = self.azure_config.fetch_run(self.azure_config.run_recovery_id.strip())
             self.run_recovery = RunRecovery.download_all_checkpoints_from_run(self.output_params, run_to_recover,
-                                                                              only_return_path=is_global_rank_zero)
+                                                                              only_return_path=only_return_path)
         else:
             self.run_recovery = None
 
@@ -75,7 +76,7 @@ class CheckpointHandler:
             run_recovery_object = RunRecovery.download_all_checkpoints_from_run(self.output_params,
                                                                                 run_to_recover,
                                                                                 EXTRA_RUN_SUBFOLDER,
-                                                                                only_return_path=is_global_rank_zero)
+                                                                                only_return_path=only_return_path)
             self.container.extra_downloaded_run_id = run_recovery_object
         else:
             self.container.extra_downloaded_run_id = None
