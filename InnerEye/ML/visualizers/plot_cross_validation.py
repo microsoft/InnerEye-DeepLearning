@@ -51,8 +51,6 @@ RUN_DICTIONARY_NAME = "RunDictionary.txt"
 MAX_STRUCTURES_PER_PLOT = 7
 DRIVER_LOG_BASENAME = "70_driver_log.txt"
 RUN_RECOVERY_ID_KEY = 'run_recovery_id'
-# noinspection SQL
-PORTAL_QUERY_TEMPLATE = "SELECT * FROM ROOT as r WHERE true AND ({}) AND ({})"
 WILCOXON_RESULTS_FILE = "CrossValidationWilcoxonSignedRankTestResults.txt"
 MANN_WHITNEY_RESULTS_FILE = "CrossValidationMannWhitneyTestResults.txt"
 METRICS_BY_MODE_AND_STRUCTURE_FILE = "ResultsByModeAndStructure.csv"
@@ -686,9 +684,6 @@ def save_outliers(config: PlotCrossValidationConfig,
                                                .describe()[metric_type][stats_columns]
                                                .sort_values(stats_columns, ascending=False))
                         f.write(outliers_summary)
-                        if CSV_INSTITUTION_HEADER in outliers.columns and CSV_SERIES_HEADER in outliers.columns:
-                            f.write("\n\n")
-                            f.write(create_portal_query_for_outliers(outliers))
                     else:
                         f.write("No outliers found")
 
@@ -696,21 +691,6 @@ def save_outliers(config: PlotCrossValidationConfig,
         outliers_paths[mode] = outliers_std
 
     return outliers_paths
-
-
-def create_portal_query_for_outliers(df: pd.DataFrame) -> str:
-    """
-    Create a portal query string as a conjunction of the disjunctions of the unique InstitutionId and seriesId values.
-
-    The passed data frame must have CSV_INSTITUTION_HEADER and CSV_SERIES_HEADER columns
-    """
-    if CSV_INSTITUTION_HEADER not in df.columns or CSV_SERIES_HEADER not in df.columns:
-        raise ValueError(f"Data frame must have columns {CSV_INSTITUTION_HEADER} and {CSV_SERIES_HEADER}")
-    return PORTAL_QUERY_TEMPLATE.format(
-        " OR ".join(map(lambda x: 'r.InstitutionId = "{}"'.format(x), df[CSV_INSTITUTION_HEADER].unique())),
-        " OR ".join(map(lambda x: 'STARTSWITH(r.VersionedDicomImageSeries.Latest.Series.InstanceUID,"{}")'.format(x),
-                        df[CSV_SERIES_HEADER].unique()))
-    )
 
 
 def create_results_breakdown(df: pd.DataFrame, root_folder: Path) -> Tuple[Path, Path]:

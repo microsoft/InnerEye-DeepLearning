@@ -24,8 +24,8 @@ from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils.csv_util import CSV_INSTITUTION_HEADER, CSV_SERIES_HEADER
 from InnerEye.ML.visualizers.plot_cross_validation import COL_MODE, \
     METRICS_BY_MODE_AND_STRUCTURE_FILE, METRICS_BY_MODE_FILE, \
-    OfflineCrossvalConfigAndFiles, PORTAL_QUERY_TEMPLATE, PlotCrossValidationConfig, RUN_RECOVERY_ID_KEY, \
-    RunResultFiles, add_comparison_data, check_result_file_counts, create_portal_query_for_outliers, \
+    OfflineCrossvalConfigAndFiles, PlotCrossValidationConfig, RUN_RECOVERY_ID_KEY, \
+    RunResultFiles, add_comparison_data, check_result_file_counts, \
     create_results_breakdown, download_crossval_result_files, get_split_id, load_dataframes, \
     plot_cross_validation_from_files, save_outliers
 from Tests.AfterTraining.test_after_training import get_most_recent_run_id
@@ -285,28 +285,6 @@ def test_save_outliers(test_config: PlotCrossValidationConfig,
     outliers_paths = save_outliers(test_config, dataset_split_metrics_pruned, test_config.outputs_directory)
     test_data_filename = f"{ModelExecutionMode.VAL.value}_outliers_pruned.txt"
     assert_text_files_match(full_file=outliers_paths[ModelExecutionMode.VAL], expected_file=full_ml_test_data_path(test_data_filename))
-
-
-def test_create_portal_query_for_outliers() -> None:
-    test_df = pd.DataFrame({
-        CSV_INSTITUTION_HEADER: range(2),
-        CSV_SERIES_HEADER: range(3, 5),
-        "other": range(2)
-    })
-    expected = PORTAL_QUERY_TEMPLATE.format('r.InstitutionId = "0" OR r.InstitutionId = "1"',
-                                            'STARTSWITH(r.VersionedDicomImageSeries.Latest.Series.InstanceUID,"3") OR '
-                                            'STARTSWITH(r.VersionedDicomImageSeries.Latest.Series.InstanceUID,"4")')
-    assert expected == create_portal_query_for_outliers(test_df)
-    with raises(ValueError) as institution_column_missing_error:
-        test_df_pruned = test_df.drop(columns=[CSV_INSTITUTION_HEADER])
-        create_portal_query_for_outliers(test_df_pruned)
-        error_message = str(institution_column_missing_error.value)
-        assert CSV_INSTITUTION_HEADER in error_message
-    with raises(ValueError) as series_column_missing_error:
-        test_df_pruned = test_df.drop(columns=[CSV_SERIES_HEADER])
-        create_portal_query_for_outliers(test_df_pruned)
-        error_message = str(series_column_missing_error.value)
-        assert CSV_SERIES_HEADER in error_message
 
 
 def test_create_summary(test_output_dirs: OutputFolderForTests) -> None:
