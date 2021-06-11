@@ -795,24 +795,21 @@ class SegmentationModelBase(ModelConfigBase):
         from InnerEye.ML.photometric_normalization import PhotometricNormalization
         from InnerEye.ML.utils.transforms import Transform3D
         from InnerEye.ML.dataset.sample import Sample
+        from InnerEye.ML.augmentations.augmentation_for_segmentation_utils import BasicAugmentations
 
-        photometric_transformation: Compose3D[Transform3D[Sample]] = Compose3D(
-            transforms=[PhotometricNormalization(self, use_gpu=False)])
-        return ModelTransformsPerExecutionMode(train=photometric_transformation,
-                                               val=photometric_transformation,
-                                               test=photometric_transformation)
+        photo_norm = PhotometricNormalization(self, use_gpu=False)
+        photo_norm_transform: Compose3D[Transform3D[Sample]] = Compose3D(transforms=[photo_norm])
+        training_augmentations: Compose3D[Transform3D[Sample]] = Compose3D(
+            transforms=[BasicAugmentations(), photo_norm])
+        training_transformation = training_augmentations if self.apply_augmentations else photo_norm_transform
+
+        return ModelTransformsPerExecutionMode(train=training_transformation,
+                                               val=photo_norm_transform,
+                                               test=photo_norm_transform)
 
     def get_cropped_image_sample_transforms(self) -> ModelTransformsPerExecutionMode:
         """
         Get transforms to perform on cropped samples for each model execution mode.
         By default no transformation is performed.
         """
-        from InnerEye.ML.utils.transforms import Compose3D
-        from InnerEye.ML.utils.transforms import Transform3D
-        from InnerEye.ML.dataset.sample import Sample
-        from InnerEye.ML.augmentations.augmentation_for_segmentation_utils import BasicAugmentations
-
-        training_augmentations: Compose3D[Transform3D[Sample]] = Compose3D(
-            transforms=[BasicAugmentations()])
-        training_transformation = training_augmentations if self.apply_augmentations else None
-        return ModelTransformsPerExecutionMode(train=training_transformation)
+        return ModelTransformsPerExecutionMode()
