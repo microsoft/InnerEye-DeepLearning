@@ -808,13 +808,11 @@ class SegmentationModelBase(ModelConfigBase):
         By default no transformation is performed.
         """
         from InnerEye.ML.utils.transforms import Compose3D
-        from InnerEye.ML.photometric_normalization import PhotometricNormalization
         from InnerEye.ML.utils.transforms import Transform3D
         from InnerEye.ML.dataset.sample import Sample
         from InnerEye.ML.augmentations.augmentation_for_segmentation_utils import BasicAugmentations
 
-        photometric_normalization = PhotometricNormalization(self, use_gpu=False)
         training_augmentations: Compose3D[Transform3D[Sample]] = Compose3D(
-            transforms=[BasicAugmentations(), photometric_normalization])
+            transforms=[BasicAugmentations()])
         training_transformation = training_augmentations if self.apply_augmentations else None
         return ModelTransformsPerExecutionMode(train=training_transformation)
