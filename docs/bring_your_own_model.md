@@ -13,7 +13,7 @@ This can be used by
 be used for training and testing.
 - Adding essential trainer parameters like number of epochs to that container.
 - Invoking the InnerEye runner and providing the name of the container class, like this: 
-`python InnerEye/ML/runner.py --model=MyContainer`. To train in AzureML, just add a `--azureml=True` flag.
+`python InnerEye/ML/runner.py --model=MyContainer`. To train in AzureML, just add a `--azureml` flag.
 
 There is a fully working example [HelloContainer](../InnerEye/ML/configs/other/HelloContainer.py), that implements
 a simple 1-dimensional regression model from data stored in a CSV file. You can run that
