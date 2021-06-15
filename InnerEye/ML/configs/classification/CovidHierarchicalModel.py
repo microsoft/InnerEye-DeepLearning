@@ -83,7 +83,7 @@ class CovidHierarchicalModel(ScalarModelBase):
                          l_rate_scheduler=LRSchedulerType.Step,
                          l_rate_step_gamma=1.0,
                          l_rate_multi_step_milestones=None,
-                         should_validate=False)
+                         should_validate=False)  # validate only after adding kwargs
         self.num_classes = 3
         self.add_and_validate(kwargs)
 
