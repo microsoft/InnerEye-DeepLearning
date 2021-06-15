@@ -26,6 +26,9 @@ from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.visualizers.metrics_scatterplot import write_to_scatterplot_directory
 from InnerEye.ML.visualizers.plot_cross_validation import convert_rows_for_comparisons, may_write_lines_to_file
 
+REGRESSION_TEST_AZUREML_FOLDER = "AZUREML_OUTPUT"
+REGRESSION_TEST_AZUREML_PARENT_FOLDER = "AZUREML_PARENT_OUTPUT"
+
 
 @dataclass
 class DiceScoreComparisonResult:
@@ -208,18 +211,24 @@ def compare_folder_contents(expected: Path, actual: Path, run: Optional[Run] = N
     :param expected: A folder with files that are expected to be present.
     :param actual: The output folder of the training run.
     """
+    logging.debug(f"Checking job output against expected files in folder {expected}")
+    logging.debug(f"Current working directory: {Path.cwd()}")
     messages = []
     if not expected.is_dir():
         raise ValueError(f"Folder with expected files does not exist: {expected}")
     for file in expected.rglob("*"):
+        # rglob also returns folders, skip those
+        if file.is_dir():
+            continue
         logging.debug(f"Checking file {file}")
         file_relative = file.relative_to(expected)
+        if str(file_relative).startswith(REGRESSION_TEST_AZUREML_FOLDER) or \
+                str(file_relative).startswith(REGRESSION_TEST_AZUREML_PARENT_FOLDER):
+            continue
         actual_file = actual / file_relative
-        if actual_file.is_file():
-            message = compare_files(expected=file, actual=actual_file)
-        else:
-            message = "Missing file"
+        message = compare_files(expected=file, actual=actual_file) if actual_file.is_file() else "Missing file"
         if message:
+            logging.debug(f"Error: {message}")
             messages.append(f"{message}: {file_relative}")
     if messages:
         raise ValueError(f"Some expected files were missing or did not have the expected contents:{os.linesep}"
