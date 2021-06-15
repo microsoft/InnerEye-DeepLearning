@@ -550,6 +550,9 @@ def convert_rows_for_comparisons(split_column_value: Optional[str],
     :return: augmented subset of the rows in df, as described
     """
     pre_len = len(df)
+    # If series id is not present, add a default value
+    if CSV_SERIES_HEADER not in dataset_df.columns:
+        dataset_df[CSV_SERIES_HEADER] = ''
     # We need the institution column to compare subjects across institutions, if it is not present with add a default
     # value
     if CSV_INSTITUTION_HEADER not in dataset_df.columns:
