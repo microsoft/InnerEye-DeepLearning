@@ -9,6 +9,7 @@ import logging
 from typing import Any, Callable, Dict, List, Optional, Set, Type, Union
 
 import param
+from param.parameterized import Parameter
 
 from InnerEye.Common.common_util import is_private_field_name
 from InnerEye.Common.type_annotations import T
@@ -114,6 +115,21 @@ class GenericConfig(param.Parameterized):
         :param parser: Parser to add properties to.
         """
 
+        def parse_bool(x: str) -> bool:
+            """
+            Parse a string as a bool. Supported values are case insensitive and one of:
+            'on', 't', 'true', 'y', 'yes', '1' for True
+            'off', 'f', 'false', 'n', 'no', '0' for False.
+            :param x: string to test.
+            :return: Bool value if string valid, otherwise a ValueError is raised.
+            """
+            sx = str(x).lower()
+            if sx in ('on', 't', 'true', 'y', 'yes', '1'):
+                return True
+            if sx in ('off', 'f', 'false', 'n', 'no', '0'):
+                return False
+            raise ValueError(f"Invalid value {x}, please supply one of True, true, false or False.")
+
         def _get_basic_type(_p: param.Parameter) -> Union[type, Callable]:
             """
             Given a parameter, get its basic Python type, e.g.: param.Boolean -> bool.
@@ -122,7 +138,7 @@ class GenericConfig(param.Parameterized):
             :return: Type
             """
             if isinstance(_p, param.Boolean):
-                p_type: Union[type, Callable] = lambda x: (str(x).lower() == 'true')
+                p_type: Callable = parse_bool
             elif isinstance(_p, param.Integer):
                 p_type = lambda x: _p.default if x == "" else int(x)
             elif isinstance(_p, param.Number):
@@ -156,8 +172,38 @@ class GenericConfig(param.Parameterized):
 
             return p_type
 
+        def add_boolean_argument(parser: argparse.ArgumentParser, k: str, p: Parameter) -> None:
+            """
+            Add a boolean argument.
+            If the parameter default is False then allow --flag (to set it True) and --flag=Bool as usual.
+            If the parameter default is True then allow --no-flag (to set it to False) and --flag=Bool as usual.
+            :param parser: parser to add a boolean argument to.
+            :param k: argument name.
+            :param p: boolean parameter.
+            """
+            if not p.default:
+                # If the parameter default is False then use nargs="?" (argparse.OPTIONAL).
+                # This means that the argument is optional.
+                # If it is not supplied, i.e. in the --flag mode, use the "const" value, i.e. True.
+                # Otherwise, i.e. in the --flag=value mode, try to parse the argument as a bool.
+                parser.add_argument("--" + k, help=p.doc, type=parse_bool, default=False,
+                                    nargs=argparse.OPTIONAL, const=True)
+            else:
+                # If the parameter default is True then create an exclusive group of arguments.
+                # Either --flag=value as usual
+                # Or --no-flag to store False in the parameter k.
+                group = parser.add_mutually_exclusive_group(required=False)
+                group.add_argument("--" + k, help=p.doc, type=parse_bool)
+                group.add_argument('--no-' + k, dest=k, action='store_false')
+                parser.set_defaults(**{k: p.default})
+
         for k, p in cls.get_overridable_parameters().items():
-            parser.add_argument("--" + k, help=p.doc, type=_get_basic_type(p), default=p.default)
+            # param.Booleans need to be handled separately, they are more complicated because they have
+            # an optional argument.
+            if isinstance(p, param.Boolean):
+                add_boolean_argument(parser, k, p)
+            else:
+                parser.add_argument("--" + k, help=p.doc, type=_get_basic_type(p), default=p.default)
 
         return parser
 
