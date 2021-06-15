@@ -405,9 +405,20 @@ class MLRunner:
                 with change_working_directory(self.container.outputs_folder):
                     self.container.create_report()
 
-        if self.container.regression_test_folder:
-            compare_folder_contents(expected=self.container.regression_test_folder,
-                                    actual=self.container.outputs_folder)
+        if self.container.regression_test_folder and self.is_normal_run_or_crossval_child_0():
+            # Comparison with stored results for crossvalidation runs only operates on child run 0. This run
+            # has usually already downloaded the results for the other runs, and uploaded files to the parent
+            # run context.
+            compare_folder_contents(expected_folder=self.container.regression_test_folder,
+                                    actual_folder=self.container.outputs_folder)
+
+    def is_normal_run_or_crossval_child_0(self) -> bool:
+        """
+        Returns True if the present run is a non-crossvalidation run, or child run 0 of a crossvalidation run.
+        """
+        if self.container.number_of_cross_validation_splits > 0:
+            return self.container.cross_validation_split_index == 0
+        return True
 
     def run_inference_for_lightning_models(self, checkpoint_paths: List[Path]) -> None:
         """

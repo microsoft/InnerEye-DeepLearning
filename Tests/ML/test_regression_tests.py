@@ -2,16 +2,31 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import os
+import logging
 from pathlib import Path
+from unittest import mock
 
 import pytest
 
+from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, logging_to_stdout
+from InnerEye.Common.fixed_paths import MODEL_INFERENCE_JSON_FILE_NAME
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.baselines_util import REGRESSION_TEST_AZUREML_FOLDER, REGRESSION_TEST_AZUREML_PARENT_FOLDER, \
-    compare_folder_contents
+    compare_files, compare_folder_contents, compare_folders_and_run_outputs
+from InnerEye.ML.deep_learning_config import FINAL_MODEL_FOLDER
 from InnerEye.ML.run_ml import MLRunner
+from Tests.AfterTraining.test_after_training import FALLBACK_ENSEMBLE_RUN, FALLBACK_SINGLE_RUN, get_most_recent_run
 from Tests.ML.configs.lightning_test_containers import DummyContainerWithModel
+
+
+def create_folder_and_write_text(file: Path, text: str) -> None:
+    """
+    Writes the given text to a file. The folders in which the file lives are created too, unless they exist already.
+    Writing the text keeps the line separators as-is (no translation)
+    """
+    file.parent.mkdir(exist_ok=True, parents=True)
+    with file.open(mode="wt", newline="") as f:
+        f.write(text)
 
 
 def test_regression_test(test_output_dirs: OutputFolderForTests) -> None:
@@ -25,14 +40,31 @@ def test_regression_test(test_output_dirs: OutputFolderForTests) -> None:
     runner.setup(use_mount_or_download_dataset=False)
     with pytest.raises(ValueError) as ex:
         runner.run()
-    assert "Folder does not exist" in str(ex)
+    assert "Folder with expected files does not exist" in str(ex)
 
 
 def test_compare_folder_exists(test_output_dirs: OutputFolderForTests) -> None:
     does_not_exist = test_output_dirs.root_dir / "foo"
     with pytest.raises(ValueError) as ex:
-        compare_folder_contents(expected=does_not_exist, actual=test_output_dirs.root_dir)
-    assert "Folder does not exist" in str(ex)
+        compare_folder_contents(expected_folder=does_not_exist, actual_folder=test_output_dirs.root_dir)
+    assert "Folder with expected files does not exist" in str(ex)
+
+
+@pytest.mark.parametrize("file_extension", ["txt", "csv", "json"])
+def test_compare_files(test_output_dirs: OutputFolderForTests, file_extension: str) -> None:
+    """
+    Checks the basic code to compare the contents of two text files.
+    :param test_output_dirs:
+    :param file_extension: The extension of the file to create.
+    """
+    logging_to_stdout(log_level=logging.DEBUG)
+    expected = test_output_dirs.root_dir / f"expected.{file_extension}"
+    actual = test_output_dirs.root_dir / "actual.does_not_matter"
+    create_folder_and_write_text(expected, "Line1\r\nLine2")
+    create_folder_and_write_text(actual, "Line1\nLine2")
+    assert compare_files(expected=expected, actual=actual) == ""
+    actual.write_text("does_not_match")
+    assert compare_files(expected=expected, actual=actual) == "Contents mismatch"
 
 
 def test_compare_folder(test_output_dirs: OutputFolderForTests) -> None:
@@ -49,13 +81,10 @@ def test_compare_folder(test_output_dirs: OutputFolderForTests) -> None:
     mismatch = "mismatch.csv"
     extra = "extra.txt"
     subfolder = Path("folder")
-    for folder in [expected, actual]:
-        folder.mkdir()
-        # This file exists in both expected and actual, should not raise any alerts because it contents matches.
-        matching_file = folder / subfolder / matching
-        matching_file.parent.mkdir()
-        # Use Windows linebreaks here. Tests should run on both Windows and Linux, and should be invariant to linesep
-        matching_file.write_text(f"Line1\r\nLine2")
+    # This file exists in both expected and actual, should not raise any alerts because it contents matches
+    # apart from linebreaks
+    create_folder_and_write_text(expected / subfolder / matching, f"Line1\r\nLine2")
+    create_folder_and_write_text(actual / subfolder / matching, f"Line1\nLine2")
     # This file only exists in the expected results, and should create an error
     (expected / subfolder / missing).write_text("missing")
     (actual / extra).write_text("extra")
@@ -70,7 +99,7 @@ def test_compare_folder(test_output_dirs: OutputFolderForTests) -> None:
         azureml1.touch()
 
     with pytest.raises(ValueError) as ex:
-        compare_folder_contents(expected=expected, actual=actual)
+        compare_folder_contents(expected_folder=expected, actual_folder=actual)
     message = ex.value.args[0].splitlines()
     # No message expected
     assert matching not in str(ex)
@@ -78,5 +107,75 @@ def test_compare_folder(test_output_dirs: OutputFolderForTests) -> None:
     assert ignored not in str(ex)
     # Folders should be skipped in the comparison
     assert f"Missing file: {subfolder}" not in message
-    assert f"Missing file: {subfolder / missing}" in message
-    assert f"Contents mismatch: {subfolder / mismatch}" in message
+    assert f"Missing file: {subfolder}/{missing}" in message
+    assert f"Contents mismatch: {subfolder}/{mismatch}" in message
+
+
+@pytest.mark.after_training_single_run
+def test_compare_folder_against_run(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test if we can compare that a set of files exists in an AML run.
+    """
+    logging_to_stdout(log_level=logging.DEBUG)
+    run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_SINGLE_RUN)
+    file1 = test_output_dirs.root_dir / REGRESSION_TEST_AZUREML_FOLDER / \
+            FINAL_MODEL_FOLDER / MODEL_INFERENCE_JSON_FILE_NAME
+    create_folder_and_write_text(file1,
+                                 '{"model_name": "BasicModel2Epochs", "checkpoint_paths": ['
+                                 '"checkpoints/best_checkpoint.ckpt"], '
+                                 '"model_configs_namespace": "InnerEye.ML.configs.segmentation.BasicModel2Epochs"}')
+    with mock.patch("InnerEye.ML.baselines_util.RUN_CONTEXT", run):
+        # First comparison only on the .json file should pass
+        compare_folders_and_run_outputs(expected=test_output_dirs.root_dir, actual=Path.cwd())
+        # Now add a file to the set of expected files that does not exist in the run: comparison should now fail
+        no_such_file = "no_such_file.txt"
+        file2 = test_output_dirs.root_dir / REGRESSION_TEST_AZUREML_FOLDER / no_such_file
+        create_folder_and_write_text(file2, "foo")
+        with pytest.raises(ValueError) as ex:
+            compare_folders_and_run_outputs(expected=test_output_dirs.root_dir, actual=Path.cwd())
+        message = ex.value.args[0].splitlines()
+        assert f"Missing file: {no_such_file}" in message
+    # Now run the same comparison that failed previously, without mocking the RUN_CONTEXT. This should now
+    # realize that the present run is an offline run, and skip the comparison
+    compare_folders_and_run_outputs(expected=test_output_dirs.root_dir, actual=Path.cwd())
+
+
+@pytest.mark.after_training_ensemble_run
+def test_compare_folder_against_parent_run(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test if we can compare that a set of files exists in an AML run.
+    """
+    logging_to_stdout(log_level=logging.DEBUG)
+    parent_run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_ENSEMBLE_RUN)
+    file1 = test_output_dirs.root_dir / REGRESSION_TEST_AZUREML_PARENT_FOLDER / \
+            CROSSVAL_RESULTS_FOLDER / "Test_outliers.txt"
+    create_folder_and_write_text(file1, """
+
+=== METRIC: Dice ===
+
+No outliers found
+
+=== METRIC: HausdorffDistance_mm ===
+
+No outliers found""")
+    with mock.patch("InnerEye.ML.baselines_util.PARENT_RUN_CONTEXT", parent_run):
+        # No plain files to compare. The file Test_outliers.txt should be compared and found to match.
+        compare_folders_and_run_outputs(expected=test_output_dirs.root_dir, actual=Path.cwd())
+        create_folder_and_write_text(file1, "foo")
+        with pytest.raises(ValueError) as ex:
+            compare_folders_and_run_outputs(expected=test_output_dirs.root_dir, actual=Path.cwd())
+        message = ex.value.args[0].splitlines()
+        assert f"Contents mismatch: {CROSSVAL_RESULTS_FOLDER}/{file1.name}" in message
+        # Now add a file to the set of expected files that does not exist in the run: comparison should now fail
+        no_such_file = "no_such_file.txt"
+        file2 = test_output_dirs.root_dir / REGRESSION_TEST_AZUREML_PARENT_FOLDER / no_such_file
+        create_folder_and_write_text(file2, "foo")
+        with pytest.raises(ValueError) as ex:
+            compare_folders_and_run_outputs(expected=test_output_dirs.root_dir, actual=Path.cwd())
+        message = ex.value.args[0].splitlines()
+        assert f"Missing file: {no_such_file}" in message
+    # Now run the same comparison without mocking the PARENT_RUN_CONTEXT. This should now
+    # realize that the present run is a crossval child run
+    with pytest.raises(ValueError) as ex:
+        compare_folders_and_run_outputs(expected=test_output_dirs.root_dir, actual=Path.cwd())
+    assert "run is not a cross-validation child run" in str(ex)

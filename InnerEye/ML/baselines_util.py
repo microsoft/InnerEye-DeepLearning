@@ -4,6 +4,8 @@
 #  ------------------------------------------------------------------------------------------
 import logging
 import os
+import shutil
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -13,7 +15,8 @@ import pandas as pd
 from azureml.core import Run
 
 from InnerEye.Azure.azure_config import AzureConfig
-from InnerEye.Azure.azure_util import AZUREML_RUN_FOLDER_PREFIX, get_comparison_baseline_paths, strip_prefix
+from InnerEye.Azure.azure_util import AZUREML_RUN_FOLDER_PREFIX, PARENT_RUN_CONTEXT, RUN_CONTEXT, \
+    get_comparison_baseline_paths, is_offline_run_context, strip_prefix
 from InnerEye.Common import common_util
 from InnerEye.Common.Statistics import wilcoxon_signed_rank_test
 from InnerEye.Common.Statistics.wilcoxon_signed_rank_test import WilcoxonTestConfig
@@ -189,47 +192,94 @@ def compare_files(expected: Path, actual: Path) -> str:
     :param actual:
     :return:
     """
-    if expected.suffix == ".txt" or expected.suffix == ".csv":
+
+    def print_lines(prefix: str, lines: List[str]) -> None:
+        count = 5
+        logging.debug(f"{prefix} {len(lines)} lines, first {count} of those:")
+        logging.debug(os.linesep.join(lines[:count]))
+
+    text_suffixes = [".txt", ".csv", ".json"]
+    if expected.suffix in text_suffixes:
         # Compare line-by-line to avoid issues with line separators
         expected_lines = expected.read_text().splitlines()
         actual_lines = actual.read_text().splitlines()
         if expected_lines != actual_lines:
+            print_lines("Expected", expected_lines)
+            print_lines("Actual", actual_lines)
             return "Contents mismatch"
+        return ""
     else:
         raise ValueError(f"Don't know how to compare these files: {expected}")
 
 
-def compare_folder_contents(expected: Path, actual: Path, run: Optional[Run] = None):
+def compare_folder_contents(expected_folder: Path,
+                            actual_folder: Optional[Path] = None,
+                            run: Optional[Run] = None) -> None:
     """
-    Compares a set of files in a folder, against files in either the other folder or files stored in the current
+    Compares a set of files in a folder, against files in either the other folder or files stored in the given
     AzureML run. Each file that is present in the "expected" folder must be also present in the "actual" folder
     (or the AzureML run), with exactly the same contents, in the same folder structure.
     For example, if there is a file "<expected>/foo/bar/contents.txt", then there must also be a file
     "<actual>/foo/bar/contents.txt"
     If a file is missing, or does not have the expected contents, an exception is raised.
-
-    :param expected: A folder with files that are expected to be present.
-    :param actual: The output folder of the training run.
+    :param expected_folder: A folder with files that are expected to be present.
+    :param actual_folder: The output folder with the actually produced files.
+    :param run: An AzureML run
     """
-    logging.debug(f"Checking job output against expected files in folder {expected}")
+    logging.debug(f"Checking job output against expected files in folder {expected_folder}")
     logging.debug(f"Current working directory: {Path.cwd()}")
     messages = []
-    if not expected.is_dir():
-        raise ValueError(f"Folder with expected files does not exist: {expected}")
-    for file in expected.rglob("*"):
+    if not expected_folder.is_dir():
+        raise ValueError(f"Folder with expected files does not exist: {expected_folder}")
+    if run and is_offline_run_context(run):
+        logging.warning("Skipping file comparison because the given run context is an AzureML offline run.")
+        return
+    files_in_run: List[str] = run.get_file_names() if run else []
+    temp_folder = Path(tempfile.mkdtemp()) if run else None
+    for file in expected_folder.rglob("*"):
         # rglob also returns folders, skip those
         if file.is_dir():
             continue
         logging.debug(f"Checking file {file}")
-        file_relative = file.relative_to(expected)
+        # All files stored in AzureML runs use Linux-style path
+        file_relative = file.relative_to(expected_folder).as_posix()
         if str(file_relative).startswith(REGRESSION_TEST_AZUREML_FOLDER) or \
                 str(file_relative).startswith(REGRESSION_TEST_AZUREML_PARENT_FOLDER):
             continue
-        actual_file = actual / file_relative
-        message = compare_files(expected=file, actual=actual_file) if actual_file.is_file() else "Missing file"
+        actual_file = None
+        if actual_folder:
+            actual_file: Optional[Path] = actual_folder / file_relative
+            if not actual_file.is_file():
+                actual_file = None
+        elif run:
+            if file_relative in files_in_run:
+                actual_file = temp_folder / file_relative
+                run.download_file(name=str(file_relative), output_file_path=str(actual_file))
+        message = compare_files(expected=file, actual=actual_file) if actual_file else "Missing file"
         if message:
             logging.debug(f"Error: {message}")
             messages.append(f"{message}: {file_relative}")
+    if temp_folder:
+        shutil.rmtree(temp_folder)
     if messages:
         raise ValueError(f"Some expected files were missing or did not have the expected contents:{os.linesep}"
                          f"{os.linesep.join(messages)}")
+
+
+def compare_folders_and_run_outputs(expected: Path, actual: Path) -> None:
+    if not expected.is_dir():
+        raise ValueError(f"Folder with expected files does not exist: {expected}")
+    # First compare the normal output files that the run produces
+    compare_folder_contents(expected, actual)
+    # Compare the set of files in the magic folder with the outputs stored in the run context
+    azureml_folder = expected / REGRESSION_TEST_AZUREML_FOLDER
+    if azureml_folder.is_dir():
+        compare_folder_contents(azureml_folder, run=RUN_CONTEXT)
+    # Compare the set of files in the magic folder with the outputs stored in the run context of the parent run
+    azureml_parent_folder = expected / REGRESSION_TEST_AZUREML_PARENT_FOLDER
+    if azureml_parent_folder.is_dir():
+        if PARENT_RUN_CONTEXT is None:
+            raise ValueError(f"The set of expected test results in {expected} contains a folder "
+                             f"{REGRESSION_TEST_AZUREML_PARENT_FOLDER}, but the present run is not a cross-validation "
+                             "child run")
+        compare_folder_contents(azureml_parent_folder, run=PARENT_RUN_CONTEXT)
