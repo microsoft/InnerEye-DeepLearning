@@ -679,10 +679,12 @@ def save_outliers(config: PlotCrossValidationConfig,
 
                     f.write(f"\n\n=== METRIC: {metric_type} ===\n\n")
                     if len(outliers) > 0:
-                        # If running inside institution there may be no CSV_SERIES_HEADER and CSV_INSTITUTION_HEADER columns
+                        # If running inside institution there may be no CSV_SERIES_HEADER or CSV_INSTITUTION_HEADER columns
                         groupby_columns = [MetricsFileColumns.Patient.value, MetricsFileColumns.Structure.value]
-                        if CSV_SERIES_HEADER in outliers.columns and CSV_INSTITUTION_HEADER in outliers.columns:
-                            groupby_columns += [CSV_SERIES_HEADER, CSV_INSTITUTION_HEADER]
+                        if CSV_SERIES_HEADER in outliers.columns:
+                            groupby_columns.append(CSV_SERIES_HEADER)
+                        if CSV_INSTITUTION_HEADER in outliers.columns:
+                            groupby_columns.append(CSV_INSTITUTION_HEADER)
                         outliers_summary = str(outliers.groupby(groupby_columns)
                                                .describe()[metric_type][stats_columns]
                                                .sort_values(stats_columns, ascending=False))
