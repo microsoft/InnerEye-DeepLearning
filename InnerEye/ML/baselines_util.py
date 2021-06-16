@@ -31,6 +31,9 @@ from InnerEye.ML.visualizers.plot_cross_validation import convert_rows_for_compa
 
 REGRESSION_TEST_AZUREML_FOLDER = "AZUREML_OUTPUT"
 REGRESSION_TEST_AZUREML_PARENT_FOLDER = "AZUREML_PARENT_OUTPUT"
+CONTENTS_MISMATCH = "Contents mismatch"
+MISSING_FILE = "Missing file"
+TEXT_FILE_SUFFIXES = [".txt", ".csv", ".json", ".html", ".md"]
 
 
 @dataclass
@@ -198,18 +201,21 @@ def compare_files(expected: Path, actual: Path) -> str:
         logging.debug(f"{prefix} {len(lines)} lines, first {count} of those:")
         logging.debug(os.linesep.join(lines[:count]))
 
-    text_suffixes = [".txt", ".csv", ".json"]
-    if expected.suffix in text_suffixes:
+    if expected.suffix in TEXT_FILE_SUFFIXES:
         # Compare line-by-line to avoid issues with line separators
         expected_lines = expected.read_text().splitlines()
         actual_lines = actual.read_text().splitlines()
         if expected_lines != actual_lines:
             print_lines("Expected", expected_lines)
             print_lines("Actual", actual_lines)
-            return "Contents mismatch"
-        return ""
+            return CONTENTS_MISMATCH
     else:
-        raise ValueError(f"Don't know how to compare these files: {expected}")
+        expected_binary = expected.read_bytes()
+        actual_binary = actual.read_bytes()
+        if expected_binary != actual_binary:
+            logging.debug(f"Expected {len(expected_binary)} bytes, actual {len(actual_binary)} bytes")
+            return CONTENTS_MISMATCH
+    return ""
 
 
 def compare_folder_contents(expected_folder: Path,

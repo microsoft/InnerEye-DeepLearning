@@ -2,7 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from pathlib import Path
 from typing import Any
 
 import pandas as pd
@@ -49,7 +48,6 @@ class BasicModel2Epochs(SegmentationModelBase):
             l_rate_step_gamma=0.9,
             # Necessary to avoid https://github.com/pytorch/pytorch/issues/45324
             max_num_gpus=2,
-            regression_test_folder=Path("RegressionTestResults/PR_BasicModel2Epochs"),
         )
         self.add_and_validate(kwargs)
 
