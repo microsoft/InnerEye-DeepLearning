@@ -13,6 +13,8 @@ created.
 ## Upcoming
 
 ### Added
+- ([#492](https://github.com/microsoft/InnerEye-DeepLearning/pull/492)) Adding capability for regression tests for test
+jobs that run in AzureML.
 
 ### Changed
 
