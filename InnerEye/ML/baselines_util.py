@@ -189,11 +189,13 @@ def get_comparison_baselines(outputs_folder: Path, azure_config: AzureConfig,
 def compare_files(expected: Path, actual: Path) -> str:
     """
     Compares two individual files for regression testing. It returns an empty string if the two files appear identical.
-    If the files are not identical, an error message with details is return. Presently, only .txt and .csv files can
-    be compared.
-    :param expected:
-    :param actual:
-    :return:
+    If the files are not identical, an error message with details is return. This handles known text file formats,
+    where it ignores differences in line breaks. All other files are treated as binary, and compared on a byte-by-byte
+    basis.
+    :param expected: A file that contains the expected contents. The type of comparison (text or binary) is chosen
+    based on the extension of this file.
+    :param actual: A file that contains the actual contents.
+    :return: An empty string if the files appear identical, or otherwise an error message with details.
     """
 
     def print_lines(prefix: str, lines: List[str]) -> None:
@@ -273,6 +275,15 @@ def compare_folder_contents(expected_folder: Path,
 
 
 def compare_folders_and_run_outputs(expected: Path, actual: Path) -> None:
+    """
+    Compares the actual set of run outputs in the `actual` folder against an expected set of files in the `expected`
+    folder. The `expected` folder can have two special subfolders AZUREML_OUTPUT and AZUREML_PARENT_OUTPUT, that
+    contain files that are expected to be present in the AzureML run context of the present run (AZUREML_OUTPUT)
+    or the run context of the parent run (AZUREML_PARENT_OUTPUT).
+    If a file is missing, or does not have the expected contents, an exception is raised.
+    :param expected: A folder with files that are expected to be present.
+    :param actual: The output folder with the actually produced files.
+    """
     if not expected.is_dir():
         raise ValueError(f"Folder with expected files does not exist: {expected}")
     # First compare the normal output files that the run produces

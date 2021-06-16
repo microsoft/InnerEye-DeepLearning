@@ -45,6 +45,9 @@ def test_regression_test(test_output_dirs: OutputFolderForTests) -> None:
 
 
 def test_compare_folder_exists(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test if the folder comparison method raises an exception on invalid input.
+    """
     does_not_exist = test_output_dirs.root_dir / "foo"
     with pytest.raises(ValueError) as ex:
         compare_folder_contents(expected_folder=does_not_exist, actual_folder=test_output_dirs.root_dir)

@@ -405,12 +405,16 @@ class MLRunner:
                 with change_working_directory(self.container.outputs_folder):
                     self.container.create_report()
 
-        if self.container.regression_test_folder and self.is_normal_run_or_crossval_child_0():
-            # Comparison with stored results for crossvalidation runs only operates on child run 0. This run
+        if self.container.regression_test_folder:
+            # Comparison with stored results for cross-validation runs only operates on child run 0. This run
             # has usually already downloaded the results for the other runs, and uploaded files to the parent
             # run context.
-            compare_folder_contents(expected_folder=self.container.regression_test_folder,
-                                    actual_folder=self.container.outputs_folder)
+            logging.info("Comparing the current results against stored results")
+            if self.is_normal_run_or_crossval_child_0():
+                compare_folder_contents(expected_folder=self.container.regression_test_folder,
+                                        actual_folder=self.container.outputs_folder)
+            else:
+                logging.info("Skipping because this is not cross-validation child run 0.")
 
     def is_normal_run_or_crossval_child_0(self) -> bool:
         """
