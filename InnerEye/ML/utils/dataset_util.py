@@ -155,7 +155,7 @@ def store_and_upload_example(dataset_example: DatasetExample,
     else:
         folder = args.example_images_folder if args else Path("")
     if folder != "":
-        os.mkdir(folder, exist_ok=True)
+        os.makedirs(folder, exist_ok=True)
 
     def create_file_name(suffix: str) -> str:
         fn = "p" + str(dataset_example.patient_id) + "_e_" + str(dataset_example.epoch) + "_" + suffix + ".nii.gz"
