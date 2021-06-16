@@ -201,7 +201,7 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     # Test for saving of example images
     assert train_config.example_images_folder.is_dir()
     example_files = list(train_config.example_images_folder.rglob("*.*"))
-    assert len(example_files) == 3 * 2
+    assert len(example_files) == 3 * 2 * 2  # images x epochs x patients
 
 
 def test_create_data_loaders() -> None:
