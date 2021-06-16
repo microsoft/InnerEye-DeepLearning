@@ -18,6 +18,7 @@ created.
 
 ### Fixed
 
+- ([#482](https://github.com/microsoft/InnerEye-DeepLearning/pull/482)) Check bool parameter is either true or false.
 - ([#475](https://github.com/microsoft/InnerEye-DeepLearning/pull/475)) Bug in AML SDK meant that we could not train
 any large models anymore because data loaders ran out of memory.
 - ([#472](https://github.com/microsoft/InnerEye-DeepLearning/pull/472)) Correct model path for moving ensemble models.
@@ -30,7 +31,9 @@ any large models anymore because data loaders ran out of memory.
 ## 0.3 (2021-06-01)
 
 ### Added
-- ([#477](https://github.com/microsoft/InnerEye-DeepLearning/pull/477)) Add augmentations for segmentation models `--apply_augmentations=True`.
+- ([#477](https://github.com/microsoft/InnerEye-DeepLearning/pull/477)) Add augmentations for segmentation models `--apply_augmentations=True`
+- ([#489](https://github.com/microsoft/InnerEye-DeepLearning/pull/489)) Remove portal query for outliers.
+- ([#488](https://github.com/microsoft/InnerEye-DeepLearning/pull/488)) Better handling of missing seriesId in segmentation cross validation reports.
 - ([#454](https://github.com/microsoft/InnerEye-DeepLearning/pull/454)) Checking that labels are mutually exclusive.
 - ([#447](https://github.com/microsoft/InnerEye-DeepLearning/pull/447/)) Added a sanity check to ensure there are no
   missing channels, nor missing files. If missing channels in the csv file or filenames associated with channels are

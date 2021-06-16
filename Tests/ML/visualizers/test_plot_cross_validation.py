@@ -3,11 +3,11 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
+import shutil
+from typing import Callable, Dict, List, Optional, Set, Tuple
 
 import pandas as pd
 import pytest
-from pytest import raises
 from azureml.core import Run
 from pandas.core.dtypes.common import is_string_dtype
 
@@ -24,8 +24,8 @@ from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils.csv_util import CSV_INSTITUTION_HEADER, CSV_SERIES_HEADER
 from InnerEye.ML.visualizers.plot_cross_validation import COL_MODE, \
     METRICS_BY_MODE_AND_STRUCTURE_FILE, METRICS_BY_MODE_FILE, \
-    OfflineCrossvalConfigAndFiles, PORTAL_QUERY_TEMPLATE, PlotCrossValidationConfig, RUN_RECOVERY_ID_KEY, \
-    RunResultFiles, add_comparison_data, check_result_file_counts, create_portal_query_for_outliers, \
+    OfflineCrossvalConfigAndFiles, PlotCrossValidationConfig, RUN_RECOVERY_ID_KEY, \
+    RunResultFiles, add_comparison_data, check_result_file_counts, \
     create_results_breakdown, download_crossval_result_files, get_split_id, load_dataframes, \
     plot_cross_validation_from_files, save_outliers
 from Tests.AfterTraining.test_after_training import get_most_recent_run_id
@@ -103,17 +103,72 @@ def create_file_list_for_segmentation_recovery_run(test_config_ensemble: PlotCro
                                        folder="main_1570466706163110")
 
 
+def copy_run_result_files(files: List[RunResultFiles], src_prefix_path: Path,
+                          dst_prefix_path: Path, transformer: Callable) -> List[RunResultFiles]:
+    """
+    Copy dataset_csv_files from a list of RunResultFiles to a working directory, and then
+    transform them using a callback.
+
+    :param files: List of RunResultFiles to copy.
+    :param src_prefix_path: Shared prefix path for the dataset_csv_files to be removed.
+    :param dst_prefix_path: Shared prefix path to use for the copied dataset_csv_files.
+    :param transformer: Callback function to apply to the copied dataset_csv_files.
+    :return: New list of RunResultFiles pointing at the copied files.
+    """
+    file_copies = []
+    files_copied = []
+
+    for file in files:
+        if not file.dataset_csv_file:
+            dataset_csv_file: Optional[Path] = None
+        else:
+            # Replace prefix path
+            dst_dataset_csv_file = dst_prefix_path / file.dataset_csv_file.relative_to(src_prefix_path)
+            if dst_dataset_csv_file not in files_copied:
+                dst_dataset_csv_file.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy(file.dataset_csv_file, dst_dataset_csv_file)
+                files_copied.append(dst_dataset_csv_file)
+                transformer(dst_dataset_csv_file)
+            dataset_csv_file = dst_dataset_csv_file
+
+        file_copy = RunResultFiles(execution_mode=file.execution_mode,
+                                   metrics_file=file.metrics_file,
+                                   dataset_csv_file=dataset_csv_file,
+                                   run_recovery_id=file.run_recovery_id,
+                                   split_index=file.split_index)
+        file_copies.append(file_copy)
+
+    return file_copies
+
+
 @pytest.mark.after_training_ensemble_run
-def test_metrics_preparation_for_segmentation(test_config: PlotCrossValidationConfig) -> None:
+@pytest.mark.parametrize("drop_column", [None, CSV_INSTITUTION_HEADER, CSV_SERIES_HEADER])
+def test_metrics_preparation_for_segmentation(drop_column: Optional[str],
+                                              test_config: PlotCrossValidationConfig,
+                                              test_output_dirs: OutputFolderForTests) -> None:
     """
     Test if metrics dataframes can be loaded and prepared. The files in question are checked in, but
     were downloaded from a run, ID given in DEFAULT_ENSEMBLE_RUN_RECOVERY_ID.
+    Additionally test that CSV_INSTITUTION_HEADER or CSV_SERIES_HEADER can be dropped from the dataset_csv_file.
     """
     files = create_file_list_for_segmentation_recovery_run(test_config)
+    if drop_column:
+        def drop_csv_column(path: Path) -> None:
+            """
+            Load a csv file, drop a column, and save the csv file.
+            :param path: Path to csv file.
+            """
+            df = pd.read_csv(path)
+            dropped_df = df.drop(drop_column, axis=1)
+            dropped_df.to_csv(path)
+        files = copy_run_result_files(files, full_ml_test_data_path(), test_output_dirs.root_dir, drop_csv_column)
     downloaded_metrics = load_dataframes(files, test_config)
     assert test_config.run_recovery_id
     for mode in test_config.execution_modes_to_download():
         expected_df = _get_metrics_df(test_config.run_recovery_id, mode)
+        if drop_column:
+            # If dropped a column from dataset_csv_file, remove it from expected dataframe.
+            expected_df[drop_column] = ''
         # Drop the "mode" column, because that was added after creating the test data
         metrics = downloaded_metrics[mode]
         assert metrics is not None
@@ -275,38 +330,16 @@ def test_save_outliers(test_config: PlotCrossValidationConfig,
     test_config.outlier_range = 0
     assert test_config.run_recovery_id
     dataset_split_metrics = {x: _get_metrics_df(test_config.run_recovery_id, x) for x in [ModelExecutionMode.VAL]}
-    save_outliers(test_config, dataset_split_metrics, test_config.outputs_directory)
+    outliers_paths = save_outliers(test_config, dataset_split_metrics, test_config.outputs_directory)
     filename = f"{ModelExecutionMode.VAL.value}_outliers.txt"
-    assert_text_files_match(full_file=test_config.outputs_directory / filename, expected_file=full_ml_test_data_path(filename))
+    assert_text_files_match(full_file=outliers_paths[ModelExecutionMode.VAL], expected_file=full_ml_test_data_path(filename))
     # Now test without the CSV_INSTITUTION_HEADER and CSV_SERIES_HEADER columns, which will be missing in institutions' environments
     dataset_split_metrics_pruned = {
         x: _get_metrics_df(test_config.run_recovery_id, x).drop(columns=[CSV_INSTITUTION_HEADER, CSV_SERIES_HEADER], errors="ignore") 
         for x in [ModelExecutionMode.VAL]}
-    save_outliers(test_config, dataset_split_metrics_pruned, test_config.outputs_directory)
+    outliers_paths = save_outliers(test_config, dataset_split_metrics_pruned, test_config.outputs_directory)
     test_data_filename = f"{ModelExecutionMode.VAL.value}_outliers_pruned.txt"
-    assert_text_files_match(full_file=test_config.outputs_directory / filename, expected_file=full_ml_test_data_path(test_data_filename))
-
-
-def test_create_portal_query_for_outliers() -> None:
-    test_df = pd.DataFrame({
-        CSV_INSTITUTION_HEADER: range(2),
-        CSV_SERIES_HEADER: range(3, 5),
-        "other": range(2)
-    })
-    expected = PORTAL_QUERY_TEMPLATE.format('r.InstitutionId = "0" OR r.InstitutionId = "1"',
-                                            'STARTSWITH(r.VersionedDicomImageSeries.Latest.Series.InstanceUID,"3") OR '
-                                            'STARTSWITH(r.VersionedDicomImageSeries.Latest.Series.InstanceUID,"4")')
-    assert expected == create_portal_query_for_outliers(test_df)
-    with raises(ValueError) as institution_column_missing_error:
-        test_df_pruned = test_df.drop(columns=[CSV_INSTITUTION_HEADER])
-        create_portal_query_for_outliers(test_df_pruned)
-        error_message = str(institution_column_missing_error.value)
-        assert CSV_INSTITUTION_HEADER in error_message
-    with raises(ValueError) as series_column_missing_error:
-        test_df_pruned = test_df.drop(columns=[CSV_SERIES_HEADER])
-        create_portal_query_for_outliers(test_df_pruned)
-        error_message = str(series_column_missing_error.value)
-        assert CSV_SERIES_HEADER in error_message
+    assert_text_files_match(full_file=outliers_paths[ModelExecutionMode.VAL], expected_file=full_ml_test_data_path(test_data_filename))
 
 
 def test_create_summary(test_output_dirs: OutputFolderForTests) -> None:

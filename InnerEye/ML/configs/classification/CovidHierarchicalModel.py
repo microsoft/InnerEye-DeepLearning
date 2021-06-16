@@ -75,7 +75,7 @@ class CovidHierarchicalModel(ScalarModelBase):
                          non_image_feature_channels=[],
                          numerical_columns=[],
                          use_mixed_precision=False,
-                         num_dataload_workers=2,
+                         num_dataload_workers=12,
                          multiprocessing_start_method=MultiprocessingStartMethod.fork,
                          train_batch_size=64,
                          optimizer_type=OptimizerType.Adam,
@@ -83,8 +83,9 @@ class CovidHierarchicalModel(ScalarModelBase):
                          l_rate_scheduler=LRSchedulerType.Step,
                          l_rate_step_gamma=1.0,
                          l_rate_multi_step_milestones=None,
-                         **kwargs)
+                         should_validate=False)  # validate only after adding kwargs
         self.num_classes = 3
+        self.add_and_validate(kwargs)
 
     def validate(self) -> None:
         self.l_rate = 1e-5 if self.use_pretrained_model else 1e-4
@@ -132,7 +133,7 @@ class CovidHierarchicalModel(ScalarModelBase):
                                                   shuffle=True)
 
     # noinspection PyTypeChecker
-    def get_image_sample_transforms(self) -> ModelTransformsPerExecutionMode:
+    def get_image_transform(self) -> ModelTransformsPerExecutionMode:
         config = load_yaml_augmentation_config(path_linear_head_augmentation_cxr)
         train_transforms = Compose(
             [DicomPreparation(), create_cxr_transforms_from_config(config, apply_augmentations=True)])

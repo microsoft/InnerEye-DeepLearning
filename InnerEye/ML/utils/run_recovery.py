@@ -63,13 +63,17 @@ class RunRecovery:
 
     @staticmethod
     def download_all_checkpoints_from_run(config: OutputParams, run: Run,
-                                          subfolder: Optional[str] = None) -> RunRecovery:
+                                          subfolder: Optional[str] = None,
+                                          only_return_path: bool = False) -> RunRecovery:
         """
         Downloads all checkpoints of the provided run inside the checkpoints folder.
         :param config: Model related configs.
         :param run: Run whose checkpoints should be recovered
         :param subfolder: optional subfolder name, if provided the checkpoints will be downloaded to
         CHECKPOINT_FOLDER / subfolder. If None, the checkpoint are downloaded to CHECKPOINT_FOLDER of the current run.
+        :param: only_return_path: if True, return a RunRecovery object with the path to the checkpoint without actually
+        downloading the checkpoints. This is useful to avoid duplicating checkpoint download when running on multiple
+        nodes. If False, return the RunRecovery object and download the checkpoint to disk.
         :return: run recovery information
         """
         if fetch_child_runs(run):
@@ -77,11 +81,12 @@ class RunRecovery:
 
         destination_folder = config.checkpoint_folder / subfolder if subfolder else config.checkpoint_folder
 
-        download_outputs_from_run(
-            blobs_path=Path(CHECKPOINT_FOLDER),
-            destination=destination_folder,
-            run=run
-        )
+        if not only_return_path:
+            download_outputs_from_run(
+                blobs_path=Path(CHECKPOINT_FOLDER),
+                destination=destination_folder,
+                run=run
+            )
         time.sleep(60)  # Needed because AML is not fast enough to download
         return RunRecovery(checkpoints_roots=[destination_folder])
 
