@@ -104,8 +104,8 @@ def test_compare_folder(test_output_dirs: OutputFolderForTests) -> None:
     subfolder = Path("folder")
     # This file exists in both expected and actual, should not raise any alerts because it contents matches
     # apart from linebreaks
-    create_folder_and_write_text(expected / subfolder / matching, f"Line1\r\nLine2")
-    create_folder_and_write_text(actual / subfolder / matching, f"Line1\nLine2")
+    create_folder_and_write_text(expected / subfolder / matching, "Line1\r\nLine2")
+    create_folder_and_write_text(actual / subfolder / matching, "Line1\nLine2")
     # This file only exists in the expected results, and should create an error
     (expected / subfolder / missing).write_text("missing")
     (actual / extra).write_text("extra")

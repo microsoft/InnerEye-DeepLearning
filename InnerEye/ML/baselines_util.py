@@ -252,12 +252,12 @@ def compare_folder_contents(expected_folder: Path,
         if str(file_relative).startswith(REGRESSION_TEST_AZUREML_FOLDER) or \
                 str(file_relative).startswith(REGRESSION_TEST_AZUREML_PARENT_FOLDER):
             continue
-        actual_file = None
+        actual_file: Optional[Path] = None
         if actual_folder:
-            actual_file: Optional[Path] = actual_folder / file_relative
+            actual_file = actual_folder / file_relative
             if not actual_file.is_file():
                 actual_file = None
-        elif run:
+        elif temp_folder is not None and run is not None:
             if file_relative in files_in_run:
                 actual_file = temp_folder / file_relative
                 run.download_file(name=str(file_relative), output_file_path=str(actual_file))
