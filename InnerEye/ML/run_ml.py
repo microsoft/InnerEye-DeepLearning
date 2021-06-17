@@ -34,6 +34,7 @@ from InnerEye.Common.common_util import BASELINE_COMPARISONS_FOLDER, BASELINE_WI
     change_working_directory, get_best_epoch_results_path, is_windows, logging_section, logging_to_file, \
     print_exception, remove_file_or_directory
 from InnerEye.Common.fixed_paths import INNEREYE_PACKAGE_NAME, LOG_FILE_NAME, PYTHON_ENVIRONMENT_NAME
+from InnerEye.ML.baselines_util import compare_folder_contents
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, DeepLearningConfig, FINAL_ENSEMBLE_MODEL_FOLDER, \
@@ -403,6 +404,25 @@ class MLRunner:
                 # manually
                 with change_working_directory(self.container.outputs_folder):
                     self.container.create_report()
+
+        if self.container.regression_test_folder:
+            # Comparison with stored results for cross-validation runs only operates on child run 0. This run
+            # has usually already downloaded the results for the other runs, and uploaded files to the parent
+            # run context.
+            logging.info("Comparing the current results against stored results")
+            if self.is_normal_run_or_crossval_child_0():
+                compare_folder_contents(expected_folder=self.container.regression_test_folder,
+                                        actual_folder=self.container.outputs_folder)
+            else:
+                logging.info("Skipping because this is not cross-validation child run 0.")
+
+    def is_normal_run_or_crossval_child_0(self) -> bool:
+        """
+        Returns True if the present run is a non-crossvalidation run, or child run 0 of a crossvalidation run.
+        """
+        if self.container.number_of_cross_validation_splits > 0:
+            return self.container.cross_validation_split_index == 0
+        return True
 
     def run_inference_for_lightning_models(self, checkpoint_paths: List[Path]) -> None:
         """
