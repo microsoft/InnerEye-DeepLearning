@@ -7,6 +7,7 @@ from typing import List, Tuple, Union
 
 import numpy as np
 import torch
+from monai.transforms import RandAffined, Compose, RandGaussianNoised, RandRotated
 
 from InnerEye.Common.common_util import any_pairwise_larger
 from InnerEye.Common.type_annotations import TupleInt3
@@ -154,18 +155,25 @@ class BasicAugmentations(Transform3D[Sample]):
         :param labels: channels x image dimensions
         :return: A tuple of image channels transformed and labels transformed
         """
-        import torchio as tio
-        subject = tio.Subject(
-            image=tio.ScalarImage(tensor=image),
-            labels=tio.LabelMap(tensor=labels)
-        )
+        IMAGE = "image"
+        LABELS = "labels"
+        subject = {
+            IMAGE: image,
+            LABELS: labels
+        }
+        augment = Compose([
+            RandRotated(
+                keys=[IMAGE, LABELS],
+                mode=("bilinear", "nearest"),
+                range_x=30 * np.pi / 180,
+                padding_mode="zeros",
+                prob=0.5
+            ),
+            RandGaussianNoised(
+                keys=[IMAGE],
+                prob=0.5
+            )
 
-        augment = tio.Compose([
-            tio.RandomAffine(default_pad_value=0, degrees=20, p=0.2),
-            tio.RandomNoise(p=0.2),
-            tio.RandomMotion(p=0.2),
-            tio.RandomBlur(p=0.2),
-            tio.RandomElasticDeformation(p=0.2)
         ])
-        transformed_subject = augment(subject)
-        return transformed_subject.image.numpy(), transformed_subject.labels.numpy()
+        augmented_dict = augment(subject)
+        return augmented_dict[IMAGE], augmented_dict[LABELS]

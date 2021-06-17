@@ -4,6 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 from typing import Any, List
 
+import monai
 import numpy as np
 import pytest
 from pytorch_lightning import seed_everything
@@ -41,7 +42,7 @@ def test_basic_augmentation_segmentation(test_output_dirs: OutputFolderForTests)
             header=image_with_header.header
         )
 
-    seed_everything()
+    monai.utils.misc.set_determinism(seed=123, additional_settings=None)
     transforms = BasicAugmentations()
     metadata = DummyPatientMetadata
     image_with_header = load_nifti_image(full_ml_test_data_path("posterior_bladder.nii.gz"))
@@ -84,7 +85,7 @@ def test_basic_augmentation_segmentation(test_output_dirs: OutputFolderForTests)
         """
     # Check that some samples are the same image
     print(no_transform)
-    assert 0 < no_transform < 5
+    assert no_transform == 0
 
 
 def test_valid_full_crop() -> None:
