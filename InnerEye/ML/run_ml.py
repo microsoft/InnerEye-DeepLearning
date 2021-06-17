@@ -447,6 +447,10 @@ class MLRunner:
             # searching for Horovod
             if ENV_OMPI_COMM_WORLD_RANK in os.environ:
                 del os.environ[ENV_OMPI_COMM_WORLD_RANK]
+            # From the training setup, torch still thinks that it should run in a distributed manner,
+            # and would block on some GPU operations. Hence, clean up distributed training.
+            if torch.distributed.is_initialized():
+                torch.distributed.destroy_process_group()
             trainer, _ = create_lightning_trainer(self.container, num_nodes=1)
             # When training models that are not built-in InnerEye models, we have no guarantee that they write
             # files to the right folder. Best guess is to change the current working directory to where files should go.
