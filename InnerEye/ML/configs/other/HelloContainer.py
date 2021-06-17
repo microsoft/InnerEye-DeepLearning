@@ -11,6 +11,7 @@ from pytorch_lightning import LightningDataModule, LightningModule
 from torch.optim import Adam, Optimizer
 from torch.optim.lr_scheduler import StepLR, _LRScheduler
 from torch.utils.data import DataLoader, Dataset
+from pytorch_lightning.metrics import MeanAbsoluteError
 
 from InnerEye.Common import fixed_paths_for_tests
 from InnerEye.ML.lightning_container import LightningContainer
@@ -75,6 +76,7 @@ class HelloRegression(LightningModule):
         super().__init__()
         self.model = torch.nn.Linear(in_features=1, out_features=1, bias=True)
         self.test_mse: List[torch.Tensor] = []
+        self.test_mae = MeanAbsoluteError()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:  # type: ignore
         """
@@ -142,6 +144,7 @@ class HelloRegression(LightningModule):
         test set (that is done in the test_step).
         """
         self.test_mse = []
+        self.test_mae.reset()
 
     def test_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> torch.Tensor:  # type: ignore
         """
@@ -153,8 +156,15 @@ class HelloRegression(LightningModule):
         :param batch_idx: The index (0, 1, ...) of the batch when the data loader is enumerated.
         :return: The loss on the test data.
         """
-        loss = self.shared_step(batch)
+        input = batch["x"]
+        target = batch["y"]
+        prediction = self.forward(input)
+        # This illustrates two ways of computing metrics: Using standard torch
+        loss = torch.nn.functional.mse_loss(prediction, target)
         self.test_mse.append(loss)
+        # Metrics computed using PyTorch Lightning objects. Note that these will, by default, attempt
+        # to synchronize across GPUs.
+        self.test_mae.update(preds=prediction, target=target)
         return loss
 
     def on_test_epoch_end(self) -> None:
@@ -166,6 +176,7 @@ class HelloRegression(LightningModule):
         """
         average_mse = torch.mean(torch.stack(self.test_mse))
         Path("test_mse.txt").write_text(str(average_mse.item()))
+        Path("test_mae.txt").write_text(str(self.test_mae.compute()))
 
 
 class HelloContainer(LightningContainer):
@@ -196,7 +207,8 @@ class HelloContainer(LightningContainer):
     # training, and cook them into a nice looking report. Here, the report is a simple text file.
     def create_report(self) -> None:
         # This just prints out the test MSE, but you could also generate a Jupyter notebook here, for example.
-        test_mse = float(Path("test_mse.txt").read_text())
-        report = f"Performance on test set: MSE = {test_mse}"
+        test_mse = Path("test_mse.txt").read_text().strip()
+        test_mae = Path("test_mae.txt").read_text().strip()
+        report = f"Performance on test set: MSE = {test_mse}, MAE = {test_mae}"
         print(report)
         Path("report.txt").write_text(report)
