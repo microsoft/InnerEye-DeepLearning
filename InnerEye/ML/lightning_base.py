@@ -122,7 +122,7 @@ class InnerEyeContainer(LightningContainer):
     """
 
     def __init__(self, config: ModelConfigBase):
-        super().__init__(should_validate=False)
+        super().__init__()
         self.config = config
         self._model_name = config.model_name
         # Fields like cross validation index are defined at container level, but the InnerEye models define them
@@ -131,7 +131,6 @@ class InnerEyeContainer(LightningContainer):
             assert issubclass(type_to_copy, param.Parameterized)
             self.apply_overrides({p: getattr(config, p) for p in type_to_copy.params()},  # type: ignore
                                  should_validate=False)
-        self.validate()
 
     def setup(self) -> None:
         """
