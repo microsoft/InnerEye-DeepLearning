@@ -146,16 +146,23 @@ def test_source_config_set_params() -> None:
         # Arguments are in the keys of the dictionary only, and should have been added in the right order
         assert " ".join(s.script_params) == expected_args
 
-    with mock.patch("sys.argv", ["", "some", "--param", "1", f"--{AZURECONFIG_SUBMIT_TO_AZUREML}=True", "more"]):
+    with mock.patch("sys.argv", ["", "some", "--param", "1", f"--{AZURECONFIG_SUBMIT_TO_AZUREML}=True", "--more"]):
         s.set_script_params_except_submit_flag()
-    assert_has_params("some --param 1 more")
-    with mock.patch("sys.argv", ["", "some", "--param", "1", f"--{AZURECONFIG_SUBMIT_TO_AZUREML}", "False", "more"]):
+    assert_has_params("some --param 1 --more")
+    with mock.patch("sys.argv", ["", "some", "--param", "1", f"--{AZURECONFIG_SUBMIT_TO_AZUREML}", "False", "--more"]):
         s.set_script_params_except_submit_flag()
-    assert_has_params("some --param 1 more")
+    assert_has_params("some --param 1 --more")
+    # Using the new syntax for boolean flags
+    with mock.patch("sys.argv", ["", "some", "--param", "1", f"--{AZURECONFIG_SUBMIT_TO_AZUREML}", "--more"]):
+        s.set_script_params_except_submit_flag()
+    assert_has_params("some --param 1 --more")
+    with mock.patch("sys.argv", ["", "some", "--param", "1", f"--{AZURECONFIG_SUBMIT_TO_AZUREML}"]):
+        s.set_script_params_except_submit_flag()
+    assert_has_params("some --param 1")
     # Arguments where azureml is just the prefix should not be removed.
-    with mock.patch("sys.argv", ["", "some", f"--{AZURECONFIG_SUBMIT_TO_AZUREML}foo", "False", "more"]):
+    with mock.patch("sys.argv", ["", "some", f"--{AZURECONFIG_SUBMIT_TO_AZUREML}foo", "False", "--more"]):
         s.set_script_params_except_submit_flag()
-    assert_has_params(f"some --{AZURECONFIG_SUBMIT_TO_AZUREML}foo False more")
+    assert_has_params(f"some --{AZURECONFIG_SUBMIT_TO_AZUREML}foo False --more")
 
 
 @pytest.mark.parametrize(["s", "expected"],

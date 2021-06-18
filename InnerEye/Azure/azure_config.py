@@ -332,9 +332,17 @@ class SourceConfig:
             arg = args[i]
             if arg.startswith(submit_flag):
                 if len(arg) == len(submit_flag):
-                    # The argument list contains something like ["--azureml", "True]: Skip 2 entries
-                    i = i + 1
-                elif arg[len(submit_flag)] != "=":
+                    # The commandline argument is "--azureml", with something possibly following: This can either be
+                    # "--azureml True" or "--azureml --some_other_param"
+                    if i < (len(args) - 1):
+                        # If the next argument starts with a "-" then assume that it does not belong to the --azureml
+                        # flag. If there is no "-", assume it belongs to the --azureml flag, and skip both
+                        if not args[i + 1].startswith("-"):
+                            i = i + 1
+                elif arg[len(submit_flag)] == "=":
+                    # The commandline argument is "--azureml=True" or "--azureml=False": Continue with next arg
+                    pass
+                else:
                     # The argument list contains a flag like "--azureml_foo": Keep that.
                     retained_args.append(arg)
             else:
