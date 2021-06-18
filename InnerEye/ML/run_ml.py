@@ -712,9 +712,11 @@ class MLRunner:
             else:
                 raise ValueError(f"Expected an absolute path to a checkpoint file, but got: {checkpoint}")
         model_folder.mkdir(parents=True, exist_ok=True)
+        # For reproducibility of the files used in regression tests, checkpoint paths need to be sorted.
+        checkpoints_sorted = sorted(relative_checkpoint_paths)
         model_inference_config = ModelInferenceConfig(model_name=self.container.model_name,
                                                       model_configs_namespace=self.config_namespace,
-                                                      checkpoint_paths=relative_checkpoint_paths)
+                                                      checkpoint_paths=checkpoints_sorted)
         # Inference configuration must live in the root folder of the registered model
         full_path_to_config = model_folder / fixed_paths.MODEL_INFERENCE_JSON_FILE_NAME
         full_path_to_config.write_text(model_inference_config.to_json(), encoding='utf-8')  # type: ignore
