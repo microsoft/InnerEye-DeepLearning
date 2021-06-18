@@ -7,7 +7,7 @@ from typing import List, Tuple, Union
 
 import numpy as np
 import torch
-from monai.transforms import Rand3DElasticd, RandAffined, Compose, RandGaussianNoised, RandRotated
+from monai.transforms import RandAffined, Compose, RandGaussianNoised, RandRotated
 
 from InnerEye.Common.common_util import any_pairwise_larger
 from InnerEye.Common.type_annotations import TupleInt3
@@ -138,22 +138,18 @@ class BasicAugmentations(Transform3D[Sample]):
     IMAGE = "image"
     LABELS = "labels"
     augment = Compose([
-        Rand3DElasticd(
+        RandRotated(
             keys=[IMAGE, LABELS],
             mode=("bilinear", "nearest"),
-            prob=0.5,
-            sigma_range=(5, 8),
-            magnitude_range=(50, 100),
-            translate_range=(50, 50, 2),
-            rotate_range=(30 * np.pi / 180, 0, 0),
-            scale_range=(0.15, 0.15, 0.15),
+            range_x=30 * np.pi / 180,
             padding_mode="zeros",
+            prob=0.5
         ),
         RandGaussianNoised(
             keys=[IMAGE],
             prob=0.5
         )])
-    augment.set_random_state(1)
+    augment.set_random_state(123123123123)
     print(augment)
 
     def __call__(self, sample: Sample) -> Sample:
