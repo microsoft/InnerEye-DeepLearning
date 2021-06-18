@@ -2,12 +2,14 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pandas as pd
 from IPython.display import HTML, display
 from pandas import DataFrame
 
+from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR
 from InnerEye.Common.metrics_constants import MetricsFileColumns
 from InnerEye.ML.reports.notebook_report import print_header
 from InnerEye.ML.utils.csv_util import mark_outliers
@@ -18,7 +20,14 @@ def plot_scores_for_csv(path_csv: str, outlier_range: float, max_row_count: int)
     Displays all the tables and figures given a csv file with segmentation metrics
     Columns expected: Patient,Structure,Dice,HausdorffDistance_mm,MeanDistance_mm
     """
-    print(f"Reading raw metrics data from: {path_csv}")
+    # For diagnostics, it is nice to see whether the metrics were read from the correct file. In AzureML,
+    # those paths contain the run ID, meaning that the output is different for each run, and hence can't have
+    # HTML files in regression tests. Try to be smart and print as much information as possible up to the "outputs"
+    # folder
+    path = Path(path_csv)
+    outputs_folder = [p for p in path.parents if p.name == DEFAULT_AML_UPLOAD_DIR]
+    path_to_print = path.relative_to(outputs_folder[0]) if len(outputs_folder) == 1 else path
+    print(f"Reading raw metrics data from: {path_to_print}")
     df = pd.read_csv(path_csv)
     with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'display.width', 150):
         display_metric(df, MetricsFileColumns.Dice.value, outlier_range, max_row_count, high_values_are_good=True)

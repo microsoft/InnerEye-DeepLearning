@@ -10,12 +10,15 @@ import numpy as np
 import pandas as pd
 import pytest
 import torch
+from torchvision.transforms import ColorJitter, RandomAffine
 
 from InnerEye.Common import common_util
 from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, logging_to_stdout
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.metrics_constants import LoggingColumns, MetricType, SEQUENCE_POSITION_HUE_NAME_PREFIX
 from InnerEye.Common.output_directories import OutputFolderForTests
+from InnerEye.ML.augmentations.transform_pipeline import ImageTransformationPipeline
+
 from InnerEye.ML.dataset.sequence_dataset import SequenceDataset
 from InnerEye.ML.deep_learning_config import TemperatureScalingConfig
 from InnerEye.ML.lightning_models import transfer_batch_to_device
@@ -27,7 +30,7 @@ from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.scalar_config import ScalarLoss
 from InnerEye.ML.sequence_config import SEQUENCE_LENGTH_FILE, SEQUENCE_LENGTH_STATS_FILE, SequenceModelBase
 from InnerEye.ML.utils import ml_util
-from InnerEye.ML.utils.augmentation import RandAugmentSlice, ScalarItemAugmentation
+
 from InnerEye.ML.utils.dataset_util import CategoricalToOneHotEncoder
 from InnerEye.ML.utils.io_util import ImageAndSegmentations
 from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling, get_scalar_model_inputs_and_labels
@@ -107,12 +110,12 @@ class ToySequenceModel(SequenceModelBase):
             proportion_val=0.1,
         )
 
-    def get_image_sample_transforms(self) -> ModelTransformsPerExecutionMode:
+    def get_image_transform(self) -> ModelTransformsPerExecutionMode:
         if self.use_combined_model:
             return ModelTransformsPerExecutionMode(
-                train=ScalarItemAugmentation(
-                    transform=RandAugmentSlice(use_joint_channel_transformation=False,
-                                               is_transformation_for_segmentation_maps=True)))
+                train=ImageTransformationPipeline(
+                    transforms=[RandomAffine(degrees=30, translate=(0.1, 0.1), shear=15),
+                                ColorJitter(brightness=0.2)]))
         else:
             return ModelTransformsPerExecutionMode()
 

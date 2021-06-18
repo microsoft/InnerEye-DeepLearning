@@ -12,19 +12,20 @@ import numpy as np
 import pandas as pd
 import pytest
 import torch
+from torchvision.transforms import ColorJitter, RandomAffine
 
 from InnerEye.Common import common_util
 from InnerEye.Common.common_util import logging_to_stdout
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.type_annotations import TupleInt3
-from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
+from InnerEye.ML.augmentations.transform_pipeline import ImageTransformationPipeline
+from InnerEye.ML.dataset.scalar_dataset import ScalarDataset, ScalarItemAugmentation
 from InnerEye.ML.lightning_models import transfer_batch_to_device
 from InnerEye.ML.model_config_base import ModelTransformsPerExecutionMode
 from InnerEye.ML.models.architectures.classification.image_encoder_with_mlp import ImageEncoderWithMlp, \
     ImagingFeatureType
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.scalar_config import AggregationType, ScalarLoss, ScalarModelBase, get_non_image_features_dict
-from InnerEye.ML.utils.augmentation import RandAugmentSlice, ScalarItemAugmentation
 from InnerEye.ML.utils.dataset_util import CategoricalToOneHotEncoder
 from InnerEye.ML.utils.image_util import HDF5_NUM_SEGMENTATION_CLASSES, segmentation_to_one_hot
 from InnerEye.ML.utils.io_util import ImageAndSegmentations, NumpyFile
@@ -101,15 +102,24 @@ class ImageEncoder(ScalarModelBase):
     def get_post_loss_logits_normalization_function(self) -> Callable:
         return torch.nn.Sigmoid()
 
-    def get_image_sample_transforms(self) -> ModelTransformsPerExecutionMode:
+    def get_image_transform(self) -> ModelTransformsPerExecutionMode:
         """
         Get transforms to perform on image samples for each model execution mode.
         """
-        return ModelTransformsPerExecutionMode(
-            train=ScalarItemAugmentation(
-                RandAugmentSlice(is_transformation_for_segmentation_maps=(
-                        self.imaging_feature_type == ImagingFeatureType.Segmentation
-                        or self.imaging_feature_type == ImagingFeatureType.ImageAndSegmentation))))
+        if self.imaging_feature_type in [ImagingFeatureType.Image, ImagingFeatureType.ImageAndSegmentation]:
+            return ModelTransformsPerExecutionMode(
+                train=ImageTransformationPipeline(
+                    transforms=[RandomAffine(10), ColorJitter(0.2)],
+                    use_different_transformation_per_channel=True))
+        return ModelTransformsPerExecutionMode()
+
+    def get_segmentation_transform(self) -> ModelTransformsPerExecutionMode:
+        if self.imaging_feature_type in [ImagingFeatureType.Segmentation, ImagingFeatureType.ImageAndSegmentation]:
+            return ModelTransformsPerExecutionMode(
+                train=ImageTransformationPipeline(
+                    transforms=[RandomAffine(10), ColorJitter(0.2)],
+                    use_different_transformation_per_channel=True))
+        return ModelTransformsPerExecutionMode()
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
@@ -177,9 +187,10 @@ S3,week1,scan3.npy,True,6,60,Male,Val2
     )
     config_for_dataset.read_dataset_into_dataframe_and_pre_process()
 
-    dataset = ScalarDataset(config_for_dataset,
-                            sample_transforms=ScalarItemAugmentation(
-                                RandAugmentSlice(is_transformation_for_segmentation_maps=False)))
+    dataset = ScalarDataset(
+        config_for_dataset,
+        sample_transform=ScalarItemAugmentation(ImageTransformationPipeline([RandomAffine(10), ColorJitter(0.2)],
+                                                     use_different_transformation_per_channel=True)))
     assert len(dataset) == 3
 
     config = ImageEncoder(

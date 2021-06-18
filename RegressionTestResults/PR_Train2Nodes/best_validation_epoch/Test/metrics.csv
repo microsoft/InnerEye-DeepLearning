@@ -1,0 +1,13 @@
+Patient,Structure,Dice,HausdorffDistance_mm,MeanDistance_mm
+4,lung_l,0.000,inf,inf
+5,lung_l,0.000,inf,inf
+6,lung_l,0.000,inf,inf
+7,lung_l,0.000,inf,inf
+4,lung_r,0.000,inf,inf
+5,lung_r,0.000,inf,inf
+6,lung_r,0.000,inf,inf
+7,lung_r,0.000,inf,inf
+4,spinalcord,0.000,inf,inf
+5,spinalcord,0.000,inf,inf
+6,spinalcord,0.000,inf,inf
+7,spinalcord,0.000,inf,inf

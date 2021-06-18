@@ -26,7 +26,6 @@ from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils.csv_util import CSV_CHANNEL_HEADER, CSV_SUBJECT_HEADER
 from InnerEye.ML.utils.dataset_util import CategoricalToOneHotEncoder
 from InnerEye.ML.utils.features_util import FeatureStatistics
-from InnerEye.ML.utils.transforms import Compose3D, Transform3D
 
 T = TypeVar('T', bound=ScalarDataSource)
 
@@ -67,12 +66,13 @@ def extract_label_classification(label_string: str, sample_id: str, num_classes:
     if isinstance(label_string, float):
         if math.isnan(label_string):
             if num_classes == 1:
-                # Pandas special case: When loading a dataframe with dtype=str, missing values can be encoded as NaN, and get into here.
+                # Pandas special case: When loading a dataframe with dtype=str, missing values can be encoded as NaN,
+                # and get into here.
                 return [label_string]
             else:
                 return [0] * num_classes
         else:
-            raise ValueError(f"Subject {sample_id}: Unexpected float input {label_string} - did you read the "	
+            raise ValueError(f"Subject {sample_id}: Unexpected float input {label_string} - did you read the "
                              f"dataframe column as a string?")
 
     if not label_string:
@@ -92,7 +92,7 @@ def extract_label_classification(label_string: str, sample_id: str, num_classes:
                 return [float(label_string)]
             else:
                 raise ValueError(f"Subject {sample_id}: Label string not recognized: '{label_string}'. "
-                             f"Should be one of true/false, yes/no or 0/1.")
+                                 f"Should be one of true/false, yes/no or 0/1.")
 
         if '|' in label_string or label_string.isdigit():
             classes = [int(a) for a in label_string.split('|')]
@@ -648,6 +648,36 @@ You now want to get the label from the "week0" row, and read out Scalar1 at week
 """
 
 
+class ScalarItemAugmentation:
+    """
+    Wrapper around augmentation pipeline to apply image or/and segmentation transformations
+    to a ScalarItem inputs.
+    """
+
+    def __init__(self,
+                 image_transform: Optional[Callable] = None,
+                 segmentation_transform: Optional[Callable] = None) -> None:
+        """
+        :param image_transform: transformation function to apply to images field. If None, images field is unchanged by
+        call.
+        :param segmentation_transform: transformation function to apply to segmentations field. If None segmentations
+        field is unchanged by call.
+        """
+        self.image_transform = image_transform
+        self.segmentation_transform = segmentation_transform
+
+    def __call__(self, item: ScalarItem) -> ScalarItem:
+        if self.image_transform is not None:
+            if self.segmentation_transform is not None:
+                return item.clone_with_overrides(images=self.image_transform(item.images),
+                                                 segmentations=self.segmentation_transform(item.segmentations))
+            return item.clone_with_overrides(images=self.image_transform(item.images))
+
+        if self.segmentation_transform is not None:
+            item.clone_with_overrides(segmentations=self.segmentation_transform(item.segmentations))
+        return item
+
+
 class ScalarDatasetBase(GeneralDataset[ScalarModelBase], Generic[T]):
     """
     A base class for datasets for classification tasks. It contains logic for loading images from disk,
@@ -661,7 +691,7 @@ class ScalarDatasetBase(GeneralDataset[ScalarModelBase], Generic[T]):
                  data_frame: Optional[pd.DataFrame] = None,
                  feature_statistics: Optional[FeatureStatistics] = None,
                  name: Optional[str] = None,
-                 sample_transforms: Optional[Union[Compose3D[ScalarItem], Transform3D[ScalarItem]]] = None):
+                 sample_transform: Callable[[ScalarItem], ScalarItem] = ScalarItemAugmentation()):
         """
         High level class for the scalar dataset designed to be inherited for specific behaviour
         :param args: The model configuration object.
@@ -670,7 +700,7 @@ class ScalarDatasetBase(GeneralDataset[ScalarModelBase], Generic[T]):
         :param name: Name of the dataset, used for diagnostics logging
         """
         super().__init__(args, data_frame, name)
-        self.transforms = sample_transforms
+        self.transform = sample_transform
         self.feature_statistics = feature_statistics
         self.file_to_full_path: Optional[Dict[str, Path]] = None
         if args.traverse_dirs_when_loading:
@@ -725,7 +755,7 @@ class ScalarDatasetBase(GeneralDataset[ScalarModelBase], Generic[T]):
             center_crop_size=self.args.center_crop_size,
             image_size=self.args.image_size)
 
-        return Compose3D.apply(self.transforms, sample)
+        return self.transform(sample)
 
     def create_status_string(self, items: List[T]) -> str:
         """
@@ -746,21 +776,21 @@ class ScalarDataset(ScalarDatasetBase[ScalarDataSource]):
                  data_frame: Optional[pd.DataFrame] = None,
                  feature_statistics: Optional[FeatureStatistics[ScalarDataSource]] = None,
                  name: Optional[str] = None,
-                 sample_transforms: Optional[Union[Compose3D[ScalarItem], Transform3D[ScalarItem]]] = None):
+                 sample_transform: Callable[[ScalarItem], ScalarItem] = ScalarItemAugmentation()):
         """
         Creates a new scalar dataset from a dataframe.
         :param args: The model configuration object.
         :param data_frame: The dataframe to read from.
         :param feature_statistics: If given, the normalization factor for the non-image features is taken
         from the values provided. If None, the normalization factor is computed from the data in the present dataset.
-        :param sample_transforms: Sample transforms that should be applied.
+        :param sample_transform: Sample transforms that should be applied.
         :param name: Name of the dataset, used for diagnostics logging
         """
         super().__init__(args,
                          data_frame=data_frame,
                          feature_statistics=feature_statistics,
                          name=name,
-                         sample_transforms=sample_transforms)
+                         sample_transform=sample_transform)
         self.items = self.load_all_data_sources()
         self.standardize_non_imaging_features()
 

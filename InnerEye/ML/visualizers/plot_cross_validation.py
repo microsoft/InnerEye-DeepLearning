@@ -51,8 +51,6 @@ RUN_DICTIONARY_NAME = "RunDictionary.txt"
 MAX_STRUCTURES_PER_PLOT = 7
 DRIVER_LOG_BASENAME = "70_driver_log.txt"
 RUN_RECOVERY_ID_KEY = 'run_recovery_id'
-# noinspection SQL
-PORTAL_QUERY_TEMPLATE = "SELECT * FROM ROOT as r WHERE true AND ({}) AND ({})"
 WILCOXON_RESULTS_FILE = "CrossValidationWilcoxonSignedRankTestResults.txt"
 MANN_WHITNEY_RESULTS_FILE = "CrossValidationMannWhitneyTestResults.txt"
 METRICS_BY_MODE_AND_STRUCTURE_FILE = "ResultsByModeAndStructure.csv"
@@ -552,6 +550,9 @@ def convert_rows_for_comparisons(split_column_value: Optional[str],
     :return: augmented subset of the rows in df, as described
     """
     pre_len = len(df)
+    # If series id is not present, add a default value
+    if CSV_SERIES_HEADER not in dataset_df.columns:
+        dataset_df[CSV_SERIES_HEADER] = ''
     # We need the institution column to compare subjects across institutions, if it is not present with add a default
     # value
     if CSV_INSTITUTION_HEADER not in dataset_df.columns:
@@ -652,18 +653,20 @@ def plot_metrics(config: PlotCrossValidationConfig,
 
 
 def save_outliers(config: PlotCrossValidationConfig,
-                  dataset_split_metrics: Dict[ModelExecutionMode, pd.DataFrame], root: Path) -> None:
+                  dataset_split_metrics: Dict[ModelExecutionMode, pd.DataFrame],
+                  root: Path) -> Dict[ModelExecutionMode, Path]:
     """
     Given the dataframe for the downloaded metrics identifies outliers (score < mean - 3sd) across the splits
     and saves them in a file outlier.csv in the provided root.
     :param config: PlotCrossValidationConfig
     :param dataset_split_metrics: Mapping between model execution mode and a dataframe containing all metrics for it
     :param root: Root directory to the results for Train/Test and Val datasets
-    :return:
+    :return: Dictionary of mode and file path.
     """
     stats_columns = ['count', 'mean', 'min', 'max']
+    outliers_paths = {}
     for mode, df in dataset_split_metrics.items():
-        outliers_std = str(root / "{}_outliers.txt".format(mode.value))
+        outliers_std = root / "{}_outliers.txt".format(mode.value)
         with open(outliers_std, 'w') as f:
             # to make sure no columns or rows are truncated
             with DEFAULT_PD_DISPLAY_CONTEXT:
@@ -676,36 +679,23 @@ def save_outliers(config: PlotCrossValidationConfig,
 
                     f.write(f"\n\n=== METRIC: {metric_type} ===\n\n")
                     if len(outliers) > 0:
-                        # If running inside institution there may be no CSV_SERIES_HEADER and CSV_INSTITUTION_HEADER columns
+                        # If running inside institution there may be no CSV_SERIES_HEADER or CSV_INSTITUTION_HEADER columns
                         groupby_columns = [MetricsFileColumns.Patient.value, MetricsFileColumns.Structure.value]
-                        if CSV_SERIES_HEADER in outliers.columns and CSV_INSTITUTION_HEADER in outliers.columns:
-                            groupby_columns += [CSV_SERIES_HEADER, CSV_INSTITUTION_HEADER]
+                        if CSV_SERIES_HEADER in outliers.columns:
+                            groupby_columns.append(CSV_SERIES_HEADER)
+                        if CSV_INSTITUTION_HEADER in outliers.columns:
+                            groupby_columns.append(CSV_INSTITUTION_HEADER)
                         outliers_summary = str(outliers.groupby(groupby_columns)
                                                .describe()[metric_type][stats_columns]
                                                .sort_values(stats_columns, ascending=False))
                         f.write(outliers_summary)
-                        if CSV_INSTITUTION_HEADER in outliers.columns and CSV_SERIES_HEADER in outliers.columns:
-                            f.write("\n\n")
-                            f.write(create_portal_query_for_outliers(outliers))
                     else:
                         f.write("No outliers found")
 
         print("Saved outliers to: {}".format(outliers_std))
+        outliers_paths[mode] = outliers_std
 
-
-def create_portal_query_for_outliers(df: pd.DataFrame) -> str:
-    """
-    Create a portal query string as a conjunction of the disjunctions of the unique InstitutionId and seriesId values.
-
-    The passed data frame must have CSV_INSTITUTION_HEADER and CSV_SERIES_HEADER columns
-    """
-    if CSV_INSTITUTION_HEADER not in df.columns or CSV_SERIES_HEADER not in df.columns:
-        raise ValueError(f"Data frame must have columns {CSV_INSTITUTION_HEADER} and {CSV_SERIES_HEADER}")
-    return PORTAL_QUERY_TEMPLATE.format(
-        " OR ".join(map(lambda x: 'r.InstitutionId = "{}"'.format(x), df[CSV_INSTITUTION_HEADER].unique())),
-        " OR ".join(map(lambda x: 'STARTSWITH(r.VersionedDicomImageSeries.Latest.Series.InstanceUID,"{}")'.format(x),
-                        df[CSV_SERIES_HEADER].unique()))
-    )
+    return outliers_paths
 
 
 def create_results_breakdown(df: pd.DataFrame, root_folder: Path) -> Tuple[Path, Path]:
