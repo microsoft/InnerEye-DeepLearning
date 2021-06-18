@@ -4,7 +4,6 @@
 #  ------------------------------------------------------------------------------------------
 
 import pytest
-from pathlib import Path
 
 from InnerEye.Common import common_util
 from InnerEye.ML.deep_learning_config import DeepLearningConfig, TrainerParams
