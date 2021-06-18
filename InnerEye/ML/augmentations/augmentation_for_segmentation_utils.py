@@ -149,6 +149,8 @@ class BasicAugmentations(Transform3D[Sample]):
             keys=[IMAGE],
             prob=0.5
         )])
+    augment.set_random_state(123123123123)
+    print(augment)
 
     def __call__(self, sample: Sample) -> Sample:
         image, labels = self.transform(

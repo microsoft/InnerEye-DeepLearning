@@ -69,8 +69,6 @@ def test_basic_augmentation_segmentation(test_output_dirs: OutputFolderForTests)
         io_util.store_as_nifti(transformed_sample.labels[0], image_with_header.header,
                                file_name=seg_path, image_type=np.short)
 
-        """
-        Non-reproducible for some unknown reason. It would be good to uncomment once we know why             
         expected_image_transform = load_nifti_image(full_ml_test_data_path(f"augmentation_baselines/test{i}.nii.gz"),
                                                     np.short)
         expected_seg_transform = load_nifti_image(full_ml_test_data_path(f"augmentation_baselines/test_seg{i}.nii.gz"),
@@ -82,10 +80,9 @@ def test_basic_augmentation_segmentation(test_output_dirs: OutputFolderForTests)
                               transformed_sample.image[0].astype(np.short))
         assert np.array_equal(expected_seg_transform.image,
                               transformed_sample.labels[0].astype(np.short))
-        """
     # Check that some samples are the same image
     print(no_transform)
-    assert no_transform == 0
+    assert no_transform == 1
 
 
 def test_valid_full_crop() -> None:
