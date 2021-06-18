@@ -90,13 +90,25 @@ class SequenceModelBase(ScalarModelBase):
 
     def create_torch_datasets(self, dataset_splits: DatasetSplits) -> Dict[ModelExecutionMode, Any]:
         from InnerEye.ML.dataset.sequence_dataset import SequenceDataset
-        sample_transforms = self.get_image_sample_transforms()
-        train = SequenceDataset(self, dataset_splits.train, name="training",
-                                sample_transforms=sample_transforms.train)  # type: ignore
-        val = SequenceDataset(self, dataset_splits.val, feature_statistics=train.feature_statistics, name="validation",
-                              sample_transforms=sample_transforms.val)  # type: ignore
-        test = SequenceDataset(self, dataset_splits.test, feature_statistics=train.feature_statistics, name="test",
-                               sample_transforms=sample_transforms.test)  # type: ignore
+        sample_transform = self.get_scalar_item_transform()
+        assert sample_transform.train is not None  # for mypy
+        assert sample_transform.val is not None  # for mypy
+        assert sample_transform.test is not None  # for mypy
+
+        train = SequenceDataset(self,
+                                dataset_splits.train,
+                                name="training",
+                                sample_transform=sample_transform.train)
+        val = SequenceDataset(self,
+                              dataset_splits.val,
+                              feature_statistics=train.feature_statistics,
+                              name="validation",
+                              sample_transform=sample_transform.val)
+        test = SequenceDataset(self,
+                               dataset_splits.test,
+                               feature_statistics=train.feature_statistics,
+                               name="test",
+                               sample_transform=sample_transform.test)
 
         return {
             ModelExecutionMode.TRAIN: train,

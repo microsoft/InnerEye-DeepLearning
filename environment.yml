@@ -12,9 +12,9 @@ dependencies:
       - git+https://github.com/analysiscenter/radio.git@6d53e25#egg=radio
       - azure-mgmt-resource==12.1.0
       - azure-mgmt-datafactory==1.1.0
-      - azureml-mlflow==1.28.0
-      - azureml-sdk==1.28.0
-      - azureml-tensorboard==1.28.0
+      - azureml-mlflow==1.23.0
+      - azureml-sdk==1.23.0
+      - azureml-tensorboard==1.23.0
       - conda-merge==0.1.5
       - dataclasses-json==0.5.2
       - docker==4.3.1
@@ -38,7 +38,7 @@ dependencies:
       - pandas==1.1.0
       - papermill==2.2.2
       - param==1.9.3
-      - pillow==8.1.2
+      - pillow==8.2.0
       - psutil==5.7.2
       - pydicom==2.0.0
       - pyflakes==2.2.0

@@ -12,4 +12,4 @@ We have created this file to demonstrate how to:
     * Upload to datasets storage account for your AzureML workspace: `Tests/ML/test_data/dataset.csv` and
     `Test/ML/test_data/train_and_test_data` and name the folder "hello_world"   
     * If you have set up AzureML then parameter search can be performed for this model by running:
-    `python InnerEye/ML/runner.py --model=HelloWorld --azureml=True --hyperdrive=True`
+    `python InnerEye/ML/runner.py --model=HelloWorld --azureml --hyperdrive`

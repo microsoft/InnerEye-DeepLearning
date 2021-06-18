@@ -75,7 +75,7 @@ The InnerEye runner will check if there is a dataset in the AzureML workspace al
 
 * Train a new model, for example `Prostate`:
 ```shell script
-python InnerEyeLocal/ML/runner.py --azureml=True --model=Prostate --train=True
+python InnerEyeLocal/ML/runner.py --azureml --model=Prostate
 ```
 
 Alternatively, you can train the model on your current machine if it is powerful enough. In
@@ -83,12 +83,26 @@ this case, you would simply omit the `azureml` flag, and instead of specifying
 `azure_dataset_id` in the class constructor, you can instead use `local_dataset="my/data/folder"`,
 where the folder `my/data/folder` contains a `dataset.csv` file and all the files that are referenced therein.
 
+### Boolean Options
+
+Note that for command line options that take a boolean argument, and that are `False` by default, there are multiple ways of setting the option. For example alternatives to  `--azureml` include:
+* `--azureml=True`, or `--azureml=true`, or `--azureml=T`, or `--azureml=t`
+* `--azureml=Yes`, or `--azureml=yes`, or `--azureml=Y`, or `--azureml=y`
+* `--azureml=On`, or `--azureml=on`
+* `--azureml=1`
+
+Conversely, for command line options that take a boolean argument, and that are `True` by default, there are multiple ways of un-setting the option. For example alternatives to `--no-train` include:
+* `--train=False`, or `--train=false`, or `--train=F`, or `--train=f`
+* `--train=No`, or `--train=no`, or `--train=N`, or `--train=n`
+* `--train=Off`, or `--train=off`
+* `--train=0`
+
 
 ### Training using multiple machines
 To speed up training in AzureML, you can use multiple machines, by specifying the additional
 `--num_nodes` argument. For example, to use 2 machines to train, specify:
 ```shell script
-python InnerEyeLocal/ML/runner.py --azureml=True --model=Prostate --num_nodes=2
+python InnerEyeLocal/ML/runner.py --azureml --model=Prostate --num_nodes=2
 ```
 On each of the 2 machines, all available GPUs will be used. Model inference will always use only one machine.
 
@@ -149,18 +163,18 @@ run recovery ID without the final underscore and digit.
 To evaluate an existing model on a test set, you can use models from previous runs in AzureML or from local checkpoints.
 
 #### From a previus run in AzureML:
-This is similar to continuing training using a run_recovery object, but you will need to set `--train` to `False`. 
+This is similar to continuing training using a run_recovery object, but you will need to set `--no-train`.
 Thus your command should look like this:
 
 ```shell script
-python Inner/ML/runner.py --azureml=True --model=Prostate --train=False --cluster=my_cluster_name \
+python Inner/ML/runner.py --azureml --model=Prostate --no-train --cluster=my_cluster_name \
    --run_recovery_id=foo_bar:foo_bar_12345_abcd --start_epoch=120
 ```
 #### From a local checkpoint:
 To evaluate a model using a local checkpoint, use the local_weights_path to specify the path to the model checkpoint 
 and set train to `False`.
 ```shell script
-python Inner/ML/runner.py --model=Prostate --train=False --local_weights_path=path_to_your_checkpoint
+python Inner/ML/runner.py --model=Prostate --no-train --local_weights_path=path_to_your_checkpoint
 ```
 
 Alternatively, to submit an AzureML run to apply a model to a single image on your local disc, 
@@ -283,3 +297,35 @@ runs are uploaded to the parent run, in the `CrossValResults` directory. This co
 There is also a directory `BaselineComparisons`, containing the Wilcoxon test results and
 scatterplots for the ensemble, as described above for single runs.
 
+### Augmentations for classification models.
+
+For classification models, you can define an augmentation pipeline to apply to your images input (resp. segmentations) at 
+training, validation and test time. In order to define such a series of transformations, you will need to overload the 
+`get_image_transform`  (resp. `get_segmention_transform`) method of your config class. This method expects you to return 
+a `ModelTransformsPerExecutionMode`, that maps each execution mode to one transform function. We also provide the 
+`ImageTransformationPipeline` a class that creates a pipeline of transforms, from a list of individual transforms and 
+ensures the correct conversion of 2D or 3D PIL.Image or tensor inputs to the obtained pipeline.
+
+`ImageTransformationPipeline` takes two arguments for its constructor:
+ * `transforms`: a list of image transforms, in particular you can feed in standard [torchvision transforms](https://pytorch.org/vision/0.8/transforms.html) or
+any other transforms as long as they support an input `[Z, C, H, W]` (where Z is the 3rd dimension (1 for 2D images), 
+   C number of channels, H and W the height and width of each 2D slide - this is supported for standard torchvision 
+   transforms.). You can also define your own transforms as long as they expect such a `[Z, C, H, W]` input. You can
+   find some examples of custom transforms class in `InnerEye/ML/augmentation/image_transforms.py`.
+* `use_different_transformation_per_channel`: if True, apply a different version of the augmentation pipeline
+        for each channel. If False, applies the same transformation to each channel, separately. Default to False.
+  
+Below you can find an example of `get_image_transform` that would resize your input images to 256 x 256, and at
+training time only apply random rotation of +/- 10 degrees, and apply some brightness distortion, 
+using standard pytorch vision transforms.
+
+```python
+def get_image_transform(self) -> ModelTransformsPerExecutionMode:
+    """
+    Get transforms to perform on image samples for each model execution mode.
+    """
+    return ModelTransformsPerExecutionMode(
+        train=ImageTransformationPipeline(transforms=[Resize(256), RandomAffine(degrees=10), ColorJitter(brightness=0.2)]),
+        val=ImageTransformationPipeline(transforms=[Resize(256)]),
+        test=ImageTransformationPipeline(transforms=[Resize(256)]))
+```

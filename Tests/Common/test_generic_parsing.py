@@ -19,7 +19,8 @@ class ParamEnum(Enum):
 class ParamClass(GenericConfig):
     name: str = param.String(None, doc="Name")
     seed: int = param.Integer(42, doc="Seed")
-    flag: int = param.Boolean(False, doc="Flag")
+    flag: bool = param.Boolean(False, doc="Flag")
+    not_flag: bool = param.Boolean(True, doc="Not Flag")
     number: float = param.Number(3.14)
     integers: List[int] = param.List(None, class_=int)
     optional_int: Optional[int] = param.Integer(None, doc="Optional int")
@@ -40,6 +41,7 @@ def test_overridable_parameter() -> None:
     param_dict = ParamClass.get_overridable_parameters()
     assert "name" in param_dict
     assert "flag" in param_dict
+    assert "not_flag" in param_dict
     assert "seed" in param_dict
     assert "number" in param_dict
     assert "integers" in param_dict
@@ -62,6 +64,12 @@ def test_create_parser() -> None:
         parsed = ParamClass.parse_args(arg)
         assert getattr(parsed, expected_key) == expected_value
 
+    def check_fails(arg: List[str]) -> None:
+        with pytest.raises(SystemExit) as e:
+            ParamClass.parse_args(arg)
+        assert e.type == SystemExit
+        assert e.value.code == 2
+
     check(["--name=foo"], "name", "foo")
     check(["--seed", "42"], "seed", 42)
     check(["--seed", ""], "seed", 42)
@@ -77,10 +85,31 @@ def test_create_parser() -> None:
     check(["--enum=2"], "enum", ParamEnum.EnumValue2)
     check(["--floats=1,2,3.14"], "floats", [1., 2., 3.14])
     check(["--integers=1,2,3"], "integers", [1, 2, 3])
-    check(["--flag=true"], "flag", True)
-    check(["--flag=True"], "flag", True)
-    check(["--flag=false"], "flag", False)
-    check(["--flag=False"], "flag", False)
+    # Check all the ways of passing in True, with and without the first letter capitialized
+    for flag in ('on', 't', 'true', 'y', 'yes', '1'):
+        check([f"--flag={flag}"], "flag", True)
+        check([f"--flag={flag.capitalize()}"], "flag", True)
+        check([f"--not_flag={flag}"], "not_flag", True)
+        check([f"--not_flag={flag.capitalize()}"], "not_flag", True)
+    # Check all the ways of passing in False, with and without the first letter capitialized
+    for flag in ('off', 'f', 'false', 'n', 'no', '0'):
+        check([f"--flag={flag}"], "flag", False)
+        check([f"--flag={flag.capitalize()}"], "flag", False)
+        check([f"--not_flag={flag}"], "not_flag", False)
+        check([f"--not_flag={flag.capitalize()}"], "not_flag", False)
+    # Check that passing no value to flag sets it to True (the opposite of its default)
+    check(["--flag"], "flag", True)
+    # Check that no-flag is not an option
+    check_fails(["--no-flag"])
+    # Check that passing no value to not_flag fails
+    check_fails(["--not_flag"])
+    # Check that --no-not_flag is an option and sets it to False (the opposite of its default)
+    check(["--no-not_flag"], "not_flag", False)
+    # Check that both not_flag and no-not_flag cannot be passed at the same time
+    check_fails(["--not_flag=false", "--no-not_flag"])
+    # Check that invalid bools are caught
+    check_fails(["--flag=Falsf"])
+    check_fails(["--flag=Truf"])
     # Check that default values are created as expected, and that the non-overridable parameters
     # are omitted.
     defaults = vars(ParamClass.create_argparser().parse_args([]))
@@ -88,6 +117,8 @@ def test_create_parser() -> None:
     assert defaults["tuple1"] == (1, 2.3)
     assert defaults["int_tuple"] == (1, 1, 1)
     assert defaults["enum"] == ParamEnum.EnumValue1
+    assert not defaults["flag"]
+    assert defaults["not_flag"]
     assert "readonly" not in defaults
     assert "constant" not in defaults
     assert "_non_override" not in defaults

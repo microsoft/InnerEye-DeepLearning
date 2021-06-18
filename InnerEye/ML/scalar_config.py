@@ -14,6 +14,7 @@ from azureml.train.hyperdrive import HyperDriveConfig
 from InnerEye.Common.common_util import print_exception
 from InnerEye.Common.generic_parsing import ListOrDictParam
 from InnerEye.Common.type_annotations import TupleInt3
+
 from InnerEye.ML.common import ModelExecutionMode, OneHotEncoderBase
 from InnerEye.ML.deep_learning_config import ModelCategory
 from InnerEye.ML.model_config_base import ModelConfigBase, ModelTransformsPerExecutionMode
@@ -21,6 +22,7 @@ from InnerEye.ML.utils.csv_util import CSV_CHANNEL_HEADER, CSV_SUBJECT_HEADER
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 
 DEFAULT_KEY = "Default"
+
 
 class AggregationType(Enum):
     """
@@ -113,7 +115,8 @@ class ScalarModelBase(ModelConfigBase):
                                             "in dataset.csv"
                                             "For multi-label classification, this field is required."
                                             "For binary classification, this field must be a list of size 1, and "
-                                            "is by default ['Default'], but can optionally be set to a more descriptive "
+                                            "is by default ['Default'], but can optionally be set to a more "
+                                            "descriptive "
                                             "name for the positive class.")
     target_names: List[str] = param.List(class_=str,
                                          default=None,
@@ -133,7 +136,8 @@ class ScalarModelBase(ModelConfigBase):
     image_file_column: Optional[str] = param.String(default=None, allow_None=True,
                                                     doc="The column that contains the path to image files.")
     expected_column_values: List[Tuple[str, str]] = \
-        param.List(default=None, doc="List of tuples with column name and expected value to filter rows in the dataset csv file",
+        param.List(default=None,
+                   doc="List of tuples with column name and expected value to filter rows in the dataset csv file",
                    allow_None=True)
     label_channels: Optional[List[str]] = \
         param.List(default=None, allow_None=True,
@@ -384,13 +388,27 @@ class ScalarModelBase(ModelConfigBase):
 
     def create_torch_datasets(self, dataset_splits: DatasetSplits) -> Dict[ModelExecutionMode, Any]:
         from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
-        image_transforms = self.get_image_sample_transforms()
-        train = ScalarDataset(args=self, data_frame=dataset_splits.train,
-                              name="training", sample_transforms=image_transforms.train)  # type: ignore
-        val = ScalarDataset(args=self, data_frame=dataset_splits.val, feature_statistics=train.feature_statistics,
-                            name="validation", sample_transforms=image_transforms.val)  # type: ignore
-        test = ScalarDataset(args=self, data_frame=dataset_splits.test, feature_statistics=train.feature_statistics,
-                             name="test", sample_transforms=image_transforms.test)  # type: ignore
+        sample_transform = self.get_scalar_item_transform()
+        assert sample_transform.train is not None  # for mypy
+        assert sample_transform.val is not None  # for mypy
+        assert sample_transform.test is not None  # for mypy
+        train = ScalarDataset(
+            args=self,
+            data_frame=dataset_splits.train,
+            name="training",
+            sample_transform=sample_transform.train)
+        val = ScalarDataset(
+            args=self,
+            data_frame=dataset_splits.val,
+            feature_statistics=train.feature_statistics,
+            name="validation",
+            sample_transform=sample_transform.val)
+        test = ScalarDataset(
+            args=self,
+            data_frame=dataset_splits.test,
+            feature_statistics=train.feature_statistics,
+            name="test",
+            sample_transform=sample_transform.test)
 
         return {
             ModelExecutionMode.TRAIN: train,
@@ -459,13 +477,28 @@ class ScalarModelBase(ModelConfigBase):
     def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:
         return super().get_model_train_test_dataset_splits(dataset_df)
 
-    def get_image_sample_transforms(self) -> ModelTransformsPerExecutionMode:
+    def get_image_transform(self) -> ModelTransformsPerExecutionMode:
         """
-        Get transforms to perform on samples for each model execution mode.
+        Get transforms to apply to images for each model execution mode.
         By default only no transformation is performed.
-        For data augmentation, specify a Compose3D for the training execution mode.
         """
         return ModelTransformsPerExecutionMode()
+
+    def get_segmentation_transform(self) -> ModelTransformsPerExecutionMode:
+        """
+        Get transforms to apply on segmentations maps inputs for each model execution mode.
+        By default only no transformation is performed.
+        """
+        return ModelTransformsPerExecutionMode()
+
+    def get_scalar_item_transform(self) -> ModelTransformsPerExecutionMode:
+        from InnerEye.ML.dataset.scalar_dataset import ScalarItemAugmentation
+        image_transform = self.get_image_transform()
+        segmentation_transform = self.get_segmentation_transform()
+        return ModelTransformsPerExecutionMode(
+            train=ScalarItemAugmentation(image_transform.train, segmentation_transform.train),
+            val=ScalarItemAugmentation(image_transform.val, segmentation_transform.val),
+            test=ScalarItemAugmentation(image_transform.test, segmentation_transform.test))
 
 
 def get_non_image_features_dict(default_channels: List[str],

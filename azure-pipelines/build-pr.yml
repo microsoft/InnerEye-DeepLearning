@@ -34,7 +34,7 @@ jobs:
       - name: tag
         value: 'TrainBasicModel'
       - name: more_switches
-        value: '--log_level=DEBUG --use_dataset_mount=True'
+        value: '--log_level=DEBUG --use_dataset_mount=True --regression_test_folder=RegressionTestResults/PR_BasicModel2Epochs'
     pool:
       vmImage: 'ubuntu-18.04'
     steps:
@@ -97,6 +97,8 @@ jobs:
         value: 2
       - name: tag
         value: 'TrainEnsemble'
+      - name: more_switches
+        value: '--regression_test_folder=RegressionTestResults/PR_TrainEnsemble'
     pool:
       vmImage: 'ubuntu-18.04'
     steps:
@@ -118,7 +120,7 @@ jobs:
       - name: tag
         value: 'Train2Nodes'
       - name: more_switches
-        value: '--log_level=DEBUG --num_nodes=2'
+        value: '--log_level=DEBUG --num_nodes=2 --regression_test_folder=RegressionTestResults/PR_Train2Nodes'
     pool:
       vmImage: 'ubuntu-18.04'
     steps:
@@ -142,7 +144,7 @@ jobs:
       - name: number_of_cross_validation_splits
         value: 2
       - name: more_switches
-        value: '--num_epochs=2'
+        value: '--num_epochs=2 --regression_test_folder=RegressionTestResults/PR_GlaucomaCV'
     pool:
       vmImage: 'ubuntu-18.04'
     steps:
@@ -180,7 +182,7 @@ jobs:
       - name: tag
         value: 'HelloContainerPR'
       - name: more_switches
-        value: '--num_nodes=2'
+        value: '--num_nodes=2 --regression_test_folder=RegressionTestResults/PR_HelloContainer'
     pool:
       vmImage: 'ubuntu-18.04'
     steps:
@@ -193,3 +195,23 @@ jobs:
         parameters:
           pytest_mark: after_training_hello_container
           test_run_title: tests_after_training_hello_container
+
+  # Run the Lung model. This is a large model requiring a docker image with large memory. This tests against
+  # regressions in AML when requesting more than the default amount of memory. This needs to run with all subjects to
+  # trigger the bug, total runtime 10min
+  - job: TrainLung
+    variables:
+      - name: model
+        value: 'Lung'
+      - name: tag
+        value: 'LungPR'
+      - name: more_switches
+        value: '--num_epochs=1 --feature_channels=16 --show_patch_sampling=0 --train_batch_size=4 --perform_validation_and_test_set_inference=False'
+    pool:
+      vmImage: 'ubuntu-18.04'
+    steps:
+      - template: train_template.yml
+        parameters:
+          wait_for_completion: 'True'
+          pytest_mark: ''
+          max_run_duration: '30m'
