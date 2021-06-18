@@ -4,14 +4,13 @@
 #  ------------------------------------------------------------------------------------------
 
 import pandas as pd
-from pathlib import Path
 import pytest
 from typing import List
 from unittest import mock
 
 from InnerEye.Common import common_util
 from InnerEye.Common.common_util import BASELINE_WILCOXON_RESULTS_FILE, BEST_EPOCH_FOLDER_NAME, ENSEMBLE_SPLIT_NAME, \
-    FULL_METRICS_DATAFRAME_FILE, OTHER_RUNS_SUBDIR_NAME, SUBJECT_METRICS_FILE_NAME,  ModelProcessing
+    FULL_METRICS_DATAFRAME_FILE, OTHER_RUNS_SUBDIR_NAME, SUBJECT_METRICS_FILE_NAME, ModelProcessing
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.baselines_util import ComparisonBaseline, compare_scores_against_baselines, get_comparison_baselines, \
