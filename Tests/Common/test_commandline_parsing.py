@@ -14,6 +14,7 @@ from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.config import PhotometricNormalizationMethod, SegmentationModelBase
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.runner import Runner
+from InnerEye.ML.lightning_base import InnerEyeContainer
 from Tests.ML.configs.DummyModel import DummyModel
 
 
@@ -56,7 +57,8 @@ def test_create_ml_runner_args(is_container: bool,
         with mock.patch("InnerEye.ML.deep_learning_config.is_offline_run_context", return_value=is_offline_run):
             with mock.patch("InnerEye.ML.run_ml.MLRunner.run", return_value=None):
                 with mock.patch("InnerEye.ML.run_ml.MLRunner.mount_or_download_dataset", return_value=dataset_folder):
-                    runner = Runner(project_root=project_root, yaml_config_file=fixed_paths.SETTINGS_YAML_FILE)
+                    with mock.patch.object(InnerEyeContainer, "validate"):
+                        runner = Runner(project_root=project_root, yaml_config_file=fixed_paths.SETTINGS_YAML_FILE)
                     runner.parse_and_load_model()
                     # Only when calling config.create_filesystem we expect to see the correct paths, and this happens
                     # inside run_in_situ

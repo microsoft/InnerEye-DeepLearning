@@ -246,7 +246,7 @@ def test_config_str() -> None:
     """
     Check if dataframe fields are omitted from the string conversion of a config object.
     """
-    config = DeepLearningConfig()
+    config = DeepLearningConfig(should_validate=False)
     df = DataFrame(columns=["foobar"], data=[1.0, 2.0])
     config.dataset_data_frame = df
     s = str(config)
