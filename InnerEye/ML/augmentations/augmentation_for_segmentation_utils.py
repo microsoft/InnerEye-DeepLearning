@@ -135,6 +135,20 @@ class BasicAugmentations(Transform3D[Sample]):
     """
     Transform3D for basic augmentations on a SegmentationSample
     """
+    IMAGE = "image"
+    LABELS = "labels"
+    augment = Compose([
+        RandRotated(
+            keys=[IMAGE, LABELS],
+            mode=("bilinear", "nearest"),
+            range_x=30 * np.pi / 180,
+            padding_mode="zeros",
+            prob=0.5
+        ),
+        RandGaussianNoised(
+            keys=[IMAGE],
+            prob=0.5
+        )])
 
     def __call__(self, sample: Sample) -> Sample:
         image, labels = self.transform(
@@ -155,25 +169,11 @@ class BasicAugmentations(Transform3D[Sample]):
         :param labels: channels x image dimensions
         :return: A tuple of image channels transformed and labels transformed
         """
-        IMAGE = "image"
-        LABELS = "labels"
-        subject = {
-            IMAGE: image,
-            LABELS: labels
-        }
-        augment = Compose([
-            RandRotated(
-                keys=[IMAGE, LABELS],
-                mode=("bilinear", "nearest"),
-                range_x=30 * np.pi / 180,
-                padding_mode="zeros",
-                prob=0.5
-            ),
-            RandGaussianNoised(
-                keys=[IMAGE],
-                prob=0.5
-            )
 
-        ])
-        augmented_dict = augment(subject)
-        return augmented_dict[IMAGE], augmented_dict[LABELS]
+        subject = {
+            BasicAugmentations.IMAGE: image,
+            BasicAugmentations.LABELS: labels
+        }
+
+        augmented_dict = BasicAugmentations.augment(subject)
+        return augmented_dict[BasicAugmentations.IMAGE], augmented_dict[BasicAugmentations.LABELS]
