@@ -15,9 +15,8 @@ from InnerEye.Azure.azure_util import AZUREML_RUN_FOLDER_PREFIX, get_comparison_
 from InnerEye.Common import common_util
 from InnerEye.Common.Statistics import wilcoxon_signed_rank_test
 from InnerEye.Common.Statistics.wilcoxon_signed_rank_test import WilcoxonTestConfig
-from InnerEye.Common.common_util import BASELINE_WILCOXON_RESULTS_FILE, ENSEMBLE_SPLIT_NAME, \
-    EPOCH_FOLDER_NAME_PATTERN, FULL_METRICS_DATAFRAME_FILE, ModelProcessing, OTHER_RUNS_SUBDIR_NAME, \
-    SUBJECT_METRICS_FILE_NAME, remove_file_or_directory
+from InnerEye.Common.common_util import BASELINE_WILCOXON_RESULTS_FILE, FULL_METRICS_DATAFRAME_FILE, ModelProcessing, \
+    SUBJECT_METRICS_FILE_NAME, get_best_epoch_results_path, remove_file_or_directory
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
@@ -56,24 +55,15 @@ def compare_scores_against_baselines(model_config: SegmentationModelBase, azure_
     comparison_blob_storage_paths = getattr(model_config, 'comparison_blob_storage_paths')
     if not comparison_blob_storage_paths:
         return
-    outputs_path = model_config.outputs_folder
-    if model_proc == ModelProcessing.ENSEMBLE_CREATION:
-        outputs_path = outputs_path / OTHER_RUNS_SUBDIR_NAME / ENSEMBLE_SPLIT_NAME
-    model_epoch_paths = sorted(outputs_path.glob(EPOCH_FOLDER_NAME_PATTERN))
-    if not model_epoch_paths:
-        logging.warning("Cannot compare scores against baselines: no matches found for "
-                        f"{outputs_path}/{EPOCH_FOLDER_NAME_PATTERN}")
-        return
-    # Use the last (highest-numbered) epoch path for the current run.
-    model_epoch_path = model_epoch_paths[-1]
-    model_metrics_path = model_epoch_path / ModelExecutionMode.TEST.value / SUBJECT_METRICS_FILE_NAME
-    model_dataset_path = model_epoch_path / ModelExecutionMode.TEST.value / DATASET_CSV_FILE_NAME
+    outputs_path = model_config.outputs_folder / get_best_epoch_results_path(ModelExecutionMode.TEST, model_proc)
+    if not outputs_path.is_dir():
+        raise FileNotFoundError(f"Cannot compare scores against baselines: no best epoch results found at {outputs_path}")
+    model_metrics_path = outputs_path / SUBJECT_METRICS_FILE_NAME
+    model_dataset_path = outputs_path / DATASET_CSV_FILE_NAME
     if not model_dataset_path.exists():
-        logging.warning(f"Not comparing with baselines because no {model_dataset_path} file found for this run")
-        return
+        raise FileNotFoundError(f"Not comparing with baselines because no {model_dataset_path} file found for this run")
     if not model_metrics_path.exists():
-        logging.warning(f"Not comparing with baselines because no {model_metrics_path} file found for this run")
-        return
+        raise FileNotFoundError(f"Not comparing with baselines because no {model_metrics_path} file found for this run")
     model_metrics_df = pd.read_csv(model_metrics_path)
     model_dataset_df = pd.read_csv(model_dataset_path)
     comparison_result = download_and_compare_scores(outputs_path,
