@@ -17,6 +17,7 @@ from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, get_recovery_checkpoint_path
 from InnerEye.ML.deep_learning_config import WEIGHTS_FILE
 from InnerEye.ML.model_config_base import ModelConfigBase
+from InnerEye.ML.lightning_base import InnerEyeContainer
 from Tests.AfterTraining.test_after_training import FALLBACK_ENSEMBLE_RUN, FALLBACK_SINGLE_RUN, get_most_recent_run, \
     get_most_recent_run_id
 from Tests.ML.configs.DummyModel import DummyModel
@@ -74,8 +75,9 @@ def test_download_checkpoints_from_single_run(test_output_dirs: OutputFolderForT
     config.set_output_to(test_output_dirs.root_dir)
 
     # No checkpoint handling options set.
-    checkpoint_handler = get_default_checkpoint_handler(model_config=config,
-                                                        project_root=test_output_dirs.root_dir)
+    with mock.patch.object(InnerEyeContainer, "validate"):
+        checkpoint_handler = get_default_checkpoint_handler(model_config=config,
+                                                            project_root=test_output_dirs.root_dir)
     run_recovery_id = get_most_recent_run_id(fallback_run_id_for_local_execution=FALLBACK_SINGLE_RUN)
 
     # Set a run recovery object - non ensemble
@@ -94,8 +96,9 @@ def test_download_checkpoints_from_single_run(test_output_dirs: OutputFolderForT
 @pytest.mark.after_training_ensemble_run
 def test_download_checkpoints_from_ensemble_run(test_output_dirs: OutputFolderForTests) -> None:
     config = ModelConfigBase(should_validate=False)
-    checkpoint_handler = get_default_checkpoint_handler(model_config=config,
-                                                        project_root=test_output_dirs.root_dir)
+    with mock.patch.object(InnerEyeContainer, "validate"):
+        checkpoint_handler = get_default_checkpoint_handler(model_config=config,
+                                                            project_root=test_output_dirs.root_dir)
 
     run_recovery_id = get_most_recent_run_id(fallback_run_id_for_local_execution=FALLBACK_ENSEMBLE_RUN)
     checkpoint_handler.azure_config.run_recovery_id = run_recovery_id
@@ -108,8 +111,9 @@ def test_get_recovery_path_train(test_output_dirs: OutputFolderForTests) -> None
     config = ModelConfigBase(should_validate=False)
     config.set_output_to(test_output_dirs.root_dir)
     config.outputs_folder.mkdir()
-    checkpoint_handler = get_default_checkpoint_handler(model_config=config,
-                                                        project_root=test_output_dirs.root_dir)
+    with mock.patch.object(InnerEyeContainer, "validate"):
+        checkpoint_handler = get_default_checkpoint_handler(model_config=config,
+                                                            project_root=test_output_dirs.root_dir)
 
     assert checkpoint_handler.get_recovery_path_train() is None
 
@@ -137,8 +141,9 @@ def test_get_recovery_path_train(test_output_dirs: OutputFolderForTests) -> None
 def test_get_recovery_path_train_single_run(test_output_dirs: OutputFolderForTests) -> None:
     config = ModelConfigBase(should_validate=False)
     config.set_output_to(test_output_dirs.root_dir)
-    checkpoint_handler = get_default_checkpoint_handler(model_config=config,
-                                                        project_root=test_output_dirs.root_dir)
+    with mock.patch.object(InnerEyeContainer, "validate"):
+        checkpoint_handler = get_default_checkpoint_handler(model_config=config,
+                                                            project_root=test_output_dirs.root_dir)
 
     run_recovery_id = get_most_recent_run_id(fallback_run_id_for_local_execution=FALLBACK_SINGLE_RUN)
 
@@ -154,8 +159,9 @@ def test_get_recovery_path_train_single_run(test_output_dirs: OutputFolderForTes
 def test_get_best_checkpoint_single_run(test_output_dirs: OutputFolderForTests) -> None:
     config = ModelConfigBase(should_validate=False)
     config.set_output_to(test_output_dirs.root_dir)
-    checkpoint_handler = get_default_checkpoint_handler(model_config=config,
-                                                        project_root=test_output_dirs.root_dir)
+    with mock.patch.object(InnerEyeContainer, "validate"):
+        checkpoint_handler = get_default_checkpoint_handler(model_config=config,
+                                                            project_root=test_output_dirs.root_dir)
 
     # We have not set a run_recovery, nor have we trained, so this should fail to get a checkpoint
     with pytest.raises(ValueError) as ex:
@@ -203,8 +209,9 @@ def test_get_all_checkpoints_from_ensemble_run(test_output_dirs: OutputFolderFor
     config = ModelConfigBase(should_validate=False)
     config.set_output_to(test_output_dirs.root_dir)
     config.outputs_folder.mkdir()
-    manage_recovery = get_default_checkpoint_handler(model_config=config,
-                                                     project_root=test_output_dirs.root_dir)
+    with mock.patch.object(InnerEyeContainer, "validate"):
+        manage_recovery = get_default_checkpoint_handler(model_config=config,
+                                                         project_root=test_output_dirs.root_dir)
     hyperdrive_run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_ENSEMBLE_RUN)
     manage_recovery.download_checkpoints_from_hyperdrive_child_runs(hyperdrive_run)
     expected_checkpoints = [config.checkpoint_folder / OTHER_RUNS_SUBDIR_NAME / str(i)
@@ -219,8 +226,9 @@ def test_get_checkpoints_to_test(test_output_dirs: OutputFolderForTests) -> None
     config = ModelConfigBase(should_validate=False)
     config.set_output_to(test_output_dirs.root_dir)
     config.outputs_folder.mkdir()
-    manage_recovery = get_default_checkpoint_handler(model_config=config,
-                                                     project_root=test_output_dirs.root_dir)
+    with mock.patch.object(InnerEyeContainer, "validate"):
+        manage_recovery = get_default_checkpoint_handler(model_config=config,
+                                                         project_root=test_output_dirs.root_dir)
 
     # Set a local_weights_path to get checkpoint from. Model has not trained and no run recovery provided,
     # so the local weights should be used ignoring any epochs to test
@@ -251,8 +259,9 @@ def test_get_checkpoints_to_test_single_run(test_output_dirs: OutputFolderForTes
     config = ModelConfigBase(should_validate=False)
     config.set_output_to(test_output_dirs.root_dir)
     config.outputs_folder.mkdir()
-    manage_recovery = get_default_checkpoint_handler(model_config=config,
-                                                     project_root=test_output_dirs.root_dir)
+    with mock.patch.object(InnerEyeContainer, "validate"):
+        manage_recovery = get_default_checkpoint_handler(model_config=config,
+                                                         project_root=test_output_dirs.root_dir)
 
     run_recovery_id = get_most_recent_run_id(fallback_run_id_for_local_execution=FALLBACK_SINGLE_RUN)
 
@@ -292,8 +301,9 @@ def test_download_model_weights(test_output_dirs: OutputFolderForTests) -> None:
 
 def test_get_local_weights_path_or_download(test_output_dirs: OutputFolderForTests) -> None:
     config = ModelConfigBase(should_validate=False)
-    manage_recovery = get_default_checkpoint_handler(model_config=config,
-                                                     project_root=test_output_dirs.root_dir)
+    with mock.patch.object(InnerEyeContainer, "validate"):
+        manage_recovery = get_default_checkpoint_handler(model_config=config,
+                                                         project_root=test_output_dirs.root_dir)
 
     # If the model has neither local_weights_path or weights_url set, should fail.
     with pytest.raises(ValueError) as ex:
@@ -330,8 +340,9 @@ def test_get_and_modify_local_weights(test_output_dirs: OutputFolderForTests) ->
     config.set_output_to(test_output_dirs.root_dir)
     config.outputs_folder.mkdir()
 
-    manage_recovery = get_default_checkpoint_handler(model_config=config,
-                                                     project_root=test_output_dirs.root_dir)
+    with mock.patch.object(InnerEyeContainer, "validate"):
+        manage_recovery = get_default_checkpoint_handler(model_config=config,
+                                                         project_root=test_output_dirs.root_dir)
 
     # If the model has neither local_weights_path or weights_url set, should fail.
     with pytest.raises(ValueError) as ex:

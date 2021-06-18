@@ -117,9 +117,10 @@ class HelloContainer(LightningContainer):
     or via `python InnerEye/ML/runner.py --model=HelloContainer --azureml=True` in AzureML
     """
     def __init__(self) -> None:
-        super().__init__()
+        super().__init__(should_validate=False)
         self.local_dataset = fixed_paths_for_tests.full_ml_test_data_path()
         self.num_epochs = 20
+        self.validate()
 
     # This method must be overridden by any subclass of LightningContainer
     def create_model(self) -> LightningModule:
