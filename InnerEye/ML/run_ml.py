@@ -34,7 +34,7 @@ from InnerEye.Common.common_util import BASELINE_COMPARISONS_FOLDER, BASELINE_WI
     change_working_directory, get_best_epoch_results_path, is_windows, logging_section, logging_to_file, \
     print_exception, remove_file_or_directory
 from InnerEye.Common.fixed_paths import INNEREYE_PACKAGE_NAME, LOG_FILE_NAME, PYTHON_ENVIRONMENT_NAME
-from InnerEye.ML.baselines_util import compare_folder_contents
+from InnerEye.ML.baselines_util import compare_folders_and_run_outputs
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, DeepLearningConfig, FINAL_ENSEMBLE_MODEL_FOLDER, \
@@ -411,8 +411,8 @@ class MLRunner:
             # run context.
             logging.info("Comparing the current results against stored results")
             if self.is_normal_run_or_crossval_child_0():
-                compare_folder_contents(expected_folder=self.container.regression_test_folder,
-                                        actual_folder=self.container.outputs_folder)
+                compare_folders_and_run_outputs(expected=self.container.regression_test_folder,
+                                                actual=self.container.outputs_folder)
             else:
                 logging.info("Skipping because this is not cross-validation child run 0.")
 
