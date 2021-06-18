@@ -43,8 +43,9 @@ def test_use_local_weights_file(test_output_dirs: OutputFolderForTests) -> None:
     config.outputs_folder.mkdir()
 
     # No checkpoint handling options set.
-    checkpoint_handler = get_default_checkpoint_handler(model_config=config,
-                                                        project_root=test_output_dirs.root_dir)
+    with mock.patch.object(InnerEyeContainer, "validate"):
+        checkpoint_handler = get_default_checkpoint_handler(model_config=config,
+                                                            project_root=test_output_dirs.root_dir)
 
     checkpoint_handler.download_recovery_checkpoints_or_weights()
     assert not checkpoint_handler.run_recovery

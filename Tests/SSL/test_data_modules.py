@@ -123,7 +123,8 @@ def test_get_transforms_in_SSL_container_for_cxr_data() -> None:
     """
     test_container = SSLContainer(linear_head_dataset_name=SSLDatasetName.RSNAKaggleCXR,
                                   ssl_training_dataset_name=SSLDatasetName.NIHCXR,
-                                  ssl_augmentation_config=path_encoder_augmentation_cxr)
+                                  ssl_augmentation_config=path_encoder_augmentation_cxr,
+                                  should_validate=False)
     test_container._load_config()
     dual_view_transform, _ = test_container._get_transforms(augmentation_config=test_container.ssl_augmentation_params,
                                                             dataset_name=SSLDatasetName.NIHCXR.value,

@@ -145,12 +145,12 @@ def inference_identity(test_output_dirs: OutputFolderForTests,
         assert not np.array_equal(largest_component, expected_segmentation)
         expected_segmentation = largest_component
 
-    # instantiate the model
-    checkpoint = test_output_dirs.root_dir / "checkpoint.ckpt"
-    create_model_and_store_checkpoint(config, checkpoint_path=checkpoint)
-
-    # create single or ensemble inference pipeline
     with mock.patch.object(InnerEyeContainer, "validate"):
+        # instantiate the model
+        checkpoint = test_output_dirs.root_dir / "checkpoint.ckpt"
+        create_model_and_store_checkpoint(config, checkpoint_path=checkpoint)
+
+        # create single or ensemble inference pipeline
         inference_pipeline = InferencePipeline.create_from_checkpoint(path_to_checkpoint=checkpoint,
                                                                       model_config=config)
     assert inference_pipeline is not None
