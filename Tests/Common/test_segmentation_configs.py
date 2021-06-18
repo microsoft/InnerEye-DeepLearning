@@ -331,7 +331,7 @@ def test_prostate_paper() -> None:
     Check that ProstatePaper class can be instantiated.
     """
     ground_truth_ids = DEFAULT_PROSTATE_GROUND_TRUTH_IDS
-    config = ProstatePaper(local_dataset=Path("foo"))
+    config = ProstatePaper()
     assert config.ground_truth_ids == ground_truth_ids
 
 
@@ -347,7 +347,6 @@ def test_prostate_paper_with_optional_params() -> None:
     class_weights = generate_random_class_weights(ground_truth_count + 1)
     largest_connected_component_foreground_classes = DEFAULT_PROSTATE_GROUND_TRUTH_IDS[1:3]
     config = ProstatePaper(
-        local_dataset=Path("foo"),
         ground_truth_ids_display_names=ground_truth_ids_display_names,
         colours=colours,
         fill_holes=fill_holes,

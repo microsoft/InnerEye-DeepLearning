@@ -4,7 +4,6 @@
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
 from typing import List, Tuple
-from unittest import mock
 
 import pytest
 
@@ -15,7 +14,6 @@ from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
 from InnerEye.ML.run_ml import MLRunner
-from InnerEye.ML.lightning_base import InnerEyeContainer
 
 
 def create_checkpoints(model_config: SegmentationModelBase, is_ensemble: bool) -> Tuple[List[Path], List[Path]]:
@@ -52,8 +50,7 @@ def test_copy_child_paths_to_folder(is_ensemble: bool,
     # Simulate a project root: We can't derive that from the repository root because that might point
     # into Python's package folder
     project_root = Path(__file__).parent.parent
-    with mock.patch.object(InnerEyeContainer, "validate"):
-        ml_runner = MLRunner(model_config=fake_model, azure_config=azure_config, project_root=project_root)
+    ml_runner = MLRunner(model_config=fake_model, azure_config=azure_config, project_root=project_root)
     model_folder = test_output_dirs.root_dir / "final"
     ml_runner.copy_child_paths_to_folder(model_folder=model_folder, checkpoint_paths=checkpoints_absolute)
     expected_files = [

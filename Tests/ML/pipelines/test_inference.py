@@ -8,7 +8,6 @@ import numpy as np
 import pytest
 import torch
 from torch.nn import Parameter
-from unittest import mock
 
 from InnerEye.Common import common_util
 from InnerEye.Common.output_directories import OutputFolderForTests
@@ -18,7 +17,6 @@ from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel
 from InnerEye.ML.pipelines.ensemble import EnsemblePipeline
 from InnerEye.ML.pipelines.inference import InferencePipeline
 from InnerEye.ML.utils import image_util
-from InnerEye.ML.lightning_base import InnerEyeContainer
 from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
 
 
@@ -145,14 +143,13 @@ def inference_identity(test_output_dirs: OutputFolderForTests,
         assert not np.array_equal(largest_component, expected_segmentation)
         expected_segmentation = largest_component
 
-    with mock.patch.object(InnerEyeContainer, "validate"):
-        # instantiate the model
-        checkpoint = test_output_dirs.root_dir / "checkpoint.ckpt"
-        create_model_and_store_checkpoint(config, checkpoint_path=checkpoint)
+    # instantiate the model
+    checkpoint = test_output_dirs.root_dir / "checkpoint.ckpt"
+    create_model_and_store_checkpoint(config, checkpoint_path=checkpoint)
 
-        # create single or ensemble inference pipeline
-        inference_pipeline = InferencePipeline.create_from_checkpoint(path_to_checkpoint=checkpoint,
-                                                                      model_config=config)
+    # create single or ensemble inference pipeline
+    inference_pipeline = InferencePipeline.create_from_checkpoint(path_to_checkpoint=checkpoint,
+                                                                  model_config=config)
     assert inference_pipeline is not None
     full_image_inference_pipeline = EnsemblePipeline([inference_pipeline], config) \
         if is_ensemble else inference_pipeline
