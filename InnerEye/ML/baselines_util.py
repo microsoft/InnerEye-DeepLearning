@@ -280,9 +280,9 @@ def compare_folders_and_run_outputs(expected: Path, actual: Path) -> None:
     logging.debug(f"Current working directory: {Path.cwd()}")
     messages = []
     for (subfolder, message_prefix, actual_folder, run_to_compare) in \
-        [(REGRESSION_TEST_OUTPUT_FOLDER, "run output files", actual, None),
-         (REGRESSION_TEST_AZUREML_FOLDER, "AzureML outputs in present run", None, RUN_CONTEXT),
-         (REGRESSION_TEST_AZUREML_PARENT_FOLDER, "AzureML outputs in parent run", None, PARENT_RUN_CONTEXT)]:
+            [(REGRESSION_TEST_OUTPUT_FOLDER, "run output files", actual, None),
+             (REGRESSION_TEST_AZUREML_FOLDER, "AzureML outputs in present run", None, RUN_CONTEXT),
+             (REGRESSION_TEST_AZUREML_PARENT_FOLDER, "AzureML outputs in parent run", None, PARENT_RUN_CONTEXT)]:
         folder = expected / subfolder
         if folder.is_dir():
             logging.info(f"Comparing results in {folder} against {message_prefix}:")
