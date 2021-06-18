@@ -4,12 +4,14 @@
 #  ------------------------------------------------------------------------------------------
 
 import pandas as pd
+from pathlib import Path
 import pytest
+from typing import List
 from unittest import mock
 
 from InnerEye.Common import common_util
-from InnerEye.Common.common_util import BASELINE_WILCOXON_RESULTS_FILE, BEST_EPOCH_FOLDER_NAME, FULL_METRICS_DATAFRAME_FILE, \
-    SUBJECT_METRICS_FILE_NAME, ModelProcessing
+from InnerEye.Common.common_util import BASELINE_WILCOXON_RESULTS_FILE, BEST_EPOCH_FOLDER_NAME, ENSEMBLE_SPLIT_NAME, \
+    FULL_METRICS_DATAFRAME_FILE, OTHER_RUNS_SUBDIR_NAME, SUBJECT_METRICS_FILE_NAME,  ModelProcessing
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.baselines_util import ComparisonBaseline, compare_scores_against_baselines, get_comparison_baselines, \
@@ -59,21 +61,41 @@ def create_comparison_metrics_df() -> pd.DataFrame:
     return comparison_metrics_df
 
 
+def create_comparison_baseline(dataset_df: pd.DataFrame) -> ComparisonBaseline:
+    """
+    Create a test ComparisonBaseline.
+
+    :param dataset_df: Dataset dataframe.
+    :return: New test ComparisonBaseline
+    """
+    comparison_metrics_df = create_comparison_metrics_df()
+    comparison_name = "DefaultName"
+    comparison_run_rec_id = "DefaultRunRecId"
+    return ComparisonBaseline(comparison_name, dataset_df, comparison_metrics_df, comparison_run_rec_id)
+
+
+def check_wilcoxon_lines(wilcoxon_lines: List[str], baseline: ComparisonBaseline) -> None:
+    """
+    Assert that the wilcoxon lines are as expected.
+
+    :param wilcoxon_lines: Lines to test.
+    :param baseline: Expected comparison baseline.
+    """
+    assert wilcoxon_lines[0] == f"Run 1: {baseline.name}"
+    assert wilcoxon_lines[1] == "Run 2: CURRENT"
+    assert wilcoxon_lines[3].find("WORSE") > 0
+
+
 @pytest.mark.skipif(common_util.is_windows(), reason="Loading tk sometimes fails on Windows")
 def test_perform_score_comparisons() -> None:
     dataset_df = create_dataset_df()
     metrics_df = create_metrics_df()
-    comparison_metrics_df = create_comparison_metrics_df()
-    comparison_name = "DefaultName"
-    comparison_run_rec_id = "DefaultRunRecId"
-    baseline = ComparisonBaseline(comparison_name, dataset_df, comparison_metrics_df, comparison_run_rec_id)
+    baseline = create_comparison_baseline(dataset_df)
     result = perform_score_comparisons(dataset_df, metrics_df, [baseline])
     assert result.did_comparisons
     assert len(result.wilcoxon_lines) == 5
-    assert result.wilcoxon_lines[0] == f"Run 1: {comparison_name}"
-    assert result.wilcoxon_lines[1] == "Run 2: CURRENT"
-    assert result.wilcoxon_lines[3].find("WORSE") > 0
-    assert list(result.plots.keys()) == [f"{comparison_name}_vs_CURRENT"]
+    check_wilcoxon_lines(result.wilcoxon_lines, baseline)
+    assert list(result.plots.keys()) == [f"{baseline.name}_vs_CURRENT"]
 
 
 @pytest.mark.after_training_single_run
@@ -88,10 +110,16 @@ def test_get_comparison_data(test_output_dirs: OutputFolderForTests) -> None:
     assert baselines[0].name == comparison_name
 
 
-def test_compare_scores_against_baselines_throws(test_output_dirs: OutputFolderForTests) -> None:
+@pytest.mark.parametrize('model_proc', [ModelProcessing.DEFAULT, ModelProcessing.ENSEMBLE_CREATION])
+def test_compare_scores_against_baselines_throws(model_proc: ModelProcessing,
+                                                 test_output_dirs: OutputFolderForTests) -> None:
     """
     Test that exceptions are raised if the files necessary for baseline comparison are missing,
     then test that when all required files are present that baseline comparison files are written.
+
+    :param model_proc: Model processing to test.
+    :param test_output_dirs: Test output directories.
+    :return: None.
     """
     config = SegmentationModelBase(should_validate=False,
                                    comparison_blob_storage_paths=[
@@ -105,10 +133,14 @@ def test_compare_scores_against_baselines_throws(test_output_dirs: OutputFolderF
     with pytest.raises(FileNotFoundError) as ex:
         compare_scores_against_baselines(
             model_config=config,
-            azure_config=azure_config, model_proc=ModelProcessing.DEFAULT)
+            azure_config=azure_config, model_proc=model_proc)
     assert "Cannot compare scores against baselines: no best epoch results found at" in str(ex)
 
-    best_epoch_folder_path = config.outputs_folder / BEST_EPOCH_FOLDER_NAME / ModelExecutionMode.TEST.value
+    best_epoch_folder_path = config.outputs_folder
+    if model_proc == ModelProcessing.ENSEMBLE_CREATION:
+        best_epoch_folder_path = best_epoch_folder_path / OTHER_RUNS_SUBDIR_NAME / ENSEMBLE_SPLIT_NAME
+    best_epoch_folder_path = best_epoch_folder_path / BEST_EPOCH_FOLDER_NAME / ModelExecutionMode.TEST.value
+
     best_epoch_folder_path.mkdir(parents=True)
 
     # If the BEST_EPOCH_FOLDER_NAME folder exists but DATASET_CSV_FILE_NAME is missing,
@@ -116,7 +148,7 @@ def test_compare_scores_against_baselines_throws(test_output_dirs: OutputFolderF
     with pytest.raises(FileNotFoundError) as ex:
         compare_scores_against_baselines(
             model_config=config,
-            azure_config=azure_config, model_proc=ModelProcessing.DEFAULT)
+            azure_config=azure_config, model_proc=model_proc)
     assert "Not comparing with baselines because no " in str(ex)
     assert DATASET_CSV_FILE_NAME in str(ex)
 
@@ -129,7 +161,7 @@ def test_compare_scores_against_baselines_throws(test_output_dirs: OutputFolderF
     with pytest.raises(FileNotFoundError) as ex:
         compare_scores_against_baselines(
             model_config=config,
-            azure_config=azure_config, model_proc=ModelProcessing.DEFAULT)
+            azure_config=azure_config, model_proc=model_proc)
     assert "Not comparing with baselines because no " in str(ex)
     assert SUBJECT_METRICS_FILE_NAME in str(ex)
 
@@ -137,24 +169,21 @@ def test_compare_scores_against_baselines_throws(test_output_dirs: OutputFolderF
     metrics_df = create_metrics_df()
     metrics_df.to_csv(model_metrics_path)
 
-    comparison_metrics_df = create_comparison_metrics_df()
-    comparison_name = "DefaultName"
-    comparison_run_rec_id = "DefaultRunRecId"
-    baseline = ComparisonBaseline(comparison_name, dataset_df, comparison_metrics_df, comparison_run_rec_id)
+    baseline = create_comparison_baseline(dataset_df)
 
     # Patch get_comparison_baselines to return the baseline above.
     with mock.patch('InnerEye.ML.baselines_util.get_comparison_baselines', return_value=[baseline]):
         compare_scores_against_baselines(
             model_config=config,
-            azure_config=azure_config, model_proc=ModelProcessing.DEFAULT)
+            azure_config=azure_config, model_proc=model_proc)
 
+    # Check the wilcoxoon results file is present and has expected contents.
     wilcoxon_path = best_epoch_folder_path / BASELINE_WILCOXON_RESULTS_FILE
     assert wilcoxon_path.is_file()
 
     wilcoxon_lines = [line.strip() for line in wilcoxon_path.read_text().splitlines()]
-    assert wilcoxon_lines[0] == f"Run 1: {comparison_name}"
-    assert wilcoxon_lines[1] == "Run 2: CURRENT"
-    assert wilcoxon_lines[3].find("WORSE") > 0
+    check_wilcoxon_lines(wilcoxon_lines, baseline)
 
+    # Check the full metrics results file is present.
     full_metrics_path = best_epoch_folder_path / FULL_METRICS_DATAFRAME_FILE
     assert full_metrics_path.is_file()
