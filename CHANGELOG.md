@@ -17,6 +17,8 @@ created.
 jobs that run in AzureML.
 
 ### Changed
+- ([#497](https://github.com/microsoft/InnerEye-DeepLearning/pull/497)) Reducing the size of the code snapshot that
+gets uploaded to AzureML, by skipping all test folders.
 
 ### Fixed
 
