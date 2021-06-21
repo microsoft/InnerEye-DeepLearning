@@ -10,7 +10,6 @@ All of the tests in this file rely on previous InnerEye runs that submit an Azur
 up the most recently run AzureML job from most_recent_run.txt
 """
 
-import os
 import shutil
 import sys
 from pathlib import Path
@@ -24,13 +23,14 @@ from azureml.core import Model, Run
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_runner import RUN_RECOVERY_FILE
-from InnerEye.Azure.azure_util import MODEL_ID_KEY_NAME, get_comparison_baseline_paths, \
+from InnerEye.Azure.azure_util import MODEL_ID_KEY_NAME, download_run_output_file, download_run_outputs_by_prefix, \
+    get_comparison_baseline_paths, \
     is_running_on_azure_agent, to_azure_friendly_string
 from InnerEye.Common import common_util, fixed_paths, fixed_paths_for_tests
-from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, get_best_epoch_results_path
-from InnerEye.Common.fixed_paths import DEFAULT_AML_LOGS_DIR, DEFAULT_RESULT_IMAGE_NAME, \
-    DEFAULT_RESULT_ZIP_DICOM_NAME, \
-    PYTHON_ENVIRONMENT_NAME, repository_root_directory
+from InnerEye.Common.common_util import BEST_EPOCH_FOLDER_NAME, CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, \
+    get_best_epoch_results_path
+from InnerEye.Common.fixed_paths import (DEFAULT_AML_LOGS_DIR, DEFAULT_RESULT_IMAGE_NAME, DEFAULT_RESULT_ZIP_DICOM_NAME,
+                                         PYTHON_ENVIRONMENT_NAME, repository_root_directory)
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.spawn_subprocess import spawn_and_monitor_subprocess
@@ -38,6 +38,7 @@ from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.configs.segmentation.BasicModel2Epochs import BasicModel2Epochs
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, ModelCategory
 from InnerEye.ML.model_inference_config import read_model_inference_config
+from InnerEye.ML.model_testing import THUMBNAILS_FOLDER
 from InnerEye.ML.reports.notebook_report import get_html_report_name
 from InnerEye.ML.runner import main
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
@@ -387,3 +388,19 @@ def test_recovery_on_2_nodes(test_output_dirs: OutputFolderForTests) -> None:
     assert "Downloading multiple files from run" not in log1_txt
     assert "Loading checkpoint that was created at (epoch = 2, global_step = 2)" in log0_txt
     assert "Loading checkpoint that was created at (epoch = 2, global_step = 2)" in log1_txt
+
+
+def test_download_outputs(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test if downloading multiple files works as expected
+    """
+    run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_SINGLE_RUN)
+    prefix = Path(BEST_EPOCH_FOLDER_NAME) / ModelExecutionMode.TEST.value / THUMBNAILS_FOLDER
+    download_run_outputs_by_prefix(prefix, test_output_dirs.root_dir, run=run)
+    expected_files = ["005_lung_l_slice_053.png", "005_lung_r_slice_037.png", "005_spinalcord_slice_088.png"]
+    for file in expected_files:
+        expected = test_output_dirs.root_dir / fixed_paths.DEFAULT_AML_UPLOAD_DIR / prefix / file
+        assert expected.is_file(), f"File missing: {file}"
+    # Check that no more than the expected files were downloaded
+    all_files = [f for f in test_output_dirs.root_dir.rglob("*") if f.is_file()]
+    assert len(all_files) == len(expected_files)

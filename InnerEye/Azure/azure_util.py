@@ -337,32 +337,44 @@ def is_parent_run(run: Run) -> bool:
     return PARENT_RUN_CONTEXT and run.id == PARENT_RUN_CONTEXT.id
 
 
-def download_outputs_from_run(blobs_path: Path,
-                              destination: Path,
-                              run: Optional[Run] = None,
-                              is_file: bool = False,
-                              append_prefix: bool = False) -> Path:
+def download_run_output_file(blob_path: Path,
+                             destination: Path,
+                             run: Run) -> Path:
     """
-    Download the blobs from the run's default output directory: DEFAULT_AML_UPLOAD_DIR.
-    Silently returns for offline runs.
-    :param blobs_path: Blobs path in DEFAULT_AML_UPLOAD_DIR to download from
-    :param run: Run to download from (default to current run if None)
-    :param destination: Local path to save the downloaded blobs to
-    :param is_file: Set to True if downloading a single file.
-    :param append_prefix: An optional flag whether to append the specified prefix from the final output file path.
-    If False then the prefix is removed from the output file path.
+    Downloads a single file from the run's default output directory: DEFAULT_AML_UPLOAD_DIR ("outputs").
+    For example, if blobs_path = "foo/bar.csv", then the run result file "outputs/foo/bar.csv" will be downloaded
+    to <destination>/bar.csv (the directory will be stripped off).
+    :param blob_path: The name of the file to download.
+    :param run: The AzureML run to download the files from
+    :param destination: Local path to save the downloaded blob to.
     :return: Destination path to the downloaded file(s)
     """
-    run = run or Run.get_context()
-    blobs_root_path = str(fixed_paths.DEFAULT_AML_UPLOAD_DIR / blobs_path)
-    if is_file:
-        destination = destination / blobs_path.name
-        logging.info(f"Downloading single file from run {run.id}: {blobs_root_path} -> {str(destination)}")
-        run.download_file(blobs_root_path, str(destination), _validate_checksum=True)
-    else:
-        logging.info(f"Downloading multiple files from run {run.id}: {blobs_root_path} -> {str(destination)}")
-        run.download_files(blobs_root_path, str(destination), append_prefix=append_prefix)
+    blobs_prefix = str((fixed_paths.DEFAULT_AML_UPLOAD_DIR / blob_path).as_posix())
+    destination = destination / blob_path.name
+    logging.info(f"Downloading single file from run {run.id}: {blobs_prefix} -> {str(destination)}")
+    run.download_file(blobs_prefix, str(destination), _validate_checksum=True)
     return destination
+
+
+def download_run_outputs_by_prefix(blobs_prefix: Path,
+                                   destination: Path,
+                                   run: Run) -> None:
+    """
+    Download all the blobs from the run's default output directory: DEFAULT_AML_UPLOAD_DIR ("outputs") that
+    have a given prefix. For example, if blobs_prefix = "foo", and the run has a file "outputs/foo/bar.csv", it will
+    be downloaded to destination/foo/bar.csv.
+    :param blobs_prefix: The prefix for all files in "outputs" that should be downloaded.
+    :param run: The AzureML run to download the files from.
+    :param destination: Local path to save the downloaded blobs to.
+    """
+    blobs_prefix = str((fixed_paths.DEFAULT_AML_UPLOAD_DIR / blobs_prefix).as_posix())
+    logging.info(f"Downloading multiple files from run {run.id}: {blobs_prefix} -> {str(destination)}")
+    # There is a download_files function, but that can time out when downloading several large checkpoints file
+    # (120sec timeout for all files).
+    for file in run.get_file_names():
+        if file.startswith(blobs_prefix):
+            logging.info(f"Downloading {file}")
+            run.download_file(file, str(destination / file), _validate_checksum=True)
 
 
 def is_running_on_azure_agent() -> bool:
@@ -406,8 +418,8 @@ def get_comparison_baseline_paths(outputs_folder: Path,
     # Look for dataset.csv inside epoch_NNN/Test, epoch_NNN/ and at top level
     for blob_path_parent in step_up_directories(blob_path):
         try:
-            comparison_dataset_path = download_outputs_from_run(
-                blob_path_parent / dataset_csv_file_name, destination_folder, run, True)
+            comparison_dataset_path = download_run_output_file(
+                blob_path_parent / dataset_csv_file_name, destination_folder, run)
             break
         except (ValueError, UserErrorException):
             logging.warning(f"cannot find {dataset_csv_file_name} at {blob_path_parent} in {run_rec_id}")
@@ -418,8 +430,8 @@ def get_comparison_baseline_paths(outputs_folder: Path,
             logging.warning(f"cannot find {dataset_csv_file_name} at or above {blob_path} in {run_rec_id}")
     # Look for epoch_NNN/Test/metrics.csv
     try:
-        comparison_metrics_path = download_outputs_from_run(
-            blob_path / SUBJECT_METRICS_FILE_NAME, destination_folder, run, True)
+        comparison_metrics_path = download_run_output_file(
+            blob_path / SUBJECT_METRICS_FILE_NAME, destination_folder, run)
     except (ValueError, UserErrorException):
         logging.warning(f"cannot find {SUBJECT_METRICS_FILE_NAME} at {blob_path} in {run_rec_id}")
     return (comparison_dataset_path, comparison_metrics_path)
