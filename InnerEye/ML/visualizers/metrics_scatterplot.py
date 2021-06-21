@@ -206,7 +206,7 @@ def to_dict(data: pd.DataFrame) -> Dict[str, Dict[str, float]]:
 
 def write_to_scatterplot_directory(root_folder: Path, plots: Dict[str, plt.Figure]) -> None:
     """
-    Writes a file root_folder/scatterplots/basename.jpg for every plot in plots with key "basename".
+    Writes a file root_folder/scatterplots/basename.png for every plot in plots with key "basename".
     :param root_folder: path to a folder
     :param plots: dictionary from plot basenames to plots (plt.Figure objects)
     """
@@ -217,7 +217,7 @@ def write_to_scatterplot_directory(root_folder: Path, plots: Dict[str, plt.Figur
     scatterplot_dir.mkdir(parents=True, exist_ok=True)
     logging.info(f"There are {len(plots)} plots to write to {scatterplot_dir}")
     for basename, fig in plots.items():
-        fig.savefig(scatterplot_dir / f"{basename}.jpg")
+        fig.savefig(scatterplot_dir / f"{basename}.png")
 
 
 def main() -> None:
