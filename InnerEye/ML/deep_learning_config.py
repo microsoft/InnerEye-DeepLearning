@@ -313,17 +313,10 @@ class DatasetParams(param.Parameterized):
         if not self.azure_dataset_id and self.local_dataset is None:
             raise ValueError("Either of local_dataset or azure_dataset_id must be set.")
 
-        if not self.azure_dataset_id and len(self.extra_azure_dataset_ids) > 0:
-            raise ValueError("Please specify an azure dataset in azure_dataset_id "
-                             "before adding datasets to extra_azure_dataset_ids.")
-
-        if not self.local_dataset and len(self.extra_local_dataset_paths) > 0:
-            raise ValueError("Please specify a local dataset in local_dataset "
-                             "before adding datasets to extra_local_dataset_paths.")
-
-        if not self.dataset_mountpoint and len(self.extra_dataset_mountpoints) > 0:
-            raise ValueError("Please specify a mountpoint for your first dataset using dataset_mountpoint "
-                             "before adding mountpoints to extra_dataset_mountpoints.")
+        if self.all_dataset_mountpoints() and len(self.all_azure_dataset_ids()) != len(self.all_dataset_mountpoints()):
+            raise ValueError(f"Expected the number of azure datasets to equal the number of mountpoints, "
+                             f"got datasets [{','.join(self.all_azure_dataset_ids())}] "
+                             f"and mountpoints [{','.join(self.all_dataset_mountpoints())}]")
 
     def all_azure_dataset_ids(self) -> List[str]:
         """
@@ -331,8 +324,9 @@ class DatasetParams(param.Parameterized):
         self.extra_azure_dataset_ids
         """
         if not self.azure_dataset_id:
-            return []
-        return [self.azure_dataset_id] + self.extra_azure_dataset_ids
+            return [] + self.extra_azure_dataset_ids
+        else:
+            return [self.azure_dataset_id] + self.extra_azure_dataset_ids
 
     def all_dataset_mountpoints(self) -> List[str]:
         """
@@ -340,8 +334,9 @@ class DatasetParams(param.Parameterized):
         self.extra_dataset_mountpoints
         """
         if not self.dataset_mountpoint:
-            return []
-        return [self.dataset_mountpoint] + self.extra_dataset_mountpoints
+            return [] + self.extra_dataset_mountpoints
+        else:
+            return [self.dataset_mountpoint] + self.extra_dataset_mountpoints
 
 
 class OutputParams(param.Parameterized):
