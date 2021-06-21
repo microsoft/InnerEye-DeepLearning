@@ -63,7 +63,7 @@ def compare_scores_against_baselines(model_config: SegmentationModelBase, azure_
     the Wilcoxon results file.
     """
     # The attribute will only be present for a segmentation model; and it might be None or empty even for that.
-    comparison_blob_storage_paths = getattr(model_config, 'comparison_blob_storage_paths')
+    comparison_blob_storage_paths = model_config.comparison_blob_storage_paths
     if not comparison_blob_storage_paths:
         return
     outputs_path = model_config.outputs_folder / get_best_epoch_results_path(ModelExecutionMode.TEST, model_proc)
