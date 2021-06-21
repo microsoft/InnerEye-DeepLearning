@@ -11,9 +11,6 @@ from InnerEye.ML.configs.segmentation.ProstateBase import ProstateBase
 fg_classes = ["external", "femur_r", "femur_l", "rectum", "prostate", "bladder", "seminalvesicles"]
 fg_display_names = ["External", "Femur_R", "Femur_L", "Rectum", "Prostate", "Bladder", "SeminalVesicles"]
 
-# Change this string to the name of your dataset on Azure blob storage.
-AZURE_DATASET_ID = "your_dataset"
-
 
 class ProstatePaper(ProstateBase):
     """
@@ -60,6 +57,5 @@ class ProstatePaper(ProstateBase):
             fill_holes=fill_holes,
             class_weights=class_weights,
             largest_connected_component_foreground_classes=largest_connected_component_foreground_classes,
-            azure_dataset_id=AZURE_DATASET_ID,
             **kwargs
         )

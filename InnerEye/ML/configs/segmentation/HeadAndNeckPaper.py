@@ -20,9 +20,6 @@ STRUCTURE_LIST = ["external", "parotid_l", "parotid_r", "smg_l", "smg_r", "spina
 RANDOM_COLOUR_GENERATOR = random.Random(0)
 COLOURS = generate_random_colours_list(RANDOM_COLOUR_GENERATOR, len(STRUCTURE_LIST))
 
-# Change this string to the name of your dataset on Azure blob storage.
-AZURE_DATASET_ID = "your_dataset"
-
 
 class HeadAndNeckPaper(HeadAndNeckBase):
     """
@@ -113,5 +110,4 @@ class HeadAndNeckPaper(HeadAndNeckBase):
             slice_exclusion_rules=slice_exclusion_rules,
             summed_probability_rules=summed_probability_rules,
             num_feature_channels=num_feature_channels,
-            azure_dataset_id=AZURE_DATASET_ID,
             **kwargs)
