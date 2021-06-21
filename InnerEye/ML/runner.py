@@ -230,7 +230,7 @@ class Runner:
         )
         source_config.set_script_params_except_submit_flag()
         # Reduce the size of the snapshot by adding unused folders to amlignore. The Test* subfolders are only needed
-        # when running pytest
+        # when running pytest.
         ignored_folders = []
         if not self.azure_config.pytest_mark:
             ignored_folders.extend(["Tests", "TestsOutsidePackage", "TestSubmodule"])

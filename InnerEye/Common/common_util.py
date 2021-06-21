@@ -426,6 +426,6 @@ def append_to_amlignore(lines_to_append: List[str]) -> Generator:
     amlignore = fixed_paths.repository_root_directory(".amlignore")
     old_contents = amlignore.read_text()
     new_contents = old_contents.splitlines() + lines_to_append
-    amlignore.write_text(os.linesep.join(new_contents))
+    amlignore.write_text("\n".join(new_contents))
     yield
     amlignore.write_text(old_contents)
