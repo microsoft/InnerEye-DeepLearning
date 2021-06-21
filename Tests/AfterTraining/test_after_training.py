@@ -390,6 +390,7 @@ def test_recovery_on_2_nodes(test_output_dirs: OutputFolderForTests) -> None:
     assert "Loading checkpoint that was created at (epoch = 2, global_step = 2)" in log1_txt
 
 
+@pytest.mark.after_training_single_run
 def test_download_outputs(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test if downloading multiple files works as expected
