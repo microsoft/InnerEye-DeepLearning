@@ -104,8 +104,8 @@ class HelloRegression(LightningModule):
         self.log("loss", loss, on_epoch=True, on_step=False)
         return loss
 
-    def validation_step(self, batch: Dict[str, torch.Tensor], *args: Any,
-                        **kwargs: Any) -> torch.Tensor:  # type: ignore
+    def validation_step(self, batch: Dict[str, torch.Tensor], *args: Any,  # type: ignore
+                        **kwargs: Any) -> torch.Tensor:
         """
         This method is part of the standard PyTorch Lightning interface. For an introduction, please see
         https://pytorch-lightning.readthedocs.io/en/stable/starter/converting.html
