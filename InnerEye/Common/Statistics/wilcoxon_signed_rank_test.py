@@ -309,7 +309,7 @@ def main() -> None:
     for line in lines:
         print(line)
     for basename, fig in plots.items():
-        fig.savefig(f"{basename}.jpg")
+        fig.savefig(f"{basename}.png")
 
 
 if __name__ == "__main__":
