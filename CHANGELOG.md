@@ -27,6 +27,7 @@ any large models anymore because data loaders ran out of memory.
 - ([#472](https://github.com/microsoft/InnerEye-DeepLearning/pull/472)) Correct model path for moving ensemble models.
 - ([#494](https://github.com/microsoft/InnerEye-DeepLearning/pull/494)) Fix an issue where multi-node jobs for
 LightningContainer models can get stuck at test set inference.
+- ([#498](https://github.com/microsoft/InnerEye-DeepLearning/pull/498)) Downloading multiple large checkpoints can time out, use a safer download instead.
 
 ### Removed
 
