@@ -400,8 +400,22 @@ def test_download_outputs(test_output_dirs: OutputFolderForTests) -> None:
     download_run_outputs_by_prefix(prefix, test_output_dirs.root_dir, run=run)
     expected_files = ["005_lung_l_slice_053.png", "005_lung_r_slice_037.png", "005_spinalcord_slice_088.png"]
     for file in expected_files:
-        expected = test_output_dirs.root_dir / fixed_paths.DEFAULT_AML_UPLOAD_DIR / prefix / file
+        expected = test_output_dirs.root_dir / file
         assert expected.is_file(), f"File missing: {file}"
     # Check that no more than the expected files were downloaded
     all_files = [f for f in test_output_dirs.root_dir.rglob("*") if f.is_file()]
     assert len(all_files) == len(expected_files)
+
+
+@pytest.mark.after_training_single_run
+def test_download_outputs_skipped(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test if downloading multiple skips files where the prefix string is not a folder.
+    """
+    run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_SINGLE_RUN)
+    # There is a file outputs/Train/metrics.csv, but for that file the prefix is not the full folder, hence should
+    # not be downloaded.
+    prefix = Path("Tra")
+    download_run_outputs_by_prefix(prefix, test_output_dirs.root_dir, run=run)
+    all_files = list(test_output_dirs.root_dir.rglob("*"))
+    assert len(all_files) == 0

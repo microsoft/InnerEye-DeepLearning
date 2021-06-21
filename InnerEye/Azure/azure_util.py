@@ -361,8 +361,9 @@ def download_run_outputs_by_prefix(blobs_prefix: Path,
                                    run: Run) -> None:
     """
     Download all the blobs from the run's default output directory: DEFAULT_AML_UPLOAD_DIR ("outputs") that
-    have a given prefix. For example, if blobs_prefix = "foo", and the run has a file "outputs/foo/bar.csv", it will
-    be downloaded to destination/foo/bar.csv.
+    have a given prefix (folder structure). When saving, the prefix string will be stripped off. For example,
+    if blobs_prefix = "foo", and the run has a file "outputs/foo/bar.csv", it will be downloaded to destination/bar.csv.
+    If there is in addition a file "foo.txt", that file will be skipped.
     :param blobs_prefix: The prefix for all files in "outputs" that should be downloaded.
     :param run: The AzureML run to download the files from.
     :param destination: Local path to save the downloaded blobs to.
@@ -373,8 +374,14 @@ def download_run_outputs_by_prefix(blobs_prefix: Path,
     # (120sec timeout for all files).
     for file in run.get_file_names():
         if file.startswith(prefix_str):
-            logging.info(f"Downloading {file}")
-            run.download_file(file, str(destination / file), _validate_checksum=True)
+            target_path = file[len(prefix_str):]
+            if target_path.startswith("/"):
+                target_path = target_path[1:]
+                logging.info(f"Downloading {file}")
+                run.download_file(file, str(destination / target_path), _validate_checksum=True)
+            else:
+                logging.warning(f"Skipping file {file}, because the desired prefix {prefix_str} is not aligned with "
+                                f"the folder structure")
 
 
 def is_running_on_azure_agent() -> bool:
