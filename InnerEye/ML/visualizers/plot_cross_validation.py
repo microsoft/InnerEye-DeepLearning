@@ -647,7 +647,7 @@ def plot_metrics(config: PlotCrossValidationConfig,
 
                 # save plot
                 suffix = f"_{sub_df_index}" if len(df_list) > 1 else ""
-                plot_dst = root / f"{metric_type}_{mode.value}_splits{suffix}.jpg"
+                plot_dst = root / f"{metric_type}_{mode.value}_splits{suffix}.png"
                 fig.savefig(plot_dst, bbox_inches='tight')
                 logging.info("Saved box-plots to: {}".format(plot_dst))
 
