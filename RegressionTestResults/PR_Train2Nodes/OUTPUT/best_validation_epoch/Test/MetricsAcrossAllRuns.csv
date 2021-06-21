@@ -1,0 +1,16 @@
+,Patient,Structure,Dice,HausdorffDistance_mm,MeanDistance_mm,seriesId,institutionId,split,mode
+0,4,lung_l,0.0,inf,inf,aee46d8ee00ed5a5b5d763957e58b8d8cd27f36b9722ada79937fead949f8581,b7f757fb-12e0-489e-a6da-f64895cdd229,CURRENT,Test
+6,4,lung_r,0.0,inf,inf,aee46d8ee00ed5a5b5d763957e58b8d8cd27f36b9722ada79937fead949f8581,b7f757fb-12e0-489e-a6da-f64895cdd229,CURRENT,Test
+12,4,spinalcord,0.0,inf,inf,aee46d8ee00ed5a5b5d763957e58b8d8cd27f36b9722ada79937fead949f8581,b7f757fb-12e0-489e-a6da-f64895cdd229,CURRENT,Test
+18,5,lung_l,0.0,inf,inf,402ba5d42f37357f18f29af17b0846cbca4c430fea5b15a6baad5ec29dd6c9ba,b7f757fb-12e0-489e-a6da-f64895cdd229,CURRENT,Test
+24,5,lung_r,0.0,inf,inf,402ba5d42f37357f18f29af17b0846cbca4c430fea5b15a6baad5ec29dd6c9ba,b7f757fb-12e0-489e-a6da-f64895cdd229,CURRENT,Test
+30,5,spinalcord,0.0,inf,inf,402ba5d42f37357f18f29af17b0846cbca4c430fea5b15a6baad5ec29dd6c9ba,b7f757fb-12e0-489e-a6da-f64895cdd229,CURRENT,Test
+36,6,lung_l,0.0,inf,inf,dfa85a2f00323404eac4fd784713e6e2dc980dc9e33fd9f5d3cda7b82c7e6ab2,b7f757fb-12e0-489e-a6da-f64895cdd229,CURRENT,Test
+42,6,lung_r,0.0,inf,inf,dfa85a2f00323404eac4fd784713e6e2dc980dc9e33fd9f5d3cda7b82c7e6ab2,b7f757fb-12e0-489e-a6da-f64895cdd229,CURRENT,Test
+48,6,spinalcord,0.0,inf,inf,dfa85a2f00323404eac4fd784713e6e2dc980dc9e33fd9f5d3cda7b82c7e6ab2,b7f757fb-12e0-489e-a6da-f64895cdd229,CURRENT,Test
+54,7,lung_l,0.0,inf,inf,8e1c5884be4d4d6581242e862641b08ecb8b2a13d71b4a708f35a951db12793c,b7f757fb-12e0-489e-a6da-f64895cdd229,CURRENT,Test
+60,7,lung_r,0.0,inf,inf,8e1c5884be4d4d6581242e862641b08ecb8b2a13d71b4a708f35a951db12793c,b7f757fb-12e0-489e-a6da-f64895cdd229,CURRENT,Test
+66,7,spinalcord,0.0,inf,inf,8e1c5884be4d4d6581242e862641b08ecb8b2a13d71b4a708f35a951db12793c,b7f757fb-12e0-489e-a6da-f64895cdd229,CURRENT,Test
+0,5,lung_l,0.0,inf,inf,402ba5d42f37357f18f29af17b0846cbca4c430fea5b15a6baad5ec29dd6c9ba,b7f757fb-12e0-489e-a6da-f64895cdd229,Single,Test
+6,5,lung_r,0.0,inf,inf,402ba5d42f37357f18f29af17b0846cbca4c430fea5b15a6baad5ec29dd6c9ba,b7f757fb-12e0-489e-a6da-f64895cdd229,Single,Test
+12,5,spinalcord,0.0,inf,inf,402ba5d42f37357f18f29af17b0846cbca4c430fea5b15a6baad5ec29dd6c9ba,b7f757fb-12e0-489e-a6da-f64895cdd229,Single,Test
