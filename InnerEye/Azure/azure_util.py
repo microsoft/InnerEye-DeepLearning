@@ -367,12 +367,12 @@ def download_run_outputs_by_prefix(blobs_prefix: Path,
     :param run: The AzureML run to download the files from.
     :param destination: Local path to save the downloaded blobs to.
     """
-    blobs_prefix = str((fixed_paths.DEFAULT_AML_UPLOAD_DIR / blobs_prefix).as_posix())
-    logging.info(f"Downloading multiple files from run {run.id}: {blobs_prefix} -> {str(destination)}")
+    prefix_str = str((fixed_paths.DEFAULT_AML_UPLOAD_DIR / blobs_prefix).as_posix())
+    logging.info(f"Downloading multiple files from run {run.id}: {prefix_str} -> {str(destination)}")
     # There is a download_files function, but that can time out when downloading several large checkpoints file
     # (120sec timeout for all files).
     for file in run.get_file_names():
-        if file.startswith(blobs_prefix):
+        if file.startswith(prefix_str):
             logging.info(f"Downloading {file}")
             run.download_file(file, str(destination / file), _validate_checksum=True)
 

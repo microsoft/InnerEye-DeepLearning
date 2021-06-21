@@ -9,7 +9,7 @@ This can avoid creating a full InnerEye Conda environment in the test suite.
 All of the tests in this file rely on previous InnerEye runs that submit an AzureML job. They pick
 up the most recently run AzureML job from most_recent_run.txt
 """
-
+import os
 import shutil
 import sys
 from pathlib import Path
@@ -23,7 +23,7 @@ from azureml.core import Model, Run
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_runner import RUN_RECOVERY_FILE
-from InnerEye.Azure.azure_util import MODEL_ID_KEY_NAME, download_run_output_file, download_run_outputs_by_prefix, \
+from InnerEye.Azure.azure_util import MODEL_ID_KEY_NAME, download_run_outputs_by_prefix, \
     get_comparison_baseline_paths, \
     is_running_on_azure_agent, to_azure_friendly_string
 from InnerEye.Common import common_util, fixed_paths, fixed_paths_for_tests

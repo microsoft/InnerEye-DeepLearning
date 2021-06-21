@@ -11,7 +11,7 @@ import numpy as np
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_runner import create_runner_parser, parse_args_and_add_yaml_variables
-from InnerEye.Azure.azure_util import download_run_output_file, download_run_outputs_by_prefix
+from InnerEye.Azure.azure_util import download_run_outputs_by_prefix
 from InnerEye.Common.metrics_constants import MetricsFileColumns
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
