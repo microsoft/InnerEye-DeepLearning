@@ -8,12 +8,12 @@ from typing import Any, Dict, List, Tuple
 import numpy as np
 import torch
 from pytorch_lightning import LightningDataModule, LightningModule
+from pytorch_lightning.metrics import MeanAbsoluteError
 from torch.optim import Adam, Optimizer
 from torch.optim.lr_scheduler import StepLR, _LRScheduler
 from torch.utils.data import DataLoader, Dataset
-from pytorch_lightning.metrics import MeanAbsoluteError
 
-from InnerEye.Common import fixed_paths, fixed_paths_for_tests
+from InnerEye.Common import fixed_paths
 from InnerEye.ML.lightning_container import LightningContainer
 
 
@@ -21,6 +21,7 @@ class HelloDataset(Dataset):
     """
     A simple 1dim regression task, read from a data file stored in the test data folder.
     """
+
     # Creating the data file:
     # import numpy as np
     # import torch
@@ -52,6 +53,7 @@ class HelloDataModule(LightningDataModule):
     """
     A data module that gives the training, validation and test data for a simple 1-dim regression task.
     """
+
     def __init__(self, root_folder: Path) -> None:
         super().__init__()
         self.train = HelloDataset(root_folder, start_index=0, end_index=50)
@@ -72,6 +74,7 @@ class HelloRegression(LightningModule):
     """
     A simple 1-dim regression model.
     """
+
     def __init__(self) -> None:
         super().__init__()
         self.model = torch.nn.Linear(in_features=1, out_features=1, bias=True)
@@ -101,7 +104,8 @@ class HelloRegression(LightningModule):
         self.log("loss", loss, on_epoch=True, on_step=False)
         return loss
 
-    def validation_step(self, batch: Dict[str, torch.Tensor], *args: Any, **kwargs: Any) -> torch.Tensor:  # type: ignore
+    def validation_step(self, batch: Dict[str, torch.Tensor], *args: Any,
+                        **kwargs: Any) -> torch.Tensor:  # type: ignore
         """
         This method is part of the standard PyTorch Lightning interface. For an introduction, please see
         https://pytorch-lightning.readthedocs.io/en/stable/starter/converting.html
@@ -187,6 +191,7 @@ class HelloContainer(LightningContainer):
     You can train this model by running `python InnerEye/ML/runner.py --model=HelloContainer` on the local box,
     or via `python InnerEye/ML/runner.py --model=HelloContainer --azureml=True` in AzureML
     """
+
     def __init__(self) -> None:
         super().__init__()
         self.local_dataset = fixed_paths.repository_root_directory() / "InnerEye" / "ML" / "configs" / "other"
