@@ -7,7 +7,6 @@ from typing import Any, List
 import monai
 import numpy as np
 import pytest
-from pytorch_lightning import seed_everything
 
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests

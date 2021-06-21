@@ -7,7 +7,7 @@ from typing import List, Tuple, Union
 
 import numpy as np
 import torch
-from monai.transforms import RandAffined, Compose, RandGaussianNoised, RandRotated
+from monai.transforms import Compose, RandGaussianNoised, RandRotated
 
 from InnerEye.Common.common_util import any_pairwise_larger
 from InnerEye.Common.type_annotations import TupleInt3
