@@ -143,8 +143,8 @@ class SegmentationLightning(InnerEyeLightning):
             dataset_example = DatasetExample(image=cropped_sample.image[0][0].cpu().detach().numpy(),
                                              labels=cropped_sample.labels[0].cpu().detach().numpy(),
                                              prediction=segmentation[0].cpu().detach().numpy(),
-                                             header=cropped_sample.metadata[0].image_header,
-                                             patient_id=cropped_sample.metadata[0].patient_id,
+                                             header=cropped_sample.metadata[0].image_header, # type: ignore
+                                             patient_id=cropped_sample.metadata[0].patient_id,  # type: ignore
                                              epoch=self.current_epoch)
             store_and_upload_example(dataset_example, self.config)
 
