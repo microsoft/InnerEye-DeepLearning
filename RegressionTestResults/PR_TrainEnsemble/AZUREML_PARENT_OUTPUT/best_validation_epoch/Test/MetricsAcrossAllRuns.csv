@@ -1,7 +1,0 @@
-,Patient,Structure,Dice,HausdorffDistance_mm,MeanDistance_mm,seriesId,institutionId,split,mode
-0,5,lung_l,0.0,inf,inf,402ba5d42f37357f18f29af17b0846cbca4c430fea5b15a6baad5ec29dd6c9ba,b7f757fb-12e0-489e-a6da-f64895cdd229,CURRENT,Test
-6,5,lung_r,0.0,inf,inf,402ba5d42f37357f18f29af17b0846cbca4c430fea5b15a6baad5ec29dd6c9ba,b7f757fb-12e0-489e-a6da-f64895cdd229,CURRENT,Test
-12,5,spinalcord,0.0,inf,inf,402ba5d42f37357f18f29af17b0846cbca4c430fea5b15a6baad5ec29dd6c9ba,b7f757fb-12e0-489e-a6da-f64895cdd229,CURRENT,Test
-0,5,lung_l,0.0,inf,inf,402ba5d42f37357f18f29af17b0846cbca4c430fea5b15a6baad5ec29dd6c9ba,b7f757fb-12e0-489e-a6da-f64895cdd229,Single,Test
-6,5,lung_r,0.0,inf,inf,402ba5d42f37357f18f29af17b0846cbca4c430fea5b15a6baad5ec29dd6c9ba,b7f757fb-12e0-489e-a6da-f64895cdd229,Single,Test
-12,5,spinalcord,0.0,inf,inf,402ba5d42f37357f18f29af17b0846cbca4c430fea5b15a6baad5ec29dd6c9ba,b7f757fb-12e0-489e-a6da-f64895cdd229,Single,Test
