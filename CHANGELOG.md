@@ -23,6 +23,7 @@ gets uploaded to AzureML, by skipping all test folders.
 
 ### Fixed
 
+- ([#495](https://github.com/microsoft/InnerEye-DeepLearning/pull/495)) Fix model comparison.
 - ([#482](https://github.com/microsoft/InnerEye-DeepLearning/pull/482)) Check bool parameter is either true or false.
 - ([#475](https://github.com/microsoft/InnerEye-DeepLearning/pull/475)) Bug in AML SDK meant that we could not train
 any large models anymore because data loaders ran out of memory.

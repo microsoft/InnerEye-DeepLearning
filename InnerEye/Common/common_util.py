@@ -25,8 +25,6 @@ MAX_PATH_LENGTH = 260
 empty_string_to_none = lambda x: None if (x is None or len(x.strip()) == 0) else x
 string_to_path = lambda x: None if (x is None or len(x.strip()) == 0) else Path(x)
 
-# File name pattern that will match anything returned by epoch_folder_name.
-EPOCH_FOLDER_NAME_PATTERN = "epoch_[0-9][0-9][0-9]"
 
 SUBJECT_METRICS_FILE_NAME = "metrics.csv"
 EPOCH_METRICS_FILE_NAME = "epoch_metrics.csv"
