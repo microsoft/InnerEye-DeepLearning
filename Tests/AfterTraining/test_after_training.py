@@ -115,7 +115,7 @@ def get_experiment_name_from_environment() -> str:
         if is_running_on_azure_agent():
             raise ValueError(f"Environment variable {env_branch} should be set when running on Azure agents.")
         return ""
-    return to_azure_friendly_string(build_branch)
+    return to_azure_friendly_string(build_branch) or ""
 
 
 @pytest.mark.after_training_single_run
