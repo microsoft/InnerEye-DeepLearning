@@ -14,6 +14,7 @@ from functools import wraps
 from pathlib import Path
 from typing import Any, Callable, Generator, Iterable, List, Optional, Union
 
+from InnerEye.Common import fixed_paths
 from InnerEye.Common.fixed_paths import repository_root_directory
 from InnerEye.Common.type_annotations import PathOrString
 from InnerEye.ML.common import ModelExecutionMode
@@ -24,8 +25,6 @@ MAX_PATH_LENGTH = 260
 empty_string_to_none = lambda x: None if (x is None or len(x.strip()) == 0) else x
 string_to_path = lambda x: None if (x is None or len(x.strip()) == 0) else Path(x)
 
-# File name pattern that will match anything returned by epoch_folder_name.
-EPOCH_FOLDER_NAME_PATTERN = "epoch_[0-9][0-9][0-9]"
 
 SUBJECT_METRICS_FILE_NAME = "metrics.csv"
 EPOCH_METRICS_FILE_NAME = "epoch_metrics.csv"
@@ -415,3 +414,16 @@ def change_working_directory(path_or_str: PathOrString) -> Generator:
     os.chdir(new_path)
     yield
     os.chdir(old_path)
+
+
+@contextmanager
+def append_to_amlignore(lines_to_append: List[str]) -> Generator:
+    """
+    Context manager that appends lines to the .amlignore file, and reverts to the previous contents after.
+    """
+    amlignore = fixed_paths.repository_root_directory(".amlignore")
+    old_contents = amlignore.read_text()
+    new_contents = old_contents.splitlines() + lines_to_append
+    amlignore.write_text("\n".join(new_contents))
+    yield
+    amlignore.write_text(old_contents)

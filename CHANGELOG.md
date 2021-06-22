@@ -13,15 +13,25 @@ created.
 ## Upcoming
 
 ### Added
+- ([#492](https://github.com/microsoft/InnerEye-DeepLearning/pull/492)) Adding capability for regression tests for test
+jobs that run in AzureML.
 
 ### Changed
+- ([#496](https://github.com/microsoft/InnerEye-DeepLearning/pull/496)) All plots are now saved as PNG, rather than JPG.
+- ([#497](https://github.com/microsoft/InnerEye-DeepLearning/pull/497)) Reducing the size of the code snapshot that
+gets uploaded to AzureML, by skipping all test folders.
 
 ### Fixed
 
+- ([#495](https://github.com/microsoft/InnerEye-DeepLearning/pull/495)) Fix model comparison.
 - ([#482](https://github.com/microsoft/InnerEye-DeepLearning/pull/482)) Check bool parameter is either true or false.
 - ([#475](https://github.com/microsoft/InnerEye-DeepLearning/pull/475)) Bug in AML SDK meant that we could not train
 any large models anymore because data loaders ran out of memory.
 - ([#472](https://github.com/microsoft/InnerEye-DeepLearning/pull/472)) Correct model path for moving ensemble models.
+- ([#494](https://github.com/microsoft/InnerEye-DeepLearning/pull/494)) Fix an issue where multi-node jobs for
+LightningContainer models can get stuck at test set inference.
+- ([#498](https://github.com/microsoft/InnerEye-DeepLearning/pull/498)) Workaround for the problem that downloading
+multiple large checkpoints can time out.
 
 ### Removed
 

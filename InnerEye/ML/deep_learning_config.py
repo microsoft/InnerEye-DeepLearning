@@ -230,6 +230,13 @@ class WorkflowParams(param.Parameterized):
     monitoring_interval_seconds: int = param.Integer(0, doc="Seconds delay between logging GPU/CPU resource "
                                                             "statistics. If 0 or less, do not log any resource "
                                                             "statistics.")
+    regression_test_folder: Optional[Path] = \
+        param.ClassSelector(class_=Path, default=None, allow_None=True,
+                            doc="A path to a folder that contains a set of files. At the end of training and "
+                                "model evaluation, all files given in that folder must be present in the job's output "
+                                "folder, and their contents must match exactly. When running in AzureML, you need to "
+                                "ensure that this folder is part of the snapshot that gets uploaded. The path should "
+                                "be relative to the repository root directory.")
 
     def validate(self) -> None:
         if self.weights_url and self.local_weights_path:

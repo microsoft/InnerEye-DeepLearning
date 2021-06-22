@@ -266,8 +266,8 @@ the `metrics.csv` files of the current run and the comparison run(s).
   indicates, for each structure, when the Dice scores for the second model are significantly better 
   or worse than the first. For full details, see the 
   [source code](../InnerEye/Common/Statistics/wilcoxon_signed_rank_test.py).
-  * A directory `scatterplots`, containing a `jpg` file for every pairing of the current model
-  with one of the baslines. Each one is named `AAA_vs_BBB.jpg`, where `AAA` and `BBB` are the run IDs
+  * A directory `scatterplots`, containing a `png` file for every pairing of the current model
+  with one of the baselines. Each one is named `AAA_vs_BBB.png`, where `AAA` and `BBB` are the run IDs
   of the two models. Each plot shows the Dice scores on the test set for the models.
   * For both segmentation and classification models an IPython Notebook `report.ipynb` will be generated in the
    `outputs` directory.
@@ -285,11 +285,11 @@ In addition, various scores and plots from the ensemble and from individual chil
 runs are uploaded to the parent run, in the `CrossValResults` directory. This contains:
 * Subdirectories named 0, 1, 2, ... for all the child runs including the zero'th one, as well
  as `ENSEMBLE`, containing their respective `epoch_NNN` directories.
-* Files `Dice_Test_Splits.jpg` and `Dice_Val_Splits.jpg`, containing box plots of the Dice scores
+* Files `Dice_Test_Splits.png` and `Dice_Val_Splits.png`, containing box plots of the Dice scores
   on those datasets for each structure and each (component and ensemble) model. These give a visual
   overview of the results in the `metrics.csv` files detailed above. When there are many different
   structures, several such plots are created, with a different subset of structures in each one.
-* Similarly, `HausdorffDistance_mm_Test_splits.jpg` and `HausdorffDistance_mm_Val_splits.jpg` contain
+* Similarly, `HausdorffDistance_mm_Test_splits.png` and `HausdorffDistance_mm_Val_splits.png` contain
   box plots of Hausdorff distances.
 * `MetricsAcrossAllRuns.csv` combines the data from all the `metrics.csv` files.
 * `Test_outliers.txt` and `Val_outliers.txt` highlight particular outlier scores (both Dice and

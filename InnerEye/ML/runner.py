@@ -41,7 +41,7 @@ from InnerEye.Azure.azure_util import RUN_CONTEXT, get_all_environment_files, is
 from InnerEye.Azure.run_pytest import download_pytest_result, run_pytest
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE, \
-    disable_logging_to_file, is_linux, logging_to_stdout
+    append_to_amlignore, disable_logging_to_file, is_linux, logging_to_stdout
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
@@ -229,9 +229,17 @@ class Runner:
             upload_timeout_seconds=86400,
         )
         source_config.set_script_params_except_submit_flag()
-        azure_run = submit_to_azureml(self.azure_config, source_config,
-                                      self.lightning_container.all_azure_dataset_ids(),
-                                      self.lightning_container.all_dataset_mountpoints())
+        # Reduce the size of the snapshot by adding unused folders to amlignore. The Test* subfolders are only needed
+        # when running pytest.
+        ignored_folders = []
+        if not self.azure_config.pytest_mark:
+            ignored_folders.extend(["Tests", "TestsOutsidePackage", "TestSubmodule"])
+        if not self.lightning_container.regression_test_folder:
+            ignored_folders.append("RegressionTestResults")
+        with append_to_amlignore(ignored_folders):
+            azure_run = submit_to_azureml(self.azure_config, source_config,
+                                          self.lightning_container.all_azure_dataset_ids(),
+                                          self.lightning_container.all_dataset_mountpoints())
         logging.info("Job submission to AzureML done.")
         if self.azure_config.pytest_mark and self.azure_config.wait_for_completion:
             # The AzureML job can optionally run pytest. Attempt to download it to the current directory.
@@ -288,12 +296,9 @@ class Runner:
                 pytest_failures = f"Not all PyTest tests passed. See {results_file_path}"
                 raise ValueError(pytest_failures)
         else:
-            # Set environment variables for multi-node training if needed.
-            # In particular, the multi-node environment variables should NOT be set in single node
-            # training, otherwise this might lead to errors with the c10 distributed backend
-            # (https://github.com/microsoft/InnerEye-DeepLearning/issues/395)
-            if self.azure_config.num_nodes > 1:
-                set_environment_variables_for_multi_node()
+            # Set environment variables for multi-node training if needed. This function will terminate early
+            # if it detects that it is not in a multi-node environment.
+            set_environment_variables_for_multi_node()
             ml_runner = self.create_ml_runner()
             ml_runner.setup()
             ml_runner.start_logging_to_file()

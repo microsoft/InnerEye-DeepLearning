@@ -34,6 +34,7 @@ from InnerEye.Common.common_util import BASELINE_COMPARISONS_FOLDER, BASELINE_WI
     change_working_directory, get_best_epoch_results_path, is_windows, logging_section, logging_to_file, \
     print_exception, remove_file_or_directory
 from InnerEye.Common.fixed_paths import INNEREYE_PACKAGE_NAME, LOG_FILE_NAME, PYTHON_ENVIRONMENT_NAME
+from InnerEye.ML.baselines_util import compare_folders_and_run_outputs
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, DeepLearningConfig, FINAL_ENSEMBLE_MODEL_FOLDER, \
@@ -404,6 +405,25 @@ class MLRunner:
                 with change_working_directory(self.container.outputs_folder):
                     self.container.create_report()
 
+        if self.container.regression_test_folder:
+            # Comparison with stored results for cross-validation runs only operates on child run 0. This run
+            # has usually already downloaded the results for the other runs, and uploaded files to the parent
+            # run context.
+            logging.info("Comparing the current results against stored results")
+            if self.is_normal_run_or_crossval_child_0():
+                compare_folders_and_run_outputs(expected=self.container.regression_test_folder,
+                                                actual=self.container.outputs_folder)
+            else:
+                logging.info("Skipping because this is not cross-validation child run 0.")
+
+    def is_normal_run_or_crossval_child_0(self) -> bool:
+        """
+        Returns True if the present run is a non-crossvalidation run, or child run 0 of a crossvalidation run.
+        """
+        if self.container.number_of_cross_validation_splits > 0:
+            return self.container.cross_validation_split_index == 0
+        return True
+
     def run_inference_for_lightning_models(self, checkpoint_paths: List[Path]) -> None:
         """
         Run inference on the test set for all models that are specified via a LightningContainer.
@@ -447,6 +467,10 @@ class MLRunner:
             # searching for Horovod
             if ENV_OMPI_COMM_WORLD_RANK in os.environ:
                 del os.environ[ENV_OMPI_COMM_WORLD_RANK]
+            # From the training setup, torch still thinks that it should run in a distributed manner,
+            # and would block on some GPU operations. Hence, clean up distributed training.
+            if torch.distributed.is_initialized():
+                torch.distributed.destroy_process_group()
             trainer, _ = create_lightning_trainer(self.container, num_nodes=1)
             # When training models that are not built-in InnerEye models, we have no guarantee that they write
             # files to the right folder. Best guess is to change the current working directory to where files should go.
@@ -688,9 +712,11 @@ class MLRunner:
             else:
                 raise ValueError(f"Expected an absolute path to a checkpoint file, but got: {checkpoint}")
         model_folder.mkdir(parents=True, exist_ok=True)
+        # For reproducibility of the files used in regression tests, checkpoint paths need to be sorted.
+        checkpoints_sorted = sorted(relative_checkpoint_paths)
         model_inference_config = ModelInferenceConfig(model_name=self.container.model_name,
                                                       model_configs_namespace=self.config_namespace,
-                                                      checkpoint_paths=relative_checkpoint_paths)
+                                                      checkpoint_paths=checkpoints_sorted)
         # Inference configuration must live in the root folder of the registered model
         full_path_to_config = model_folder / fixed_paths.MODEL_INFERENCE_JSON_FILE_NAME
         full_path_to_config.write_text(model_inference_config.to_json(), encoding='utf-8')  # type: ignore

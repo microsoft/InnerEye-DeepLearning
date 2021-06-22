@@ -7,7 +7,6 @@ from typing import Any, List
 import monai
 import numpy as np
 import pytest
-from pytorch_lightning import seed_everything
 
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
@@ -75,11 +74,11 @@ def test_basic_augmentation_segmentation(test_output_dirs: OutputFolderForTests)
                                                   np.short)
         print(i)
         print(expected_image_transform.image.max())
-        print(transformed_sample.image[0].astype(np.short).max())
+        print(transformed_sample.image[0].astype(np.short).max())  # type: ignore
         assert np.array_equal(expected_image_transform.image,
-                              transformed_sample.image[0].astype(np.short))
+                              transformed_sample.image[0].astype(np.short))  # type: ignore
         assert np.array_equal(expected_seg_transform.image,
-                              transformed_sample.labels[0].astype(np.short))
+                              transformed_sample.labels[0].astype(np.short))  # type: ignore
     # Check that some samples are the same image
     print(no_transform)
     assert no_transform == 1

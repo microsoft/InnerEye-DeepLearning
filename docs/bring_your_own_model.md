@@ -62,13 +62,17 @@ class MyDataModule(LightningDataModule):
         # All data should be read from the folder given in self.root_path
         self.root_path = root_path
     def train_dataloader(self, *args, **kwargs) -> DataLoader:
-        ...
+        # The data should be read off self.root_path
+        train_dataset = ...
+        return DataLoader(train_dataset, batch_size=5, num_workers=5)
     def val_dataloader(self, *args, **kwargs) -> DataLoader:
         # The data should be read off self.root_path
-        ...
+        val_dataset = ...
+        return DataLoader(val_dataset, batch_size=5, num_workers=5)
     def test_dataloader(self, *args, **kwargs) -> DataLoader:
         # The data should be read off self.root_path
-        ...
+        test_dataset = ...
+        return DataLoader(test_dataset, batch_size=5, num_workers=5)
         
 class MyContainer(LightningContainer):
     def __init__(self):
@@ -96,6 +100,18 @@ for example. In this case, you don't need to define any of the `local_dataset` o
 In the above example, training is done for 42 epochs. After the model is trained, it will be evaluated on the test set,
 via PyTorch Lightning's [built-in test functionality](https://pytorch-lightning.readthedocs.io/en/latest/common/trainer.html?highlight=trainer.test#test).
 See below for an alternative way of running the evaluation on the test set.
+
+### Data loaders
+The example above creates `DataLoader` objects from a dataset. When creating those, you need to specify a batch size
+(how many samples from your dataset will go into one minibatch), and a number of worker processes. Note that, by 
+default, data loading will happen in the main process, meaning that your GPU will sit idle while the CPU reads data
+from disk. When specifying a number of workers, it will spawn processes that pre-fetch data from disk, and put them
+into a queue, ready for the GPU to pick it up when it is done processing the current minibatch.
+
+For more details, please see the documentation for 
+[DataLoader](https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader). There is also a 
+[tutorial describing the foundations of datasets and 
+data loaders](https://pytorch.org/tutorials/beginner/basics/data_tutorial.html)
 
 ### Outputting files during training
 

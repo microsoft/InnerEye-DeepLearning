@@ -1,0 +1,3 @@
+subject_count,loss,Dice/AverageAcrossStructures,Dice/spinalcord,Dice/lung_r,Dice/lung_l,VoxelCount/spinalcord,VoxelCount/lung_r,VoxelCount/lung_l,epoch,cross_validation_split_index
+4.000000,0.729041,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,65335.000000,0,-1
+4.000000,0.729027,0.000000,0.000000,0.000000,0.000000,0.000000,0.000000,65335.000000,1,-1
