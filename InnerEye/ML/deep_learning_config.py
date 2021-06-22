@@ -324,7 +324,7 @@ class DatasetParams(param.Parameterized):
         self.extra_azure_dataset_ids
         """
         if not self.azure_dataset_id:
-            return [] + self.extra_azure_dataset_ids
+            return self.extra_azure_dataset_ids
         else:
             return [self.azure_dataset_id] + self.extra_azure_dataset_ids
 
@@ -334,7 +334,7 @@ class DatasetParams(param.Parameterized):
         self.extra_dataset_mountpoints
         """
         if not self.dataset_mountpoint:
-            return [] + self.extra_dataset_mountpoints
+            return self.extra_dataset_mountpoints
         else:
             return [self.dataset_mountpoint] + self.extra_dataset_mountpoints
 
