@@ -6,7 +6,7 @@ import torch
 import pytest
 from typing import Optional
 from InnerEye.Common import fixed_paths_for_tests
-from InnerEye.ML.configs.other.HelloContainer import HelloDataModule
+from InnerEye.ML.configs.other.HelloContainer import HelloContainer, HelloDataModule
 
 
 def test_cross_validation_splits() -> None:
@@ -20,7 +20,7 @@ def test_cross_validation_splits() -> None:
      - We test that across all the splits the validation data use all of the non-test data.
     '''
     # Get full data-set for comparison
-    root_folder = fixed_paths_for_tests.full_ml_test_data_path()
+    root_folder = HelloContainer().local_dataset
     data_module_no_xval = HelloDataModule(root_folder=root_folder)
 
     for number_of_cross_validation_splits in [0, 1, 5]:
