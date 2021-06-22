@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import abc
+import copy
 import logging
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional
@@ -12,6 +13,7 @@ from azureml.core import ScriptRunConfig
 from azureml.train.hyperdrive import GridParameterSampling, HyperDriveConfig, PrimaryMetricGoal, choice
 from pandas import DataFrame
 
+from InnerEye.Azure.azure_config import remove_arg
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY
 from InnerEye.Common.common_util import ModelProcessing
 from InnerEye.Common.metrics_constants import TrackedMetrics
@@ -171,8 +173,15 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         :param run_config: The AzureML run configuration object that training for an individual model.
         :return: A hyperdrive configuration object.
         """
+        run_config2 = copy.deepcopy(run_config)
+        run_config2.arguments = remove_arg("perform_training_set_inference", run_config2.arguments)
+        run_config2.arguments = remove_arg("perform_validation_and_test_set_inference", run_config2.arguments)
+
+        run_config2.arguments.extend(["--perform_training_set_inference=False",
+                                      "--perform_validation_and_test_set_inference=False"])
+
         return HyperDriveConfig(
-            run_config=run_config,
+            run_config=run_config2,
             hyperparameter_sampling=self.get_cross_validation_hyperdrive_sampler(),
             primary_metric_name=TrackedMetrics.Val_Loss.value,
             primary_metric_goal=PrimaryMetricGoal.MINIMIZE,
