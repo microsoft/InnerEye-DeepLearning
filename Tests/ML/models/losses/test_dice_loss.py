@@ -77,3 +77,22 @@ def test_half_dice_loss() -> None:
     half_right_target[..., 1, 0:4:2] = 1
 
     assert dice_loss_f(half_right_output, half_right_target).item() == 0.5
+
+
+def test_dice_loss_regression() -> None:
+    """
+    Regression tests for specific values of the Dice loss for random input.
+    """
+    batch_size = 10
+    classes = 3
+    spatial = (3, 4, 5)
+    total_size = (batch_size, classes, *spatial)
+    dice = SoftDiceLoss()
+    expected_results = [0.613937258720398, 0.6056110262870789, 0.6131367683410645]
+    for index, seed in enumerate([1, 2, 3]):
+        torch.random.manual_seed(seed)
+        random_output = torch.rand(*total_size).float() * 100
+        random_targets = torch.randint_like(random_output, low=0, high=2).float()
+        result = dice.forward_minibatch(random_output, random_targets)
+        assert result.item() == expected_results[index]
+
