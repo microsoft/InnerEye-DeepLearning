@@ -12,7 +12,8 @@ from typing import List, Optional
 
 from azureml.core import Run
 
-from InnerEye.Azure.azure_util import RUN_CONTEXT, download_outputs_from_run, fetch_child_runs, tag_values_all_distinct
+from InnerEye.Azure.azure_util import RUN_CONTEXT, download_run_output_file, download_run_outputs_by_prefix, \
+    fetch_child_runs, tag_values_all_distinct
 from InnerEye.Common.common_util import OTHER_RUNS_SUBDIR_NAME, check_properties_are_not_none
 from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, get_best_checkpoint_path, \
     get_recovery_checkpoint_path
@@ -52,11 +53,10 @@ class RunRecovery:
             else:
                 subdir = str(child.tags[tag_to_use] if can_use_split_indices else child.number)
                 child_dst = config.checkpoint_folder / OTHER_RUNS_SUBDIR_NAME / subdir
-                download_outputs_from_run(
-                    blobs_path=Path(CHECKPOINT_FOLDER) / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX,
+                download_run_output_file(
+                    blob_path=Path(CHECKPOINT_FOLDER) / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX,
                     destination=child_dst,
-                    run=child,
-                    is_file=True
+                    run=child
                 )
             child_runs_checkpoints_roots.append(child_dst)
         return RunRecovery(checkpoints_roots=child_runs_checkpoints_roots)
@@ -82,8 +82,8 @@ class RunRecovery:
         destination_folder = config.checkpoint_folder / subfolder if subfolder else config.checkpoint_folder
 
         if not only_return_path:
-            download_outputs_from_run(
-                blobs_path=Path(CHECKPOINT_FOLDER),
+            download_run_outputs_by_prefix(
+                blobs_prefix=Path(CHECKPOINT_FOLDER),
                 destination=destination_folder,
                 run=run
             )

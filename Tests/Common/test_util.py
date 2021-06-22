@@ -7,10 +7,9 @@ from pathlib import Path
 
 import pytest
 
-from InnerEye.Common import common_util
-from InnerEye.Common.common_util import change_working_directory, check_is_any_of, is_private_field_name, \
-    namespace_to_path, \
-    path_to_namespace, print_exception
+from InnerEye.Common import common_util, fixed_paths
+from InnerEye.Common.common_util import (append_to_amlignore, change_working_directory, check_is_any_of,
+                                         is_private_field_name, namespace_to_path, path_to_namespace, print_exception)
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path, tests_root_directory
 from InnerEye.Common.output_directories import OutputFolderForTests
 
@@ -124,3 +123,21 @@ def test_change_dir(test_output_dirs: OutputFolderForTests) -> None:
         Path("bar.txt").touch()
     assert Path.cwd() == test_output_dirs.root_dir
     assert (new_dir / "bar.txt").is_file()
+
+
+def test_modify_amlignore() -> None:
+    """
+    Test that we can change the .AMLignore file and change it back to what it was before.
+    """
+    folder1 = "Added1"
+    folder2 = "Added2"
+    added_folders = [folder1, folder2]
+    amlignore = fixed_paths.repository_root_directory(".amlignore")
+    old_contents = amlignore.read_text()
+    for f in added_folders:
+        assert f not in old_contents
+    with append_to_amlignore(added_folders):
+        new_contents = amlignore.read_text()
+        for f in added_folders:
+            assert f in new_contents
+    assert amlignore.read_text() == old_contents

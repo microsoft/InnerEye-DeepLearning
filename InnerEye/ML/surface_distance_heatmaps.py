@@ -11,7 +11,7 @@ import numpy as np
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_runner import create_runner_parser, parse_args_and_add_yaml_variables
-from InnerEye.Azure.azure_util import download_outputs_from_run
+from InnerEye.Azure.azure_util import download_run_outputs_by_prefix
 from InnerEye.Common.metrics_constants import MetricsFileColumns
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
@@ -67,8 +67,8 @@ def load_predictions(run_type: SurfaceDistanceRunType, azure_config: AzureConfig
         for (subject_id, structure_name, dice_score, _) in worst_performers:
             subject_prefix = sd_util.get_subject_prefix(model_config, execution_mode, subject_id)
             # if not already present, download data for subject
-            download_outputs_from_run(
-                blobs_path=subject_prefix,
+            download_run_outputs_by_prefix(
+                blobs_prefix=subject_prefix,
                 destination=output_dir,
                 run=first_child_run
             )
