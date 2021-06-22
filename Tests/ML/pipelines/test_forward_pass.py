@@ -13,7 +13,8 @@ from Tests.ML.util import machine_has_gpu
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Has issues on windows build")
 @pytest.mark.cpu_and_gpu
-@pytest.mark.parametrize("config", [DeepLearningConfig(), LightningContainer()])
+@pytest.mark.parametrize("config", [DeepLearningConfig(should_validate=False),
+                                    LightningContainer()])
 def test_use_gpu_flag(config: TrainerParams) -> None:
     """
     Test that the use_gpu flag is set correctly on both InnerEye configs and containers.
