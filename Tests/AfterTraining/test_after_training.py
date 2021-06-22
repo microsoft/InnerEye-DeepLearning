@@ -103,6 +103,21 @@ def get_most_recent_model(fallback_run_id_for_local_execution: str = FALLBACK_SI
     return Model(workspace=azure_config.get_workspace(), id=model_id)
 
 
+def get_experiment_name_from_environment() -> str:
+    """
+    Reads the name of the present branch from environment variable "BUILD_BRANCH". This must be set in the YML file.
+    If the variable is not found, return an empty string.
+    With this setup, all AML runs that belong to a given pull request are listed at the same place.
+    """
+    env_branch = "BUILD_BRANCH"
+    build_branch = os.environ.get(env_branch, None)
+    if not build_branch:
+        if is_running_on_azure_agent():
+            raise ValueError(f"Environment variable {env_branch} should be set when running on Azure agents.")
+        return ""
+    return to_azure_friendly_string(build_branch) or ""
+
+
 @pytest.mark.after_training_single_run
 @pytest.mark.after_training_ensemble_run
 @pytest.mark.after_training_glaucoma_cv_run
@@ -202,16 +217,12 @@ def test_submit_for_inference(use_dicom: bool, test_output_dirs: OutputFolderFor
     assert image_file.exists(), f"Image file not found: {image_file}"
     settings_file = fixed_paths.SETTINGS_YAML_FILE
     assert settings_file.exists(), f"Settings file not found: {settings_file}"
-    # Read the name of the branch from environment, so that the inference experiment is also listed alongside
-    # all other AzureML runs that belong to the current PR.
-    build_branch = os.environ.get("BUILD_BRANCH", None)
-    experiment_name = to_azure_friendly_string(build_branch) if build_branch else "model_inference"
     args = ["--image_file", str(image_file),
             "--model_id", model.id,
             "--settings", str(settings_file),
             "--download_folder", str(test_output_dirs.root_dir),
             "--cluster", "training-nc12",
-            "--experiment", experiment_name,
+            "--experiment", get_experiment_name_from_environment() or "model_inference",
             "--use_dicom", str(use_dicom)]
     download_file = DEFAULT_RESULT_ZIP_DICOM_NAME if use_dicom else DEFAULT_RESULT_IMAGE_NAME
     seg_path = test_output_dirs.root_dir / download_file
@@ -364,7 +375,10 @@ def test_recovery_on_2_nodes(test_output_dirs: OutputFolderForTests) -> None:
                  "--run_recovery_id",
                  str(get_most_recent_run_id(fallback_run_id_for_local_execution=FALLBACK_2NODE_RUN)),
                  "--num_epochs", "4",
-                 "--wait_for_completion", "True"
+                 "--wait_for_completion", "True",
+                 "--cluster", "training-nc12",
+                 "--experiment", get_experiment_name_from_environment() or "recovery_on_2_nodes",
+                 "--tag", "recovery_on_2_nodes"
                  ]
     script = str(repository_root_directory() / "InnerEye" / "ML" / "runner.py")
     with mock.patch("sys.argv", [script] + args_list):
