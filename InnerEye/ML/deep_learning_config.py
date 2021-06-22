@@ -207,6 +207,12 @@ class WorkflowParams(param.Parameterized):
     perform_validation_and_test_set_inference: bool = \
         param.Boolean(True,
                       doc="If True (default), run full image inference on validation and test set after training.")
+    perform_validation_set_inference: bool = \
+        param.Boolean(True,
+                      doc="If True (default), run full image inference on validation set after training.")
+    perform_test_set_inference: bool = \
+        param.Boolean(True,
+                      doc="If True (default), run full image inference on test set after training.")
     weights_url: str = param.String(doc="If provided, a url from which weights will be downloaded and used for model "
                                         "initialization.")
     local_weights_path: Optional[Path] = param.ClassSelector(class_=Path,
@@ -239,6 +245,9 @@ class WorkflowParams(param.Parameterized):
                                 "be relative to the repository root directory.")
 
     def validate(self) -> None:
+        self.perform_validation_set_inference = self.perform_validation_and_test_set_inference
+        self.perform_test_set_inference = self.perform_validation_and_test_set_inference
+
         if self.weights_url and self.local_weights_path:
             raise ValueError("Cannot specify both local_weights_path and weights_url.")
 

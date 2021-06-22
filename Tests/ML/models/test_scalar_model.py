@@ -315,6 +315,8 @@ def test_run_ml_with_segmentation_model(test_output_dirs: OutputFolderForTests) 
     config.test_crop_size = (75, 75, 75)
     config.perform_training_set_inference = False
     config.perform_validation_and_test_set_inference = True
+    config.perform_validation_set_inference = True
+    config.perform_test_set_inference = True
     config.set_output_to(test_output_dirs.root_dir)
     azure_config = get_default_azure_config()
     azure_config.train = True

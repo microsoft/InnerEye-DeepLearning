@@ -439,8 +439,9 @@ class MLRunner:
             # Read the data modules before changing the working directory, in case the code relies on relative paths
             data = self.container.get_inference_data_module()
             dataloaders: List[Tuple[DataLoader, ModelExecutionMode]] = []
-            if self.container.perform_validation_and_test_set_inference:
+            if self.container.perform_test_set_inference:
                 dataloaders.append((data.test_dataloader(), ModelExecutionMode.TEST))  # type: ignore
+            if self.container.perform_validation_set_inference:
                 dataloaders.append((data.val_dataloader(), ModelExecutionMode.VAL))  # type: ignore
             if self.container.perform_training_set_inference:
                 dataloaders.append((data.train_dataloader(), ModelExecutionMode.TRAIN))  # type: ignore
@@ -763,9 +764,11 @@ class MLRunner:
             return model_test(config, data_split=data_split, checkpoint_handler=checkpoint_handler,  # type: ignore
                               model_proc=model_proc)
 
-        if config.perform_validation_and_test_set_inference:
+        if config.perform_test_set_inference:
             # perform inference on test set
             test_metrics = run_model_test(ModelExecutionMode.TEST)
+
+        if config.perform_validation_set_inference:
             # perform inference on validation set (not for ensemble as current val is in the training fold
             # for at least one of the models).
             if model_proc != ModelProcessing.ENSEMBLE_CREATION:
