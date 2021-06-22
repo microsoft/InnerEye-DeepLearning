@@ -18,6 +18,8 @@ jobs that run in AzureML.
 
 ### Changed
 - ([#496](https://github.com/microsoft/InnerEye-DeepLearning/pull/496)) All plots are now saved as PNG, rather than JPG.
+- ([#497](https://github.com/microsoft/InnerEye-DeepLearning/pull/497)) Reducing the size of the code snapshot that
+gets uploaded to AzureML, by skipping all test folders.
 
 ### Fixed
 
