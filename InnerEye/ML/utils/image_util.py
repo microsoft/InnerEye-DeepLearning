@@ -601,20 +601,30 @@ def segmentation_to_one_hot(segmentation: torch.Tensor,
     return result
 
 
-def get_class_weights(target: torch.Tensor, class_weight_power: float = 1.0) -> torch.Tensor:
+def get_class_weights_from_counts(class_counts: torch.Tensor, class_weight_power: float = 1.0) -> torch.Tensor:
     """
     Returns class weights inversely proportional to some power of the number of pixels in each class.
 
-    :param target: one-hot tensor of shape (B, C, Z, X, Y); thus class dimension (of size C) is dimension 1
+    :param class_counts: A tensor of size [C] for C classes, containing the number of voxels per class.
     :param class_weight_power: power to raise 1/c to, for each class count c
     """
     with torch.no_grad():
-        class_counts = target.sum([0] + list(range(2, target.dim()))).float()  # sum over all except class dimension
         class_counts[class_counts == 0.0] = 1.0  # prevent 1/0 when invert - value doesn't matter if no voxels
         class_weights = class_counts ** (-class_weight_power)
         # Normalize so mean of class weights is 1.0
         class_weights *= class_weights.shape[0] / class_weights.sum()
     return class_weights
+
+
+def get_class_weights(target: torch.Tensor, class_weight_power: float = 1.0) -> torch.Tensor:
+    """
+    Returns class weights inversely proportional to some power of the number of pixels in each class.
+    :param target: one-hot tensor of shape (B, C, Z, X, Y); thus class dimension (of size C) is dimension 1
+    :param class_weight_power: power to raise 1/c to, for each class count c
+    """
+    with torch.no_grad():
+        class_counts = target.sum([0] + list(range(2, target.dim()))).float()  # sum over all except class dimension
+        return get_class_weights_from_counts(class_counts, class_weight_power=class_weight_power)
 
 
 def apply_slice_exclusion_rules(model_config: SegmentationModelBase,
