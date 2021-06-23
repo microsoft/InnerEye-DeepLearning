@@ -38,7 +38,7 @@ def test_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
                                                         project_root=test_output_dirs.root_dir)
     checkpoint_handler.additional_training_done()
-    result, _, _ = MLRunner(config).model_inference_train_and_test(checkpoint_handler=checkpoint_handler)
+    result, _, _ = MLRunner(config).model_inference_train_and_test(checkpoint_paths=checkpoint_handler.get_checkpoints_to_test())
     if result is None:
         raise ValueError("Error result cannot be None")
     assert isinstance(result, InferenceMetricsForSegmentation)

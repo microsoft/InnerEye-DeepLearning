@@ -51,7 +51,7 @@ def test_model_test(test_output_dirs: OutputFolderForTests) -> None:
     checkpoint_handler.additional_training_done()
     inference_results = model_testing.segmentation_model_test(config,
                                                               data_split=execution_mode,
-                                                              checkpoint_handler=checkpoint_handler)
+                                                              checkpoint_paths=checkpoint_handler.get_checkpoints_to_test())
     epoch_dir = config.outputs_folder / get_best_epoch_results_path(execution_mode)
     assert inference_results.metrics == pytest.approx(0.66606902, abs=1e-6)
 

@@ -28,7 +28,6 @@ from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.lightning_loggers import AzureMLLogger, StoringLogger
 from InnerEye.ML.lightning_models import SUBJECT_OUTPUT_PER_RANK_PREFIX, ScalarLightning, \
     get_subject_output_file_per_rank
-from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
 
 TEMP_PREFIX = "temp/"
 
@@ -215,14 +214,14 @@ def start_resource_monitor(config: LightningContainer) -> ResourceMonitor:
     return resource_monitor
 
 
-def model_train(checkpoint_handler: CheckpointHandler,
+def model_train(checkpoint_path: Path,
                 container: LightningContainer,
                 num_nodes: int = 1) -> Tuple[Trainer, Optional[StoringLogger]]:
     """
     The main training loop. It creates the Pytorch model based on the configuration options passed in,
     creates a Pytorch Lightning trainer, and trains the model.
     If a checkpoint was specified, then it loads the checkpoint before resuming training.
-    :param checkpoint_handler: Checkpoint handler object to find checkpoint paths for model initialization
+    :param checkpoint_path: Checkpoint path for model initialization
     :param num_nodes: The number of nodes to use in distributed training.
     :param container: A container object that holds the training data in PyTorch Lightning format
     and the model to train.
@@ -230,8 +229,6 @@ def model_train(checkpoint_handler: CheckpointHandler,
     the model. The StoringLogger object is returned when training an InnerEye built-in model, this is None when
     fitting other models.
     """
-    # Get the path to the checkpoint to recover from
-    checkpoint_path = checkpoint_handler.get_recovery_path_train()
     lightning_model = container.model
 
     resource_monitor: Optional[ResourceMonitor] = None

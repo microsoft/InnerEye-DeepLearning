@@ -11,15 +11,18 @@ from typing import List, Optional
 from urllib.parse import urlparse
 
 import requests
-import torch
-from azureml.core import Run
+from azureml.core import Run, Workspace, Model
 
 from InnerEye.Azure.azure_config import AzureConfig
-from InnerEye.Common import fixed_paths
+from InnerEye.Common.fixed_paths import MODEL_INFERENCE_JSON_FILE_NAME
 from InnerEye.ML.common import find_recovery_checkpoint_and_epoch
-from InnerEye.ML.deep_learning_config import EXTRA_RUN_SUBFOLDER, OutputParams, WEIGHTS_FILE
+from InnerEye.ML.deep_learning_config import OutputParams
 from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.utils.run_recovery import RunRecovery
+from InnerEye.ML.model_inference_config import read_model_inference_config
+
+
+MODEL_WEIGHTS_DIR_NAME = "trained_models"
 
 
 class CheckpointHandler:
@@ -35,7 +38,7 @@ class CheckpointHandler:
         self.run_recovery: Optional[RunRecovery] = None
         self.project_root = project_root
         self.run_context = run_context
-        self.local_weights_path: Optional[Path] = None
+        self.trained_weights_paths: List[Path] = []
         self.has_continued_training = False
 
     @property
@@ -47,7 +50,7 @@ class CheckpointHandler:
 
     def download_checkpoints_from_hyperdrive_child_runs(self, hyperdrive_parent_run: Run) -> None:
         """
-        Downloads the best checkpoints from all child runs of a Hyperdrive parent runs. This is used to gather results
+        Downloads the best checkpoints from all child runs of a Hyperdrive parent run. This is used to gather results
         for ensemble creation.
         """
         self.run_recovery = RunRecovery.download_best_checkpoints_from_child_runs(self.output_params,
@@ -73,18 +76,10 @@ class CheckpointHandler:
         else:
             self.run_recovery = None
 
-        if self.azure_config.pretraining_run_recovery_id is not None:
-            run_to_recover = self.azure_config.fetch_run(self.azure_config.pretraining_run_recovery_id.strip())
-            run_recovery_object = RunRecovery.download_all_checkpoints_from_run(self.output_params,
-                                                                                run_to_recover,
-                                                                                EXTRA_RUN_SUBFOLDER,
-                                                                                only_return_path=only_return_path)
-            self.container.extra_downloaded_run_id = run_recovery_object
+        if self.container.checkpoint_urls or self.container.local_checkpoint_paths or self.azure_config.model_id:
+            self.trained_weights_paths = self.get_local_checkpoints_path_or_download()
         else:
-            self.container.extra_downloaded_run_id = None
-
-        if self.container.weights_url or self.container.local_weights_path:
-            self.local_weights_path = self.get_and_save_modified_weights()
+            self.trained_weights_paths = None
 
     def additional_training_done(self) -> None:
         """
@@ -92,7 +87,7 @@ class CheckpointHandler:
         """
         self.has_continued_training = True
 
-    def get_recovery_path_train(self) -> Optional[Path]:
+    def get_recovery_or_checkpoint_path_train(self) -> Optional[Path]:
         """
         Decides the checkpoint path to use for the current training run. Looks for the latest checkpoint in the
         checkpoint folder. If run_recovery is provided, the checkpoints will have been downloaded to this folder
@@ -105,29 +100,19 @@ class CheckpointHandler:
             local_recovery_path, recovery_epoch = recovery
             self.container._start_epoch = recovery_epoch
             return local_recovery_path
-
-        elif self.local_weights_path:
-            return self.local_weights_path
         else:
             return None
 
-    def get_best_checkpoint(self) -> List[Path]:
+    def get_best_checkpoints(self) -> List[Path]:
         """
-        Get a list of checkpoints per epoch for testing/registration.
-        1. If a run recovery object is used and no training was done in this run, use checkpoints from run recovery.
-        2. If a run recovery object is used, and training was done in this run, but the start epoch is larger than
-        the epoch parameter provided, use checkpoints from run recovery.
-        3. If a run recovery object is used, and training was done in this run, but the start epoch is smaller than
-        the epoch parameter provided, use checkpoints from the current training run.
-        This function also checks that all the checkpoints at the returned checkpoint paths exist,
-        and drops any that do not.
+        Get a list of checkpoints per epoch for testing/registration from the current training run.
+        This function also checks that the checkpoint at the returned checkpoint path exists.
         """
         if not self.run_recovery and not self.has_continued_training:
             raise ValueError("Cannot recover checkpoint, no run recovery object provided and"
                              "no training has been done in this run.")
 
         checkpoint_paths = []
-
         if self.run_recovery:
             checkpoint_paths = self.run_recovery.get_best_checkpoint_paths()
 
@@ -165,77 +150,88 @@ class CheckpointHandler:
 
         checkpoints = []
 
-        # If recovery object exists, or model was trained, look for checkpoints by epoch
+        # If model was trained, look for the best checkpoint
         if self.run_recovery or self.has_continued_training:
-            checkpoints = self.get_best_checkpoint()
-        elif self.local_weights_path and not self.has_continued_training:
-            # No recovery object and model was not trained, check if there is a local weight path.
-            if self.local_weights_path.exists():
-                logging.info(f"Using model weights at {self.local_weights_path} to initialize model")
-                checkpoints = [self.local_weights_path]
-            else:
-                logging.warning(f"local_weights_path does not exist, "
-                                f"cannot recover from {self.local_weights_path}")
+            checkpoints = self.get_best_checkpoints()
+        elif self.trained_weights_paths:
+            # Model was not trained, check if there is a local weight path.
+            logging.info(f"Using model weights from {self.trained_weights_paths} to initialize model")
+            checkpoints = self.trained_weights_paths
         else:
-            logging.warning("Could not find any run recovery object or local_weights_path to get checkpoints from")
+            logging.warning("Could not find any local_weights_path, model_weights or model_id to get checkpoints from")
 
         return checkpoints
 
-    def download_weights(self) -> Path:
+    def get_checkpoints_to_register(self) -> List[Path]:
+        if not self.has_continued_training and not self.run_recovery:
+            raise ValueError("No checkpoints found for registration: no run recovery object provided, "
+                             "and model has not been trained.")
+
+        return self.get_best_checkpoints()
+
+    @staticmethod
+    def download_weights(urls: List[str], download_folder: Path) -> List[Path]:
         """
         Download a checkpoint from weights_url to the modelweights directory.
         """
-        target_folder = self.project_root / fixed_paths.MODEL_WEIGHTS_DIR_NAME
-        target_folder.mkdir(exist_ok=True)
+        checkpoint_paths = []
+        for url in urls:
+            # assign the same filename as in the download url if possible, so that we can check for duplicates
+            # If that fails, map to a random uuid
+            file_name = os.path.basename(urlparse(url).path) or str(uuid.uuid4().hex)
+            result_file = download_folder / file_name
+            checkpoint_paths.append(result_file)
+            # only download if hasn't already been downloaded
+            if result_file.exists():
+                logging.info(f"File already exists, skipping download: {result_file}")
 
-        url = self.container.weights_url
+            logging.info(f"Downloading weights from URL {url}")
 
-        # assign the same filename as in the download url if possible, so that we can check for duplicates
-        # If that fails, map to a random uuid
-        file_name = os.path.basename(urlparse(url).path) or str(uuid.uuid4().hex)
-        result_file = target_folder / file_name
+            response = requests.get(url, stream=True)
+            response.raise_for_status()
+            with open(result_file, "wb") as file:
+                for chunk in response.iter_content(chunk_size=1024):
+                    file.write(chunk)
 
-        # only download if hasn't already been downloaded
-        if result_file.exists():
-            logging.info(f"File already exists, skipping download: {result_file}")
-            return result_file
+        return checkpoint_paths
 
-        logging.info(f"Downloading weights from URL {url}")
+    @staticmethod
+    def get_checkpoints_from_model(model_id: str, workspace: Workspace, download_path: Path) -> List[Path]:
 
-        response = requests.get(url, stream=True)
-        response.raise_for_status()
-        with open(result_file, "wb") as file:
-            for chunk in response.iter_content(chunk_size=1024):
-                file.write(chunk)
+        model_name, model_version = model_id.split(":")
+        model_version = int(model_version)
+        model = Model(workspace=workspace, name=model_name, version=model_version)
+        model_path = Path(model.download(str(download_path), exist_ok=True))
+        model_inference_config = read_model_inference_config(model_path / MODEL_INFERENCE_JSON_FILE_NAME)
+        checkpoint_paths = [model_path / x for x in model_inference_config.checkpoint_paths]
+        return checkpoint_paths
 
-        return result_file
-
-    def get_local_weights_path_or_download(self) -> Optional[Path]:
+    def get_local_checkpoints_path_or_download(self) -> List[Path]:
         """
         Get the path to the local weights to use or download them and set local_weights_path
         """
-        if self.container.local_weights_path:
-            weights_path = self.container.local_weights_path
-        elif self.container.weights_url:
-            weights_path = self.download_weights()
+        download_folder = self.output_params.checkpoint_folder / MODEL_WEIGHTS_DIR_NAME
+        download_folder.mkdir(exist_ok=True)
+
+        if self.azure_config.model_id:
+            if len(self.azure_config.model_id.split(":")) != 2:
+                raise ValueError(
+                    f"model_id should be in the form 'model_name:version', got {self.azure_config.model_id}")
+
+            checkpoint_paths = self.get_checkpoints_from_model(model_id=self.azure_config.model_id,
+                                                               workspace=self.azure_config.get_workspace(),
+                                                               download_path=download_folder)
+        elif self.container.local_checkpoint_paths:
+            checkpoint_paths = self.container.local_checkpoint_paths
+        elif self.container.checkpoint_urls:
+            urls = self.container.checkpoint_urls
+            checkpoint_paths = self.download_weights(urls=urls,
+                                                     download_folder=download_folder)
         else:
-            raise ValueError("Cannot download/modify weights - neither local_weights_path nor weights_url is set in"
+            raise ValueError("Cannot download weights - neither local_weights_path nor weights_url is set in"
                              "the model config.")
 
-        return weights_path
-
-    def get_and_save_modified_weights(self) -> Path:
-        """
-        Downloads the checkpoint weights if needed.
-        Then passes the downloaded or local checkpoint to the modify_checkpoint function from the model_config and saves
-        the modified state dict from the function in the outputs folder with the name weights.pth.
-        """
-        weights_path = self.get_local_weights_path_or_download()
-
-        if not weights_path or not weights_path.is_file():
-            raise FileNotFoundError(f"Could not find the weights file at {weights_path}")
-
-        modified_weights = self.container.load_checkpoint_and_modify(weights_path)
-        target_file = self.output_params.outputs_folder / WEIGHTS_FILE
-        torch.save(modified_weights, target_file)
-        return target_file
+        for checkpoint_path in checkpoint_paths:
+            if not checkpoint_path or not checkpoint_path.is_file():
+                raise FileNotFoundError(f"Could not find the weights file at {checkpoint_path}")
+        return checkpoint_paths

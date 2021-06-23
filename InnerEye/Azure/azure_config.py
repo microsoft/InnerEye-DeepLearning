@@ -77,8 +77,8 @@ class AzureConfig(GenericConfig):
     pytest_mark: str = param.String(doc="If provided, run pytest instead of model training. pytest will only "
                                         "run the tests that have the mark given in this argument "
                                         "('--pytest_mark gpu' will run all tests marked with 'pytest.mark.gpu')")
-    run_recovery_id: str = param.String(doc="A run recovery id string in the form 'experiment name:run id'"
-                                            " to use for inference or recovering a model training run.")
+    run_recovery_id: str = param.String(doc="A run recovery id string in the form 'experiment name:run id' "
+                                            "to use for recovering a model training run or to register a model.")
     pretraining_run_recovery_id: str = param.String(default=None,
                                                     allow_None=True,
                                                     doc="Extra run recovery id to download checkpoints from,"
@@ -122,6 +122,8 @@ class AzureConfig(GenericConfig):
     _workspace: Workspace = param.ClassSelector(class_=Workspace,
                                                 doc="The cached workspace object that has been created in the first"
                                                     "call to get_workspace")
+    model_id: str = param.String(doc="A model id string in the form 'model name:version' "
+                                     "to use a registered model for inference.")
 
     def __init__(self, **params: Any) -> None:
         super().__init__(**params)

@@ -38,7 +38,7 @@ from InnerEye.ML.baselines_util import compare_folder_contents
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, DeepLearningConfig, FINAL_ENSEMBLE_MODEL_FOLDER, \
-    FINAL_MODEL_FOLDER, ModelCategory, MultiprocessingStartMethod, load_checkpoint
+    FINAL_MODEL_FOLDER, ModelCategory, MultiprocessingStartMethod, load_checkpoint, EXTRA_RUN_SUBFOLDER
 from InnerEye.ML.lightning_base import InnerEyeContainer
 from InnerEye.ML.lightning_container import InnerEyeInference, LightningContainer
 from InnerEye.ML.metrics import InferenceMetrics, InferenceMetricsForSegmentation
@@ -52,6 +52,7 @@ from InnerEye.ML.reports.notebook_report import generate_classification_crossval
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
+from InnerEye.ML.utils.run_recovery import RunRecovery
 from InnerEye.ML.visualizers import activation_maps
 from InnerEye.ML.visualizers.plot_cross_validation import \
     get_config_and_results_for_offline_runs, plot_cross_validation_from_files
@@ -218,12 +219,23 @@ class MLRunner:
         else:
             self.container.create_filesystem(self.project_root)
 
+        is_preempted_run = len(self.container.checkpoint_folder) == 0
         # configure recovery container if provided
         self.checkpoint_handler = CheckpointHandler(container=self.container,
                                                     azure_config=self.azure_config,
                                                     project_root=self.project_root,
                                                     run_context=RUN_CONTEXT)
         self.checkpoint_handler.download_recovery_checkpoints_or_weights(only_return_path=not is_global_rank_zero())
+
+        if self.azure_config.pretraining_run_recovery_id is not None:
+            run_to_recover = self.azure_config.fetch_run(self.azure_config.pretraining_run_recovery_id.strip())
+            run_recovery_object = RunRecovery.download_all_checkpoints_from_run(self.container,
+                                                                                run_to_recover,
+                                                                                EXTRA_RUN_SUBFOLDER,
+                                                                                only_return_path=not is_global_rank_zero())
+            self.container.extra_downloaded_run_id = run_recovery_object
+        else:
+            self.container.extra_downloaded_run_id = None
 
         # A lot of the code for the built-in InnerEye models expects the output paths directly in the config files.
         if isinstance(self.container, InnerEyeContainer):
@@ -363,7 +375,7 @@ class MLRunner:
             # train a new model if required
             if self.azure_config.train:
                 with logging_section("Model training"):
-                    model_train(self.checkpoint_handler,
+                    model_train(self.checkpoint_handler.get_recovery_or_checkpoint_path_train(),
                                 container=self.container,
                                 num_nodes=self.azure_config.num_nodes)
                 # log the number of epochs used for model training
@@ -376,14 +388,15 @@ class MLRunner:
         # AzureML.
         if not self.is_offline_run:
             if self.should_register_model():
-                self.register_model(self.checkpoint_handler, ModelProcessing.DEFAULT)
+                self.register_model(self.checkpoint_handler.get_checkpoints_to_register(), ModelProcessing.DEFAULT)
 
         if not self.azure_config.only_register_model:
+            checkpoint_paths_for_testing = self.checkpoint_handler.get_checkpoints_to_test()
             if isinstance(self.container, InnerEyeContainer):
                 # Inference for the InnerEye built-in models
                 # We specify the ModelProcessing as DEFAULT here even if the run_recovery points to an ensemble run,
                 # because the current run is a single one. See the documentation of ModelProcessing for more details.
-                self.run_inference(self.checkpoint_handler, ModelProcessing.DEFAULT)
+                self.run_inference(checkpoint_paths_for_testing, ModelProcessing.DEFAULT)
 
                 if self.container.generate_report:
                     self.generate_report(ModelProcessing.DEFAULT)
@@ -399,7 +412,7 @@ class MLRunner:
             else:
                 # Inference for all models that are specified via LightningContainers.
                 with logging_section("Model inference"):
-                    self.run_inference_for_lightning_models(self.checkpoint_handler.get_checkpoints_to_test())
+                    self.run_inference_for_lightning_models(checkpoint_paths_for_testing)
                 # We can't enforce that files are written to the output folder, hence change the working directory
                 # manually
                 with change_working_directory(self.container.outputs_folder):
@@ -481,17 +494,17 @@ class MLRunner:
         else:
             logging.warning("None of the suitable test methods is overridden. Skipping inference completely.")
 
-    def run_inference(self, checkpoint_handler: CheckpointHandler,
+    def run_inference(self, checkpoint_paths: List[Path],
                       model_proc: ModelProcessing) -> None:
         """
         Run inference on InnerEyeContainer models
-        :param checkpoint_handler: Checkpoint handler object to find checkpoint paths for model initialization
+        :param checkpoint_paths: Checkpoint paths to initialize model
         :param model_proc: whether we are running an ensemble model from within a child run with index 0. If we are,
         then outputs will be written to OTHER_RUNS/ENSEMBLE under the main outputs directory.
         """
 
         # run full image inference on existing or newly trained model on the training, and testing set
-        test_metrics, val_metrics, _ = self.model_inference_train_and_test(checkpoint_handler=checkpoint_handler,
+        test_metrics, val_metrics, _ = self.model_inference_train_and_test(checkpoint_paths=checkpoint_paths,
                                                                            model_proc=model_proc)
 
         self.try_compare_scores_against_baselines(model_proc)
@@ -583,12 +596,12 @@ class MLRunner:
             compare_scores_against_baselines(self.model_config, self.azure_config, model_proc)
 
     def register_model(self,
-                       checkpoint_handler: CheckpointHandler,
+                       checkpoint_paths: List[Path],
                        model_proc: ModelProcessing) -> Tuple[model.Model, Any]:
         """
         Registers a new model in the workspace's model registry on AzureML to be deployed further.
         The AzureML run's tags are updated to describe with information about ensemble creation and the parent run ID.
-        :param checkpoint_handler: Checkpoint handler object to find checkpoint paths for model registration.
+        :param checkpoint_path: Checkpoint paths to register.
         :param model_proc: whether it's a single or ensemble model.
         :returns Tuple element 1: AML model object, or None if no model could be registered.
         Tuple element 2: The result of running the model_deployment_hook, or None if no hook was supplied.
@@ -596,7 +609,6 @@ class MLRunner:
         if self.is_offline_run:
             raise ValueError("Cannot register models when InnerEye is running outside of AzureML.")
 
-        checkpoint_paths = checkpoint_handler.get_checkpoints_to_test()
         if not checkpoint_paths:
             raise ValueError("Model registration failed: No checkpoints found")
 
@@ -748,7 +760,7 @@ class MLRunner:
                 raise ValueError(f"Checkpoint file {checkpoint_source} does not exist")
 
     def model_inference_train_and_test(self,
-                                       checkpoint_handler: CheckpointHandler,
+                                       checkpoint_paths: List[Path],
                                        model_proc: ModelProcessing = ModelProcessing.DEFAULT) -> \
             Tuple[Optional[InferenceMetrics], Optional[InferenceMetrics], Optional[InferenceMetrics]]:
         train_metrics = None
@@ -758,7 +770,7 @@ class MLRunner:
         config = self.innereye_config
 
         def run_model_test(data_split: ModelExecutionMode) -> Optional[InferenceMetrics]:
-            return model_test(config, data_split=data_split, checkpoint_handler=checkpoint_handler,  # type: ignore
+            return model_test(config, data_split=data_split, checkpoint_paths=checkpoint_paths,  # type: ignore
                               model_proc=model_proc)
 
         if config.perform_validation_and_test_set_inference:
@@ -830,10 +842,10 @@ class MLRunner:
         # AzureML.
         if not self.is_offline_run:
             if self.should_register_model():
-                self.register_model(checkpoint_handler, ModelProcessing.ENSEMBLE_CREATION)
+                self.register_model(checkpoint_handler.get_checkpoints_to_register(), ModelProcessing.ENSEMBLE_CREATION)
 
         if not self.azure_config.only_register_model:
-            self.run_inference(checkpoint_handler=checkpoint_handler,
+            self.run_inference(checkpoint_paths=checkpoint_handler.get_checkpoints_to_test(),
                                model_proc=ModelProcessing.ENSEMBLE_CREATION)
 
         crossval_dir = self.plot_cross_validation_and_upload_results()

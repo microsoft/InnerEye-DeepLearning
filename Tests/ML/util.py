@@ -252,7 +252,7 @@ def model_train_unittest(config: Optional[DeepLearningConfig],
         checkpoint_handler = CheckpointHandler(azure_config=azure_config,
                                                container=runner.container,
                                                project_root=dirs.root_dir)
-    _, storing_logger = model_train(checkpoint_handler=checkpoint_handler,
+    _, storing_logger = model_train(checkpoint_handler=checkpoint_handler.get_recovery_or_checkpoint_path_train(),
                                     container=runner.container)
     return storing_logger, checkpoint_handler  # type: ignore
 

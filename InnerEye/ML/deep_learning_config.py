@@ -34,7 +34,6 @@ VISUALIZATION_FOLDER = "visualizations"
 EXTRA_RUN_SUBFOLDER = "extra_run_id"
 
 ARGS_TXT = "args.txt"
-WEIGHTS_FILE = "weights.pth"
 
 
 @unique
@@ -207,13 +206,12 @@ class WorkflowParams(param.Parameterized):
     perform_validation_and_test_set_inference: bool = \
         param.Boolean(True,
                       doc="If True (default), run full image inference on validation and test set after training.")
-    weights_url: str = param.String(doc="If provided, a url from which weights will be downloaded and used for model "
-                                        "initialization.")
-    local_weights_path: Optional[Path] = param.ClassSelector(class_=Path,
-                                                             default=None,
-                                                             allow_None=True,
-                                                             doc="The path to the weights to use for model "
-                                                                 "initialization, when training outside AzureML.")
+    checkpoint_urls: List[str] = param.List(default=[],
+                                            doc="If provided, a set of urls from which checkpoints will be downloaded"
+                                                "and used for training/inference.")
+    local_checkpoint_paths: List[Path] = param.List(default=[], class_=Path,
+                                                    doc="A list of checkpoints paths to use for training/inference, "
+                                                        "when training is running outside Azure.")
     generate_report: bool = param.Boolean(default=True,
                                           doc="If True (default), write a modelling report in HTML format. If False,"
                                               "do not write that report.")
@@ -239,7 +237,7 @@ class WorkflowParams(param.Parameterized):
                                 "be relative to the repository root directory.")
 
     def validate(self) -> None:
-        if self.weights_url and self.local_weights_path:
+        if self.checkpoint_urls and self.local_checkpoint_paths:
             raise ValueError("Cannot specify both local_weights_path and weights_url.")
 
         if self.number_of_cross_validation_splits == 1:

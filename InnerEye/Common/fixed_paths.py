@@ -40,9 +40,6 @@ DEFAULT_MODEL_SUMMARIES_DIR_PATH = Path(DEFAULT_LOGS_DIR_NAME) / "model_summarie
 # The folder at the project root directory that holds datasets for local execution.
 DATASETS_DIR_NAME = "datasets"
 
-# Points to a folder at the project root directory that holds model weights downloaded from URLs.
-MODEL_WEIGHTS_DIR_NAME = "modelweights"
-
 ML_RELATIVE_SOURCE_PATH = os.path.join("ML")
 ML_RELATIVE_RUNNER_PATH = os.path.join(ML_RELATIVE_SOURCE_PATH, "runner.py")
 ML_FULL_SOURCE_FOLDER_PATH = str(repository_root_directory() / ML_RELATIVE_SOURCE_PATH)
