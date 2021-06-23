@@ -26,7 +26,7 @@ class SoftDiceLoss(SupervisedLearningCriterion):
     """
 
     def __init__(self,
-                 eps: float = 1e-5,
+                 eps: float = 1e-10,
                  apply_softmax: bool = True,
                  class_weight_power: Optional[float] = None):
         """
@@ -73,7 +73,7 @@ class SoftDiceLoss(SupervisedLearningCriterion):
         sum_across = [0, *range(2, len(output.shape))]
 
         # intersection has size [1, classes], all the spatial dimensions are summed across.
-        intersection0 = torch.sum(output * target, dim=sum_across).unsqueeze(0)
+        intersection0 = torch.sum(output * target + self.eps, dim=sum_across).unsqueeze(0)
         intersection = torch.sum(synchronize_across_gpus(intersection0), dim=0)
 
         if self.class_weight_power is not None and self.class_weight_power != 0.0:
@@ -86,12 +86,12 @@ class SoftDiceLoss(SupervisedLearningCriterion):
             intersection = torch.einsum("ij,j->ij", intersection, class_weights)
 
         # All these tensors also have shape [1, classes]
-        output_sum_square0 = torch.sum(output * output, dim=sum_across).unsqueeze(0)
+        output_sum_square0 = torch.sum(output * output + self.eps, dim=sum_across).unsqueeze(0)
         output_sum_square = torch.sum(synchronize_across_gpus(output_sum_square0), dim=0)
-        target_sum_square0 = torch.sum(target * target, dim=sum_across).unsqueeze(0)
+        target_sum_square0 = torch.sum(target * target + self.eps, dim=sum_across).unsqueeze(0)
         target_sum_square = torch.sum(synchronize_across_gpus(target_sum_square0), dim=0)
 
         # Average per Class
-        unsynced = 1.0 - 2.0 * torch.mean((intersection0 + self.eps) / (output_sum_square0 + target_sum_square0 + self.eps))
-        synced = 1.0 - 2.0 * torch.mean((intersection + self.eps) / (output_sum_square + target_sum_square + self.eps))
+        unsynced = 1.0 - 2.0 * torch.mean(intersection0 / (output_sum_square0 + target_sum_square0))
+        synced = 1.0 - 2.0 * torch.mean(intersection / (output_sum_square + target_sum_square))
         return synced  # type: ignore
