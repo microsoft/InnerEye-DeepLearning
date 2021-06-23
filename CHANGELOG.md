@@ -13,6 +13,7 @@ created.
 ## Upcoming
 
 ### Added
+- ([#502](https://github.com/microsoft/InnerEye-DeepLearning/pull/502)) More flags for fine control of when to run inference.
 - ([#492](https://github.com/microsoft/InnerEye-DeepLearning/pull/492)) Adding capability for regression tests for test
 jobs that run in AzureML.
 

@@ -36,6 +36,25 @@ EXTRA_RUN_SUBFOLDER = "extra_run_id"
 ARGS_TXT = "args.txt"
 WEIGHTS_FILE = "weights.pth"
 
+WORKFLOW_CONFIG_PERFORM_TRAINING_SET_INFERENCE = "perform_training_set_inference"
+WORKFLOW_CONFIG_PERFORM_VALIDATION_AND_TEST_SET_INFERENCE = "perform_validation_and_test_set_inference"
+WORKFLOW_CONFIG_PERFORM_VALIDATION_SET_INFERENCE = "perform_validation_set_inference"
+WORKFLOW_CONFIG_PERFORM_TEST_SET_INFERENCE = "perform_test_set_inference"
+WORKFLOW_CONFIG_PERFORM_ENSEMBLE_CHILD_TRAINING_SET_INFERENCE = "perform_ensemble_child_training_set_inference"
+WORKFLOW_CONFIG_PERFORM_ENSEMBLE_CHILD_VALIDATION_SET_INFERENCE = "perform_ensemble_child_validation_set_inference"
+WORKFLOW_CONFIG_PERFORM_ENSEMBLE_CHILD_TEST_SET_INFERENCE = "perform_ensemble_child_test_set_inference"
+
+WORKFLOW_CONFIG_PERFORM_INFERENCE_ARGS = \
+    [
+        WORKFLOW_CONFIG_PERFORM_TRAINING_SET_INFERENCE,
+        WORKFLOW_CONFIG_PERFORM_VALIDATION_AND_TEST_SET_INFERENCE,
+        WORKFLOW_CONFIG_PERFORM_VALIDATION_SET_INFERENCE,
+        WORKFLOW_CONFIG_PERFORM_TEST_SET_INFERENCE,
+        WORKFLOW_CONFIG_PERFORM_ENSEMBLE_CHILD_TRAINING_SET_INFERENCE,
+        WORKFLOW_CONFIG_PERFORM_ENSEMBLE_CHILD_VALIDATION_SET_INFERENCE,
+        WORKFLOW_CONFIG_PERFORM_ENSEMBLE_CHILD_TEST_SET_INFERENCE
+    ]
+
 
 @unique
 class LRWarmUpType(Enum):
@@ -201,18 +220,25 @@ class WorkflowParams(param.Parameterized):
                                                           "associated with when performing k-fold cross validation")
     perform_training_set_inference: bool = \
         param.Boolean(False,
-                      doc="If True, run full image inference on the training set at the end of training. If False and "
-                          "perform_validation_and_test_set_inference is True (default), only run inference on "
-                          "validation and test set. If both flags are False do not run inference.")
+                      doc="If True, run full image inference on the training set at the end of training.")
     perform_validation_and_test_set_inference: bool = \
-        param.Boolean(True,
-                      doc="If True (default), run full image inference on validation and test set after training.")
+        param.Boolean(False,
+                      doc="If True, set perform_validation_set_inference and perform_test_set_inference.")
     perform_validation_set_inference: bool = \
         param.Boolean(True,
                       doc="If True (default), run full image inference on validation set after training.")
     perform_test_set_inference: bool = \
         param.Boolean(True,
                       doc="If True (default), run full image inference on test set after training.")
+    perform_ensemble_child_training_set_inference: bool = \
+        param.Boolean(False,
+                      doc="If True, run full image inference on the training set at the end of ensemble child training.")
+    perform_ensemble_child_validation_set_inference: bool = \
+        param.Boolean(False,
+                      doc="If True (default), run full image inference on validation set after ensemble child training.")
+    perform_ensemble_child_test_set_inference: bool = \
+        param.Boolean(False,
+                      doc="If True (default), run full image inference on test set after ensemble child training.")
     weights_url: str = param.String(doc="If provided, a url from which weights will be downloaded and used for model "
                                         "initialization.")
     local_weights_path: Optional[Path] = param.ClassSelector(class_=Path,
@@ -245,8 +271,10 @@ class WorkflowParams(param.Parameterized):
                                 "be relative to the repository root directory.")
 
     def validate(self) -> None:
-        self.perform_validation_set_inference = self.perform_validation_and_test_set_inference
-        self.perform_test_set_inference = self.perform_validation_and_test_set_inference
+        self.perform_validation_set_inference = self.perform_validation_set_inference or \
+                                                self.perform_validation_and_test_set_inference
+        self.perform_test_set_inference = self.perform_test_set_inference or \
+                                          self.perform_validation_and_test_set_inference
 
         if self.weights_url and self.local_weights_path:
             raise ValueError("Cannot specify both local_weights_path and weights_url.")

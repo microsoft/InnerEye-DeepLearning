@@ -19,7 +19,7 @@ from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.train.hyperdrive import HyperDriveConfig
 from git import Repo
 
-from InnerEye.Azure.azure_util import fetch_run, is_offline_run_context
+from InnerEye.Azure.azure_util import fetch_run, is_offline_run_context, remove_arg
 from InnerEye.Azure.secrets_handling import SecretsHandling, read_all_settings
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.generic_parsing import GenericConfig
@@ -303,33 +303,6 @@ class AzureConfig(GenericConfig):
             status += "a randomly chosen folder."
         logging.info(status)
         return result
-
-
-def remove_arg(arg: str, args: List[str]) -> List[str]:
-    flag = f"--{arg}"
-    retained_args = []
-    i = 0
-    while i < len(args):
-        arg = args[i]
-        if arg.startswith(flag):
-            if len(arg) == len(flag):
-                # The commandline argument is "--flag", with something possibly following: This can either be
-                # "--flag True" or "--flag --some_other_param"
-                if i < (len(args) - 1):
-                    # If the next argument starts with a "-" then assume that it does not belong to the --flag
-                    # flag. If there is no "-", assume it belongs to the --flag flag, and skip both
-                    if not args[i + 1].startswith("-"):
-                        i = i + 1
-            elif arg[len(flag)] == "=":
-                # The commandline argument is "--flag=True" or "--flag=False": Continue with next arg
-                pass
-            else:
-                # The argument list contains a flag like "--azureml_foo": Keep that.
-                retained_args.append(arg)
-        else:
-            retained_args.append(arg)
-        i = i + 1
-    return retained_args
 
 
 @dataclass

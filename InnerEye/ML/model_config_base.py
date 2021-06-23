@@ -13,13 +13,12 @@ from azureml.core import ScriptRunConfig
 from azureml.train.hyperdrive import GridParameterSampling, HyperDriveConfig, PrimaryMetricGoal, choice
 from pandas import DataFrame
 
-from InnerEye.Azure.azure_config import remove_arg
-from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY
+from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, remove_arg
 from InnerEye.Common.common_util import ModelProcessing
 from InnerEye.Common.metrics_constants import TrackedMetrics
 
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, STORED_CSV_FILE_NAMES
-from InnerEye.ML.deep_learning_config import DeepLearningConfig
+from InnerEye.ML.deep_learning_config import WORKFLOW_CONFIG_PERFORM_INFERENCE_ARGS, DeepLearningConfig
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 
 
@@ -174,11 +173,14 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         :return: A hyperdrive configuration object.
         """
         run_config2 = copy.deepcopy(run_config)
-        run_config2.arguments = remove_arg("perform_training_set_inference", run_config2.arguments)
-        run_config2.arguments = remove_arg("perform_validation_and_test_set_inference", run_config2.arguments)
 
-        run_config2.arguments.extend(["--perform_training_set_inference=False",
-                                      "--perform_validation_and_test_set_inference=False"])
+        for arg in WORKFLOW_CONFIG_PERFORM_INFERENCE_ARGS:
+            run_config2.arguments = remove_arg(arg, run_config2.arguments)
+
+        run_config2.arguments.extend(
+            [f"--perform_training_set_inference={self.perform_ensemble_child_training_set_inference}",
+             f"--perform_validation_set_inference={self.perform_ensemble_child_validation_set_inference}",
+             f"--perform_test_set_inference={self.perform_ensemble_child_test_set_inference}"])
 
         return HyperDriveConfig(
             run_config=run_config2,
