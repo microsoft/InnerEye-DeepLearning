@@ -204,7 +204,7 @@ def test_get_best_checkpoint_single_run(test_output_dirs: OutputFolderForTests) 
     # We have not set a run_recovery, nor have we trained, so this should fail to get a checkpoint
     with pytest.raises(ValueError) as ex:
         checkpoint_handler.get_best_checkpoints()
-        assert "no run recovery object provided and no training has been done in this run" in ex.value.args[0]
+    assert "no run recovery object provided and no training has been done in this run" in ex.value.args[0]
 
     run_recovery_id = get_most_recent_run_id(fallback_run_id_for_local_execution=FALLBACK_SINGLE_RUN)
 
@@ -270,7 +270,7 @@ def test_get_checkpoints_to_test(test_output_dirs: OutputFolderForTests) -> None
     # so the local weights should be used ignoring any epochs to test
     local_weights_path = test_output_dirs.root_dir / "exist.pth"
     create_checkpoint_file(local_weights_path)
-    checkpoint_handler.container.local_checkpoint_paths = local_weights_path
+    checkpoint_handler.container.local_checkpoint_paths = [local_weights_path]
     checkpoint_handler.download_recovery_checkpoints_or_weights()
     checkpoint_and_paths = checkpoint_handler.get_checkpoints_to_test()
     assert checkpoint_and_paths
@@ -331,36 +331,39 @@ def test_download_model_weights(test_output_dirs: OutputFolderForTests) -> None:
     assert result_path[0] == test_output_dirs.root_dir / os.path.basename(urlparse(EXTERNAL_WEIGHTS_URL_EXAMPLE).path)
     assert result_path[0].is_file()
 
-    # Downloading twice should have no effect
     result_path = CheckpointHandler.download_weights(urls=[EXTERNAL_WEIGHTS_URL_EXAMPLE, EXTERNAL_WEIGHTS_URL_EXAMPLE],
                                                      download_folder=test_output_dirs.root_dir)
-    assert len(result_path) == 1
+    assert len(result_path) == 2
+    assert len(list(test_output_dirs.root_dir.glob("*"))) == 1
     assert result_path[0] == test_output_dirs.root_dir / os.path.basename(urlparse(EXTERNAL_WEIGHTS_URL_EXAMPLE).path)
     assert result_path[0].is_file()
 
 
 def test_get_local_weights_path_or_download(test_output_dirs: OutputFolderForTests) -> None:
     config = ModelConfigBase(should_validate=False)
-    checkpoint_handler = get_default_checkpoint_handler(model_config=config,
-                                                     project_root=test_output_dirs.root_dir)
+    config.set_output_to(test_output_dirs.root_dir)
+    config.outputs_folder.mkdir()
 
-    # If the model has neither local_weights_path or weights_url set, should fail.
+    checkpoint_handler = get_default_checkpoint_handler(model_config=config,
+                                                        project_root=test_output_dirs.root_dir)
+
+    # If the model has neither local_checkpoint_paths or checkpoint_urls set, should fail.
     with pytest.raises(ValueError) as ex:
         checkpoint_handler.get_local_checkpoints_path_or_download()
-        assert "neither local_weights_path nor weights_url is set in the model config" in ex.value.args[0]
+    assert "none of model_id, local_weights_path or weights_url is set in the model config." in ex.value.args[0]
 
-    # If local_weights_path folder exists, get_local_weights_path_or_download should not do anything.
-    local_weights_path = checkpoint_handler.project_root / "exist.pth"
+    # If local_checkpoint_paths folder exists, get_local_checkpoints_path_or_download should not do anything.
+    local_weights_path = test_output_dirs.root_dir / "exist.pth"
     create_checkpoint_file(local_weights_path)
-    checkpoint_handler.container.local_checkpoint_paths = local_weights_path
+    checkpoint_handler.container.local_checkpoint_paths = [local_weights_path]
     returned_weights_path = checkpoint_handler.get_local_checkpoints_path_or_download()
-    assert local_weights_path == returned_weights_path
+    assert local_weights_path == returned_weights_path[0]
 
     # Pointing the model to a URL should trigger a download
-    checkpoint_handler.container.local_checkpoint_paths = None
-    checkpoint_handler.container.checkpoint_urls = EXTERNAL_WEIGHTS_URL_EXAMPLE
+    config.checkpoint_folder.mkdir()
+    checkpoint_handler.container.local_checkpoint_paths = []
+    checkpoint_handler.container.checkpoint_urls = [EXTERNAL_WEIGHTS_URL_EXAMPLE]
     downloaded_weights = checkpoint_handler.get_local_checkpoints_path_or_download()
-    # Download goes into <project_root> / "modelweights" / "resnet18-5c106cde.pth"
     expected_path = checkpoint_handler.output_params.checkpoint_folder / MODEL_WEIGHTS_DIR_NAME / \
                     os.path.basename(urlparse(EXTERNAL_WEIGHTS_URL_EXAMPLE).path)
     assert len(downloaded_weights) == 1
@@ -368,7 +371,7 @@ def test_get_local_weights_path_or_download(test_output_dirs: OutputFolderForTes
     assert expected_path == downloaded_weights[0]
 
     # try again, should not re-download
-    modified_time = downloaded_weights.stat().st_mtime
+    modified_time = downloaded_weights[0].stat().st_mtime
     downloaded_weights_new = checkpoint_handler.get_local_checkpoints_path_or_download()
     assert len(downloaded_weights_new) == 1
     assert downloaded_weights_new[0].stat().st_mtime == modified_time

@@ -377,6 +377,9 @@ class MLRunner:
                     model_train(self.checkpoint_handler.get_recovery_or_checkpoint_path_train(),
                                 container=self.container,
                                 num_nodes=self.azure_config.num_nodes)
+                # Since we have trained the model further, let the checkpoint_handler object know so it can handle
+                # checkpoints correctly.
+                self.checkpoint_handler.additional_training_done()
                 # log the number of epochs used for model training
                 RUN_CONTEXT.log(name="Train epochs", value=self.container.num_epochs)
             elif isinstance(self.container, InnerEyeContainer):

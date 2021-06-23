@@ -210,6 +210,13 @@ class CheckpointHandler:
         """
         Get the path to the local weights to use or download them and set local_weights_path
         """
+        if not self.azure_config.model_id and not self.container.local_checkpoint_paths and not self.container.checkpoint_urls:
+            raise ValueError("Cannot download weights - none of model_id, local_weights_path or weights_url is set in "
+                             "the model config.")
+
+        if self.container.local_checkpoint_paths:
+            return self.container.local_checkpoint_paths
+
         download_folder = self.output_params.checkpoint_folder / MODEL_WEIGHTS_DIR_NAME
         download_folder.mkdir(exist_ok=True)
 
@@ -218,18 +225,13 @@ class CheckpointHandler:
                 raise ValueError(
                     f"model_id should be in the form 'model_name:version', got {self.azure_config.model_id}")
 
-            checkpoint_paths = self.get_checkpoints_from_model(model_id=self.azure_config.model_id,
-                                                               workspace=self.azure_config.get_workspace(),
-                                                               download_path=download_folder)
-        elif self.container.local_checkpoint_paths:
-            checkpoint_paths = self.container.local_checkpoint_paths
-        elif self.container.checkpoint_urls:
+            return self.get_checkpoints_from_model(model_id=self.azure_config.model_id,
+                                                   workspace=self.azure_config.get_workspace(),
+                                                   download_path=download_folder)
+        if self.container.checkpoint_urls:
             urls = self.container.checkpoint_urls
             checkpoint_paths = self.download_weights(urls=urls,
                                                      download_folder=download_folder)
-        else:
-            raise ValueError("Cannot download weights - neither local_weights_path nor weights_url is set in"
-                             "the model config.")
 
         for checkpoint_path in checkpoint_paths:
             if not checkpoint_path or not checkpoint_path.is_file():
