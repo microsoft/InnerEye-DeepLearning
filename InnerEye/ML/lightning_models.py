@@ -86,6 +86,7 @@ class SegmentationLightning(InnerEyeLightning):
         else:
             with torch.no_grad():
                 logits = self.model(cropped_sample.image)
+        print(f"Logits have size {logits.shape}")
         loss = self.loss_fn(logits, labels)
 
         # apply Softmax on dimension 1 (Class) to map model output into a posterior probability distribution [0,1]

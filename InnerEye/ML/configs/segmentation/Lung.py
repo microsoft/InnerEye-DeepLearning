@@ -44,7 +44,7 @@ class Lung(SegmentationModelBase):
             level=40,
             window=400,
             class_weights=equally_weighted_classes(fg_classes, background_weight=0.02),
-            train_batch_size=8,
+            train_batch_size=5,
             inference_batch_size=1,
             inference_stride_size=(64, 256, 256),
             num_epochs=140,
