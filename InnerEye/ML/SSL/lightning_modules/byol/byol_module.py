@@ -141,11 +141,13 @@ class BYOLInnerEye(pl.LightningModule):
     def exclude_from_wt_decay(self,
                               named_params: Iterator[Tuple[str, T]],
                               weight_decay: float,
-                              skip_list: List[str] = ['bias', 'bn']) -> List[Dict[str, Any]]:
+                              skip_list: List[str] = None) -> List[Dict[str, Any]]:
         """
         Convolution-Linear bias-terms and batch-norm parameters are excluded from l2-norm weight decay regularisation.
         https://arxiv.org/pdf/2006.07733.pdf Section 3.3 Optimisation and Section F.5.
         """
+        if skip_list is None:150            
+           skip_list = ['bias', 'bn']
         params = []
         excluded_params = []
 
