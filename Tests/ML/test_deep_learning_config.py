@@ -66,14 +66,14 @@ def test_validate_dataset_params() -> None:
     assert "Expected the number of azure datasets to equal the number of mountpoints" in ex.value.args[0]
 
 
-def test_validate_deep_learning_config() -> None:
+def test_validate_workflow_params() -> None:
 
     # DeepLearningConfig cannot be initialized with both these parameters set
     with pytest.raises(ValueError) as ex:
         DeepLearningConfig(local_dataset=Path("foo"),
-                           local_weights_path=Path("foo"), weights_url="bar")
+                           local_checkpoint_paths=[Path("foo")], checkpoint_urls=["bar"])
     assert ex.value.args[0] == "Cannot specify both local_weights_path and weights_url."
 
     # The following should be okay
-    DeepLearningConfig(local_dataset=Path("foo"), local_weights_path=Path("foo"))
-    DeepLearningConfig(local_dataset=Path("foo"), weights_url="bar")
+    DeepLearningConfig(local_dataset=Path("foo"), local_checkpoint_paths=[Path("foo")])
+    DeepLearningConfig(local_dataset=Path("foo"), checkpoint_urls=["bar"])

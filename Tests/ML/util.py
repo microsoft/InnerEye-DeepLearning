@@ -254,6 +254,7 @@ def model_train_unittest(config: Optional[DeepLearningConfig],
                                                project_root=dirs.root_dir)
     _, storing_logger = model_train(checkpoint_path=checkpoint_handler.get_recovery_or_checkpoint_path_train(),
                                     container=runner.container)
+    checkpoint_handler.additional_training_done()
     return storing_logger, checkpoint_handler  # type: ignore
 
 
