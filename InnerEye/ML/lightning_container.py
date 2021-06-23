@@ -309,7 +309,10 @@ class LightningContainer(GenericConfig,
         """
         return HyperDriveConfig(
             run_config=run_config,
-            hyperparameter_sampling=self.get_cross_validation_hyperdrive_sampler(),
+            hyperparameter_sampling=GridParameterSampling(
+                parameter_space={
+                    CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY: choice(list(range(self.number_of_cross_validation_splits)))
+                }),
             primary_metric_name=TrackedMetrics.Val_Loss.value,
             primary_metric_goal=PrimaryMetricGoal.MINIMIZE,
             max_total_runs=self.number_of_cross_validation_splits
@@ -326,14 +329,6 @@ class LightningContainer(GenericConfig,
             return self.get_cross_validation_hyperdrive_config(run_config)
         else:
             return self.get_parameter_search_hyperdrive_config(run_config)
-
-    def get_cross_validation_hyperdrive_sampler(self) -> GridParameterSampling:
-        """
-        Returns the cross validation sampler, required to sample the entire parameter space for cross validation.
-        """
-        return GridParameterSampling(parameter_space={
-            CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY: choice(list(range(self.number_of_cross_validation_splits))),
-        })
 
     def __str__(self) -> str:
         """Returns a string describing the present object, as a list of key: value strings."""
