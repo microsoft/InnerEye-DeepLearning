@@ -6,10 +6,12 @@ from __future__ import annotations
 
 import getpass
 import logging
+import os
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
+from mlflow.tracking.client import MlflowClient
 
 import param
 from azureml.core import Dataset, Datastore, Run, ScriptRunConfig, Workspace
@@ -201,7 +203,9 @@ class AzureConfig(GenericConfig):
         """
         if self._workspace:
             return self._workspace
-        run_context = Run.get_context()
+        # run_context = Run.get_context()
+        run_id = os.environ.get("MLFLOW_RUN_ID", None)
+        run_context  = MlflowClient().get_run(run_id) if run_id else None
         if is_offline_run_context(run_context):
             if self.subscription_id and self.resource_group:
                 service_principal_auth = self.get_service_principal_auth()

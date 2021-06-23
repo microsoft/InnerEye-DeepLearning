@@ -74,7 +74,12 @@ class InferenceMetricsForSegmentation(InferenceMetrics):
         """
         run_context = get_run_context_or_default(run_context)
 
-        run_context.log_table(name=self.get_metrics_log_key(), value={
+        # Check how to log it
+        # run_context.log_table(name=self.get_metrics_log_key(), value={
+        #     "Dice": self.metrics
+        # })
+
+        Run.get_context().log_table(name=self.get_metrics_log_key(), value={
             "Dice": self.metrics
         })
 

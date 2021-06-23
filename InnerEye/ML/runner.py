@@ -260,7 +260,7 @@ class Runner:
             # When running in AzureML, the git repo information is not necessarily passed in, but we copy the git
             # information into run tags after submitting the job, and can read it out here.
             # Only print out those tags that were created from git-related information
-            tags_to_print = {key: value for key, value in RUN_CONTEXT.get_tags().items() if key in git_tags}
+            tags_to_print = {key: value for key, value in RUN_CONTEXT.data.tags.items() if key in git_tags}
         logging.info("Git repository information:")
         for key, value in tags_to_print.items():
             logging.info(f"    {key:20}: {value}")

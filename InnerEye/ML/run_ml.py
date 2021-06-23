@@ -7,8 +7,10 @@ import logging
 import os
 import shutil
 import time
+import mlflow
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
+from mlflow.tracking.client import MlflowClient
 
 import pandas as pd
 import stopit
@@ -24,7 +26,7 @@ from InnerEye.Azure.azure_config import AzureConfig, INPUT_DATA_KEY
 from InnerEye.Azure.azure_runner import ENVIRONMENT_VERSION, ENV_OMPI_COMM_WORLD_RANK, get_git_tags
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, \
     EFFECTIVE_RANDOM_SEED_KEY_NAME, IS_ENSEMBLE_KEY_NAME, MODEL_ID_KEY_NAME, PARENT_RUN_CONTEXT, \
-    PARENT_RUN_ID_KEY_NAME, RUN_CONTEXT, RUN_RECOVERY_FROM_ID_KEY_NAME, RUN_RECOVERY_ID_KEY_NAME, \
+    PARENT_RUN_ID_KEY_NAME, RUN_CONTEXT, RUN_ID, RUN_RECOVERY_FROM_ID_KEY_NAME, RUN_RECOVERY_ID_KEY_NAME, \
     create_run_recovery_id, get_all_environment_files, is_offline_run_context, merge_conda_files
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import BASELINE_COMPARISONS_FOLDER, BASELINE_WILCOXON_RESULTS_FILE, \
@@ -67,12 +69,18 @@ def try_to_mount_input_dataset(dataset_index: int = 0) -> Optional[Path]:
 
     :param dataset_index: suffix of AML dataset name, return path to INPUT_DATA_KEY_idx dataset
     """
-    if hasattr(RUN_CONTEXT, "input_datasets"):
-        try:
-            return Path(RUN_CONTEXT.input_datasets[f"{INPUT_DATA_KEY}_{dataset_index}"])
-        except KeyError:
-            logging.warning(f"Run context field input_datasets has no {INPUT_DATA_KEY}_{dataset_index} entry.")
-    return None
+    # if hasattr(Run.get_context(), "input_datasets"):
+    #     try:
+    #         # logging.info("Input dataset path")
+    #         # print("Input dataset path")
+    #         # logging.INFO(Run.get_context().input_datasets[f"{INPUT_DATA_KEY}_{dataset_index}"])
+    #         # print(Run.get_context().input_datasets[f"{INPUT_DATA_KEY}_{dataset_index}"])
+    #         # return Path(RUN_CONTEXT.input_datasets[f"{INPUT_DATA_KEY}_{dataset_index}"])
+    #         # return Path(Run.get_context().input_datasets[f"{INPUT_DATA_KEY}_{dataset_index}"])
+    #         return Path(os.environ.get(f"{INPUT_DATA_KEY}_{dataset_index}"))
+    #     except KeyError:
+    #         logging.warning(f"Run context field input_datasets has no {INPUT_DATA_KEY}_{dataset_index} entry.")
+    return Path(os.environ.get(f"{INPUT_DATA_KEY}_{dataset_index}", None))
 
 
 def download_dataset(azure_dataset_id: str,
@@ -318,7 +326,7 @@ class MLRunner:
         Set metadata for the run
         """
         assert PARENT_RUN_CONTEXT, "This function should only be called in a Hyperdrive run."
-        run_tags_parent = PARENT_RUN_CONTEXT.get_tags()
+        run_tags_parent = PARENT_RUN_CONTEXT.data.tags
         git_tags = get_git_tags(self.azure_config)
         tags_to_copy = [
             "tag",
@@ -367,7 +375,9 @@ class MLRunner:
                                 container=self.container,
                                 num_nodes=self.azure_config.num_nodes)
                 # log the number of epochs used for model training
-                RUN_CONTEXT.log(name="Train epochs", value=self.container.num_epochs)
+                if RUN_CONTEXT:
+                    # RUN_CONTEXT.log(name="Train epochs", value=self.container.num_epochs)
+                    MlflowClient().log_metric(run_id=RUN_CONTEXT.info.run_id, key="Train epochs", value=self.container.num_epochs)
             elif isinstance(self.container, InnerEyeContainer):
                 self.innereye_config.write_dataset_files()
                 self.create_activation_maps()
@@ -554,8 +564,11 @@ class MLRunner:
         # Inside of AzureML, datasets can be either mounted or downloaded.
         if azure_dataset_id:
             mounted = try_to_mount_input_dataset(dataset_index)
+            logging.info("Mount path")
+            logging.info(mounted)
             if not mounted:
-                raise ValueError("Unable to mount or download input dataset.")
+                logging.info("Unable to mount or download input dataset.")
+                # raise ValueError("Unable to mount or download input dataset.")
             return mounted
         return None
 
@@ -600,11 +613,14 @@ class MLRunner:
         if not checkpoint_paths:
             raise ValueError("Model registration failed: No checkpoints found")
 
-        split_index = RUN_CONTEXT.get_tags().get(CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, None)
+        mlflow_client = MlflowClient()
+        split_index = RUN_CONTEXT.data.tags.get(CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, None)
         if split_index == DEFAULT_CROSS_VALIDATION_SPLIT_INDEX:
-            RUN_CONTEXT.tag(IS_ENSEMBLE_KEY_NAME, str(model_proc == ModelProcessing.ENSEMBLE_CREATION))
+            mlflow_client.set_tag(IS_ENSEMBLE_KEY_NAME, str(model_proc == ModelProcessing.ENSEMBLE_CREATION))
+            # RUN_CONTEXT.tag(IS_ENSEMBLE_KEY_NAME, str(model_proc == ModelProcessing.ENSEMBLE_CREATION))
         elif PARENT_RUN_CONTEXT is not None:
-            RUN_CONTEXT.tag(PARENT_RUN_ID_KEY_NAME, str(PARENT_RUN_CONTEXT.id))
+            mlflow_client.set_tag(PARENT_RUN_ID_KEY_NAME, str(PARENT_RUN_CONTEXT.info.run_id))
+            # RUN_CONTEXT.tag(PARENT_RUN_ID_KEY_NAME, str(PARENT_RUN_CONTEXT.id))
 
         with logging_section(f"Registering {model_proc.value} model"):
             # The files for the final model can't live in the outputs folder. If they do: when registering the model,
@@ -624,37 +640,53 @@ class MLRunner:
             # register it the model on the parent run.
             if PARENT_RUN_CONTEXT and model_proc == ModelProcessing.ENSEMBLE_CREATION:
                 run_to_register_on = PARENT_RUN_CONTEXT
-                logging.info(f"Registering the model on the parent run {run_to_register_on.id}")
+                logging.info(f"Registering the model on the parent run {run_to_register_on.info.run_id}")
             else:
                 run_to_register_on = RUN_CONTEXT
-                logging.info(f"Registering the model on the current run {run_to_register_on.id}")
+                logging.info(f"Registering the model on the current run {run_to_register_on.info.run_id}")
             logging.info(f"Uploading files in {final_model_folder} with prefix '{artifacts_path}'")
             final_model_folder_relative = final_model_folder.relative_to(Path.cwd())
-            run_to_register_on.upload_folder(name=artifacts_path, path=str(final_model_folder_relative))
+            mlflow_client.log_artifacts(run_to_register_on.info.run_id, local_dir=str(final_model_folder_relative), artifact_path=artifacts_path)
+            # run_to_register_on.upload_folder(name=artifacts_path, path=str(final_model_folder_relative))
             # When registering the model on the run, we need to provide a relative path inside of the run's output
             # folder in `model_path`
-            model = run_to_register_on.register_model(
-                model_name=self.container.model_name,
-                model_path=artifacts_path,
-                tags=RUN_CONTEXT.get_tags()
+
+            # mlflow_client.create_registered_model(name=self.container.model_name)
+            # model = mlflow_client.create_model_version(
+            #     self.container.model_name,
+            #     "runs:/{}/{}".format(run_to_register_on.info.run_id, artifacts_path),
+            #     tags=RUN_CONTEXT.data.tags
+            # )
+
+            mlflow.register_model(
+                "runs:/{}/{}".format(run_to_register_on.info.run_id, artifacts_path),
+                self.container.model_name
             )
+            # model = run_to_register_on.register_model(
+            #     model_name=self.container.model_name,
+            #     model_path=artifacts_path,
+            #     tags=RUN_CONTEXT.get_tags()
+            # )
+
             # Add the name of the Python environment as a model tag, because we need it when running inference
             # on the model. We could add that as an immutable property, but with tags we have the option to modify
             # to a custom environment later.
-            python_environment = RUN_CONTEXT.get_environment()
-            assert python_environment.version == ENVIRONMENT_VERSION, \
-                f"Expected all Python environments to have version '{ENVIRONMENT_VERSION}', but got: " \
-                f"'{python_environment.version}"
-            model.add_tags({PYTHON_ENVIRONMENT_NAME: python_environment.name})
-            # update the run's tags with the registered model information
-            run_to_register_on.tag(MODEL_ID_KEY_NAME, model.id)
+
+            # Need to revisit on how to do this during training.
+            # python_environment = RUN_CONTEXT.get_environment()
+            # assert python_environment.version == ENVIRONMENT_VERSION, \
+            #     f"Expected all Python environments to have version '{ENVIRONMENT_VERSION}', but got: " \
+            #     f"'{python_environment.version}"
+            # model.add_tags({PYTHON_ENVIRONMENT_NAME: python_environment.name})
+            # # update the run's tags with the registered model information
+            # run_to_register_on.tag(MODEL_ID_KEY_NAME, model.id)
 
             deployment_result = None
-            logging.info(f"Registered {model_proc.value} model: {model.name}, with Id: {model.id}")
-            # create a version of the model for deployment if the hook is provided
-            if self.model_deployment_hook is not None:
-                deployment_result = self.model_deployment_hook(
-                    self.container, self.azure_config, model, model_proc)
+            # logging.info(f"Registered {model_proc.value} model: {model.name}, with Id: {model.id}")
+            # # create a version of the model for deployment if the hook is provided
+            # if self.model_deployment_hook is not None:
+            #     deployment_result = self.model_deployment_hook(
+            #         self.container, self.azure_config, model, model_proc)
             return model, deployment_result
 
     @staticmethod

@@ -15,6 +15,7 @@ from azureml._restclient.constants import RunStatus
 from azureml.core import Experiment, Run, Workspace, get_run
 from azureml.core.conda_dependencies import CondaDependencies
 from azureml.exceptions import UserErrorException
+from mlflow.tracking import MlflowClient
 
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME
@@ -35,11 +36,13 @@ PARENT_RUN_ID_KEY_NAME = "parent_run_id"
 AZUREML_RUN_FOLDER_PREFIX = "dcid."
 AZUREML_RUN_FOLDER = "azureml/ExperimentRun/" + AZUREML_RUN_FOLDER_PREFIX
 
+RUN_ID = os.environ.get("MLFLOW_RUN_ID", None)
 # Global variables for the Run context, to avoid repeated HTTP calls to get it.
-RUN_CONTEXT = Run.get_context()
+# RUN_CONTEXT = Run.get_context()
+RUN_CONTEXT = MlflowClient().get_run(RUN_ID) if RUN_ID else None # Run.get_context()
 # The Run context of the Hyperdrive parent run. This must be cached to avoid issues with the AzureML SDK,
 # which creates worker pools for each call to .parent.
-PARENT_RUN_CONTEXT = getattr(RUN_CONTEXT, "parent", None)
+PARENT_RUN_CONTEXT = None
 
 INNEREYE_SDK_NAME = "innereye"
 INNEREYE_SDK_VERSION = "1.0"
@@ -142,11 +145,11 @@ def fetch_child_runs(run: Run, status: Optional[str] = None,
     retrieved by AML is lower than the expected number of splits, we try to retrieve them manually.
     """
     if is_ensemble_run(run):
-        run_recovery_id = run.get_tags().get(RUN_RECOVERY_FROM_ID_KEY_NAME, None)
+        run_recovery_id = run.data.tags.get(RUN_RECOVERY_FROM_ID_KEY_NAME, None)
         if run_recovery_id:
             run = fetch_run(run.experiment.workspace, run_recovery_id)
-        elif PARENT_RUN_CONTEXT:
-            run = PARENT_RUN_CONTEXT
+        elif get_parent_run_or_default():
+            run = get_parent_run_or_default()
     children_runs = list(run.get_children(tags=RUN_RECOVERY_ID_KEY_NAME))
     if 0 < expected_number_cross_validation_splits != len(children_runs):
         logging.warning(
@@ -162,7 +165,7 @@ def fetch_child_runs(run: Run, status: Optional[str] = None,
 
 def is_ensemble_run(run: Run) -> bool:
     """Checks if the run was an ensemble of multiple models"""
-    return run.get_tags().get(IS_ENSEMBLE_KEY_NAME) == 'True'
+    return run.data.tags.get(IS_ENSEMBLE_KEY_NAME) == 'True'
 
 
 def to_azure_friendly_string(x: Optional[str]) -> Optional[str]:
@@ -191,16 +194,18 @@ def is_offline_run_context(run_context: Run) -> bool:
     :param run_context: Context of the run to check
     :return:
     """
-    return not hasattr(run_context, 'experiment')
+    # return not hasattr(run_context, 'experiment')
+    return run_context is None
 
 
 def get_run_context_or_default(run: Optional[Run] = None) -> Run:
     """
     Returns the context of the run, if run is not None. If run is None, returns the context of the current run.
-    :param run: Run to retrieve context for. If None, retrieve ocntext of current run.
+    :param run: Run to retrieve context for. If None, retrieve context of current run.
     :return: Run context
     """
-    return run if run else Run.get_context()
+    # return run if run else Run.get_context()
+    return run if run else RUN_CONTEXT
 
 
 def get_cross_validation_split_index(run: Run) -> int:
@@ -212,7 +217,7 @@ def get_cross_validation_split_index(run: Run) -> int:
     if is_offline_run_context(run):
         return DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
     else:
-        return int(run.get_tags().get(CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX))
+        return int(run.data.tags.get(CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX))
 
 
 def is_cross_validation_child_run(run: Run) -> bool:
@@ -334,7 +339,7 @@ def tag_values_all_distinct(runs: List[Run], tag: str) -> bool:
 
 
 def is_parent_run(run: Run) -> bool:
-    return PARENT_RUN_CONTEXT and run.id == PARENT_RUN_CONTEXT.id
+    return PARENT_RUN_CONTEXT and run.info.run_id == PARENT_RUN_CONTEXT.info.run_id
 
 
 def download_outputs_from_run(blobs_path: Path,
@@ -436,3 +441,16 @@ def step_up_directories(path: Path) -> Generator[Path, None, None]:
         if parent == path:
             break
         path = parent
+
+
+def get_parent_run_or_default():
+    """
+    Returns parent run of the current run.
+    :return: Parent run
+    """
+    global PARENT_RUN_CONTEXT
+    parent_run_id = RUN_CONTEXT.data.tags.get("mlflow.parentRunId", None)
+    if not PARENT_RUN_CONTEXT and parent_run_id:
+        PARENT_RUN_CONTEXT = MlflowClient().get_run(parent_run_id)
+    
+    return PARENT_RUN_CONTEXT

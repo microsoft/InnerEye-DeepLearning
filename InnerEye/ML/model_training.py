@@ -328,7 +328,9 @@ def model_train(checkpoint_handler: CheckpointHandler,
         if is_azureml_run:
             for gpu_name, metrics_per_gpu in resource_monitor.read_aggregate_metrics().items():
                 # Log as a table, with GPU being the first column
-                RUN_CONTEXT.log_row("GPU utilization", GPU=gpu_name, **metrics_per_gpu)
+                # Lets handle it later
+                # RUN_CONTEXT.log_row("GPU utilization", GPU=gpu_name, **metrics_per_gpu)
+                print("Check how to log table")
         resource_monitor.kill()
 
     return trainer, storing_logger

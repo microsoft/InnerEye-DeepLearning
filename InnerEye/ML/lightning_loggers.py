@@ -2,7 +2,10 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import time
 from typing import Any, Dict, Iterable, List, Optional
+from mlflow.entities.metric import Metric
+from mlflow.tracking.client import MlflowClient
 
 from pytorch_lightning.loggers import LightningLoggerBase
 from pytorch_lightning.utilities import rank_zero_only
@@ -153,8 +156,12 @@ class AzureMLLogger(LightningLoggerBase):
     @rank_zero_only
     def log_metrics(self, metrics: Dict[str, float], step: Optional[int] = None) -> None:
         if self.is_azureml_run:
-            for key, value in metrics.items():
-                RUN_CONTEXT.log(key, value)
+            # for key, value in metrics.items():
+            #     RUN_CONTEXT.log(key, value)
+            MlflowClient().log_batch(
+                run_id=RUN_CONTEXT.info.run_id,
+                metrics=[Metric(key=key, value=value, timestamp=int(time.time() * 1000), step=0) for key, value in metrics.items()]
+            )
 
     @rank_zero_only
     def log_hyperparams(self, params: Any) -> None:
