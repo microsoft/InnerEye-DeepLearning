@@ -219,7 +219,6 @@ class MLRunner:
         else:
             self.container.create_filesystem(self.project_root)
 
-        is_preempted_run = len(self.container.checkpoint_folder) == 0
         # configure recovery container if provided
         self.checkpoint_handler = CheckpointHandler(container=self.container,
                                                     azure_config=self.azure_config,
