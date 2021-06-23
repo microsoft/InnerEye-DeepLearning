@@ -385,7 +385,7 @@ def test_runner_restart(test_output_dirs: OutputFolderForTests) -> None:
     checkpoint_handler = CheckpointHandler(azure_config=azure_config,
                                            container=runner.container,
                                            project_root=test_output_dirs.root_dir)
-    _, storing_logger = model_train(checkpoint_handler=checkpoint_handler.get_recovery_or_checkpoint_path_train(),
+    _, storing_logger = model_train(checkpoint_path=checkpoint_handler.get_recovery_or_checkpoint_path_train(),
                                     container=runner.container)
     # We expect to have 4 checkpoints, FIXED_EPOCH (recovery), FIXED_EPOCH+1, FIXED_EPOCH and best.
     assert len(os.listdir(runner.container.checkpoint_folder)) == 4
