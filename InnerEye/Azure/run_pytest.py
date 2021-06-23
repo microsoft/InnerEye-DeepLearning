@@ -11,7 +11,7 @@ from azureml.core import Run
 
 # Test result file from running pytest inside the AzureML job. This file must have a prefix that
 # matches the string in the build definition build-pr.yml, in the TrainInAzureML job.
-from InnerEye.Azure.azure_util import download_outputs_from_run
+from InnerEye.Azure.azure_util import download_run_output_file
 
 PYTEST_RESULTS_FILE = Path("test-results-on-azure-ml.xml")
 
@@ -49,10 +49,9 @@ def download_pytest_result(run: Run, destination_folder: Path = Path.cwd()) -> P
     """
     logging.info(f"Downloading pytest result file: {PYTEST_RESULTS_FILE}")
     try:
-        return download_outputs_from_run(
+        return download_run_output_file(
             PYTEST_RESULTS_FILE,
             destination=destination_folder,
-            run=run,
-            is_file=True)
+            run=run)
     except:
         raise ValueError(f"No pytest result file {PYTEST_RESULTS_FILE} was found for run {run.id}")

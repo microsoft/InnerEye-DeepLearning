@@ -28,7 +28,7 @@ def find_models() -> List[str]:
     path = namespace_to_path(ModelConfigLoader.get_default_search_module())
     folders = [path / "segmentation", path / "classification", path / "regression"]
     names = [str(f.stem) for folder in folders for f in folder.glob("*.py") if folder.exists()]
-    return [name for name in names if not name.endswith("Base") and not name.startswith("__")]
+    return [name for name in names if not (name.endswith("Base") or name.endswith("Paper")) and not name.startswith("__")]
 
 
 def test_any_models_found() -> None:
