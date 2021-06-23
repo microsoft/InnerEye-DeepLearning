@@ -214,7 +214,7 @@ def start_resource_monitor(config: LightningContainer) -> ResourceMonitor:
     return resource_monitor
 
 
-def model_train(checkpoint_path: Path,
+def model_train(checkpoint_path: Optional[Path],
                 container: LightningContainer,
                 num_nodes: int = 1) -> Tuple[Trainer, Optional[StoringLogger]]:
     """

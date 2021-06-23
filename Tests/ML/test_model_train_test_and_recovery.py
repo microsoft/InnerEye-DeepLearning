@@ -71,7 +71,7 @@ def test_recover_testing_from_run_recovery(mean_teacher_model: bool,
     local_weights_path = test_output_dirs.root_dir / "local_weights_file.pth"
     shutil.copyfile(str(config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX),
                     local_weights_path)
-    config_local_weights.local_checkpoint_paths = local_weights_path
+    config_local_weights.local_checkpoint_paths = [local_weights_path]
 
     checkpoint_handler_local_weights = get_default_checkpoint_handler(model_config=config_local_weights,
                                                                       project_root=test_output_dirs.root_dir)

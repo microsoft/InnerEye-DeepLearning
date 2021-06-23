@@ -73,13 +73,9 @@ class CheckpointHandler:
             run_to_recover = self.azure_config.fetch_run(self.azure_config.run_recovery_id.strip())
             self.run_recovery = RunRecovery.download_all_checkpoints_from_run(self.output_params, run_to_recover,
                                                                               only_return_path=only_return_path)
-        else:
-            self.run_recovery = None
 
         if self.container.checkpoint_urls or self.container.local_checkpoint_paths or self.azure_config.model_id:
             self.trained_weights_paths = self.get_local_checkpoints_path_or_download()
-        else:
-            self.trained_weights_paths = None
 
     def additional_training_done(self) -> None:
         """
@@ -199,8 +195,7 @@ class CheckpointHandler:
     def get_checkpoints_from_model(model_id: str, workspace: Workspace, download_path: Path) -> List[Path]:
 
         model_name, model_version = model_id.split(":")
-        model_version = int(model_version)
-        model = Model(workspace=workspace, name=model_name, version=model_version)
+        model = Model(workspace=workspace, name=model_name, version=int(model_version))
         model_path = Path(model.download(str(download_path), exist_ok=True))
         model_inference_config = read_model_inference_config(model_path / MODEL_INFERENCE_JSON_FILE_NAME)
         checkpoint_paths = [model_path / x for x in model_inference_config.checkpoint_paths]
