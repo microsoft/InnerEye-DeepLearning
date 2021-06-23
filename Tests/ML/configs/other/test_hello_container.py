@@ -5,7 +5,6 @@
 import torch
 import pytest
 from typing import Optional
-from InnerEye.Common import fixed_paths_for_tests
 from InnerEye.ML.configs.other.HelloContainer import HelloContainer, HelloDataModule
 
 
@@ -21,6 +20,7 @@ def test_cross_validation_splits() -> None:
     '''
     # Get full data-set for comparison
     root_folder = HelloContainer().local_dataset
+    assert root_folder is not None
     data_module_no_xval = HelloDataModule(root_folder=root_folder)
 
     for number_of_cross_validation_splits in [0, 1, 5]:

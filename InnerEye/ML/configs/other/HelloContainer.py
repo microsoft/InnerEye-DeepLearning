@@ -12,7 +12,6 @@ from pytorch_lightning.metrics import MeanAbsoluteError
 from torch.optim import Adam, Optimizer
 from torch.optim.lr_scheduler import StepLR, _LRScheduler
 from torch.utils.data import DataLoader, Dataset
-from pytorch_lightning.metrics import MeanAbsoluteError
 from sklearn.model_selection import KFold
 
 from InnerEye.Common import fixed_paths
