@@ -14,7 +14,6 @@ from InnerEye.ML.utils.supervised_criterion import SupervisedLearningCriterion
 def synchronize_across_gpus(tensor: torch.Tensor) -> torch.Tensor:
     if torch.distributed.is_available() and torch.distributed.is_initialized():
         synced = SyncFunction.apply(tensor)
-        print(f"Synchronizing tensor of size {tensor.shape} -> {synced.shape}")
         return synced
     return tensor
 
@@ -27,7 +26,7 @@ class SoftDiceLoss(SupervisedLearningCriterion):
     """
 
     def __init__(self,
-                 eps: float = 1e-10,
+                 eps: float = 1e-5,
                  apply_softmax: bool = True,
                  class_weight_power: Optional[float] = None):
         """
@@ -70,34 +69,29 @@ class SoftDiceLoss(SupervisedLearningCriterion):
 
         if self.apply_softmax:
             output = torch.nn.functional.softmax(output, dim=1)
-        # Get the spatial dimensions; we'll sum numerator and denominator over these for efficiency.
-        axes = list(range(2, len(output.shape)))
+        # All core statistics for the Dice score are summed across the spatial dimensions AND the batch dimension
+        sum_across = [0, *range(2, len(output.shape))]
 
-        # Eps is added to all products, avoiding division errors and problems
-        # when a class does not exist in the current patch
-        eps = torch.tensor([self.eps])
-        if output.is_cuda:
-            eps = eps.cuda(device=output.device)
-        # intersection has size [Batch, classes], all the spatial dimensions are summed across.
-        intersection0 = torch.sum(output * target + eps, axes)
-        intersection = synchronize_across_gpus(intersection0)
+        # intersection has size [1, classes], all the spatial dimensions are summed across.
+        intersection0 = torch.sum(output * target, dim=sum_across).unsqueeze(0)
+        intersection = torch.sum(synchronize_across_gpus(intersection0), dim=0)
 
         if self.class_weight_power is not None and self.class_weight_power != 0.0:
-            # Multiply target by the class weight. Tensor of size [classes]
-            class_weights0 = get_class_weights(target, self.class_weight_power)
+            # Multiply target by the class weight. Tensor of size [1, classes], so that we have a fake
+            # batch dimension across which the synchronization can stack up.
+            class_weights0 = get_class_weights(target, self.class_weight_power).unsqueeze(0)
             class_weights = synchronize_across_gpus(class_weights0)
-            class_weights = torch.sum(class_weights, axes=[0]) / class_weights.shape[0]
+            class_weights = torch.sum(class_weights, dim=[0]) / class_weights.shape[0]
             # noinspection PyTypeChecker
             intersection = torch.einsum("ij,j->ij", intersection, class_weights)
 
-        # All these tensors also have shape [batch, classes]
-        output_sum_square0 = torch.sum(output * output + eps, axes)
-        target_sum_square0 = torch.sum(target * target + eps, axes)
-        output_sum_square = synchronize_across_gpus(output_sum_square0)
-        target_sum_square = synchronize_across_gpus(target_sum_square0)
+        # All these tensors also have shape [1, classes]
+        output_sum_square0 = torch.sum(output * output, dim=sum_across).unsqueeze(0)
+        output_sum_square = torch.sum(synchronize_across_gpus(output_sum_square0), dim=0)
+        target_sum_square0 = torch.sum(target * target, dim=sum_across).unsqueeze(0)
+        target_sum_square = torch.sum(synchronize_across_gpus(target_sum_square0), dim=0)
 
-        sum_squares = output_sum_square + target_sum_square
-
-        # Average per Batch and Class
-        # noinspection PyTypeChecker
-        return 1.0 - 2.0 * torch.mean(intersection / sum_squares)  # type: ignore
+        # Average per Class
+        unsynced = 1.0 - 2.0 * torch.mean((intersection0 + self.eps) / (output_sum_square0 + target_sum_square0 + self.eps))
+        synced = 1.0 - 2.0 * torch.mean((intersection + self.eps) / (output_sum_square + target_sum_square + self.eps))
+        return synced  # type: ignore
