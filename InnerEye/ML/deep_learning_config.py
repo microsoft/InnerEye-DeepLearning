@@ -318,19 +318,34 @@ class DatasetParams(param.Parameterized):
                        "AzureML. Use an empty string for all datasets where a randomly chosen mount/download point "
                        "should be used.")
 
+    def validate(self) -> None:
+        if not self.azure_dataset_id and self.local_dataset is None:
+            raise ValueError("Either of local_dataset or azure_dataset_id must be set.")
+
+        if self.all_dataset_mountpoints() and len(self.all_azure_dataset_ids()) != len(self.all_dataset_mountpoints()):
+            raise ValueError(f"Expected the number of azure datasets to equal the number of mountpoints, "
+                             f"got datasets [{','.join(self.all_azure_dataset_ids())}] "
+                             f"and mountpoints [{','.join(self.all_dataset_mountpoints())}]")
+
     def all_azure_dataset_ids(self) -> List[str]:
         """
         Returns a list with all azure dataset IDs that are specified in self.azure_dataset_id and
         self.extra_azure_dataset_ids
         """
-        return [self.azure_dataset_id] + self.extra_azure_dataset_ids
+        if not self.azure_dataset_id:
+            return self.extra_azure_dataset_ids
+        else:
+            return [self.azure_dataset_id] + self.extra_azure_dataset_ids
 
     def all_dataset_mountpoints(self) -> List[str]:
         """
         Returns a list with all dataset mount points that are specified in self.dataset_mountpoint and
         self.extra_dataset_mountpoints
         """
-        return [self.dataset_mountpoint] + self.extra_dataset_mountpoints
+        if not self.dataset_mountpoint:
+            return self.extra_dataset_mountpoints
+        else:
+            return [self.dataset_mountpoint] + self.extra_dataset_mountpoints
 
 
 class OutputParams(param.Parameterized):
@@ -637,9 +652,7 @@ class DeepLearningConfig(WorkflowParams,
         """
         WorkflowParams.validate(self)
         OptimizerParams.validate(self)
-
-        if self.azure_dataset_id is None and self.local_dataset is None:
-            raise ValueError("Either of local_dataset or azure_dataset_id must be set.")
+        DatasetParams.validate(self)
 
     @property
     def model_category(self) -> ModelCategory:
