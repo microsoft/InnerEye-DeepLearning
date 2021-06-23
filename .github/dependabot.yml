@@ -10,4 +10,4 @@ updates:
     allow:
       - dependency-type: "production"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
