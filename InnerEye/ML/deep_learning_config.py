@@ -36,25 +36,6 @@ EXTRA_RUN_SUBFOLDER = "extra_run_id"
 ARGS_TXT = "args.txt"
 WEIGHTS_FILE = "weights.pth"
 
-WORKFLOW_CONFIG_PERFORM_TRAINING_SET_INFERENCE = "perform_training_set_inference"
-WORKFLOW_CONFIG_PERFORM_VALIDATION_AND_TEST_SET_INFERENCE = "perform_validation_and_test_set_inference"
-WORKFLOW_CONFIG_PERFORM_VALIDATION_SET_INFERENCE = "perform_validation_set_inference"
-WORKFLOW_CONFIG_PERFORM_TEST_SET_INFERENCE = "perform_test_set_inference"
-WORKFLOW_CONFIG_PERFORM_ENSEMBLE_CHILD_TRAINING_SET_INFERENCE = "perform_ensemble_child_training_set_inference"
-WORKFLOW_CONFIG_PERFORM_ENSEMBLE_CHILD_VALIDATION_SET_INFERENCE = "perform_ensemble_child_validation_set_inference"
-WORKFLOW_CONFIG_PERFORM_ENSEMBLE_CHILD_TEST_SET_INFERENCE = "perform_ensemble_child_test_set_inference"
-
-WORKFLOW_CONFIG_PERFORM_INFERENCE_ARGS = \
-    [
-        WORKFLOW_CONFIG_PERFORM_TRAINING_SET_INFERENCE,
-        WORKFLOW_CONFIG_PERFORM_VALIDATION_AND_TEST_SET_INFERENCE,
-        WORKFLOW_CONFIG_PERFORM_VALIDATION_SET_INFERENCE,
-        WORKFLOW_CONFIG_PERFORM_TEST_SET_INFERENCE,
-        WORKFLOW_CONFIG_PERFORM_ENSEMBLE_CHILD_TRAINING_SET_INFERENCE,
-        WORKFLOW_CONFIG_PERFORM_ENSEMBLE_CHILD_VALIDATION_SET_INFERENCE,
-        WORKFLOW_CONFIG_PERFORM_ENSEMBLE_CHILD_TEST_SET_INFERENCE
-    ]
-
 
 @unique
 class LRWarmUpType(Enum):
@@ -222,7 +203,7 @@ class WorkflowParams(param.Parameterized):
         param.Boolean(False,
                       doc="If True, run full image inference on the training set at the end of training.")
     perform_validation_and_test_set_inference: bool = \
-        param.Boolean(False,
+        param.Boolean(None,
                       doc="If True, set perform_validation_set_inference and perform_test_set_inference.")
     perform_validation_set_inference: bool = \
         param.Boolean(True,
@@ -271,10 +252,11 @@ class WorkflowParams(param.Parameterized):
                                 "be relative to the repository root directory.")
 
     def validate(self) -> None:
-        self.perform_validation_set_inference = self.perform_validation_set_inference or \
-                                                self.perform_validation_and_test_set_inference
-        self.perform_test_set_inference = self.perform_test_set_inference or \
-                                          self.perform_validation_and_test_set_inference
+        if self.perform_validation_and_test_set_inference is not None:
+            self.perform_validation_set_inference = self.perform_validation_set_inference or \
+                                                    self.perform_validation_and_test_set_inference
+            self.perform_test_set_inference = self.perform_test_set_inference or \
+                                              self.perform_validation_and_test_set_inference
 
         if self.weights_url and self.local_weights_path:
             raise ValueError("Cannot specify both local_weights_path and weights_url.")

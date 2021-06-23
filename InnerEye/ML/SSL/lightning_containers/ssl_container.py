@@ -121,7 +121,6 @@ class SSLContainer(LightningContainer):
                                                            dataset_path=self.local_dataset,
                                                            batch_size=self.ssl_training_batch_size)})
         self.data_module: InnerEyeDataModuleTypes = self.get_data_module()
-        self.perform_validation_and_test_set_inference = False
         self.perform_validation_set_inference = False
         self.perform_test_set_inference = False
         if self.number_of_cross_validation_splits > 1:

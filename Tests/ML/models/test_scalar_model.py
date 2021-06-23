@@ -314,7 +314,6 @@ def test_run_ml_with_segmentation_model(test_output_dirs: OutputFolderForTests) 
     # compute the expected mask size at training time.
     config.test_crop_size = (75, 75, 75)
     config.perform_training_set_inference = False
-    config.perform_validation_and_test_set_inference = True
     config.perform_validation_set_inference = True
     config.perform_test_set_inference = True
     config.set_output_to(test_output_dirs.root_dir)

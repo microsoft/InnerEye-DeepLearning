@@ -764,19 +764,35 @@ class MLRunner:
             return model_test(config, data_split=data_split, checkpoint_handler=checkpoint_handler,  # type: ignore
                               model_proc=model_proc)
 
-        if config.perform_test_set_inference:
-            # perform inference on test set
-            test_metrics = run_model_test(ModelExecutionMode.TEST)
+        if model_proc == ModelProcessing.DEFAULT and \
+                self.container.number_of_cross_validation_splits > 0:
+            # This is an ensemble child run and not the final consolidation
 
-        if config.perform_validation_set_inference:
-            # perform inference on validation set (not for ensemble as current val is in the training fold
-            # for at least one of the models).
-            if model_proc != ModelProcessing.ENSEMBLE_CREATION:
+            if config.perform_ensemble_child_test_set_inference:
+                # perform inference on test set
+                test_metrics = run_model_test(ModelExecutionMode.TEST)
+
+            if config.perform_ensemble_child_validation_set_inference:
+                # perform inference on validation set
                 val_metrics = run_model_test(ModelExecutionMode.VAL)
 
-        if config.perform_training_set_inference:
-            # perform inference on training set if required
-            train_metrics = run_model_test(ModelExecutionMode.TRAIN)
+            if config.perform_ensemble_child_training_set_inference:
+                # perform inference on training set if required
+                train_metrics = run_model_test(ModelExecutionMode.TRAIN)
+        else:
+            if config.perform_test_set_inference:
+                # perform inference on test set
+                test_metrics = run_model_test(ModelExecutionMode.TEST)
+
+            if config.perform_validation_set_inference:
+                # perform inference on validation set (not for ensemble as current val is in the training fold
+                # for at least one of the models).
+                if model_proc != ModelProcessing.ENSEMBLE_CREATION:
+                    val_metrics = run_model_test(ModelExecutionMode.VAL)
+
+            if config.perform_training_set_inference:
+                # perform inference on training set if required
+                train_metrics = run_model_test(ModelExecutionMode.TRAIN)
 
         # log the metrics to AzureML experiment if possible. When doing ensemble runs, log to the Hyperdrive parent run,
         # so that we get the metrics of child run 0 and the ensemble separated.
