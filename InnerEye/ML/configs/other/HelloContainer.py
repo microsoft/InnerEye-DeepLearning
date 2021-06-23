@@ -32,10 +32,12 @@ class HelloDataset(Dataset):
     # y = 0.2 * x + 0.1 * torch.randn(x.size())
     # xy = torch.cat((x, y), dim=1)
     # np.savetxt("Tests/ML/test_data/hellocontainer.csv", xy.numpy(), delimiter=",")
-    def __init__(self, raw_data: List) -> None:
+    def __init__(self, raw_data: List[List[float]]) -> None:
         """
         Creates the 1-dim regression dataset.
-        :param raw_data: The raw data, e.g. from a cross validation split or loaded from file
+        :param raw_data: The raw data, e.g. from a cross validation split or loaded from file. This
+        must be numeric data which can be converted into a tensor. See the static method
+        from_path_and_indexes for an example call.
         """
         super().__init__()      
         self.data = torch.tensor(raw_data, dtype=torch.float)
