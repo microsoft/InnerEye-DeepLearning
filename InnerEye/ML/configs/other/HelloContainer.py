@@ -31,7 +31,7 @@ class HelloDataset(Dataset):
     # x = torch.rand((N, 1)) * 10
     # y = 0.2 * x + 0.1 * torch.randn(x.size())
     # xy = torch.cat((x, y), dim=1)
-    # np.savetxt("Tests/ML/test_data/hellocontainer.csv", xy.numpy(), delimiter=",")
+    # np.savetxt("InnerEye/ML/configs/other/hellocontainer.csv", xy.numpy(), delimiter=",")
     def __init__(self, raw_data: List[List[float]]) -> None:
         """
         Creates the 1-dim regression dataset.
