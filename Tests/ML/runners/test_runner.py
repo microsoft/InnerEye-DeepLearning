@@ -18,15 +18,20 @@ from Tests.ML.util import get_default_checkpoint_handler
 from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("perform_cross_validation", [True, False])
 @pytest.mark.parametrize("perform_training_set_inference", [True, False])
+@pytest.mark.parametrize("perform_validation_set_inference", [True, False])
+@pytest.mark.parametrize("perform_test_set_inference", [True, False])
 def test_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
                                         perform_cross_validation: bool,
-                                        perform_training_set_inference: bool) -> None:
+                                        perform_training_set_inference: bool,
+                                        perform_validation_set_inference: bool,
+                                        perform_test_set_inference: bool) -> None:
     config = DummyModel()
     config.number_of_cross_validation_splits = 2 if perform_cross_validation else 0
     config.perform_training_set_inference = perform_training_set_inference
+    config.perform_validation_set_inference = perform_validation_set_inference
+    config.perform_test_set_inference = perform_test_set_inference
     # Plotting crashes with random TCL errors on Windows, disable that for Windows PR builds.
     config.is_plotting_enabled = common_util.is_linux()
 
@@ -38,19 +43,39 @@ def test_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
                                                         project_root=test_output_dirs.root_dir)
     checkpoint_handler.additional_training_done()
-    result, _, _ = MLRunner(config).model_inference_train_and_test(checkpoint_handler=checkpoint_handler)
-    if result is None:
-        raise ValueError("Error result cannot be None")
-    assert isinstance(result, InferenceMetricsForSegmentation)
+    test_metrics, val_metrics, train_metrics = MLRunner(config).model_inference_train_and_test(
+        checkpoint_handler=checkpoint_handler)
+    named_metrics = [(ModelExecutionMode.TEST.value, test_metrics, perform_test_set_inference),
+                     (ModelExecutionMode.VAL.value, val_metrics, perform_validation_set_inference),
+                     (ModelExecutionMode.TRAIN.value, train_metrics, perform_training_set_inference)]
+    error = ''
+    for name, metric, flag in named_metrics:
+        if perform_cross_validation:
+            if metric is not None:
+                error = error + f"Error: {name} cannot be not None."
+        else:
+            if metric is not None and not flag:
+                error = error + f"Error: {name} cannot be not None."
+            elif metric is None and flag:
+                error = error + f"Error: {name} cannot be None."
+    if len(error):
+        raise ValueError(error)
+
+    if test_metrics is not None:
+        assert isinstance(test_metrics, InferenceMetricsForSegmentation)
+    if val_metrics is not None:
+        assert isinstance(val_metrics, InferenceMetricsForSegmentation)
+    if train_metrics is not None:
+        assert isinstance(train_metrics, InferenceMetricsForSegmentation)
+
     epoch_folder_name = common_util.BEST_EPOCH_FOLDER_NAME
-    for folder in [ModelExecutionMode.TRAIN.value, ModelExecutionMode.VAL.value, ModelExecutionMode.TEST.value]:
+    for folder, _, flag in named_metrics:
         results_folder = config.outputs_folder / epoch_folder_name / folder
         folder_exists = results_folder.is_dir()
-        if folder in [ModelExecutionMode.TRAIN.value, ModelExecutionMode.VAL.value]:
-            if perform_training_set_inference:
-                assert folder_exists
+        if perform_cross_validation:
+            assert not folder_exists
         else:
-            assert folder_exists
+            assert folder_exists == flag
 
 
 def test_logging_to_file(test_output_dirs: OutputFolderForTests) -> None:
