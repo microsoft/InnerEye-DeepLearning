@@ -12,6 +12,7 @@ from typing import List, Optional, Sequence, Set
 
 import SimpleITK as sitk
 import numpy as np
+from numpy.core.numeric import NaN
 import torch
 import torch.nn.functional as F
 from azureml.core import Run
@@ -257,9 +258,19 @@ def calculate_metrics_per_class(segmentation: np.ndarray,
     overlap_measures_filter = sitk.LabelOverlapMeasuresImageFilter()
     hausdorff_distance_filter = sitk.HausdorffDistanceImageFilter()
     metrics = MetricsDict(hues=ground_truth_ids)
+
+    def add_metric(metric_type: MetricType, value: float) -> None:
+        metrics.add_metric(metric_type, value, skip_nan_when_averaging=True, hue=ground_truth_ids[i - 1])
+
     for i, prediction in enumerate(binaries):
-        # Skips if background image or nan_image
-        if i == 0 or nan_images[i]:
+        # Skip if background image
+        if i == 0:
+            continue
+        # Skip but record if nan_image
+        elif nan_images[i]:
+            add_metric(MetricType.DICE, NaN)
+            add_metric(MetricType.HAUSDORFF_mm, NaN)
+            add_metric(MetricType.MEAN_SURFACE_DIST_mm, NaN)
             continue
         check_size_matches(prediction, ground_truth[i], arg1_name="prediction", arg2_name="ground_truth")
         if not is_binary_array(prediction):
@@ -290,10 +301,6 @@ def calculate_metrics_per_class(segmentation: np.ndarray,
                 except Exception as e:
                     logging.warning(f"Cannot calculate mean distance for structure {i} of patient {patient_id}: {e}")
             logging.debug(f"Patient {patient_id}, class {i} has Dice score {dice}")
-
-        def add_metric(metric_type: MetricType, value: float) -> None:
-            metrics.add_metric(metric_type, value, skip_nan_when_averaging=True, hue=ground_truth_ids[i - 1])
-
         add_metric(MetricType.DICE, dice)
         add_metric(MetricType.HAUSDORFF_mm, hausdorff_distance)
         add_metric(MetricType.MEAN_SURFACE_DIST_mm, mean_surface_distance)

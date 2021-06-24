@@ -2,7 +2,8 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from typing import Any, List
+from InnerEye.ML.metrics_dict import MetricsDict
+from typing import Any, List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -21,9 +22,9 @@ from InnerEye.ML.utils import image_util
 from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
 from Tests.ML.configs.DummyModel import DummyModel
 from InnerEye.ML.utils.split_dataset import DatasetSplits
-from InnerEye.ML.dataset.sample import Sample
+from InnerEye.ML.dataset.sample import PatientMetadata, Sample
 from InnerEye.ML.common import ModelExecutionMode
-from InnerEye.ML.model_testing import store_inference_results, evaluate_model_predictions
+from InnerEye.ML.model_testing import store_inference_results, evaluate_model_predictions, populate_metrics_writer
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
@@ -274,6 +275,8 @@ def test_evaluate_model_predictions() -> None:
     if not results_folder.is_dir():
         results_folder.mkdir()
 
+    model_prediction_evaluations: List[Tuple[PatientMetadata, MetricsDict]] = []
+
     for sample_index, sample in enumerate(ds, 1):
         sample = Sample.from_dict(sample=sample)
         posteriors = np.zeros((3,) + sample.mask.shape, 'float32')
@@ -300,24 +303,31 @@ def test_evaluate_model_predictions() -> None:
             dataset=ds,
             results_folder=results_folder)
 
+        model_prediction_evaluations.append((metadata, metrics_per_class))
+
         # Patient 3 has one missing ground truth channel: "region"
         if sample.metadata.patient_id == '3':
             assert 'Dice' in metrics_per_class.values('region_1').keys()
             assert 'HausdorffDistance_millimeters' in metrics_per_class.values('region_1').keys()
             assert 'MeanSurfaceDistance_millimeters' in metrics_per_class.values('region_1').keys()
             for hue_name in ['region', 'Default']:
-                assert len(metrics_per_class.values(hue_name).keys()) == 0
+                for metric_type in metrics_per_class.values(hue_name).keys():
+                    assert np.isnan(metrics_per_class.values(hue_name)[metric_type]).all()
 
         # Patient 4 has all missing ground truth channels: "region", "region_1"
         if sample.metadata.patient_id == '4':
             for hue_name in ['region_1', 'region', 'Default']:
-                assert len(metrics_per_class.values(hue_name).keys()) == 0
+                for metric_type in metrics_per_class.values(hue_name).keys():
+                    assert np.isnan(metrics_per_class.values(hue_name)[metric_type]).all()
 
         # Patient 5 has no missing ground truth channels
         if sample.metadata.patient_id == '5':
-            assert len(metrics_per_class.values('Default').keys()) == 0
+            for metric_type in metrics_per_class.values('Default').keys():
+                assert np.isnan(metrics_per_class.values('Default')[metric_type]).all()
             for hue_name in ['region_1', 'region']:
                 assert 'Dice' in metrics_per_class.values(hue_name).keys()
                 assert 'HausdorffDistance_millimeters' in metrics_per_class.values(hue_name).keys()
                 assert 'MeanSurfaceDistance_millimeters' in metrics_per_class.values(hue_name).keys()
 
+    metrics_writer, average_dice = populate_metrics_writer(model_prediction_evaluations, config)
+    

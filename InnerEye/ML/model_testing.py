@@ -25,7 +25,7 @@ from InnerEye.ML.dataset.full_image_dataset import FullImageDataset
 from InnerEye.ML.dataset.sample import PatientMetadata, Sample
 from InnerEye.ML.metrics import InferenceMetrics, InferenceMetricsForClassification, InferenceMetricsForSegmentation, \
     compute_scalar_metrics
-from InnerEye.ML.metrics_dict import DataframeLogger, MetricsDict, ScalarMetricsDict, SequenceMetricsDict
+from InnerEye.ML.metrics_dict import DataframeLogger, FloatOrInt, MetricsDict, ScalarMetricsDict, SequenceMetricsDict
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.pipelines.ensemble import EnsemblePipeline
 from InnerEye.ML.pipelines.inference import FullImageInferencePipelineBase, InferencePipeline, InferencePipelineBase
@@ -182,23 +182,7 @@ def segmentation_model_test_epoch(config: SegmentationModelBase,
                     results_folder=results_folder),
             range(len(ds)))
 
-    average_dice = list()
-    metrics_writer = MetricsPerPatientWriter()
-    for (patient_metadata, metrics_for_patient) in pool_outputs:
-        # Add the Dice score for the foreground classes, stored in the default hue
-        metrics.add_average_foreground_dice(metrics_for_patient)
-        average_dice.append(metrics_for_patient.get_single_metric(MetricType.DICE))
-        # Structure names does not include the background class (index 0)
-        for structure_name in config.ground_truth_ids:
-            dice_for_struct = metrics_for_patient.get_single_metric(MetricType.DICE, hue=structure_name)
-            hd_for_struct = metrics_for_patient.get_single_metric(MetricType.HAUSDORFF_mm, hue=structure_name)
-            md_for_struct = metrics_for_patient.get_single_metric(MetricType.MEAN_SURFACE_DIST_mm, hue=structure_name)
-            metrics_writer.add(patient=str(patient_metadata.patient_id),
-                               structure=structure_name,
-                               dice=dice_for_struct,
-                               hausdorff_distance_mm=hd_for_struct,
-                               mean_distance_mm=md_for_struct)
-
+    metrics_writer, average_dice = populate_metrics_writer(pool_outputs, config)
     metrics_writer.to_csv(results_folder / SUBJECT_METRICS_FILE_NAME)
     metrics_writer.save_aggregates_to_csv(results_folder / METRICS_AGGREGATES_FILE)
     if config.is_plotting_enabled:
@@ -247,6 +231,35 @@ def evaluate_model_predictions(process_id: int,
                                            result_folder=thumbnails_folder,
                                            image_range=config.output_range)
     return sample.metadata, metrics_per_class
+
+
+def populate_metrics_writer(
+        model_prediction_evaluations: List[Tuple[PatientMetadata, MetricsDict]],
+        config: SegmentationModelBase) -> Tuple[MetricsPerPatientWriter, List[FloatOrInt]]:
+    """
+    Populate a MetricsPerPatientWriter with the metrics for each patient
+    :param model_prediction_evaluations: The list of PatientMetadata/MetricsDict tuples obtained
+    from evaluate_model_predictions
+    :param config: The SegmentationModelBase config from which we read the ground_truth_ids
+    :returns: A new MetricsPerPatientWriter and a list of foreground DICE score averages
+    """
+    average_dice: List[FloatOrInt] = []
+    metrics_writer = MetricsPerPatientWriter()
+    for (patient_metadata, metrics_for_patient) in model_prediction_evaluations:
+        # Add the Dice score for the foreground classes, stored in the default hue
+        metrics.add_average_foreground_dice(metrics_for_patient)
+        average_dice.append(metrics_for_patient.get_single_metric(MetricType.DICE))
+        # Structure names does not include the background class (index 0)
+        for structure_name in config.ground_truth_ids:
+            dice_for_struct = metrics_for_patient.get_single_metric(MetricType.DICE, hue=structure_name)
+            hd_for_struct = metrics_for_patient.get_single_metric(MetricType.HAUSDORFF_mm, hue=structure_name)
+            md_for_struct = metrics_for_patient.get_single_metric(MetricType.MEAN_SURFACE_DIST_mm, hue=structure_name)
+            metrics_writer.add(patient=str(patient_metadata.patient_id),
+                               structure=structure_name,
+                               dice=dice_for_struct,
+                               hausdorff_distance_mm=hd_for_struct,
+                               mean_distance_mm=md_for_struct)
+    return metrics_writer, average_dice
 
 
 def get_patient_results_folder(results_folder: Path, patient_id: int) -> Path:
