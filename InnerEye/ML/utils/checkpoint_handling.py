@@ -108,7 +108,7 @@ class CheckpointHandler:
         This function also checks that the checkpoint at the returned checkpoint path exists.
         """
         if not self.run_recovery and not self.has_continued_training:
-            raise ValueError("Cannot recover checkpoint, no run recovery object provided and"
+            raise ValueError("Cannot recover checkpoint, no run recovery object provided and "
                              "no training has been done in this run.")
 
         checkpoint_paths = []
