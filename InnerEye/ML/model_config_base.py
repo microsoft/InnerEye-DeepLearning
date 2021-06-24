@@ -3,7 +3,6 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import abc
-import copy
 import logging
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional

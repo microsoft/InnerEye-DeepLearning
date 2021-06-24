@@ -280,6 +280,7 @@ def test_run_ml_with_classification_model(test_output_dirs: OutputFolderForTests
     azure_config.train = True
     config: ScalarModelBase = ModelConfigLoader().create_model_config_from_name(model_name)
     config.number_of_cross_validation_splits = number_of_offline_cross_validation_splits
+    config.perform_ensemble_child_test_set_inference = True
     config.set_output_to(test_output_dirs.root_dir)
     # Trying to run DDP from the test suite hangs, hence restrict to single GPU.
     config.max_num_gpus = 1

@@ -18,6 +18,7 @@ from Tests.ML.util import get_default_checkpoint_handler
 from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
 
 
+@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("perform_cross_validation", [True, False])
 @pytest.mark.parametrize("perform_training_set_inference", [True, False])
 @pytest.mark.parametrize("perform_validation_set_inference", [True, False])
