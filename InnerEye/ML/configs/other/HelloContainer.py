@@ -114,6 +114,8 @@ class HelloRegression(LightningModule):
         :param batch: The batch of validation data
         :return: The loss value on the validation data.
         """
+        if self.local_rank == 1:
+            raise ValueError
         loss = self.shared_step(batch)
         self.log("val_loss", loss, on_epoch=True, on_step=False)
         return loss
