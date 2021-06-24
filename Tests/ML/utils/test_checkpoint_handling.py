@@ -326,12 +326,17 @@ def test_download_model_weights(test_output_dirs: OutputFolderForTests) -> None:
     assert result_path[0] == test_output_dirs.root_dir / os.path.basename(urlparse(EXTERNAL_WEIGHTS_URL_EXAMPLE).path)
     assert result_path[0].is_file()
 
+    modified_time = result_path[0].stat().st_mtime
+
     result_path = CheckpointHandler.download_weights(urls=[EXTERNAL_WEIGHTS_URL_EXAMPLE, EXTERNAL_WEIGHTS_URL_EXAMPLE],
                                                      download_folder=test_output_dirs.root_dir)
     assert len(result_path) == 2
     assert len(list(test_output_dirs.root_dir.glob("*"))) == 1
+    assert result_path[0].samefile(result_path[1])
     assert result_path[0] == test_output_dirs.root_dir / os.path.basename(urlparse(EXTERNAL_WEIGHTS_URL_EXAMPLE).path)
     assert result_path[0].is_file()
+    # This call should not re-download the files, just return the existing ones
+    assert result_path[0].stat().st_mtime == modified_time
 
 
 @pytest.mark.after_training_single_run

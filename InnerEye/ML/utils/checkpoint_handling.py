@@ -176,14 +176,14 @@ class CheckpointHandler:
             # only download if hasn't already been downloaded
             if result_file.exists():
                 logging.info(f"File already exists, skipping download: {result_file}")
+            else:
+                logging.info(f"Downloading weights from URL {url}")
 
-            logging.info(f"Downloading weights from URL {url}")
-
-            response = requests.get(url, stream=True)
-            response.raise_for_status()
-            with open(result_file, "wb") as file:
-                for chunk in response.iter_content(chunk_size=1024):
-                    file.write(chunk)
+                response = requests.get(url, stream=True)
+                response.raise_for_status()
+                with open(result_file, "wb") as file:
+                    for chunk in response.iter_content(chunk_size=1024):
+                        file.write(chunk)
 
         return checkpoint_paths
 
@@ -221,8 +221,8 @@ class CheckpointHandler:
                                                                                 download_path=download_folder)
             elif self.container.checkpoint_urls:
                 urls = self.container.checkpoint_urls
-                checkpoint_paths = self.download_weights(urls=urls,
-                                                         download_folder=download_folder)
+                checkpoint_paths = CheckpointHandler.download_weights(urls=urls,
+                                                                      download_folder=download_folder)
 
         for checkpoint_path in checkpoint_paths:
             if not checkpoint_path or not checkpoint_path.is_file():
