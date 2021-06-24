@@ -10,7 +10,6 @@ from urllib.parse import urlparse
 import pytest
 import torch
 
-from InnerEye.Azure.azure_util import MODEL_ID_KEY_NAME
 from InnerEye.Common.common_util import OTHER_RUNS_SUBDIR_NAME
 from InnerEye.Common.fixed_paths import MODEL_INFERENCE_JSON_FILE_NAME
 from InnerEye.ML.utils.checkpoint_handling import MODEL_WEIGHTS_DIR_NAME
@@ -21,8 +20,8 @@ from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import read_model_inference_config
 from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
 from Tests.AfterTraining.test_after_training import FALLBACK_ENSEMBLE_RUN, FALLBACK_SINGLE_RUN, get_most_recent_run, \
-    get_most_recent_run_id
-from Tests.ML.util import get_default_checkpoint_handler
+    get_most_recent_run_id, get_most_recent_model_id
+from Tests.ML.util import get_default_checkpoint_handler, get_default_workspace
 
 EXTERNAL_WEIGHTS_URL_EXAMPLE = "https://download.pytorch.org/models/resnet18-5c106cde.pth"
 
@@ -119,9 +118,7 @@ def test_download_model_from_single_run(test_output_dirs: OutputFolderForTests) 
     # No checkpoint handling options set.
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
                                                         project_root=test_output_dirs.root_dir)
-    run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_SINGLE_RUN)
-    model_id = run.get_tags().get(MODEL_ID_KEY_NAME, None)
-    assert model_id is not None
+    model_id = get_most_recent_model_id(fallback_run_id_for_local_execution=FALLBACK_SINGLE_RUN)
 
     # Set a run recovery object - non ensemble
     checkpoint_handler.azure_config.model_id = model_id
@@ -148,9 +145,7 @@ def test_download_model_from_ensemble_run(test_output_dirs: OutputFolderForTests
     # No checkpoint handling options set.
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
                                                         project_root=test_output_dirs.root_dir)
-    run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_ENSEMBLE_RUN)
-    model_id = run.get_tags().get(MODEL_ID_KEY_NAME, None)
-    assert model_id is not None
+    model_id = get_most_recent_model_id(fallback_run_id_for_local_execution=FALLBACK_ENSEMBLE_RUN)
 
     # Set a run recovery object - non ensemble
     checkpoint_handler.azure_config.model_id = model_id
@@ -337,6 +332,44 @@ def test_download_model_weights(test_output_dirs: OutputFolderForTests) -> None:
     assert len(list(test_output_dirs.root_dir.glob("*"))) == 1
     assert result_path[0] == test_output_dirs.root_dir / os.path.basename(urlparse(EXTERNAL_WEIGHTS_URL_EXAMPLE).path)
     assert result_path[0].is_file()
+
+
+@pytest.mark.after_training_single_run
+def test_get_checkpoints_from_model_single_run(test_output_dirs: OutputFolderForTests) -> None:
+    model_id = get_most_recent_model_id(fallback_run_id_for_local_execution=FALLBACK_SINGLE_RUN)
+
+    downloaded_checkpoints = CheckpointHandler.get_checkpoints_from_model(model_id=model_id,
+                                                                          workspace=get_default_workspace(),
+                                                                          download_path=test_output_dirs.root_dir)
+    # Check a single checkpoint has been downloaded
+    expected_model_root = test_output_dirs.root_dir / FINAL_MODEL_FOLDER
+    assert expected_model_root.is_dir()
+    model_inference_config = read_model_inference_config(expected_model_root / MODEL_INFERENCE_JSON_FILE_NAME)
+    expected_paths = [expected_model_root / x for x in model_inference_config.checkpoint_paths]
+
+    assert len(expected_paths) == 1  # A registered model for a non-ensemble run should contain only one checkpoint
+    assert len(downloaded_checkpoints) == 1
+    assert expected_paths[0] == downloaded_checkpoints[0]
+    assert expected_paths[0].is_file()
+
+
+@pytest.mark.after_training_ensemble_run
+def test_get_checkpoints_from_model_ensemble_run(test_output_dirs: OutputFolderForTests) -> None:
+    model_id = get_most_recent_model_id(fallback_run_id_for_local_execution=FALLBACK_ENSEMBLE_RUN)
+
+    downloaded_checkpoints = CheckpointHandler.get_checkpoints_from_model(model_id=model_id,
+                                                                          workspace=get_default_workspace(),
+                                                                          download_path=test_output_dirs.root_dir)
+    # Check a single checkpoint has been downloaded
+    expected_model_root = test_output_dirs.root_dir / FINAL_ENSEMBLE_MODEL_FOLDER
+    assert expected_model_root.is_dir()
+    model_inference_config = read_model_inference_config(expected_model_root / MODEL_INFERENCE_JSON_FILE_NAME)
+    expected_paths = [expected_model_root / x for x in model_inference_config.checkpoint_paths]
+
+    assert len(expected_paths) == len(downloaded_checkpoints)
+    assert set(expected_paths) == set(downloaded_checkpoints)
+    for expected_path in expected_paths:
+        assert expected_path.is_file()
 
 
 def test_get_local_weights_path_or_download(test_output_dirs: OutputFolderForTests) -> None:

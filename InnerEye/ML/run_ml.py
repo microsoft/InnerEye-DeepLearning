@@ -390,7 +390,7 @@ class MLRunner:
         # AzureML.
         if not self.is_offline_run:
             if self.should_register_model():
-                self.register_model(self.checkpoint_handler.get_checkpoints_to_register(), ModelProcessing.DEFAULT)
+                self.register_model(self.checkpoint_handler.get_best_checkpoints(), ModelProcessing.DEFAULT)
 
         if not self.azure_config.only_register_model:
             checkpoint_paths_for_testing = self.checkpoint_handler.get_checkpoints_to_test()
@@ -846,7 +846,7 @@ class MLRunner:
         # AzureML.
         if not self.is_offline_run:
             if self.should_register_model():
-                self.register_model(checkpoint_handler.get_checkpoints_to_register(), ModelProcessing.ENSEMBLE_CREATION)
+                self.register_model(checkpoint_handler.get_best_checkpoints(), ModelProcessing.ENSEMBLE_CREATION)
 
         if not self.azure_config.only_register_model:
             self.run_inference(checkpoint_paths=checkpoint_handler.get_checkpoints_to_test(),

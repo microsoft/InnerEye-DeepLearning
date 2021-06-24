@@ -45,7 +45,7 @@ from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.utils.image_util import get_unit_image_header
 from InnerEye.ML.utils.io_util import zip_random_dicom_series
 from InnerEye.Scripts import submit_for_inference
-from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_nifti_shape
+from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_nifti_shape, get_default_workspace
 
 FALLBACK_SINGLE_RUN = "refs_pull_498_merge:refs_pull_498_merge_1624292750_743430ab"
 FALLBACK_ENSEMBLE_RUN = "refs_pull_498_merge:HD_4bf4efc3-182a-4596-8f93-76f128418142"
@@ -87,10 +87,10 @@ def get_most_recent_run(fallback_run_id_for_local_execution: str = FALLBACK_SING
     return get_default_azure_config().fetch_run(run_recovery_id=run_recovery_id)
 
 
-def get_most_recent_model(fallback_run_id_for_local_execution: str = FALLBACK_SINGLE_RUN) -> Model:
+def get_most_recent_model_id(fallback_run_id_for_local_execution: str = FALLBACK_SINGLE_RUN) -> str:
     """
     Gets the string name of the most recently executed AzureML run, extracts which model that run had registered,
-    and return the instantiated model object.
+    and return the model id.
     :param fallback_run_id_for_local_execution: A hardcoded AzureML run ID that is used when executing this code
     on a local box, outside of Azure build agents.
     """
@@ -101,7 +101,18 @@ def get_most_recent_model(fallback_run_id_for_local_execution: str = FALLBACK_SI
     tags = run.get_tags()
     model_id = tags.get(MODEL_ID_KEY_NAME, None)
     assert model_id, f"No model_id tag was found on run {most_recent_run}"
-    return Model(workspace=azure_config.get_workspace(), id=model_id)
+    return model_id
+
+
+def get_most_recent_model(fallback_run_id_for_local_execution: str = FALLBACK_SINGLE_RUN) -> Model:
+    """
+    Gets the string name of the most recently executed AzureML run, extracts which model that run had registered,
+    and return the instantiated model object.
+    :param fallback_run_id_for_local_execution: A hardcoded AzureML run ID that is used when executing this code
+    on a local box, outside of Azure build agents.
+    """
+    model_id = get_most_recent_model_id(fallback_run_id_for_local_execution=fallback_run_id_for_local_execution)
+    return Model(workspace=get_default_workspace(), id=model_id)
 
 
 def get_experiment_name_from_environment() -> str:
