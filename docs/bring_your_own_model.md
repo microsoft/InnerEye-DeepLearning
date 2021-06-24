@@ -27,9 +27,7 @@ encapsulates everything that is needed for training with PyTorch Lightning:
 all the usual PyTorch Lightning methods required for training, like the `training_step` and `forward` methods. This
 object needs to adhere to additional constraints, see below.
 - The `get_data_module` method of the container needs to return a `LightningDataModule` that has the data loaders for
-training and validation data. If you are using cross validation this method needs to take into account the number of
-cross validation splits, and the cross validation split index. You can find an example of handling cross validation in
-the [HelloContainer](../InnerEye/ML/configs/other/HelloContainer.py) class.
+training and validation data. 
 - The optional `get_inference_data_module` returns a `LightningDataModule` that is used to read the data for inference
 (that is, evaluating the trained model). By default, this returns the same data as `get_training_data_module`, but you
 can override this for special models like segmentation models that are trained on equal sized image patches, but 
@@ -39,6 +37,15 @@ Your class needs to be defined in a Python file in the `InnerEye/ML/configs` fol
 correctly. If you'd like to have your model defined in a different folder, please specify the Python namespace via
 the `--model_configs_namespace` argument. For example, use `--model_configs_namespace=My.Own.configs` if your
 model configuration classes reside in folder `My/Own/configs` from the repository root.
+
+### Cross Validation
+
+If you are doing cross validation you need to ensure that the `LightningDataModule` returned by your container's 
+`get_data_module` method:
+- Needs to take into account the number of cross validation splits, and the cross validation split index when
+preparing the data.
+- Needs to log val/Loss in its `validation_step` method.
+You can find an example of handling cross validation in the [HelloContainer](../InnerEye/ML/configs/other/HelloContainer.py) class.
 
 *Example*:
 ```python
