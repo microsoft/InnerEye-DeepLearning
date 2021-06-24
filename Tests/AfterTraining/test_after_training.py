@@ -449,8 +449,8 @@ def test_download_outputs_skipped(test_output_dirs: OutputFolderForTests) -> Non
 
 @pytest.mark.after_training_single_run
 def test_model_inference_on_single_run(test_output_dirs: OutputFolderForTests) -> None:
-    test_dataset_path = "outputs/test_dataset"
-    metrics_csv_path = "outputs/best_validation/Test/metrics.csv"
+    test_dataset_path = "outputs/test_dataset.csv"
+    metrics_csv_path = "outputs/best_validation_epoch/Test/metrics.csv"
 
     training_run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_SINGLE_RUN)
     training_files = training_run.get_file_names()
