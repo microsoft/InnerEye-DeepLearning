@@ -445,3 +445,53 @@ def test_download_outputs_skipped(test_output_dirs: OutputFolderForTests) -> Non
     download_run_outputs_by_prefix(prefix, test_output_dirs.root_dir, run=run)
     all_files = list(test_output_dirs.root_dir.rglob("*"))
     assert len(all_files) == 0
+
+
+@pytest.mark.after_training_single_run
+def test_model_inference_on_single_run(test_output_dirs: OutputFolderForTests) -> None:
+    test_dataset_path = "outputs/test_dataset"
+    metrics_csv_path = "outputs/best_validation/Test/metrics.csv"
+
+    training_run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_SINGLE_RUN)
+    training_files = training_run.get_file_names()
+    assert test_dataset_path in training_files, "test_dataset.csv is missing"
+    assert metrics_csv_path in training_files, "best_validation/Test/metrics.csv is missing"
+    training_folder = test_output_dirs.root_dir / "training"
+    training_folder.mkdir()
+    test_dataset_training = training_folder / test_dataset_path
+    metrics_csv_training = training_folder / metrics_csv_path
+    training_run.download_file(test_dataset_path, output_file_path=str(test_dataset_training))
+    training_run.download_file(metrics_csv_path, output_file_path=str(metrics_csv_training))
+
+    args_list = ["--model", "BasicModel2Epochs",
+                 "--azureml", "True",
+                 "--train", "False",
+                 "--model_id",
+                 get_most_recent_model_id(fallback_run_id_for_local_execution=FALLBACK_SINGLE_RUN),
+                 "--wait_for_completion", "True",
+                 "--cluster", "training-nc12",
+                 "--experiment", get_experiment_name_from_environment() or "model_inference_on_single_run",
+                 "--tag", "model_inference_on_single_run"
+                 ]
+    script = str(repository_root_directory() / "InnerEye" / "ML" / "runner.py")
+    with mock.patch("sys.argv", [script] + args_list):
+        main()
+
+    inference_run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_SINGLE_RUN)
+    assert inference_run.status == RunStatus.COMPLETED
+
+    inference_files = inference_run.get_file_names()
+    assert test_dataset_path in inference_files, "test_dataset.csv is missing"
+    assert metrics_csv_path in inference_files, "best_validation/Test/metrics.csv is missing"
+    inference_folder = test_output_dirs.root_dir / "inference"
+    inference_folder.mkdir()
+    test_dataset_inference = inference_folder / test_dataset_path
+    metrics_csv_inference = inference_folder / metrics_csv_path
+    inference_run.download_file(test_dataset_path, output_file_path=str(test_dataset_inference))
+    inference_run.download_file(metrics_csv_path, output_file_path=str(metrics_csv_inference))
+
+    for training_run_file, inference_run_file in ((test_dataset_training, test_dataset_inference),
+                                                  (metrics_csv_training, metrics_csv_inference)):
+        training_lines = training_run_file.read_text().splitlines()
+        inference_lines = inference_run_file.read_text().splitlines()
+        assert training_lines == inference_lines
