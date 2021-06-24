@@ -14,12 +14,6 @@ from InnerEye.ML.utils.supervised_criterion import BinaryCrossEntropyWithLogitsL
 torch.random.manual_seed(1)
 
 
-def test_get_class_weights() -> None:
-    target = torch.tensor([[2, 2, 1, 2, 2], [3, 3, 3, 3, 3]], dtype=torch.long)
-    weights = CrossEntropyLoss._get_class_weights(target_labels=target, num_classes=4)
-    assert torch.eq(weights, torch.tensor([0.00, 1.00, 0.25, 0.20])).all()
-
-
 def test_cross_entropy_loss_forward_zero_loss() -> None:
     target = torch.tensor([[[0, 0, 0], [1, 1, 1]]], dtype=torch.float32)
     logits = torch.tensor([[[-1e9, -1e9, -1e9], [0, 0, 0]]], dtype=torch.float32)

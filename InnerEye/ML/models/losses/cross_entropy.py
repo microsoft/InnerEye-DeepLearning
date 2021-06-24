@@ -42,20 +42,6 @@ class CrossEntropyLoss(SupervisedLearningCriterion):
         self.ignore_index = ignore_index
         self.eps = 1e-6
 
-    @staticmethod
-    def _get_class_weights(target_labels: torch.Tensor, num_classes: int) -> torch.Tensor:
-        """Returns class weights inversely proportional to the number of pixels in each class"""
-
-        class_weight = torch.zeros(num_classes, dtype=torch.float32)
-        if target_labels.is_cuda:
-            class_weight = class_weight.cuda()
-
-        # Check which classes are available
-        class_ids, class_counts = torch.unique(target_labels, sorted=False, return_counts=True)  # type: ignore
-        class_weight[class_ids] = 1.0 / class_counts.float()
-
-        return class_weight
-
     @torch.no_grad()
     def get_focal_loss_pixel_weights(self, logits: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
