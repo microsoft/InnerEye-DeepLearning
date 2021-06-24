@@ -27,7 +27,7 @@ encapsulates everything that is needed for training with PyTorch Lightning:
 all the usual PyTorch Lightning methods required for training, like the `training_step` and `forward` methods. This
 object needs to adhere to additional constraints, see below.
 - The `get_data_module` method of the container needs to return a `LightningDataModule` that has the data loaders for
-training and validation data. 
+training and validation data.
 - The optional `get_inference_data_module` returns a `LightningDataModule` that is used to read the data for inference
 (that is, evaluating the trained model). By default, this returns the same data as `get_training_data_module`, but you
 can override this for special models like segmentation models that are trained on equal sized image patches, but 
