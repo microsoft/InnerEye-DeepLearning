@@ -45,7 +45,8 @@ If you are doing cross validation you need to ensure that the `LightningDataModu
 - Needs to take into account the number of cross validation splits, and the cross validation split index when
 preparing the data.
 - Needs to log val/Loss in its `validation_step` method.
-You can find an example of handling cross validation in the [HelloContainer](../InnerEye/ML/configs/other/HelloContainer.py) class.
+You can find a working example of handling cross validation in the 
+[HelloContainer](../InnerEye/ML/configs/other/HelloContainer.py) class.
 
 *Example*:
 ```python
