@@ -107,7 +107,7 @@ def run_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
     checkpoint_handler.additional_training_done()
     test_metrics, val_metrics, train_metrics = MLRunner(config).model_inference_train_and_test(
         checkpoint_handler=checkpoint_handler,
-        model_proc: model_proc)
+        model_proc=model_proc)
     named_metrics = [(ModelExecutionMode.TEST.value, test_metrics, perform_test_set_inference,
                       perform_ensemble_child_test_set_inference),
                      (ModelExecutionMode.VAL.value, val_metrics, perform_validation_set_inference,
