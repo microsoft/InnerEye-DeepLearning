@@ -8,6 +8,7 @@ import time
 import pytest
 
 from InnerEye.Common import common_util
+from InnerEye.Common.common_util import ModelProcessing
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, ModelExecutionMode
@@ -16,7 +17,6 @@ from InnerEye.ML.run_ml import MLRunner
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import get_default_checkpoint_handler
 from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
-
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("perform_cross_validation", [True, False])
@@ -28,11 +28,72 @@ def test_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
                                         perform_training_set_inference: bool,
                                         perform_validation_set_inference: bool,
                                         perform_test_set_inference: bool) -> None:
+    run_model_inference_train_and_test(test_output_dirs,
+                                       perform_cross_validation,
+                                       perform_training_set_inference,
+                                       perform_validation_set_inference,
+                                       perform_test_set_inference,
+                                       False,
+                                       False,
+                                       False,
+                                       ModelProcessing.DEFAULT)
+
+
+@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
+@pytest.mark.parametrize("perform_training_set_inference", [True, False])
+@pytest.mark.parametrize("perform_validation_set_inference", [True, False])
+@pytest.mark.parametrize("perform_test_set_inference", [True, False])
+def test_ensemble_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
+                                                 perform_training_set_inference: bool,
+                                                 perform_validation_set_inference: bool,
+                                                 perform_test_set_inference: bool) -> None:
+    run_model_inference_train_and_test(test_output_dirs,
+                                       True,
+                                       perform_training_set_inference,
+                                       perform_validation_set_inference,
+                                       perform_test_set_inference,
+                                       False,
+                                       False,
+                                       False,
+                                       ModelProcessing.ENSEMBLE_CREATION)
+
+
+@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
+@pytest.mark.parametrize("perform_ensemble_child_training_set_inference", [True, False])
+@pytest.mark.parametrize("perform_ensemble_child_validation_set_inference", [True, False])
+@pytest.mark.parametrize("perform_ensemble_child_test_set_inference", [True, False])
+def test_ensemble_child_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
+                                                       perform_ensemble_child_training_set_inference: bool,
+                                                       perform_ensemble_child_validation_set_inference: bool,
+                                                       perform_ensemble_child_test_set_inference: bool) -> None:
+    run_model_inference_train_and_test(test_output_dirs,
+                                       True,
+                                       False,
+                                       False,
+                                       False,
+                                       perform_ensemble_child_training_set_inference,
+                                       perform_ensemble_child_validation_set_inference,
+                                       perform_ensemble_child_test_set_inference,
+                                       ModelProcessing.DEFAULT)
+
+
+def run_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
+                                       perform_cross_validation: bool,
+                                       perform_training_set_inference: bool,
+                                       perform_validation_set_inference: bool,
+                                       perform_test_set_inference: bool,
+                                       perform_ensemble_child_training_set_inference: bool,
+                                       perform_ensemble_child_validation_set_inference: bool,
+                                       perform_ensemble_child_test_set_inference: bool,
+                                       model_proc: ModelProcessing.DEFAULT) -> None:
     config = DummyModel()
     config.number_of_cross_validation_splits = 2 if perform_cross_validation else 0
     config.perform_training_set_inference = perform_training_set_inference
     config.perform_validation_set_inference = perform_validation_set_inference
     config.perform_test_set_inference = perform_test_set_inference
+    config.perform_ensemble_child_training_set_inference = perform_ensemble_child_training_set_inference
+    config.perform_ensemble_child_validation_set_inference = perform_ensemble_child_validation_set_inference
+    config.perform_ensemble_child_test_set_inference = perform_ensemble_child_test_set_inference
     # Plotting crashes with random TCL errors on Windows, disable that for Windows PR builds.
     config.is_plotting_enabled = common_util.is_linux()
 
@@ -45,15 +106,21 @@ def test_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
                                                         project_root=test_output_dirs.root_dir)
     checkpoint_handler.additional_training_done()
     test_metrics, val_metrics, train_metrics = MLRunner(config).model_inference_train_and_test(
-        checkpoint_handler=checkpoint_handler)
-    named_metrics = [(ModelExecutionMode.TEST.value, test_metrics, perform_test_set_inference),
-                     (ModelExecutionMode.VAL.value, val_metrics, perform_validation_set_inference),
-                     (ModelExecutionMode.TRAIN.value, train_metrics, perform_training_set_inference)]
+        checkpoint_handler=checkpoint_handler,
+        model_proc: model_proc)
+    named_metrics = [(ModelExecutionMode.TEST.value, test_metrics, perform_test_set_inference,
+                      perform_ensemble_child_test_set_inference),
+                     (ModelExecutionMode.VAL.value, val_metrics, perform_validation_set_inference,
+                      perform_ensemble_child_validation_set_inference),
+                     (ModelExecutionMode.TRAIN.value, train_metrics, perform_training_set_inference,
+                      perform_ensemble_child_training_set_inference)]
     error = ''
-    for name, metric, flag in named_metrics:
+    for name, metric, flag, ensemble_flag, in named_metrics:
         if perform_cross_validation:
-            if metric is not None:
-                error = error + f"Error: {name} cannot be not None."
+            if metric is not None and not ensemble_flag:
+                error = error + f"Error: ensemble {name} cannot be not None."
+            elif metric is None and ensemble_flag:
+                error = error + f"Error: ensemble {name} cannot be None."
         else:
             if metric is not None and not flag:
                 error = error + f"Error: {name} cannot be not None."
@@ -70,11 +137,11 @@ def test_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
         assert isinstance(train_metrics, InferenceMetricsForSegmentation)
 
     epoch_folder_name = common_util.BEST_EPOCH_FOLDER_NAME
-    for folder, _, flag in named_metrics:
+    for folder, _, flag, ensemble_flag in named_metrics:
         results_folder = config.outputs_folder / epoch_folder_name / folder
         folder_exists = results_folder.is_dir()
         if perform_cross_validation:
-            assert not folder_exists
+            assert folder_exists == ensemble_flag
         else:
             assert folder_exists == flag
 
