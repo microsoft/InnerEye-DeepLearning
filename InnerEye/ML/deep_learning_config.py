@@ -306,12 +306,13 @@ class WorkflowParams(param.Parameterized):
             if data_split == ModelExecutionMode.TEST:
                 return self.perform_test_set_inference
             elif data_split == ModelExecutionMode.VAL:
-                if model_proc != ModelProcessing.ENSEMBLE_CREATION:
-                    return self.perform_validation_set_inference
-                else:
-                    # not for ensemble as current val is in the training fold
-                    # for at least one of the models.
-                    return not self.perform_ensemble_child_validation_set_inference
+                return self.perform_validation_set_inference
+#                if model_proc != ModelProcessing.ENSEMBLE_CREATION:
+#                    return self.perform_validation_set_inference
+#                else:
+#                    # not for ensemble as current val is in the training fold
+#                    # for at least one of the models.
+#                    return not self.perform_ensemble_child_validation_set_inference
             elif data_split == ModelExecutionMode.TRAIN:
                 return self.perform_training_set_inference
             else:

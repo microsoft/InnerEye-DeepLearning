@@ -5,12 +5,13 @@
 import logging
 import time
 from unittest import mock
+from unittest.mock import Mock
 
 import pytest
 from azureml.train.hyperdrive.runconfig import HyperDriveConfig
 
 from InnerEye.Common import common_util, fixed_paths
-from InnerEye.Common.common_util import ModelProcessing
+from InnerEye.Common.common_util import ModelProcessing, get_best_epoch_results_path
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, ModelExecutionMode
@@ -20,6 +21,7 @@ from InnerEye.ML.runner import Runner
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import get_default_checkpoint_handler
 from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
+
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("perform_cross_validation", [True, False])
@@ -109,10 +111,13 @@ def run_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
                                                         project_root=test_output_dirs.root_dir)
     checkpoint_handler.additional_training_done()
-    metrics = MLRunner(config).model_inference_train_and_test(
-        checkpoint_handler=checkpoint_handler,
-        model_proc=model_proc)
-    if perform_cross_validation:
+
+    with mock.patch("InnerEye.ML.model_testing.PARENT_RUN_CONTEXT", Mock()) as m:
+        metrics = MLRunner(config).model_inference_train_and_test(
+            checkpoint_handler=checkpoint_handler,
+            model_proc=model_proc)
+
+    if perform_cross_validation and model_proc == ModelProcessing.DEFAULT:
         named_metrics = \
             {
                 ModelExecutionMode.TRAIN: perform_ensemble_child_training_set_inference,
@@ -128,22 +133,26 @@ def run_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
             }
 
     error = ''
-    for name, flag in named_metrics.items():
-        if name in metrics:
-            metric = metrics[name]
+    expected_upload_folder_count = 0
+    for mode, flag in named_metrics.items():
+        if mode in metrics:
+            metric = metrics[mode]
             assert isinstance(metric, InferenceMetricsForSegmentation)
-        if name in metrics and not flag:
-            error = error + f"Error: {name.value} cannot be not None."
-        elif name not in metrics and flag:
-            error = error + f"Error: {name.value} cannot be None."
+        if mode in metrics and not flag:
+            error = error + f"Error: {mode.value} cannot be not None."
+        elif mode not in metrics and flag:
+            error = error + f"Error: {mode.value} cannot be None."
+        results_folder = config.outputs_folder / get_best_epoch_results_path(mode, model_proc)
+        folder_exists = results_folder.is_dir()
+        assert folder_exists == flag
+        if flag and model_proc == ModelProcessing.ENSEMBLE_CREATION:
+            expected_upload_folder_count = expected_upload_folder_count + 1
+            expected_name = get_best_epoch_results_path(mode, ModelProcessing.DEFAULT)
+            m.upload_folder.assert_any_call(name=str(expected_name), path=str(results_folder))
     if len(error):
         raise ValueError(error)
 
-    epoch_folder_name = common_util.BEST_EPOCH_FOLDER_NAME
-    for folder, flag in named_metrics.items():
-        results_folder = config.outputs_folder / epoch_folder_name / folder.value
-        folder_exists = results_folder.is_dir()
-        assert folder_exists == flag
+    assert m.upload_folder.call_count == expected_upload_folder_count
 
 
 def test_logging_to_file(test_output_dirs: OutputFolderForTests) -> None:
