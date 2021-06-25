@@ -123,7 +123,7 @@ class SSLContainer(LightningContainer):
         self.data_module: InnerEyeDataModuleTypes = self.get_data_module()
         self.perform_validation_set_inference = False
         self.perform_test_set_inference = False
-        if self.number_of_cross_validation_splits > 1:
+        if self.perform_cross_validation:
             raise NotImplementedError("Cross-validation logic is not implemented for this module.")
 
     def _load_config(self) -> None:

@@ -105,45 +105,41 @@ def run_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
                                                         project_root=test_output_dirs.root_dir)
     checkpoint_handler.additional_training_done()
-    test_metrics, val_metrics, train_metrics = MLRunner(config).model_inference_train_and_test(
+    metrics = MLRunner(config).model_inference_train_and_test(
         checkpoint_handler=checkpoint_handler,
         model_proc=model_proc)
-    named_metrics = [(ModelExecutionMode.TEST.value, test_metrics, perform_test_set_inference,
-                      perform_ensemble_child_test_set_inference),
-                     (ModelExecutionMode.VAL.value, val_metrics, perform_validation_set_inference,
-                      perform_ensemble_child_validation_set_inference),
-                     (ModelExecutionMode.TRAIN.value, train_metrics, perform_training_set_inference,
-                      perform_ensemble_child_training_set_inference)]
+    if perform_cross_validation:
+        named_metrics = \
+            {
+                ModelExecutionMode.TRAIN: perform_ensemble_child_training_set_inference,
+                ModelExecutionMode.TEST: perform_ensemble_child_test_set_inference,
+                ModelExecutionMode.VAL: perform_ensemble_child_validation_set_inference
+            }
+    else:
+        named_metrics = \
+            {
+                ModelExecutionMode.TRAIN: perform_training_set_inference,
+                ModelExecutionMode.TEST: perform_test_set_inference,
+                ModelExecutionMode.VAL: perform_validation_set_inference
+            }
+
     error = ''
-    for name, metric, flag, ensemble_flag, in named_metrics:
-        if perform_cross_validation:
-            if metric is not None and not ensemble_flag:
-                error = error + f"Error: ensemble {name} cannot be not None."
-            elif metric is None and ensemble_flag:
-                error = error + f"Error: ensemble {name} cannot be None."
-        else:
-            if metric is not None and not flag:
-                error = error + f"Error: {name} cannot be not None."
-            elif metric is None and flag:
-                error = error + f"Error: {name} cannot be None."
+    for name, flag in named_metrics.items():
+        if name in metrics:
+            metric = metrics[name]
+            assert isinstance(metric, InferenceMetricsForSegmentation)
+        if name in metrics and not flag:
+            error = error + f"Error: {name.value} cannot be not None."
+        elif name not in metrics and flag:
+            error = error + f"Error: {name.value} cannot be None."
     if len(error):
         raise ValueError(error)
 
-    if test_metrics is not None:
-        assert isinstance(test_metrics, InferenceMetricsForSegmentation)
-    if val_metrics is not None:
-        assert isinstance(val_metrics, InferenceMetricsForSegmentation)
-    if train_metrics is not None:
-        assert isinstance(train_metrics, InferenceMetricsForSegmentation)
-
     epoch_folder_name = common_util.BEST_EPOCH_FOLDER_NAME
-    for folder, _, flag, ensemble_flag in named_metrics:
-        results_folder = config.outputs_folder / epoch_folder_name / folder
+    for folder, flag in named_metrics.items():
+        results_folder = config.outputs_folder / epoch_folder_name / folder.value
         folder_exists = results_folder.is_dir()
-        if perform_cross_validation:
-            assert folder_exists == ensemble_flag
-        else:
-            assert folder_exists == flag
+        assert folder_exists == flag
 
 
 def test_logging_to_file(test_output_dirs: OutputFolderForTests) -> None:

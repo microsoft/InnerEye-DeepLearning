@@ -120,18 +120,14 @@ def download_dataset(azure_dataset_id: str,
     return expected_dataset_path
 
 
-def log_metrics(val_metrics: Optional[InferenceMetricsForSegmentation],
-                test_metrics: Optional[InferenceMetricsForSegmentation],
-                train_metrics: Optional[InferenceMetricsForSegmentation],
+def log_metrics(metrics: Dict[ModelExecutionMode, InferenceMetrics],
                 run_context: Run) -> None:
     """
     Log metrics for each split to the provided run, or the current run context if None provided
-    :param val_metrics: Inference results for the validation split
-    :param test_metrics: Inference results for the test split
-    :param train_metrics: Inference results for the train split
+    :param metrics: Dictionary of inference results for each split.
     :param run_context: Run for which to log the metrics to, use the current run context if None provided
     """
-    for split in [x for x in [val_metrics, test_metrics, train_metrics] if x]:
+    for split in metrics.values():
         split.log_metrics(run_context)
 
 
@@ -390,7 +386,7 @@ class MLRunner:
 
                 # If this is an cross validation run, and the present run is child run 0, then wait for the sibling
                 # runs, build the ensemble model, and write a report for that.
-                if self.container.number_of_cross_validation_splits > 0:
+                if self.container.perform_cross_validation:
                     should_wait_for_other_child_runs = (not self.is_offline_run) and \
                                                        self.container.cross_validation_split_index == 0
                     if should_wait_for_other_child_runs:
@@ -420,7 +416,7 @@ class MLRunner:
         """
         Returns True if the present run is a non-crossvalidation run, or child run 0 of a crossvalidation run.
         """
-        if self.container.number_of_cross_validation_splits > 0:
+        if self.container.perform_cross_validation:
             return self.container.cross_validation_split_index == 0
         return True
 
@@ -492,8 +488,8 @@ class MLRunner:
         """
 
         # run full image inference on existing or newly trained model on the training, and testing set
-        test_metrics, val_metrics, _ = self.model_inference_train_and_test(checkpoint_handler=checkpoint_handler,
-                                                                           model_proc=model_proc)
+        self.model_inference_train_and_test(checkpoint_handler=checkpoint_handler,
+                                            model_proc=model_proc)
 
         self.try_compare_scores_against_baselines(model_proc)
 
@@ -753,55 +749,23 @@ class MLRunner:
     def model_inference_train_and_test(self,
                                        checkpoint_handler: CheckpointHandler,
                                        model_proc: ModelProcessing = ModelProcessing.DEFAULT) -> \
-            Tuple[Optional[InferenceMetrics], Optional[InferenceMetrics], Optional[InferenceMetrics]]:
-        train_metrics = None
-        val_metrics = None
-        test_metrics = None
+            Dict[ModelExecutionMode, InferenceMetrics]:
+        metrics: Dict[ModelExecutionMode, InferenceMetrics] = {}
 
         config = self.innereye_config
 
-        def run_model_test(data_split: ModelExecutionMode) -> Optional[InferenceMetrics]:
-            return model_test(config, data_split=data_split, checkpoint_handler=checkpoint_handler,  # type: ignore
-                              model_proc=model_proc)
-
-        if model_proc == ModelProcessing.DEFAULT and \
-                self.container.number_of_cross_validation_splits > 0:
-            # This is an ensemble child run and not the final consolidation
-
-            if config.perform_ensemble_child_test_set_inference:
-                # perform inference on test set
-                test_metrics = run_model_test(ModelExecutionMode.TEST)
-
-            if config.perform_ensemble_child_validation_set_inference:
-                # perform inference on validation set
-                val_metrics = run_model_test(ModelExecutionMode.VAL)
-
-            if config.perform_ensemble_child_training_set_inference:
-                # perform inference on training set if required
-                train_metrics = run_model_test(ModelExecutionMode.TRAIN)
-        else:
-            if config.perform_test_set_inference:
-                # perform inference on test set
-                test_metrics = run_model_test(ModelExecutionMode.TEST)
-
-            if config.perform_validation_set_inference:
-                # perform inference on validation set (not for ensemble as current val is in the training fold
-                # for at least one of the models).
-                if model_proc != ModelProcessing.ENSEMBLE_CREATION:
-                    val_metrics = run_model_test(ModelExecutionMode.VAL)
-
-            if config.perform_training_set_inference:
-                # perform inference on training set if required
-                train_metrics = run_model_test(ModelExecutionMode.TRAIN)
+        for data_split in ModelExecutionMode:
+            if self.container.run_perform_test_set_inference(model_proc, data_split):
+                metrics[data_split] = model_test(config, data_split=data_split, checkpoint_handler=checkpoint_handler,
+                                                 model_proc=model_proc)
 
         # log the metrics to AzureML experiment if possible. When doing ensemble runs, log to the Hyperdrive parent run,
         # so that we get the metrics of child run 0 and the ensemble separated.
         if config.is_segmentation_model and not self.is_offline_run:
             run_for_logging = PARENT_RUN_CONTEXT if model_proc.ENSEMBLE_CREATION else RUN_CONTEXT
-            log_metrics(val_metrics=val_metrics, test_metrics=test_metrics,  # type: ignore
-                        train_metrics=train_metrics, run_context=run_for_logging)  # type: ignore
+            log_metrics(metrics=metrics, run_context=run_for_logging)  # type: ignore
 
-        return test_metrics, val_metrics, train_metrics
+        return metrics
 
     @stopit.threading_timeoutable()
     def wait_for_runs_to_finish(self, delay: int = 60) -> None:

@@ -15,7 +15,7 @@ from param import Parameterized
 
 from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common import fixed_paths
-from InnerEye.Common.common_util import is_windows
+from InnerEye.Common.common_util import ModelProcessing, is_windows
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.Common.type_annotations import PathOrString, TupleFloat2
@@ -204,13 +204,17 @@ class WorkflowParams(param.Parameterized):
                       doc="If True, run full image inference on the training set at the end of training.")
     perform_validation_and_test_set_inference: bool = \
         param.Boolean(None,
-                      doc="If True, set perform_validation_set_inference and perform_test_set_inference.")
+                      doc="If True, run full image inference on validation and test sets after training.")
     perform_validation_set_inference: bool = \
         param.Boolean(True,
                       doc="If True (default), run full image inference on validation set after training.")
     perform_test_set_inference: bool = \
         param.Boolean(True,
                       doc="If True (default), run full image inference on test set after training.")
+    perform_ensemble_child_inference: bool = \
+        param.Boolean(None,
+                      doc="If True, run full image inference on the training, validation, and test sets at the end of ensemble "
+                          "child training.")
     perform_ensemble_child_training_set_inference: bool = \
         param.Boolean(False,
                       doc="If True, run full image inference on the training set at the end of ensemble child training.")
@@ -258,6 +262,19 @@ class WorkflowParams(param.Parameterized):
             self.perform_test_set_inference = self.perform_test_set_inference or \
                                               self.perform_validation_and_test_set_inference
 
+        if self.perform_ensemble_child_inference is not None:
+            self.perform_ensemble_child_training_set_inference = \
+                self.perform_ensemble_child_training_set_inference or \
+                self.perform_ensemble_child_inference
+
+            self.perform_ensemble_child_validation_set_inference = \
+                self.perform_ensemble_child_validation_set_inference or \
+                self.perform_ensemble_child_inference
+
+            self.perform_ensemble_child_test_set_inference = \
+                self.perform_ensemble_child_test_set_inference or \
+                self.perform_ensemble_child_inference
+
         if self.weights_url and self.local_weights_path:
             raise ValueError("Cannot specify both local_weights_path and weights_url.")
 
@@ -272,6 +289,33 @@ class WorkflowParams(param.Parameterized):
             raise ValueError(f"Cross validation split index must be -1 for a non cross validation run, "
                              f"found number_of_cross_validation_splits = {self.number_of_cross_validation_splits} "
                              f"and cross_validation_split_index={self.cross_validation_split_index}")
+
+    def run_perform_test_set_inference(self, model_proc: ModelProcessing, data_split: ModelExecutionMode) -> bool:
+        if model_proc == ModelProcessing.DEFAULT and \
+                self.perform_cross_validation:
+            # This is an ensemble child run and not the final consolidation
+            if data_split == ModelExecutionMode.TEST:
+                return self.perform_ensemble_child_test_set_inference
+            elif data_split == ModelExecutionMode.VAL:
+                return self.perform_ensemble_child_validation_set_inference
+            elif data_split == ModelExecutionMode.TRAIN:
+                return self.perform_ensemble_child_training_set_inference
+            else:
+                return False
+        else:
+            if data_split == ModelExecutionMode.TEST:
+                return self.perform_test_set_inference
+            elif data_split == ModelExecutionMode.VAL:
+                if model_proc != ModelProcessing.ENSEMBLE_CREATION:
+                    return self.perform_validation_set_inference
+                else:
+                    # not for ensemble as current val is in the training fold
+                    # for at least one of the models.
+                    return not self.perform_ensemble_child_validation_set_inference
+            elif data_split == ModelExecutionMode.TRAIN:
+                return self.perform_training_set_inference
+            else:
+                return False
 
     @property
     def is_offline_run(self) -> bool:
