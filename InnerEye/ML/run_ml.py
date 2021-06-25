@@ -757,8 +757,10 @@ class MLRunner:
 
         for data_split in ModelExecutionMode:
             if self.container.run_perform_test_set_inference(model_proc, data_split):
-                metrics[data_split] = model_test(config, data_split=data_split, checkpoint_handler=checkpoint_handler,
-                                                 model_proc=model_proc)
+                opt_metrics = model_test(config, data_split=data_split, checkpoint_handler=checkpoint_handler,
+                                         model_proc=model_proc)
+                if opt_metrics is not None:
+                    metrics[data_split] = opt_metrics
 
         # log the metrics to AzureML experiment if possible. When doing ensemble runs, log to the Hyperdrive parent run,
         # so that we get the metrics of child run 0 and the ensemble separated.
