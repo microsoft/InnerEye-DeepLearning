@@ -90,6 +90,7 @@ def run_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
                                        perform_ensemble_child_test_set_inference: bool,
                                        model_proc: ModelProcessing) -> None:
     config = DummyModel()
+    config.crop_size = (29, 29, 29)
     config.number_of_cross_validation_splits = 2 if perform_cross_validation else 0
     config.perform_training_set_inference = perform_training_set_inference
     config.perform_validation_set_inference = perform_validation_set_inference
