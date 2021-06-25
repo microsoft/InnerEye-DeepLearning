@@ -440,7 +440,7 @@ def crossval_config_from_model_config(train_config: DeepLearningConfig) -> PlotC
         model_category=train_config.model_category,
         epoch=epoch,
         should_validate=False,
-        number_of_cross_validation_splits=train_config.get_total_number_of_cross_validation_runs())
+        number_of_cross_validation_splits=train_config.number_of_cross_validation_splits)
 
 
 def get_config_and_results_for_offline_runs(train_config: DeepLearningConfig) -> OfflineCrossvalConfigAndFiles:

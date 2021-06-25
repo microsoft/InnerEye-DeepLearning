@@ -43,6 +43,7 @@ multiple large checkpoints can time out.
 
 ### Added
 
+- ([#483](https://github.com/microsoft/InnerEye-DeepLearning/pull/483)) Allow cross validation with 'bring your own' Lightning models (without ensemble building).
 - ([#489](https://github.com/microsoft/InnerEye-DeepLearning/pull/489)) Remove portal query for outliers.
 - ([#488](https://github.com/microsoft/InnerEye-DeepLearning/pull/488)) Better handling of missing seriesId in segmentation cross validation reports.
 - ([#454](https://github.com/microsoft/InnerEye-DeepLearning/pull/454)) Checking that labels are mutually exclusive.

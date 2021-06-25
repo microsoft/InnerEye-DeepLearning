@@ -294,7 +294,7 @@ def test_run_ml_with_classification_model(test_output_dirs: OutputFolderForTests
         config_and_files = get_config_and_results_for_offline_runs(config)
         result_files = config_and_files.files
         # One file for VAL, one for TRAIN and one for TEST for each child run
-        assert len(result_files) == config.get_total_number_of_cross_validation_runs() * 3
+        assert len(result_files) == config.number_of_cross_validation_splits * 3
         for file in result_files:
             assert file.dataset_csv_file is not None
             assert file.dataset_csv_file.exists()
@@ -528,7 +528,7 @@ def test_is_offline_cross_val_parent_run(offline_parent_cv_run: bool) -> None:
 def _check_offline_cross_validation_output_files(train_config: ScalarModelBase) -> None:
     metrics: Dict[ModelExecutionMode, List[pd.DataFrame]] = dict()
     root = Path(train_config.file_system_config.outputs_folder)
-    for x in range(train_config.get_total_number_of_cross_validation_runs()):
+    for x in range(train_config.number_of_cross_validation_splits):
         expected_outputs_folder = root / str(x)
         assert expected_outputs_folder.exists()
         for m in [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL, ModelExecutionMode.TEST]:
