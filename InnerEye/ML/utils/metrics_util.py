@@ -36,7 +36,7 @@ class MetricsPerPatientWriter:
             hausdorff_distance_mm: float,
             mean_distance_mm: float) -> None:
         """
-        Adds a Dice score, Mean nad Hausdorff Distances for a patient + structure combination to the present object.
+        Adds a Dice score, Mean and Hausdorff Distances for a patient + structure combination to the present object.
 
         :param patient: The name of the patient.
         :param structure: The structure that is predicted for.

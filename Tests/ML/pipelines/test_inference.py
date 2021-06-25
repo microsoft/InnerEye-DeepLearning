@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+from numpy.core.numeric import NaN
 from InnerEye.ML.metrics_dict import MetricsDict
 from typing import Any, List, Tuple
 
@@ -330,4 +331,27 @@ def test_evaluate_model_predictions() -> None:
                 assert 'MeanSurfaceDistance_millimeters' in metrics_per_class.values(hue_name).keys()
 
     metrics_writer, average_dice = populate_metrics_writer(model_prediction_evaluations, config)
-    
+    # Patient 3 has only one missing ground truth channel
+    assert not np.isnan(average_dice[0])
+    assert np.isnan(float(metrics_writer.columns["Dice"][0]))
+    assert not np.isnan(float(metrics_writer.columns["Dice"][1]))
+    assert np.isnan(float(metrics_writer.columns["HausdorffDistance_mm"][0]))
+    assert not np.isnan(float(metrics_writer.columns["HausdorffDistance_mm"][1]))
+    assert np.isnan(float(metrics_writer.columns["MeanDistance_mm"][0]))
+    assert not np.isnan(float(metrics_writer.columns["MeanDistance_mm"][1]))
+    # Patient 4 has all missing ground truth channels
+    assert np.isnan(average_dice[1])
+    assert np.isnan(float(metrics_writer.columns["Dice"][2]))
+    assert np.isnan(float(metrics_writer.columns["Dice"][3]))
+    assert np.isnan(float(metrics_writer.columns["HausdorffDistance_mm"][2]))
+    assert np.isnan(float(metrics_writer.columns["HausdorffDistance_mm"][3]))
+    assert np.isnan(float(metrics_writer.columns["MeanDistance_mm"][2]))
+    assert np.isnan(float(metrics_writer.columns["MeanDistance_mm"][3]))
+    # Patient 5 has no missing ground truth channels.
+    assert average_dice[2] > 0
+    assert float(metrics_writer.columns["Dice"][4]) >= 0
+    assert float(metrics_writer.columns["Dice"][5]) >= 0
+    assert float(metrics_writer.columns["HausdorffDistance_mm"][4]) >= 0
+    assert float(metrics_writer.columns["HausdorffDistance_mm"][5]) >= 0
+    assert float(metrics_writer.columns["MeanDistance_mm"][4]) >= 0
+    assert float(metrics_writer.columns["MeanDistance_mm"][5]) >= 0
