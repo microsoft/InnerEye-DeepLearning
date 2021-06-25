@@ -9,12 +9,10 @@ For each Pull Request, the affected code parts should be briefly described and a
 Once a release is done, the "Upcoming" section becomes the release changelog, and a new empty "Upcoming" should be
 created.
 
+
 ## Upcoming
 
 ### Added
-
-- ([#465](https://github.com/microsoft/InnerEye-DeepLearning/pull/465/)) Added ability to run segmentation inference
-  module in the test data without or partial ground truth files. 
 
 ### Changed
 
@@ -28,6 +26,7 @@ any large models anymore because data loaders ran out of memory.
 ### Removed
 
 ### Deprecated
+
 
 ## 0.3 (2021-06-01)
 
