@@ -128,7 +128,8 @@ def log_metrics(metrics: Dict[ModelExecutionMode, InferenceMetrics],
     :param run_context: Run for which to log the metrics to, use the current run context if None provided
     """
     for split in metrics.values():
-        split.log_metrics(run_context)
+        if isinstance(split, InferenceMetricsForSegmentation):
+            split.log_metrics(run_context)
 
 
 class MLRunner:
