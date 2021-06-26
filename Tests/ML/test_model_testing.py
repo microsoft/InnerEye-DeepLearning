@@ -28,6 +28,8 @@ from Tests.ML.util import assert_file_contains_string, assert_nifti_content, ass
     get_default_checkpoint_handler, get_image_shape
 from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
 
+@pytest.fixture
+def 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("partial_ground_truth", [True, False])
@@ -35,6 +37,8 @@ def test_model_test(test_output_dirs: OutputFolderForTests, partial_ground_truth
     train_and_test_data_dir = full_ml_test_data_path("train_and_test_data")
     seed_everything(42)
     config = DummyModel()
+    config.check_exclusive = False
+    config.ground_truth_ids = ["region", "region_1"]
     config.set_output_to(test_output_dirs.root_dir)
     placeholder_dataset_id = "place_holder_dataset_id"
     config.azure_dataset_id = placeholder_dataset_id
