@@ -10,8 +10,9 @@ import pytest
 from pytorch_lightning import seed_everything
 
 from InnerEye.Common import common_util
-from InnerEye.Common.common_util import get_best_epoch_results_path
+from InnerEye.Common.common_util import METRICS_AGGREGATES_FILE, get_best_epoch_results_path
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
+from InnerEye.Common.metrics_constants import MetricsFileColumns
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import model_testing
 from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, DATASET_CSV_FILE_NAME, ModelExecutionMode
@@ -27,7 +28,7 @@ from InnerEye.ML.visualizers.plot_cross_validation import get_config_and_results
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import (assert_file_contains_string, assert_nifti_content, assert_text_files_match,
-                           get_default_checkpoint_handler, get_image_shape)
+                           assert_csv_column_contains_value,get_default_checkpoint_handler, get_image_shape)
 from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
 
 
@@ -49,20 +50,20 @@ def test_model_test(test_output_dirs: OutputFolderForTests, partial_ground_truth
         config.ground_truth_ids = ["region", "region_1"]
         config.ground_truth_ids_display_names = ["region", "region_1"]
         # As in Tests.ML.pipelines.test.inference.test_evaluate_model_predictions patients 3, 4,
-        # and 5 are in the test dataset
-        df = df[df.subject.isin([3, 4, 5])]
+        # and 5 are in the test dataset with:
         # Patient 3 has one missing ground truth channel: "region"
         df = df[df["subject"].ne(3) | df["channel"].ne("region")]
         # Patient 4 has all missing ground truth channels: "region", "region_1"
         df = df[df["subject"].ne(4) | df["channel"].ne("region")]
         df = df[df["subject"].ne(4) | df["channel"].ne("region_1")]
         # Patient 5 has no missing ground truth channels.
-        config.train_subject_ids = ['1', '2']
-        config.test_subject_ids = ['3', '4', '5']
-        config.val_subject_ids = ['6', '7']
         # TO ASK: Why doesn't the partial_ground_truth = False version of this test need the next
         # line?
         config.dataset_data_frame = df
+        df = df[df.subject.isin([3, 4, 5])]
+        config.train_subject_ids = ['1', '2']
+        config.test_subject_ids = ['3', '4', '5']
+        config.val_subject_ids = ['6', '7']
     else:
         df = df[df.subject.isin([1, 2])]
     # noinspection PyTypeHints
@@ -78,13 +79,23 @@ def test_model_test(test_output_dirs: OutputFolderForTests, partial_ground_truth
     create_model_and_store_checkpoint(config, config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX)
     checkpoint_handler.additional_training_done()
     inference_results = model_testing.segmentation_model_test(config,
-                                                              data_split=execution_mode,
+                                                              execution_mode=execution_mode,
                                                               checkpoint_handler=checkpoint_handler)
     epoch_dir = config.outputs_folder / get_best_epoch_results_path(execution_mode)
+    total_num_patients_column_name = f"total_{MetricsFileColumns.Patient.value}".lower()
+    if not total_num_patients_column_name.endswith("s"):
+        total_num_patients_column_name += "s"
 
     if partial_ground_truth:
-        raise NotImplementedError("soon")
+        num_subjects = len(pd.unique(df["subject"]))
+        assert_csv_column_contains_value(
+            csv_file_path=epoch_dir / METRICS_AGGREGATES_FILE,
+            column_name=total_num_patients_column_name,
+            value=num_subjects,
+            contains_only_value=True)
     else:
+        aggregates_df = pd.read_csv(epoch_dir / METRICS_AGGREGATES_FILE)
+        assert total_num_patients_column_name not in aggregates_df.columns
         assert inference_results.metrics == pytest.approx(0.66606902, abs=1e-6)
         assert config.outputs_folder.is_dir()
         assert epoch_dir.is_dir()

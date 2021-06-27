@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, List, Optional, Tuple, Union
 
 import numpy as np
+import pandas as pd
 import pytest
 import torch
 from PIL import Image
@@ -187,6 +188,29 @@ def assert_binary_files_match(actual_file: Path, expected_file: Path) -> None:
         assert actual_size == expected_size, f"Image sizes don't match: actual {actual_size}, expected {expected_size}"
         assert np.allclose(np.array(actual_image), np.array(expected_image)), "Image pixel data does not match."
     assert False, f"File contents does not match: len(actual)={len(actual)}, len(expected)={len(expected)}"
+
+
+def assert_csv_column_contains_value(
+        csv_file_path: Path,
+        column_name: str,
+        value: Any,
+        contains_only_value: bool = True) -> None:
+    """
+    Checks that the column in the csv file contains the given value (and perhaps only contains that value)
+    :param csv_file_path: The path to the CSV
+    :param column_name: The name of the column in which we look for the value
+    :param value: The value to look for
+    :param contains_only_value: Check that this is the only value in the column (default True)
+    """
+    if not csv_file_path.exists:
+        raise ValueError(f"The CSV at {csv_file_path} does not exist.")
+    df = pd.read_csv(csv_file_path)
+    if not column_name in df.columns:
+        raise ValueError(f"The column {column_name} is not in th CSV at {csv_file_path}, which has columns {df.columns}.")
+    if contains_only_value:
+        assert int(df[[column_name]].nunique(dropna=True)) == 1
+    else:
+        assert int(df[[column_name]].nunique(dropna=True)) > 0    
 
 
 DummyPatientMetadata = PatientMetadata(patient_id='42')

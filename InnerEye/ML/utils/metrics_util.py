@@ -73,12 +73,20 @@ class MetricsPerPatientWriter:
 
         stats_columns = ['mean', 'std', 'min', 'max']
         # get aggregates for all metrics
-        aggregates = self.to_data_frame().groupby(MetricsFileColumns.Structure.value).describe()
+        df = self.to_data_frame()
+        aggregates = df.groupby(MetricsFileColumns.Structure.value).describe()
+        num_subjects = len(pd.unique(df[MetricsFileColumns.Patient.value]))
+        total_num_patients_column_name = f"total_{MetricsFileColumns.Patient.value}".lower()
+        if not total_num_patients_column_name.endswith("s"):
+            total_num_patients_column_name += "s"
 
         def filter_rename_metric_columns(_metric_column: str, is_count_column: bool = False) -> pd.DataFrame:
             _columns = ["count"] + stats_columns if is_count_column else stats_columns
             _df = aggregates[_metric_column][_columns]
-            _columns_to_rename = [x for x in _df.columns if x != "count"]
+            if is_count_column:
+                _df[total_num_patients_column_name] = num_subjects
+                _df = _df[["count", total_num_patients_column_name] + stats_columns]
+            _columns_to_rename = [x for x in _df.columns if x != "count" and x != total_num_patients_column_name]
             return _df.rename(columns={k: f"{_metric_column}_{k}" for k in _columns_to_rename})
 
         def _merge_df(df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
@@ -108,6 +116,7 @@ class MetricsPerPatientWriter:
             data=df[MetricsFileColumns.HausdorffDistanceMM.value].apply(float))
         df[MetricsFileColumns.MeanDistanceMM.value] = pd.Series(
             data=df[MetricsFileColumns.MeanDistanceMM.value].apply(float))
+        df = df.sort_values(by=[MetricsFileColumns.Patient.value, MetricsFileColumns.Structure.value])
         return df
 
 

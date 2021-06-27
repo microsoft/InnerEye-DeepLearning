@@ -57,7 +57,7 @@ class InferenceMetricsForSegmentation(InferenceMetrics):
     """
     Stores metrics for segmentation models, per execution mode and epoch.
     """
-    data_split: ModelExecutionMode
+    execution_mode: ModelExecutionMode
     metrics: float
 
     def get_metrics_log_key(self) -> str:
@@ -65,7 +65,7 @@ class InferenceMetricsForSegmentation(InferenceMetrics):
         Gets a string name for logging the metrics specific to the execution mode (train, val, test)
         :return:
         """
-        return f"InferenceMetrics_{self.data_split.value}"
+        return f"InferenceMetrics_{self.execution_mode.value}"
 
     def log_metrics(self, run_context: Run = None) -> None:
         """

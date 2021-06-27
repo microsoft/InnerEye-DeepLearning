@@ -76,14 +76,14 @@ def model_test(config: ModelConfigBase,
 
 
 def segmentation_model_test(config: SegmentationModelBase,
-                            data_split: ModelExecutionMode,
+                            execution_mode: ModelExecutionMode,
                             checkpoint_handler: CheckpointHandler,
                             model_proc: ModelProcessing = ModelProcessing.DEFAULT) -> InferenceMetricsForSegmentation:
     """
     The main testing loop for segmentation models.
     It loads the model and datasets, then proceeds to test the model for all requested checkpoints.
     :param config: The arguments object which has a valid random seed attribute.
-    :param data_split: Indicates which of the 3 sets (training, test, or validation) is being processed.
+    :param execution_mode: Indicates which of the 3 sets (training, test, or validation) is being processed.
     :param checkpoint_handler: Checkpoint handler object to find checkpoint paths for model initialization
     :param model_proc: whether we are testing an ensemble or single model
     :return: InferenceMetric object that contains metrics related for all of the checkpoint epochs.
@@ -93,12 +93,12 @@ def segmentation_model_test(config: SegmentationModelBase,
     if not checkpoints_to_test:
         raise ValueError("There were no checkpoints available for model testing.")
 
-    epoch_results_folder = config.outputs_folder / get_best_epoch_results_path(data_split, model_proc)
+    epoch_results_folder = config.outputs_folder / get_best_epoch_results_path(execution_mode, model_proc)
     # save the datasets.csv used
     config.write_dataset_files(root=epoch_results_folder)
-    epoch_and_split = f"{data_split.value} set"
+    epoch_and_split = f"{execution_mode.value} set"
     epoch_dice_per_image = segmentation_model_test_epoch(config=copy.deepcopy(config),
-                                                         data_split=data_split,
+                                                         execution_mode=execution_mode,
                                                          checkpoint_paths=checkpoints_to_test,
                                                          results_folder=epoch_results_folder,
                                                          epoch_and_split=epoch_and_split)
@@ -110,13 +110,13 @@ def segmentation_model_test(config: SegmentationModelBase,
         logging.info(f"Mean Dice: {epoch_average_dice:4f}")
         if model_proc == ModelProcessing.ENSEMBLE_CREATION:
             # For the upload, we want the path without the "OTHER_RUNS/ENSEMBLE" prefix.
-            name = str(get_best_epoch_results_path(data_split, ModelProcessing.DEFAULT))
+            name = str(get_best_epoch_results_path(execution_mode, ModelProcessing.DEFAULT))
             PARENT_RUN_CONTEXT.upload_folder(name=name, path=str(epoch_results_folder))
-    return InferenceMetricsForSegmentation(data_split=data_split, metrics=result)
+    return InferenceMetricsForSegmentation(execution_mode=execution_mode, metrics=result)
 
 
 def segmentation_model_test_epoch(config: SegmentationModelBase,
-                                  data_split: ModelExecutionMode,
+                                  execution_mode: ModelExecutionMode,
                                   checkpoint_paths: List[Path],
                                   results_folder: Path,
                                   epoch_and_split: str) -> Optional[List[float]]:
@@ -126,7 +126,7 @@ def segmentation_model_test_epoch(config: SegmentationModelBase,
     where the average is taken across all non-background structures in the image.
     :param checkpoint_paths: Checkpoint paths to run inference on.
     :param config: The arguments which specify all required information.
-    :param data_split: Is the model evaluated on train, test, or validation set?
+    :param execution_mode: Is the model evaluated on train, test, or validation set?
     :param results_folder: The folder where to store the results
     :param epoch_and_split: A string that should uniquely identify the epoch and the data split (train/val/test).
     :raises TypeError: If the arguments are of the wrong type.
@@ -136,8 +136,8 @@ def segmentation_model_test_epoch(config: SegmentationModelBase,
     ml_util.set_random_seed(config.get_effective_random_seed(), "Model testing")
     results_folder.mkdir(exist_ok=True)
 
-    test_dataframe = config.get_dataset_splits()[data_split]
-    test_csv_path = results_folder / STORED_CSV_FILE_NAMES[data_split]
+    test_dataframe = config.get_dataset_splits()[execution_mode]
+    test_csv_path = results_folder / STORED_CSV_FILE_NAMES[execution_mode]
     test_dataframe.to_csv(path_or_buf=test_csv_path, index=False)
     logging.info("Results directory: {}".format(results_folder))
     logging.info(f"Starting evaluation of model {config.model_name} on {epoch_and_split}")
@@ -145,7 +145,7 @@ def segmentation_model_test_epoch(config: SegmentationModelBase,
     # Write the dataset id and ground truth ids into the results folder
     store_run_information(results_folder, config.azure_dataset_id, config.ground_truth_ids, config.image_channels)
 
-    ds = config.get_torch_dataset_for_inference(data_split)
+    ds = config.get_torch_dataset_for_inference(execution_mode)
 
     inference_pipeline = create_inference_pipeline(config=config, checkpoint_paths=checkpoint_paths)
 
