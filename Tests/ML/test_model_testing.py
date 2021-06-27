@@ -17,7 +17,6 @@ from InnerEye.ML import model_testing
 from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.config import DATASET_ID_FILE, GROUND_TRUTH_IDS_FILE, ModelArchitectureConfig
 from InnerEye.ML.dataset.full_image_dataset import FullImageDataset
-from InnerEye.ML.dataset.sample import Sample
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_testing import DEFAULT_RESULT_IMAGE_NAME, create_inference_pipeline
 from InnerEye.ML.pipelines.ensemble import EnsemblePipeline
@@ -28,7 +27,7 @@ from InnerEye.ML.visualizers.plot_cross_validation import get_config_and_results
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import (assert_file_contains_string, assert_nifti_content, assert_text_files_match,
-                           assert_csv_column_contains_value,get_default_checkpoint_handler, get_image_shape)
+                           assert_csv_column_contains_value, get_default_checkpoint_handler, get_image_shape)
 from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
 
 
@@ -69,7 +68,7 @@ def test_model_test(test_output_dirs: OutputFolderForTests, partial_ground_truth
 
     # noinspection PyTypeHints
     config._datasets_for_inference = {
-        ModelExecutionMode.TEST: \
+        ModelExecutionMode.TEST:
             FullImageDataset(config, df, full_image_sample_transforms=transform, allow_incomplete_labels=partial_ground_truth)}  # type: ignore
     execution_mode = ModelExecutionMode.TEST
     checkpoint_handler = get_default_checkpoint_handler(model_config=config, project_root=test_output_dirs.root_dir)
@@ -95,7 +94,7 @@ def test_model_test(test_output_dirs: OutputFolderForTests, partial_ground_truth
     else:
         aggregates_df = pd.read_csv(epoch_dir / METRICS_AGGREGATES_FILE)
         assert total_num_patients_column_name not in aggregates_df.columns  # Only added if using partial ground truth
-        
+
         assert inference_results.metrics == pytest.approx(0.66606902, abs=1e-6)
         assert config.outputs_folder.is_dir()
         assert epoch_dir.is_dir()

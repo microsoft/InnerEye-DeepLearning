@@ -205,7 +205,7 @@ def assert_csv_column_contains_value(
     if not csv_file_path.exists:
         raise ValueError(f"The CSV at {csv_file_path} does not exist.")
     df = pd.read_csv(csv_file_path)
-    if not column_name in df.columns:
+    if column_name not in df.columns:
         raise ValueError(f"The column {column_name} is not in the CSV at {csv_file_path}, which has columns {df.columns}.")
     if contains_only_value:
         assert int(df[[column_name]].nunique(dropna=True)) == 1
