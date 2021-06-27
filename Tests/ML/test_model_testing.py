@@ -42,15 +42,36 @@ def test_model_test(test_output_dirs: OutputFolderForTests, partial_ground_truth
     config.azure_dataset_id = placeholder_dataset_id
     transform = config.get_full_image_sample_transforms().test
     df = pd.read_csv(full_ml_test_data_path(DATASET_CSV_FILE_NAME))
-    df = df[df.subject.isin([1, 2])]
     if partial_ground_truth:
-        # Patient 1 has one missing ground truth channel: "region_1"
         config.check_exclusive = False
-        config.ground_truth_ids = ["region", "region_1", "region_2"]
-        df = df[df["subject"].ne(1) & df["channel"].ne("region_1")]
+        # TO ASK: Why do wwe need the next three when they are (always?) the same?
+        config.fg_ids = ["region", "region_1"]
+        config.ground_truth_ids = ["region", "region_1"]
+        config.ground_truth_ids_display_names = ["region", "region_1"]
+        # As in Tests.ML.pipelines.test.inference.test_evaluate_model_predictions patients 3, 4,
+        # and 5 are in the test dataset
+        df = df[df.subject.isin([3, 4, 5])]
+        # Patient 3 has one missing ground truth channel: "region"
+        df = df[df["subject"].ne(3) | df["channel"].ne("region")]
+        # Patient 4 has all missing ground truth channels: "region", "region_1"
+        df = df[df["subject"].ne(4) | df["channel"].ne("region")]
+        df = df[df["subject"].ne(4) | df["channel"].ne("region_1")]
+        # Patient 5 has no missing ground truth channels.
+        config.train_subject_ids = ['1', '2']
+        config.test_subject_ids = ['3', '4', '5']
+        config.val_subject_ids = ['6', '7']
+        # TO ASK: Why doesn't the partial_ground_truth = False version of this test need the next
+        # line?
+        config.dataset_data_frame = df
+    else:
+        df = df[df.subject.isin([1, 2])]
     # noinspection PyTypeHints
     config._datasets_for_inference = \
-        {ModelExecutionMode.TEST: FullImageDataset(config, df, full_image_sample_transforms=transform)}  # type: ignore
+        {ModelExecutionMode.TEST: FullImageDataset(
+            config,
+            df,
+            full_image_sample_transforms=transform,
+            allow_incomplete_labels=partial_ground_truth)}  # type: ignore
     execution_mode = ModelExecutionMode.TEST
     checkpoint_handler = get_default_checkpoint_handler(model_config=config, project_root=test_output_dirs.root_dir)
     # Mimic the behaviour that checkpoints are downloaded from blob storage into the checkpoints folder.

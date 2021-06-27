@@ -238,7 +238,7 @@ def test_evaluate_model_predictions() -> None:
     """
     Creates an 'InferencePipeline.Result' object using pre-defined volumes, stores results and evaluates metrics.
     """
-    # Patient 3,4,5 are in test dataset such that:
+    # Patients 3, 4, and 5 are in test dataset such that:
     # Patient 3 has one missing ground truth channel: "region"
     # Patient 4 has all missing ground truth channels: "region", "region_1"
     # Patient 5 has no missing ground truth channels.
