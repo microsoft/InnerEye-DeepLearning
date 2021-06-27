@@ -99,7 +99,7 @@ def assert_file_contains_string(full_file: Union[str, Path], expected: Any = Non
     file_path = full_file if isinstance(full_file, Path) else Path(full_file)
     assert_file_exists(file_path)
     if expected is not None:
-        _assert_line(file_path.read_text(), expected)
+        assert expected.strip() in file_path.read_text()
 
 
 def assert_text_files_match(full_file: Path, expected_file: Path) -> None:

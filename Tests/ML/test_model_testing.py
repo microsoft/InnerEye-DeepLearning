@@ -2,6 +2,8 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+from typing import Tuple
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -24,12 +26,10 @@ from InnerEye.ML.utils import io_util
 from InnerEye.ML.visualizers.plot_cross_validation import get_config_and_results_for_offline_runs
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.util import assert_file_contains_string, assert_nifti_content, assert_text_files_match, \
-    get_default_checkpoint_handler, get_image_shape
+from Tests.ML.util import (assert_file_contains_string, assert_nifti_content, assert_text_files_match,
+                           get_default_checkpoint_handler, get_image_shape)
 from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
 
-@pytest.fixture
-def 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("partial_ground_truth", [True, False])
@@ -37,8 +37,6 @@ def test_model_test(test_output_dirs: OutputFolderForTests, partial_ground_truth
     train_and_test_data_dir = full_ml_test_data_path("train_and_test_data")
     seed_everything(42)
     config = DummyModel()
-    config.check_exclusive = False
-    config.ground_truth_ids = ["region", "region_1"]
     config.set_output_to(test_output_dirs.root_dir)
     placeholder_dataset_id = "place_holder_dataset_id"
     config.azure_dataset_id = placeholder_dataset_id
@@ -46,10 +44,10 @@ def test_model_test(test_output_dirs: OutputFolderForTests, partial_ground_truth
     df = pd.read_csv(full_ml_test_data_path(DATASET_CSV_FILE_NAME))
     df = df[df.subject.isin([1, 2])]
     if partial_ground_truth:
-        # Patient 1 has one missing ground truth channel: "region"
+        # Patient 1 has one missing ground truth channel: "region_1"
         config.check_exclusive = False
-        config.ground_truth_ids = ["region", "region_1"]
-        df = df[df["subject"].ne(1) & df["channel"].ne("region")]
+        config.ground_truth_ids = ["region", "region_1", "region_2"]
+        df = df[df["subject"].ne(1) & df["channel"].ne("region_1")]
     # noinspection PyTypeHints
     config._datasets_for_inference = \
         {ModelExecutionMode.TEST: FullImageDataset(config, df, full_image_sample_transforms=transform)}  # type: ignore
