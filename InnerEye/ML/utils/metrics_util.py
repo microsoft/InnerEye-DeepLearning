@@ -63,12 +63,14 @@ class MetricsPerPatientWriter:
         del sorted_by_dice[dice_numeric]
         sorted_by_dice.to_csv(file_name, index=False, float_format=self.float_format)
 
-    def save_aggregates_to_csv(self, file_path: Path) -> None:
+    def save_aggregates_to_csv(self, file_path: Path, allow_incomplete_labels: bool = False) -> None:
         """
         Writes the per-structure aggregate Dice scores (mean, median, and others) to a CSV file.
         The aggregates are those that are output by the Dataframe 'describe' method.
 
         :param file_path: The name of the file to write to.
+        :param allow_incomplete_labels: boolean flag. If false, all ground truth files must be provided.
+        If true, ground truth files are optional. (Defaults to False.)
         """
 
         stats_columns = ['mean', 'std', 'min', 'max']
@@ -83,7 +85,7 @@ class MetricsPerPatientWriter:
         def filter_rename_metric_columns(_metric_column: str, is_count_column: bool = False) -> pd.DataFrame:
             _columns = ["count"] + stats_columns if is_count_column else stats_columns
             _df = aggregates[_metric_column][_columns]
-            if is_count_column:
+            if is_count_column and allow_incomplete_labels:
                 _df[total_num_patients_column_name] = num_subjects
                 _df = _df[["count", total_num_patients_column_name] + stats_columns]
             _columns_to_rename = [x for x in _df.columns if x != "count" and x != total_num_patients_column_name]

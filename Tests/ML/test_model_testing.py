@@ -2,7 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from typing import Tuple
 
 import numpy as np
 import pandas as pd
@@ -18,6 +17,7 @@ from InnerEye.ML import model_testing
 from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.config import DATASET_ID_FILE, GROUND_TRUTH_IDS_FILE, ModelArchitectureConfig
 from InnerEye.ML.dataset.full_image_dataset import FullImageDataset
+from InnerEye.ML.dataset.sample import Sample
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_testing import DEFAULT_RESULT_IMAGE_NAME, create_inference_pipeline
 from InnerEye.ML.pipelines.ensemble import EnsemblePipeline
@@ -43,12 +43,16 @@ def test_model_test(test_output_dirs: OutputFolderForTests, partial_ground_truth
     config.azure_dataset_id = placeholder_dataset_id
     transform = config.get_full_image_sample_transforms().test
     df = pd.read_csv(full_ml_test_data_path(DATASET_CSV_FILE_NAME))
+
     if partial_ground_truth:
         config.check_exclusive = False
-        # TO ASK: Why do wwe need the next three when they are (always?) the same?
+
+        # TO ASK: Why do the next three all exist, given that they are (usually/always?) the same?
+        # Do we have expample where their usage differs?
         config.fg_ids = ["region", "region_1"]
         config.ground_truth_ids = ["region", "region_1"]
         config.ground_truth_ids_display_names = ["region", "region_1"]
+
         # As in Tests.ML.pipelines.test.inference.test_evaluate_model_predictions patients 3, 4,
         # and 5 are in the test dataset with:
         # Patient 3 has one missing ground truth channel: "region"
@@ -57,22 +61,23 @@ def test_model_test(test_output_dirs: OutputFolderForTests, partial_ground_truth
         df = df[df["subject"].ne(4) | df["channel"].ne("region")]
         df = df[df["subject"].ne(4) | df["channel"].ne("region_1")]
         # Patient 5 has no missing ground truth channels.
-        # TO ASK: Why doesn't the partial_ground_truth = False version of this test need the next
-        # line?
+
+        # TO ASK: Why doesn't the partial_ground_truth = False version of this test need this next
+        # line:
         config.dataset_data_frame = df
+
         df = df[df.subject.isin([3, 4, 5])]
+
         config.train_subject_ids = ['1', '2']
         config.test_subject_ids = ['3', '4', '5']
         config.val_subject_ids = ['6', '7']
     else:
         df = df[df.subject.isin([1, 2])]
+
     # noinspection PyTypeHints
-    config._datasets_for_inference = \
-        {ModelExecutionMode.TEST: FullImageDataset(
-            config,
-            df,
-            full_image_sample_transforms=transform,
-            allow_incomplete_labels=partial_ground_truth)}  # type: ignore
+    config._datasets_for_inference = {
+        ModelExecutionMode.TEST: \
+            FullImageDataset(config, df, full_image_sample_transforms=transform, allow_incomplete_labels=partial_ground_truth)}  # type: ignore
     execution_mode = ModelExecutionMode.TEST
     checkpoint_handler = get_default_checkpoint_handler(model_config=config, project_root=test_output_dirs.root_dir)
     # Mimic the behaviour that checkpoints are downloaded from blob storage into the checkpoints folder.
@@ -80,7 +85,8 @@ def test_model_test(test_output_dirs: OutputFolderForTests, partial_ground_truth
     checkpoint_handler.additional_training_done()
     inference_results = model_testing.segmentation_model_test(config,
                                                               execution_mode=execution_mode,
-                                                              checkpoint_handler=checkpoint_handler)
+                                                              checkpoint_handler=checkpoint_handler,
+                                                              allow_incomplete_labels=partial_ground_truth)
     epoch_dir = config.outputs_folder / get_best_epoch_results_path(execution_mode)
     total_num_patients_column_name = f"total_{MetricsFileColumns.Patient.value}".lower()
     if not total_num_patients_column_name.endswith("s"):
