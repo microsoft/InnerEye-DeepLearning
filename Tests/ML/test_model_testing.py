@@ -46,12 +46,7 @@ def test_model_test(test_output_dirs: OutputFolderForTests, partial_ground_truth
 
     if partial_ground_truth:
         config.check_exclusive = False
-
-        # TO ASK: Why do the next three all exist, given that they are (usually/always?) the same?
-        # Do we have expample where their usage differs?
-        config.fg_ids = ["region", "region_1"]
         config.ground_truth_ids = ["region", "region_1"]
-        config.ground_truth_ids_display_names = ["region", "region_1"]
 
         # As in Tests.ML.pipelines.test.inference.test_evaluate_model_predictions patients 3, 4,
         # and 5 are in the test dataset with:
@@ -62,8 +57,6 @@ def test_model_test(test_output_dirs: OutputFolderForTests, partial_ground_truth
         df = df[df["subject"].ne(4) | df["channel"].ne("region_1")]
         # Patient 5 has no missing ground truth channels.
 
-        # TO ASK: Why doesn't the partial_ground_truth = False version of this test need this next
-        # line:
         config.dataset_data_frame = df
 
         df = df[df.subject.isin([3, 4, 5])]
@@ -101,7 +94,8 @@ def test_model_test(test_output_dirs: OutputFolderForTests, partial_ground_truth
             contains_only_value=True)
     else:
         aggregates_df = pd.read_csv(epoch_dir / METRICS_AGGREGATES_FILE)
-        assert total_num_patients_column_name not in aggregates_df.columns
+        assert total_num_patients_column_name not in aggregates_df.columns  # Only added if using partial ground truth
+        
         assert inference_results.metrics == pytest.approx(0.66606902, abs=1e-6)
         assert config.outputs_folder.is_dir()
         assert epoch_dir.is_dir()
