@@ -26,6 +26,23 @@ def synchronize_across_gpus(tensor: torch.Tensor) -> torch.Tensor:
     return tensor
 
 
+def sum_sync_and_sum(t: torch.Tensor) -> torch.Tensor:
+    """
+    Sums a tensor across batch and spatial dimensions, synchronizes across all GPUs, and then sums again
+    across the batch dimension (that is now the number of GPUs). Returns a tensor of size [Classes]
+    :param t: A tensor of shape [Batch, Classes, Z, Y, X]
+    """
+    # All core statistics are summed across the spatial dimensions AND the batch dimension
+    sum_across = [0, *range(2, len(t.shape))]
+    # Sum across the batch dimension and all spatial dimension, then add a singleton batch dimension.
+    # Returns a tensor of size [1, Classes]
+    sum_spatial = t.sum(dim=sum_across).unsqueeze(0)
+    # Synchronize across all GPUs. This will add along the batch dimension, giving a tensor of size [GPUs, Classes]
+    synced = synchronize_across_gpus(sum_spatial)
+    # Sum again across batch dimension that is now equal to number of GPUs, to get a tensor of size [Classes]
+    return synced.sum(dim=0)
+
+
 class SoftDiceLoss(SupervisedLearningCriterion):
     """
     Implementation of Soft-Dice Loss.
@@ -77,41 +94,19 @@ class SoftDiceLoss(SupervisedLearningCriterion):
 
         if self.apply_softmax:
             output = torch.nn.functional.softmax(output, dim=1)
-        # All core statistics for the Dice score are summed across the spatial dimensions AND the batch dimension
-        sum_across = [0, *range(2, len(output.shape))]
-
-        def sum_spatial_and_add_batch_dim(t: torch.Tensor) -> torch.Tensor:
-            """
-            Sums across the batch dimension and all spatial dimension, then add a singleton batch dimension.
-            Returns a tensor of size [1, Classes]
-            """
-            return torch.sum(t, dim=sum_across).unsqueeze(0)
-
-        def sum_batch_dim(t: torch.Tensor) -> torch.Tensor:
-            """
-            Sums across the batch dimension. Returns a tensor of size [Classes]
-            """
-            return torch.sum(t, dim=0)
-
-        def sum_sync_sum(t: torch.Tensor) -> torch.Tensor:
-            """
-            Sums a tensor across batch and spatial dimension, synchronizes across all GPUs, and then sums again
-            across the batch dimension (that is now the number of GPUs). Returns a tensor of size [Classes
-            """
-            return sum_batch_dim(synchronize_across_gpus(sum_spatial_and_add_batch_dim(t)))
 
         # Intersection has size [1, classes], all the spatial dimensions are summed across.
-        intersection = sum_sync_sum(output * target)
+        intersection = sum_sync_and_sum(output * target)
 
         if self.class_weight_power is not None and self.class_weight_power != 0.0:
             # Count classes across all batches and GPUs
-            class_counts = sum_sync_sum(target)
+            class_counts = sum_sync_and_sum(target)
             class_weights = get_class_weights_from_counts(class_counts, class_weight_power=self.class_weight_power)
             intersection = intersection * class_weights
 
         # All these tensors also have shape [1, classes]
-        output_sum_square = sum_sync_sum(output * output)
-        target_sum_square = sum_sync_sum(target * target)
+        output_sum_square = sum_sync_and_sum(output * output)
+        target_sum_square = sum_sync_and_sum(target * target)
 
         # Average across all classes, including background
         synced = 1.0 - 2.0 * torch.mean((intersection + self.eps) / (output_sum_square + target_sum_square + self.eps))

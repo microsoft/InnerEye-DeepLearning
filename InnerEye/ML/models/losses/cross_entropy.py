@@ -7,7 +7,8 @@ from typing import Any, Optional
 import torch
 import torch.nn.functional as F
 
-from InnerEye.ML.utils.image_util import get_class_weights
+from InnerEye.ML.models.losses.soft_dice import sum_sync_and_sum
+from InnerEye.ML.utils.image_util import get_class_weights, get_class_weights_from_counts
 from InnerEye.ML.utils.supervised_criterion import SupervisedLearningCriterion
 
 
@@ -99,9 +100,11 @@ class CrossEntropyLoss(SupervisedLearningCriterion):
         # Check input tensors
         self._verify_inputs(output, target)
 
-        # Determine class weights for unbalanced datasets
+        # Determine class weights for unbalanced datasets. For the class weights, aggregate statistics across
+        # all GPUs to get better statistics in particular for small classes
         if self.class_weight_power is not None and self.class_weight_power != 0.0:
-            class_weight = get_class_weights(target, class_weight_power=self.class_weight_power)
+            class_counts = sum_sync_and_sum(target)
+            class_weight = get_class_weights_from_counts(class_counts, class_weight_power=self.class_weight_power)
 
         # Compute negative log-likelihood
         log_prob = F.log_softmax(output, dim=1)
