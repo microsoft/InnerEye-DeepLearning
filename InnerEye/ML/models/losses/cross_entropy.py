@@ -103,7 +103,7 @@ class CrossEntropyLoss(SupervisedLearningCriterion):
         if self.class_weight_power is not None and self.class_weight_power != 0.0:
             class_weight = get_class_weights(target, class_weight_power=self.class_weight_power)
 
-            # Compute negative log-likelihood
+        # Compute negative log-likelihood
         log_prob = F.log_softmax(output, dim=1)
         if self.smoothing_eps > 0.0:
             loss = -1.0 * log_prob * target
