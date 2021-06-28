@@ -32,6 +32,8 @@ any large models anymore because data loaders ran out of memory.
 LightningContainer models can get stuck at test set inference.
 - ([#498](https://github.com/microsoft/InnerEye-DeepLearning/pull/498)) Workaround for the problem that downloading
 multiple large checkpoints can time out.
+- ([#515](https://github.com/microsoft/InnerEye-DeepLearning/pull/515)) Workaround for occasional issues with dataset
+mounting and running matplotblib on some machines.
 
 ### Removed
 
