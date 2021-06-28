@@ -78,8 +78,7 @@ def model_test(config: ModelConfigBase,
 def segmentation_model_test(config: SegmentationModelBase,
                             execution_mode: ModelExecutionMode,
                             checkpoint_handler: CheckpointHandler,
-                            model_proc: ModelProcessing = ModelProcessing.DEFAULT,
-                            allow_incomplete_labels: bool = False) -> InferenceMetricsForSegmentation:
+                            model_proc: ModelProcessing = ModelProcessing.DEFAULT) -> InferenceMetricsForSegmentation:
     """
     The main testing loop for segmentation models.
     It loads the model and datasets, then proceeds to test the model for all requested checkpoints.
@@ -88,8 +87,6 @@ def segmentation_model_test(config: SegmentationModelBase,
     :param checkpoint_handler: Checkpoint handler object to find checkpoint paths for model initialization.
     :param model_proc: Whether we are testing an ensemble or single model.
     :param patient_id: String which contains subject identifier.
-    :param allow_incomplete_labels: Boolean flag. If false, all ground truth files must be provided.
-    If true, ground truth files are optional. (Defaults to False.)
     :return: InferenceMetric object that contains metrics related for all of the checkpoint epochs.
     """
     checkpoints_to_test = checkpoint_handler.get_checkpoints_to_test()
@@ -105,8 +102,7 @@ def segmentation_model_test(config: SegmentationModelBase,
                                                          execution_mode=execution_mode,
                                                          checkpoint_paths=checkpoints_to_test,
                                                          results_folder=epoch_results_folder,
-                                                         epoch_and_split=epoch_and_split,
-                                                         allow_incomplete_labels=allow_incomplete_labels)
+                                                         epoch_and_split=epoch_and_split)
     if epoch_dice_per_image is None:
         raise ValueError("There was no single checkpoint file available for model testing.")
     else:
@@ -124,8 +120,7 @@ def segmentation_model_test_epoch(config: SegmentationModelBase,
                                   execution_mode: ModelExecutionMode,
                                   checkpoint_paths: List[Path],
                                   results_folder: Path,
-                                  epoch_and_split: str,
-                                  allow_incomplete_labels: bool = False) -> Optional[List[float]]:
+                                  epoch_and_split: str) -> Optional[List[float]]:
     """
     The main testing loop for a given epoch. It loads the model and datasets, then proceeds to test the model.
     Returns a list with an entry for each image in the dataset. The entry is the average Dice score,
@@ -137,8 +132,6 @@ def segmentation_model_test_epoch(config: SegmentationModelBase,
     :param epoch_and_split: A string that should uniquely identify the epoch and the data split (train/val/test).
     :raises TypeError: If the arguments are of the wrong type.
     :raises ValueError: When there are issues loading the model.
-    :param allow_incomplete_labels: boolean flag. If false, all ground truth files must be provided.
-    If true, ground truth files are optional. (Defaults to False.)
     :return A list with the mean dice score (across all structures apart from background) for each image.
     """
     ml_util.set_random_seed(config.get_effective_random_seed(), "Model testing")
@@ -192,7 +185,7 @@ def segmentation_model_test_epoch(config: SegmentationModelBase,
 
     metrics_writer, average_dice = populate_metrics_writer(pool_outputs, config)
     metrics_writer.to_csv(results_folder / SUBJECT_METRICS_FILE_NAME)
-    metrics_writer.save_aggregates_to_csv(results_folder / METRICS_AGGREGATES_FILE, allow_incomplete_labels)
+    metrics_writer.save_aggregates_to_csv(results_folder / METRICS_AGGREGATES_FILE, config.allow_incomplete_labels)
     if config.is_plotting_enabled:
         plt.figure()
         boxplot_per_structure(metrics_writer.to_data_frame(),

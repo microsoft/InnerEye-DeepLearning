@@ -474,16 +474,23 @@ class SegmentationModelBase(ModelConfigBase):
     is_plotting_enabled: bool = param.Boolean(True, doc="If true, various overview plots with results are generated "
                                                         "during model evaluation. Set to False if you see "
                                                         "non-deterministic pull request build failures.")
+
     show_patch_sampling: int = param.Integer(1, bounds=(0, None),
                                              doc="Number of patients from the training set for which the effect of"
                                                  "patch sampling will be shown. Nifti images and thumbnails for each"
                                                  "of the first N subjects in the training set will be "
                                                  "written to the outputs folder.")
+
     #: If true an error is raised in InnerEye.ML.utils.io_util.load_labels_from_dataset_source if the labels are not
     #: mutually exclusive. Some loss functions (e.g. SoftDice) may produce results on overlapping labels, but others (e.g.
     #: FocalLoss) will fail with a cryptic error message. Set to false if you are sure that you want to use labels that
     #: are not mutually exclusive.
     check_exclusive: bool = param.Boolean(True, doc="Raise an error if the segmentation labels are not mutually exclusive.")
+
+    allow_incomplete_labels: bool = param.Boolean(
+        default=False,
+        doc="If some test data includes patients with missing ground truth data then their data will be ignored "
+        "completely unless this flag is set. Only used for segmentation models.")
 
     def __init__(self, center_size: Optional[TupleInt3] = None,
                  inference_stride_size: Optional[TupleInt3] = None,

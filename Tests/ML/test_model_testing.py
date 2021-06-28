@@ -37,6 +37,7 @@ def test_model_test(test_output_dirs: OutputFolderForTests, partial_ground_truth
     train_and_test_data_dir = full_ml_test_data_path("train_and_test_data")
     seed_everything(42)
     config = DummyModel()
+    config.allow_incomplete_labels = partial_ground_truth
     config.set_output_to(test_output_dirs.root_dir)
     placeholder_dataset_id = "place_holder_dataset_id"
     config.azure_dataset_id = placeholder_dataset_id
@@ -77,8 +78,7 @@ def test_model_test(test_output_dirs: OutputFolderForTests, partial_ground_truth
     checkpoint_handler.additional_training_done()
     inference_results = model_testing.segmentation_model_test(config,
                                                               execution_mode=execution_mode,
-                                                              checkpoint_handler=checkpoint_handler,
-                                                              allow_incomplete_labels=partial_ground_truth)
+                                                              checkpoint_handler=checkpoint_handler)
     epoch_dir = config.outputs_folder / get_best_epoch_results_path(execution_mode)
     total_num_patients_column_name = f"total_{MetricsFileColumns.Patient.value}".lower()
     if not total_num_patients_column_name.endswith("s"):
