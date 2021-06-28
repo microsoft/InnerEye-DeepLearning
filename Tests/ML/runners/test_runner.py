@@ -3,24 +3,96 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
+from pathlib import Path
 import time
 from unittest import mock
 from unittest.mock import Mock
 
-import pytest
 from azureml.train.hyperdrive.runconfig import HyperDriveConfig
+import numpy as np
+import pytest
 
 from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.common_util import ModelProcessing, get_best_epoch_results_path
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
+from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, ModelExecutionMode
 from InnerEye.ML.metrics import InferenceMetricsForSegmentation
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.runner import Runner
+from InnerEye.ML.utils import io_util
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import get_default_checkpoint_handler
 from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
+
+
+def create_smaller_image(image_size: TupleInt3, source_image_dir: Path, target_image_dir: Path, image_file_name: str) -> None:
+    """
+    Load an image from source_image_dir and create another random image in target_image_dir with same header and
+    target size.
+
+    :param image_size: Target image size.
+    :param source_image_dir: Source image directory.
+    :param target_image_dir: Target image directory.
+    :param image_file_name: Common image file name.
+    :return: None.
+    """
+    source_image = io_util.load_nifti_image(source_image_dir / image_file_name)
+    source_image_data = source_image.image
+    min_data_val = np.min(source_image_data)
+    max_data_val = np.max(source_image_data)
+
+    image = np.random.randint(low=min_data_val, high=max_data_val + 1, size=image_size)
+    io_util.store_as_nifti(image, source_image.header, target_image_dir / image_file_name, np.short)
+
+
+def create_train_and_test_data_small(image_size: TupleInt3, source_image_dir: Path,
+                                     target_image_dir: Path) -> None:
+    """
+    Create smaller, random, versions of the images from source_image_dir in target_image_dir.
+
+    :param image_size: Target image size:
+    :param source_image_dir: Source image directory.
+    :param target_image_dir: Target image directory.
+    :return: None.
+    """
+    for channel_file_name in ["id1_channel1.nii.gz", "id1_channel2.nii.gz", "id2_channel1.nii.gz", "id2_channel2.nii.gz"]:
+        create_smaller_image(image_size, source_image_dir, target_image_dir, channel_file_name)
+
+    for mask_file_name in ["id1_mask.nii.gz", "id2_mask.nii.gz"]:
+        create_smaller_image(image_size, source_image_dir, target_image_dir, mask_file_name)
+
+    for region_file_name in ["id1_region.nii.gz", "id2_region.nii.gz"]:
+        create_smaller_image(image_size, source_image_dir, target_image_dir, region_file_name)
+
+
+def create_train_and_test_data_small_dataset(image_size: TupleInt3,
+                                             source_dir: Path, source_images_folder: str,
+                                             target_dir: Path, target_images_folder: str) -> Path:
+    """
+    Create smaller, random, versions of the dataset and images from source_dir in target_dir.
+
+    :param image_size: Target image size:
+    :param source_dir: Source dataset directory.
+    :param source_images_folder: Source images folder.
+    :param target_dir: Target dataset directory.
+    :param target_images_folder: Target images folder.
+    :return: target_dir.
+    """
+    # Load and rewrite dataset.csv
+    csv_str = (source_dir / "dataset.csv").read_text()
+    csv_str = csv_str.replace(source_images_folder, target_images_folder)
+
+    target_dir.mkdir(parents=True)
+    (target_dir / "dataset.csv").write_text(csv_str)
+
+    source_image_dir = source_dir / source_images_folder
+
+    target_image_dir = target_dir / target_images_folder
+    target_image_dir.mkdir()
+    create_train_and_test_data_small(image_size, source_image_dir, target_image_dir)
+    return target_dir
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
@@ -93,6 +165,7 @@ def run_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
                                        model_proc: ModelProcessing) -> None:
     config = DummyModel()
     config.crop_size = (29, 29, 29)
+    config.test_crop_size = (29, 29, 29)
     config.number_of_cross_validation_splits = 2 if perform_cross_validation else 0
     config.perform_training_set_inference = perform_training_set_inference
     config.perform_validation_set_inference = perform_validation_set_inference
@@ -104,7 +177,11 @@ def run_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
     config.is_plotting_enabled = common_util.is_linux()
 
     config.set_output_to(test_output_dirs.root_dir)
-    config.local_dataset = full_ml_test_data_path()
+    config.local_dataset = create_train_and_test_data_small_dataset(config.test_crop_size,
+                                                                    full_ml_test_data_path(),
+                                                                    "train_and_test_data",
+                                                                    test_output_dirs.root_dir / "train_and_test_data_small",
+                                                                    "data")
 
     checkpoint_path = config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
     create_model_and_store_checkpoint(config, checkpoint_path)
