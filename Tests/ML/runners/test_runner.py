@@ -117,41 +117,22 @@ def test_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
-@pytest.mark.parametrize("inference_on_train_set", [True, False])
-@pytest.mark.parametrize("inference_on_val_set", [True, False])
-@pytest.mark.parametrize("inference_on_test_set", [True, False])
+@pytest.mark.parametrize("ensemble_inference_on_train_set", [True, False])
+@pytest.mark.parametrize("ensemble_inference_on_val_set", [True, False])
+@pytest.mark.parametrize("ensemble_inference_on_test_set", [True, False])
 def test_ensemble_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
-                                                 inference_on_train_set: bool,
-                                                 inference_on_val_set: bool,
-                                                 inference_on_test_set: bool) -> None:
+                                                 ensemble_inference_on_train_set: bool,
+                                                 ensemble_inference_on_val_set: bool,
+                                                 ensemble_inference_on_test_set: bool) -> None:
     run_model_inference_train_and_test(test_output_dirs,
                                        True,
-                                       inference_on_train_set,
-                                       inference_on_val_set,
-                                       inference_on_test_set,
                                        False,
                                        False,
                                        False,
+                                       ensemble_inference_on_train_set,
+                                       ensemble_inference_on_val_set,
+                                       ensemble_inference_on_test_set,
                                        ModelProcessing.ENSEMBLE_CREATION)
-
-
-@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
-@pytest.mark.parametrize("perform_ensemble_child_training_set_inference", [True, False])
-@pytest.mark.parametrize("perform_ensemble_child_validation_set_inference", [True, False])
-@pytest.mark.parametrize("perform_ensemble_child_test_set_inference", [True, False])
-def test_ensemble_child_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
-                                                       perform_ensemble_child_training_set_inference: bool,
-                                                       perform_ensemble_child_validation_set_inference: bool,
-                                                       perform_ensemble_child_test_set_inference: bool) -> None:
-    run_model_inference_train_and_test(test_output_dirs,
-                                       True,
-                                       False,
-                                       False,
-                                       False,
-                                       perform_ensemble_child_training_set_inference,
-                                       perform_ensemble_child_validation_set_inference,
-                                       perform_ensemble_child_test_set_inference,
-                                       ModelProcessing.DEFAULT)
 
 
 def run_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
@@ -159,9 +140,9 @@ def run_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
                                        inference_on_train_set: bool,
                                        inference_on_val_set: bool,
                                        inference_on_test_set: bool,
-                                       perform_ensemble_child_training_set_inference: bool,
-                                       perform_ensemble_child_validation_set_inference: bool,
-                                       perform_ensemble_child_test_set_inference: bool,
+                                       ensemble_inference_on_train_set: bool,
+                                       ensemble_inference_on_val_set: bool,
+                                       ensemble_inference_on_test_set: bool,
                                        model_proc: ModelProcessing) -> None:
     config = DummyModel()
     config.crop_size = (29, 29, 29)
@@ -170,9 +151,9 @@ def run_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
     config.inference_on_train_set = inference_on_train_set
     config.inference_on_val_set = inference_on_val_set
     config.inference_on_test_set = inference_on_test_set
-    config.perform_ensemble_child_training_set_inference = perform_ensemble_child_training_set_inference
-    config.perform_ensemble_child_validation_set_inference = perform_ensemble_child_validation_set_inference
-    config.perform_ensemble_child_test_set_inference = perform_ensemble_child_test_set_inference
+    config.ensemble_inference_on_train_set = ensemble_inference_on_train_set
+    config.ensemble_inference_on_val_set = ensemble_inference_on_val_set
+    config.ensemble_inference_on_test_set = ensemble_inference_on_test_set
     # Plotting crashes with random TCL errors on Windows, disable that for Windows PR builds.
     config.is_plotting_enabled = common_util.is_linux()
 
@@ -194,19 +175,19 @@ def run_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
             checkpoint_handler=checkpoint_handler,
             model_proc=model_proc)
 
-    if perform_cross_validation and model_proc == ModelProcessing.DEFAULT:
-        named_metrics = \
-            {
-                ModelExecutionMode.TRAIN: perform_ensemble_child_training_set_inference,
-                ModelExecutionMode.TEST: perform_ensemble_child_test_set_inference,
-                ModelExecutionMode.VAL: perform_ensemble_child_validation_set_inference
-            }
-    else:
+    if model_proc == ModelProcessing.DEFAULT:
         named_metrics = \
             {
                 ModelExecutionMode.TRAIN: inference_on_train_set,
                 ModelExecutionMode.TEST: inference_on_test_set,
                 ModelExecutionMode.VAL: inference_on_val_set
+            }
+    else:
+        named_metrics = \
+            {
+                ModelExecutionMode.TRAIN: ensemble_inference_on_train_set,
+                ModelExecutionMode.TEST: ensemble_inference_on_test_set,
+                ModelExecutionMode.VAL: ensemble_inference_on_val_set
             }
 
     error = ''

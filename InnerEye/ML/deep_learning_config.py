@@ -208,15 +208,15 @@ class WorkflowParams(param.Parameterized):
     inference_on_test_set: bool = \
         param.Boolean(None,
                       doc="If set, enable/disable full image inference on test set after training.")
-    perform_ensemble_child_training_set_inference: bool = \
-        param.Boolean(False,
-                      doc="If True, run full image inference on the training set at the end of ensemble child training.")
-    perform_ensemble_child_validation_set_inference: bool = \
-        param.Boolean(False,
-                      doc="If True (default), run full image inference on validation set after ensemble child training.")
-    perform_ensemble_child_test_set_inference: bool = \
-        param.Boolean(False,
-                      doc="If True (default), run full image inference on test set after ensemble child training.")
+    ensemble_inference_on_train_set: bool = \
+        param.Boolean(None,
+                      doc="If set, enable/disable full image inference on the training set after ensemble training.")
+    ensemble_inference_on_val_set: bool = \
+        param.Boolean(None,
+                      doc="If set, enable/disable full image inference on validation set after ensemble training.")
+    ensemble_inference_on_test_set: bool = \
+        param.Boolean(None,
+                      doc="If set, enable/disable full image inference on test set after ensemble training.")
     weights_url: str = param.String(doc="If provided, a url from which weights will be downloaded and used for model "
                                         "initialization.")
     local_weights_path: Optional[Path] = param.ClassSelector(class_=Path,
@@ -265,23 +265,12 @@ class WorkflowParams(param.Parameterized):
                              f"and cross_validation_split_index={self.cross_validation_split_index}")
 
     def run_perform_test_set_inference(self, model_proc: ModelProcessing, data_split: ModelExecutionMode) -> bool:
-        if model_proc == ModelProcessing.DEFAULT and \
-                self.perform_cross_validation:
-            # This is an ensemble child run and not the final consolidation
-            if data_split == ModelExecutionMode.TEST:
-                return self.perform_ensemble_child_test_set_inference
-            elif data_split == ModelExecutionMode.VAL:
-                return self.perform_ensemble_child_validation_set_inference
-            elif data_split == ModelExecutionMode.TRAIN:
-                return self.perform_ensemble_child_training_set_inference
-            else:
-                return False
-        elif model_proc == ModelProcessing.DEFAULT:
-            # This is a "normal" run
+        if model_proc == ModelProcessing.DEFAULT:
+            # This is a "normal" run or an ensemble child run and not the final consolidation
             if data_split == ModelExecutionMode.TEST:
                 return self.inference_on_test_set if self.inference_on_test_set is not None else True
             elif data_split == ModelExecutionMode.VAL:
-                return self.inference_on_val_set if self.inference_on_val_set is not None else True
+                return self.inference_on_val_set if self.inference_on_val_set is not None else False
             elif data_split == ModelExecutionMode.TRAIN:
                 return self.inference_on_train_set if self.inference_on_train_set is not None else False
             else:
@@ -289,11 +278,11 @@ class WorkflowParams(param.Parameterized):
         else:
             # This is an ensemble run in consolidation step.
             if data_split == ModelExecutionMode.TEST:
-                return self.inference_on_test_set if self.inference_on_test_set is not None else True
+                return self.ensemble_inference_on_test_set if self.ensemble_inference_on_test_set is not None else True
             elif data_split == ModelExecutionMode.VAL:
-                return self.inference_on_val_set if self.inference_on_val_set is not None else False
+                return self.ensemble_inference_on_val_set if self.ensemble_inference_on_val_set is not None else False
             elif data_split == ModelExecutionMode.TRAIN:
-                return self.inference_on_train_set if self.inference_on_train_set is not None else False
+                return self.ensemble_inference_on_train_set if self.ensemble_inference_on_train_set is not None else False
             else:
                 return False
 
