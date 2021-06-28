@@ -97,19 +97,19 @@ def create_train_and_test_data_small_dataset(image_size: TupleInt3,
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("perform_cross_validation", [True, False])
-@pytest.mark.parametrize("perform_training_set_inference", [True, False])
-@pytest.mark.parametrize("perform_validation_set_inference", [True, False])
-@pytest.mark.parametrize("perform_test_set_inference", [True, False])
+@pytest.mark.parametrize("inference_on_train_set", [True, False])
+@pytest.mark.parametrize("inference_on_val_set", [True, False])
+@pytest.mark.parametrize("inference_on_test_set", [True, False])
 def test_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
                                         perform_cross_validation: bool,
-                                        perform_training_set_inference: bool,
-                                        perform_validation_set_inference: bool,
-                                        perform_test_set_inference: bool) -> None:
+                                        inference_on_train_set: bool,
+                                        inference_on_val_set: bool,
+                                        inference_on_test_set: bool) -> None:
     run_model_inference_train_and_test(test_output_dirs,
                                        perform_cross_validation,
-                                       perform_training_set_inference,
-                                       perform_validation_set_inference,
-                                       perform_test_set_inference,
+                                       inference_on_train_set,
+                                       inference_on_val_set,
+                                       inference_on_test_set,
                                        False,
                                        False,
                                        False,
@@ -117,18 +117,18 @@ def test_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
-@pytest.mark.parametrize("perform_training_set_inference", [True, False])
-@pytest.mark.parametrize("perform_validation_set_inference", [True, False])
-@pytest.mark.parametrize("perform_test_set_inference", [True, False])
+@pytest.mark.parametrize("inference_on_train_set", [True, False])
+@pytest.mark.parametrize("inference_on_val_set", [True, False])
+@pytest.mark.parametrize("inference_on_test_set", [True, False])
 def test_ensemble_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
-                                                 perform_training_set_inference: bool,
-                                                 perform_validation_set_inference: bool,
-                                                 perform_test_set_inference: bool) -> None:
+                                                 inference_on_train_set: bool,
+                                                 inference_on_val_set: bool,
+                                                 inference_on_test_set: bool) -> None:
     run_model_inference_train_and_test(test_output_dirs,
                                        True,
-                                       perform_training_set_inference,
-                                       perform_validation_set_inference,
-                                       perform_test_set_inference,
+                                       inference_on_train_set,
+                                       inference_on_val_set,
+                                       inference_on_test_set,
                                        False,
                                        False,
                                        False,
@@ -156,9 +156,9 @@ def test_ensemble_child_model_inference_train_and_test(test_output_dirs: OutputF
 
 def run_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
                                        perform_cross_validation: bool,
-                                       perform_training_set_inference: bool,
-                                       perform_validation_set_inference: bool,
-                                       perform_test_set_inference: bool,
+                                       inference_on_train_set: bool,
+                                       inference_on_val_set: bool,
+                                       inference_on_test_set: bool,
                                        perform_ensemble_child_training_set_inference: bool,
                                        perform_ensemble_child_validation_set_inference: bool,
                                        perform_ensemble_child_test_set_inference: bool,
@@ -167,9 +167,9 @@ def run_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
     config.crop_size = (29, 29, 29)
     config.test_crop_size = (29, 29, 29)
     config.number_of_cross_validation_splits = 2 if perform_cross_validation else 0
-    config.perform_training_set_inference = perform_training_set_inference
-    config.perform_validation_set_inference = perform_validation_set_inference
-    config.perform_test_set_inference = perform_test_set_inference
+    config.inference_on_train_set = inference_on_train_set
+    config.inference_on_val_set = inference_on_val_set
+    config.inference_on_test_set = inference_on_test_set
     config.perform_ensemble_child_training_set_inference = perform_ensemble_child_training_set_inference
     config.perform_ensemble_child_validation_set_inference = perform_ensemble_child_validation_set_inference
     config.perform_ensemble_child_test_set_inference = perform_ensemble_child_test_set_inference
@@ -204,9 +204,9 @@ def run_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
     else:
         named_metrics = \
             {
-                ModelExecutionMode.TRAIN: perform_training_set_inference,
-                ModelExecutionMode.TEST: perform_test_set_inference,
-                ModelExecutionMode.VAL: perform_validation_set_inference
+                ModelExecutionMode.TRAIN: inference_on_train_set,
+                ModelExecutionMode.TEST: inference_on_test_set,
+                ModelExecutionMode.VAL: inference_on_val_set
             }
 
     error = ''

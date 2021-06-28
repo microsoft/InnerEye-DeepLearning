@@ -121,8 +121,8 @@ class SSLContainer(LightningContainer):
                                                            dataset_path=self.local_dataset,
                                                            batch_size=self.ssl_training_batch_size)})
         self.data_module: InnerEyeDataModuleTypes = self.get_data_module()
-        self.perform_validation_set_inference = False
-        self.perform_test_set_inference = False
+        self.inference_on_val_set = False
+        self.inference_on_test_set = False
         if self.perform_cross_validation:
             raise NotImplementedError("Cross-validation logic is not implemented for this module.")
 

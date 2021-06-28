@@ -199,16 +199,13 @@ class WorkflowParams(param.Parameterized):
     cross_validation_split_index: int = param.Integer(DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, bounds=(-1, None),
                                                       doc="The index of the cross validation fold this model is "
                                                           "associated with when performing k-fold cross validation")
-    perform_training_set_inference: bool = \
+    inference_on_train_set: bool = \
         param.Boolean(False,
                       doc="If True, run full image inference on the training set at the end of training.")
-    perform_validation_and_test_set_inference: bool = \
-        param.Boolean(None,
-                      doc="If True, run full image inference on validation and test sets after training.")
-    perform_validation_set_inference: bool = \
+    inference_on_val_set: bool = \
         param.Boolean(True,
                       doc="If True (default), run full image inference on validation set after training.")
-    perform_test_set_inference: bool = \
+    inference_on_test_set: bool = \
         param.Boolean(True,
                       doc="If True (default), run full image inference on test set after training.")
     perform_ensemble_child_inference: bool = \
@@ -256,12 +253,6 @@ class WorkflowParams(param.Parameterized):
                                 "be relative to the repository root directory.")
 
     def validate(self) -> None:
-        if self.perform_validation_and_test_set_inference is not None:
-            self.perform_validation_set_inference = self.perform_validation_set_inference or \
-                                                    self.perform_validation_and_test_set_inference
-            self.perform_test_set_inference = self.perform_test_set_inference or \
-                                              self.perform_validation_and_test_set_inference
-
         if self.perform_ensemble_child_inference is not None:
             self.perform_ensemble_child_training_set_inference = \
                 self.perform_ensemble_child_training_set_inference or \
@@ -304,17 +295,11 @@ class WorkflowParams(param.Parameterized):
                 return False
         else:
             if data_split == ModelExecutionMode.TEST:
-                return self.perform_test_set_inference
+                return self.inference_on_test_set
             elif data_split == ModelExecutionMode.VAL:
-                return self.perform_validation_set_inference
-#                if model_proc != ModelProcessing.ENSEMBLE_CREATION:
-#                    return self.perform_validation_set_inference
-#                else:
-#                    # not for ensemble as current val is in the training fold
-#                    # for at least one of the models.
-#                    return not self.perform_ensemble_child_validation_set_inference
+                return self.inference_on_val_set
             elif data_split == ModelExecutionMode.TRAIN:
-                return self.perform_training_set_inference
+                return self.inference_on_train_set
             else:
                 return False
 

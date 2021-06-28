@@ -314,9 +314,9 @@ def test_run_ml_with_segmentation_model(test_output_dirs: OutputFolderForTests) 
     # This is for a bug in an earlier version of the code where the wrong execution mode was used to
     # compute the expected mask size at training time.
     config.test_crop_size = (75, 75, 75)
-    config.perform_training_set_inference = False
-    config.perform_validation_set_inference = True
-    config.perform_test_set_inference = True
+    config.inference_on_train_set = False
+    config.inference_on_val_set = True
+    config.inference_on_test_set = True
     config.set_output_to(test_output_dirs.root_dir)
     azure_config = get_default_azure_config()
     azure_config.train = True
