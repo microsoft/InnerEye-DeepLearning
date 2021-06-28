@@ -436,11 +436,11 @@ class MLRunner:
             # Read the data modules before changing the working directory, in case the code relies on relative paths
             data = self.container.get_inference_data_module()
             dataloaders: List[Tuple[DataLoader, ModelExecutionMode]] = []
-            if self.container.inference_on_test_set:
+            if self.container.run_perform_test_set_inference(ModelProcessing.DEFAULT, ModelExecutionMode.TEST):
                 dataloaders.append((data.test_dataloader(), ModelExecutionMode.TEST))  # type: ignore
-            if self.container.inference_on_val_set:
+            if self.container.run_perform_test_set_inference(ModelProcessing.DEFAULT, ModelExecutionMode.VAL):
                 dataloaders.append((data.val_dataloader(), ModelExecutionMode.VAL))  # type: ignore
-            if self.container.inference_on_train_set:
+            if self.container.run_perform_test_set_inference(ModelProcessing.DEFAULT, ModelExecutionMode.TRAIN):
                 dataloaders.append((data.train_dataloader(), ModelExecutionMode.TRAIN))  # type: ignore
             checkpoint = load_checkpoint(checkpoint_paths[0], use_gpu=self.container.use_gpu)
             lightning_model.load_state_dict(checkpoint['state_dict'])
