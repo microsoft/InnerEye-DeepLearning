@@ -5,13 +5,12 @@
 from __future__ import annotations
 
 import logging
-from enum import Enum, unique
-from pathlib import Path
-from typing import Any, Dict, List, Optional
-
 import param
+from enum import Enum, unique
 from pandas import DataFrame
 from param import Parameterized
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common import fixed_paths
@@ -264,36 +263,38 @@ class WorkflowParams(param.Parameterized):
                              f"found number_of_cross_validation_splits = {self.number_of_cross_validation_splits} "
                              f"and cross_validation_split_index={self.cross_validation_split_index}")
 
+    """ Defaults for when to run inference in the absence of any command line switches. """
     INFERENCE_DEFAULTS: Dict[ModelProcessing, Dict[ModelExecutionMode, bool]] = \
         {
             ModelProcessing.DEFAULT:
-            {
-                ModelExecutionMode.TRAIN: False,
-                ModelExecutionMode.TEST: True,
-                ModelExecutionMode.VAL: True,
-            },
+                {
+                    ModelExecutionMode.TRAIN: False,
+                    ModelExecutionMode.TEST: True,
+                    ModelExecutionMode.VAL: True,
+                },
             ModelProcessing.ENSEMBLE_CREATION:
-            {
-                ModelExecutionMode.TRAIN: False,
-                ModelExecutionMode.TEST: True,
-                ModelExecutionMode.VAL: False,
-            }
+                {
+                    ModelExecutionMode.TRAIN: False,
+                    ModelExecutionMode.TEST: True,
+                    ModelExecutionMode.VAL: False,
+                }
         }
 
+    """ Mapping from ModelProcesing and ModelExecutionMode to command line switch. """
     INFERENCE_OPTIONS: Dict[ModelProcessing, Dict[ModelExecutionMode, str]] = \
         {
             ModelProcessing.DEFAULT:
-            {
-                ModelExecutionMode.TRAIN: 'inference_on_train_set',
-                ModelExecutionMode.TEST: 'inference_on_test_set',
-                ModelExecutionMode.VAL: 'inference_on_val_set',
-            },
+                {
+                    ModelExecutionMode.TRAIN: 'inference_on_train_set',
+                    ModelExecutionMode.TEST: 'inference_on_test_set',
+                    ModelExecutionMode.VAL: 'inference_on_val_set',
+                },
             ModelProcessing.ENSEMBLE_CREATION:
-            {
-                ModelExecutionMode.TRAIN: 'ensemble_inference_on_train_set',
-                ModelExecutionMode.TEST: 'ensemble_inference_on_test_set',
-                ModelExecutionMode.VAL: 'ensemble_inference_on_val_set',
-            }
+                {
+                    ModelExecutionMode.TRAIN: 'ensemble_inference_on_train_set',
+                    ModelExecutionMode.TEST: 'ensemble_inference_on_test_set',
+                    ModelExecutionMode.VAL: 'ensemble_inference_on_val_set',
+                }
         }
 
     def run_perform_inference(self, model_proc: ModelProcessing, data_split: ModelExecutionMode) -> bool:
