@@ -198,22 +198,22 @@ class WorkflowParams(param.Parameterized):
     cross_validation_split_index: int = param.Integer(DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, bounds=(-1, None),
                                                       doc="The index of the cross validation fold this model is "
                                                           "associated with when performing k-fold cross validation")
-    inference_on_train_set: bool = \
+    inference_on_train_set: Optional[bool] = \
         param.Boolean(None,
                       doc="If set, enable/disable full image inference on training set after training.")
-    inference_on_val_set: bool = \
+    inference_on_val_set: Optional[bool] = \
         param.Boolean(None,
                       doc="If set, enable/disable full image inference on validation set after training.")
-    inference_on_test_set: bool = \
+    inference_on_test_set: Optional[bool] = \
         param.Boolean(None,
                       doc="If set, enable/disable full image inference on test set after training.")
-    ensemble_inference_on_train_set: bool = \
+    ensemble_inference_on_train_set: Optional[bool] = \
         param.Boolean(None,
                       doc="If set, enable/disable full image inference on the training set after ensemble training.")
-    ensemble_inference_on_val_set: bool = \
+    ensemble_inference_on_val_set: Optional[bool] = \
         param.Boolean(None,
                       doc="If set, enable/disable full image inference on validation set after ensemble training.")
-    ensemble_inference_on_test_set: bool = \
+    ensemble_inference_on_test_set: Optional[bool] = \
         param.Boolean(None,
                       doc="If set, enable/disable full image inference on test set after ensemble training.")
     weights_url: str = param.String(doc="If provided, a url from which weights will be downloaded and used for model "
