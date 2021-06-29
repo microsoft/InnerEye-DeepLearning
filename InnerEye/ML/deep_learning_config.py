@@ -264,27 +264,53 @@ class WorkflowParams(param.Parameterized):
                              f"found number_of_cross_validation_splits = {self.number_of_cross_validation_splits} "
                              f"and cross_validation_split_index={self.cross_validation_split_index}")
 
-    def run_perform_test_set_inference(self, model_proc: ModelProcessing, data_split: ModelExecutionMode) -> bool:
-        if model_proc == ModelProcessing.DEFAULT:
-            # This is a "normal" run or an ensemble child run and not the final consolidation
-            if data_split == ModelExecutionMode.TEST:
-                return self.inference_on_test_set if self.inference_on_test_set is not None else True
-            elif data_split == ModelExecutionMode.VAL:
-                return self.inference_on_val_set if self.inference_on_val_set is not None else False
-            elif data_split == ModelExecutionMode.TRAIN:
-                return self.inference_on_train_set if self.inference_on_train_set is not None else False
-            else:
-                return False
-        else:
-            # This is an ensemble run in consolidation step.
-            if data_split == ModelExecutionMode.TEST:
-                return self.ensemble_inference_on_test_set if self.ensemble_inference_on_test_set is not None else True
-            elif data_split == ModelExecutionMode.VAL:
-                return self.ensemble_inference_on_val_set if self.ensemble_inference_on_val_set is not None else False
-            elif data_split == ModelExecutionMode.TRAIN:
-                return self.ensemble_inference_on_train_set if self.ensemble_inference_on_train_set is not None else False
-            else:
-                return False
+    INFERENCE_DEFAULTS: Dict[ModelProcessing, Dict[ModelExecutionMode, bool]] = \
+        {
+            ModelProcessing.DEFAULT:
+            {
+                ModelExecutionMode.TRAIN: False,
+                ModelExecutionMode.TEST: True,
+                ModelExecutionMode.VAL: True,
+            },
+            ModelProcessing.ENSEMBLE_CREATION:
+            {
+                ModelExecutionMode.TRAIN: False,
+                ModelExecutionMode.TEST: True,
+                ModelExecutionMode.VAL: False,
+            }
+        }
+
+    INFERENCE_OPTIONS: Dict[ModelProcessing, Dict[ModelExecutionMode, str]] = \
+        {
+            ModelProcessing.DEFAULT:
+            {
+                ModelExecutionMode.TRAIN: 'inference_on_train_set',
+                ModelExecutionMode.TEST: 'inference_on_test_set',
+                ModelExecutionMode.VAL: 'inference_on_val_set',
+            },
+            ModelProcessing.ENSEMBLE_CREATION:
+            {
+                ModelExecutionMode.TRAIN: 'ensemble_inference_on_train_set',
+                ModelExecutionMode.TEST: 'ensemble_inference_on_test_set',
+                ModelExecutionMode.VAL: 'ensemble_inference_on_val_set',
+            }
+        }
+
+    def run_perform_inference(self, model_proc: ModelProcessing, data_split: ModelExecutionMode) -> bool:
+        """
+        Returns True if inference is required for this model_proc and data_split.
+
+        :param model_proc: Whether we are testing an ensemble or single model.
+        :param data_split: Indicates which of the 3 sets (training, test, or validation) is being processed.
+        :return: True if inference required.
+        """
+        inference_option = WorkflowParams.INFERENCE_OPTIONS[model_proc][data_split]
+        inference_option_val = getattr(self, inference_option)
+
+        if inference_option_val is not None:
+            return inference_option_val
+
+        return WorkflowParams.INFERENCE_DEFAULTS[model_proc][data_split]
 
     @property
     def is_offline_run(self) -> bool:
