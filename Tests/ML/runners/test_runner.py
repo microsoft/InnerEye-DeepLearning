@@ -160,11 +160,11 @@ def run_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
     config.is_plotting_enabled = common_util.is_linux()
 
     config.set_output_to(test_output_dirs.root_dir)
+    train_and_test_data_small_dir = test_output_dirs.root_dir / "train_and_test_data_small"
     config.local_dataset = create_train_and_test_data_small_dataset(config.test_crop_size,
                                                                     full_ml_test_data_path(),
                                                                     "train_and_test_data",
-                                                                    test_output_dirs.root_dir /
-                                                                    "train_and_test_data_small",
+                                                                    train_and_test_data_small_dir,
                                                                     "data")
 
     checkpoint_path = config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
