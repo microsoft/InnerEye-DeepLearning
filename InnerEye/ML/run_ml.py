@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import pandas as pd
+from pytorch_lightning.core.datamodule import LightningDataModule
 import stopit
 import torch.multiprocessing
 from azureml._restclient.constants import RunStatus
@@ -421,6 +422,20 @@ class MLRunner:
             return self.container.cross_validation_split_index == 0
         return True
 
+    @staticmethod
+    def lightning_data_module_dataloaders(data: LightningDataModule) -> Dict[ModelExecutionMode, Callable]:
+        """
+        Given a lightning data module, return a dictionary of dataloader for each model execution mode.
+
+        :param data: Lightning data module.
+        :return: Data loader for each model execution mode.
+        """
+        return {
+            ModelExecutionMode.TRAIN: data.train_dataloader,
+            ModelExecutionMode.TEST: data.test_dataloader,
+            ModelExecutionMode.VAL: data.val_dataloader
+        }
+
     def run_inference_for_lightning_models(self, checkpoint_paths: List[Path]) -> None:
         """
         Run inference on the test set for all models that are specified via a LightningContainer.
@@ -436,12 +451,10 @@ class MLRunner:
             # Read the data modules before changing the working directory, in case the code relies on relative paths
             data = self.container.get_inference_data_module()
             dataloaders: List[Tuple[DataLoader, ModelExecutionMode]] = []
-            if self.container.run_perform_inference(ModelProcessing.DEFAULT, ModelExecutionMode.TEST):
-                dataloaders.append((data.test_dataloader(), ModelExecutionMode.TEST))  # type: ignore
-            if self.container.run_perform_inference(ModelProcessing.DEFAULT, ModelExecutionMode.VAL):
-                dataloaders.append((data.val_dataloader(), ModelExecutionMode.VAL))  # type: ignore
-            if self.container.run_perform_inference(ModelProcessing.DEFAULT, ModelExecutionMode.TRAIN):
-                dataloaders.append((data.train_dataloader(), ModelExecutionMode.TRAIN))  # type: ignore
+            data_dataloaders = MLRunner.lightning_data_module_dataloaders(data)
+            for data_split, dataloader in data_dataloaders.items():
+                if self.container.inference_on_set(ModelProcessing.DEFAULT, data_split):
+                    dataloaders.append((dataloader(), data_split))
             checkpoint = load_checkpoint(checkpoint_paths[0], use_gpu=self.container.use_gpu)
             lightning_model.load_state_dict(checkpoint['state_dict'])
             lightning_model.eval()
@@ -756,7 +769,7 @@ class MLRunner:
         config = self.innereye_config
 
         for data_split in ModelExecutionMode:
-            if self.container.run_perform_inference(model_proc, data_split):
+            if self.container.inference_on_set(model_proc, data_split):
                 opt_metrics = model_test(config, data_split=data_split, checkpoint_handler=checkpoint_handler,
                                          model_proc=model_proc)
                 if opt_metrics is not None:

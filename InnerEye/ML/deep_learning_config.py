@@ -291,7 +291,7 @@ class WorkflowParams(param.Parameterized):
         }
     }
 
-    def run_perform_inference(self, model_proc: ModelProcessing, data_split: ModelExecutionMode) -> bool:
+    def inference_on_set(self, model_proc: ModelProcessing, data_split: ModelExecutionMode) -> bool:
         """
         Returns True if inference is required for this model_proc and data_split.
 
