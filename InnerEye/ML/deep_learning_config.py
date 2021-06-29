@@ -230,6 +230,13 @@ class WorkflowParams(param.Parameterized):
     monitoring_interval_seconds: int = param.Integer(0, doc="Seconds delay between logging GPU/CPU resource "
                                                             "statistics. If 0 or less, do not log any resource "
                                                             "statistics.")
+    regression_test_folder: Optional[Path] = \
+        param.ClassSelector(class_=Path, default=None, allow_None=True,
+                            doc="A path to a folder that contains a set of files. At the end of training and "
+                                "model evaluation, all files given in that folder must be present in the job's output "
+                                "folder, and their contents must match exactly. When running in AzureML, you need to "
+                                "ensure that this folder is part of the snapshot that gets uploaded. The path should "
+                                "be relative to the repository root directory.")
 
     def validate(self) -> None:
         if self.weights_url and self.local_weights_path:
@@ -302,19 +309,34 @@ class DatasetParams(param.Parameterized):
                        "AzureML. Use an empty string for all datasets where a randomly chosen mount/download point "
                        "should be used.")
 
+    def validate(self) -> None:
+        if not self.azure_dataset_id and self.local_dataset is None:
+            raise ValueError("Either of local_dataset or azure_dataset_id must be set.")
+
+        if self.all_dataset_mountpoints() and len(self.all_azure_dataset_ids()) != len(self.all_dataset_mountpoints()):
+            raise ValueError(f"Expected the number of azure datasets to equal the number of mountpoints, "
+                             f"got datasets [{','.join(self.all_azure_dataset_ids())}] "
+                             f"and mountpoints [{','.join(self.all_dataset_mountpoints())}]")
+
     def all_azure_dataset_ids(self) -> List[str]:
         """
         Returns a list with all azure dataset IDs that are specified in self.azure_dataset_id and
         self.extra_azure_dataset_ids
         """
-        return [self.azure_dataset_id] + self.extra_azure_dataset_ids
+        if not self.azure_dataset_id:
+            return self.extra_azure_dataset_ids
+        else:
+            return [self.azure_dataset_id] + self.extra_azure_dataset_ids
 
     def all_dataset_mountpoints(self) -> List[str]:
         """
         Returns a list with all dataset mount points that are specified in self.dataset_mountpoint and
         self.extra_dataset_mountpoints
         """
-        return [self.dataset_mountpoint] + self.extra_dataset_mountpoints
+        if not self.dataset_mountpoint:
+            return self.extra_dataset_mountpoints
+        else:
+            return [self.dataset_mountpoint] + self.extra_dataset_mountpoints
 
 
 class OutputParams(param.Parameterized):
@@ -621,9 +643,7 @@ class DeepLearningConfig(WorkflowParams,
         """
         WorkflowParams.validate(self)
         OptimizerParams.validate(self)
-
-        if self.azure_dataset_id is None and self.local_dataset is None:
-            raise ValueError("Either of local_dataset or azure_dataset_id must be set.")
+        DatasetParams.validate(self)
 
     @property
     def model_category(self) -> ModelCategory:

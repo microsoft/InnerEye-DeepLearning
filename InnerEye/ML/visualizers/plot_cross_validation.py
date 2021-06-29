@@ -29,7 +29,7 @@ from matplotlib import pyplot
 
 import InnerEye.Common.Statistics.mann_whitney_test as mann_whitney
 from InnerEye.Azure.azure_config import AzureConfig
-from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, download_outputs_from_run, \
+from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, download_run_output_file, \
     fetch_child_runs, is_offline_run_context, is_parent_run
 from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.Statistics.wilcoxon_signed_rank_test import WilcoxonTestConfig, wilcoxon_signed_rank_test
@@ -51,8 +51,6 @@ RUN_DICTIONARY_NAME = "RunDictionary.txt"
 MAX_STRUCTURES_PER_PLOT = 7
 DRIVER_LOG_BASENAME = "70_driver_log.txt"
 RUN_RECOVERY_ID_KEY = 'run_recovery_id'
-# noinspection SQL
-PORTAL_QUERY_TEMPLATE = "SELECT * FROM ROOT as r WHERE true AND ({}) AND ({})"
 WILCOXON_RESULTS_FILE = "CrossValidationWilcoxonSignedRankTestResults.txt"
 MANN_WHITNEY_RESULTS_FILE = "CrossValidationMannWhitneyTestResults.txt"
 METRICS_BY_MODE_AND_STRUCTURE_FILE = "ResultsByModeAndStructure.csv"
@@ -234,11 +232,10 @@ class PlotCrossValidationConfig(GenericConfig):
             return None
         else:
             try:
-                return download_outputs_from_run(
-                    blobs_path=blob_path,
+                return download_run_output_file(
+                    blob_path=blob_path,
                     destination=destination,
-                    run=run,
-                    is_file=True
+                    run=run
                 )
             except Exception as ex:
                 logging.warning(f"File {blob_to_download} not found in output of run {run.id}: {ex}")
@@ -443,7 +440,7 @@ def crossval_config_from_model_config(train_config: DeepLearningConfig) -> PlotC
         model_category=train_config.model_category,
         epoch=epoch,
         should_validate=False,
-        number_of_cross_validation_splits=train_config.get_total_number_of_cross_validation_runs())
+        number_of_cross_validation_splits=train_config.number_of_cross_validation_splits)
 
 
 def get_config_and_results_for_offline_runs(train_config: DeepLearningConfig) -> OfflineCrossvalConfigAndFiles:
@@ -649,24 +646,26 @@ def plot_metrics(config: PlotCrossValidationConfig,
 
                 # save plot
                 suffix = f"_{sub_df_index}" if len(df_list) > 1 else ""
-                plot_dst = root / f"{metric_type}_{mode.value}_splits{suffix}.jpg"
+                plot_dst = root / f"{metric_type}_{mode.value}_splits{suffix}.png"
                 fig.savefig(plot_dst, bbox_inches='tight')
                 logging.info("Saved box-plots to: {}".format(plot_dst))
 
 
 def save_outliers(config: PlotCrossValidationConfig,
-                  dataset_split_metrics: Dict[ModelExecutionMode, pd.DataFrame], root: Path) -> None:
+                  dataset_split_metrics: Dict[ModelExecutionMode, pd.DataFrame],
+                  root: Path) -> Dict[ModelExecutionMode, Path]:
     """
     Given the dataframe for the downloaded metrics identifies outliers (score < mean - 3sd) across the splits
     and saves them in a file outlier.csv in the provided root.
     :param config: PlotCrossValidationConfig
     :param dataset_split_metrics: Mapping between model execution mode and a dataframe containing all metrics for it
     :param root: Root directory to the results for Train/Test and Val datasets
-    :return:
+    :return: Dictionary of mode and file path.
     """
     stats_columns = ['count', 'mean', 'min', 'max']
+    outliers_paths = {}
     for mode, df in dataset_split_metrics.items():
-        outliers_std = str(root / "{}_outliers.txt".format(mode.value))
+        outliers_std = root / "{}_outliers.txt".format(mode.value)
         with open(outliers_std, 'w') as f:
             # to make sure no columns or rows are truncated
             with DEFAULT_PD_DISPLAY_CONTEXT:
@@ -679,36 +678,23 @@ def save_outliers(config: PlotCrossValidationConfig,
 
                     f.write(f"\n\n=== METRIC: {metric_type} ===\n\n")
                     if len(outliers) > 0:
-                        # If running inside institution there may be no CSV_SERIES_HEADER and CSV_INSTITUTION_HEADER columns
+                        # If running inside institution there may be no CSV_SERIES_HEADER or CSV_INSTITUTION_HEADER columns
                         groupby_columns = [MetricsFileColumns.Patient.value, MetricsFileColumns.Structure.value]
-                        if CSV_SERIES_HEADER in outliers.columns and CSV_INSTITUTION_HEADER in outliers.columns:
-                            groupby_columns += [CSV_SERIES_HEADER, CSV_INSTITUTION_HEADER]
+                        if CSV_SERIES_HEADER in outliers.columns:
+                            groupby_columns.append(CSV_SERIES_HEADER)
+                        if CSV_INSTITUTION_HEADER in outliers.columns:
+                            groupby_columns.append(CSV_INSTITUTION_HEADER)
                         outliers_summary = str(outliers.groupby(groupby_columns)
                                                .describe()[metric_type][stats_columns]
                                                .sort_values(stats_columns, ascending=False))
                         f.write(outliers_summary)
-                        if CSV_INSTITUTION_HEADER in outliers.columns and CSV_SERIES_HEADER in outliers.columns:
-                            f.write("\n\n")
-                            f.write(create_portal_query_for_outliers(outliers))
                     else:
                         f.write("No outliers found")
 
         print("Saved outliers to: {}".format(outliers_std))
+        outliers_paths[mode] = outliers_std
 
-
-def create_portal_query_for_outliers(df: pd.DataFrame) -> str:
-    """
-    Create a portal query string as a conjunction of the disjunctions of the unique InstitutionId and seriesId values.
-
-    The passed data frame must have CSV_INSTITUTION_HEADER and CSV_SERIES_HEADER columns
-    """
-    if CSV_INSTITUTION_HEADER not in df.columns or CSV_SERIES_HEADER not in df.columns:
-        raise ValueError(f"Data frame must have columns {CSV_INSTITUTION_HEADER} and {CSV_SERIES_HEADER}")
-    return PORTAL_QUERY_TEMPLATE.format(
-        " OR ".join(map(lambda x: 'r.InstitutionId = "{}"'.format(x), df[CSV_INSTITUTION_HEADER].unique())),
-        " OR ".join(map(lambda x: 'STARTSWITH(r.VersionedDicomImageSeries.Latest.Series.InstanceUID,"{}")'.format(x),
-                        df[CSV_SERIES_HEADER].unique()))
-    )
+    return outliers_paths
 
 
 def create_results_breakdown(df: pd.DataFrame, root_folder: Path) -> Tuple[Path, Path]:

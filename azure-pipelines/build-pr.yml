@@ -34,7 +34,7 @@ jobs:
       - name: tag
         value: 'TrainBasicModel'
       - name: more_switches
-        value: '--log_level=DEBUG --use_dataset_mount=True'
+        value: '--log_level=DEBUG --use_dataset_mount=True --regression_test_folder=RegressionTestResults/PR_BasicModel2Epochs'
     pool:
       vmImage: 'ubuntu-18.04'
     steps:
@@ -97,6 +97,8 @@ jobs:
         value: 2
       - name: tag
         value: 'TrainEnsemble'
+      - name: more_switches
+        value: '--regression_test_folder=RegressionTestResults/PR_TrainEnsemble'
     pool:
       vmImage: 'ubuntu-18.04'
     steps:
@@ -118,7 +120,7 @@ jobs:
       - name: tag
         value: 'Train2Nodes'
       - name: more_switches
-        value: '--log_level=DEBUG --num_nodes=2'
+        value: '--log_level=DEBUG --num_nodes=2 --regression_test_folder=RegressionTestResults/PR_Train2Nodes'
     pool:
       vmImage: 'ubuntu-18.04'
     steps:
@@ -142,7 +144,7 @@ jobs:
       - name: number_of_cross_validation_splits
         value: 2
       - name: more_switches
-        value: '--num_epochs=2'
+        value: '--num_epochs=2 --regression_test_folder=RegressionTestResults/PR_GlaucomaCV'
     pool:
       vmImage: 'ubuntu-18.04'
     steps:
@@ -180,7 +182,7 @@ jobs:
       - name: tag
         value: 'HelloContainerPR'
       - name: more_switches
-        value: '--num_nodes=2'
+        value: '--num_nodes=2 --regression_test_folder=RegressionTestResults/PR_HelloContainer'
     pool:
       vmImage: 'ubuntu-18.04'
     steps:
