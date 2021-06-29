@@ -264,38 +264,32 @@ class WorkflowParams(param.Parameterized):
                              f"and cross_validation_split_index={self.cross_validation_split_index}")
 
     """ Defaults for when to run inference in the absence of any command line switches. """
-    INFERENCE_DEFAULTS: Dict[ModelProcessing, Dict[ModelExecutionMode, bool]] = \
-        {
-            ModelProcessing.DEFAULT:
-                {
-                    ModelExecutionMode.TRAIN: False,
-                    ModelExecutionMode.TEST: True,
-                    ModelExecutionMode.VAL: True,
-                },
-            ModelProcessing.ENSEMBLE_CREATION:
-                {
-                    ModelExecutionMode.TRAIN: False,
-                    ModelExecutionMode.TEST: True,
-                    ModelExecutionMode.VAL: False,
-                }
+    INFERENCE_DEFAULTS: Dict[ModelProcessing, Dict[ModelExecutionMode, bool]] = {
+        ModelProcessing.DEFAULT: {
+            ModelExecutionMode.TRAIN: False,
+            ModelExecutionMode.TEST: True,
+            ModelExecutionMode.VAL: True,
+        },
+        ModelProcessing.ENSEMBLE_CREATION: {
+            ModelExecutionMode.TRAIN: False,
+            ModelExecutionMode.TEST: True,
+            ModelExecutionMode.VAL: False,
         }
+    }
 
     """ Mapping from ModelProcesing and ModelExecutionMode to command line switch. """
-    INFERENCE_OPTIONS: Dict[ModelProcessing, Dict[ModelExecutionMode, str]] = \
-        {
-            ModelProcessing.DEFAULT:
-                {
-                    ModelExecutionMode.TRAIN: 'inference_on_train_set',
-                    ModelExecutionMode.TEST: 'inference_on_test_set',
-                    ModelExecutionMode.VAL: 'inference_on_val_set',
-                },
-            ModelProcessing.ENSEMBLE_CREATION:
-                {
-                    ModelExecutionMode.TRAIN: 'ensemble_inference_on_train_set',
-                    ModelExecutionMode.TEST: 'ensemble_inference_on_test_set',
-                    ModelExecutionMode.VAL: 'ensemble_inference_on_val_set',
-                }
+    INFERENCE_OPTIONS: Dict[ModelProcessing, Dict[ModelExecutionMode, str]] = {
+        ModelProcessing.DEFAULT: {
+            ModelExecutionMode.TRAIN: 'inference_on_train_set',
+            ModelExecutionMode.TEST: 'inference_on_test_set',
+            ModelExecutionMode.VAL: 'inference_on_val_set',
+        },
+        ModelProcessing.ENSEMBLE_CREATION: {
+            ModelExecutionMode.TRAIN: 'ensemble_inference_on_train_set',
+            ModelExecutionMode.TEST: 'ensemble_inference_on_test_set',
+            ModelExecutionMode.VAL: 'ensemble_inference_on_val_set',
         }
+    }
 
     def run_perform_inference(self, model_proc: ModelProcessing, data_split: ModelExecutionMode) -> bool:
         """
