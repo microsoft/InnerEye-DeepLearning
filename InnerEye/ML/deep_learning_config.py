@@ -277,19 +277,24 @@ class WorkflowParams(param.Parameterized):
         }
     }
 
-    """ Mapping from ModelProcesing and ModelExecutionMode to command line switch. """
-    INFERENCE_OPTIONS: Dict[ModelProcessing, Dict[ModelExecutionMode, str]] = {
-        ModelProcessing.DEFAULT: {
-            ModelExecutionMode.TRAIN: 'inference_on_train_set',
-            ModelExecutionMode.TEST: 'inference_on_test_set',
-            ModelExecutionMode.VAL: 'inference_on_val_set',
-        },
-        ModelProcessing.ENSEMBLE_CREATION: {
-            ModelExecutionMode.TRAIN: 'ensemble_inference_on_train_set',
-            ModelExecutionMode.TEST: 'ensemble_inference_on_test_set',
-            ModelExecutionMode.VAL: 'ensemble_inference_on_val_set',
+    def inference_options(self) -> Dict[ModelProcessing, Dict[ModelExecutionMode, Optional[bool]]]:
+        """
+        Return a mapping from ModelProcesing and ModelExecutionMode to command line switch.
+
+        :return: Command line switch for each combination of ModelProcessing and ModelExecutionMode.
+        """
+        return {
+            ModelProcessing.DEFAULT: {
+                ModelExecutionMode.TRAIN: self.inference_on_train_set,
+                ModelExecutionMode.TEST: self.inference_on_test_set,
+                ModelExecutionMode.VAL: self.inference_on_val_set,
+            },
+            ModelProcessing.ENSEMBLE_CREATION: {
+                ModelExecutionMode.TRAIN: self.ensemble_inference_on_train_set,
+                ModelExecutionMode.TEST: self.ensemble_inference_on_test_set,
+                ModelExecutionMode.VAL: self.ensemble_inference_on_val_set,
+            }
         }
-    }
 
     def inference_on_set(self, model_proc: ModelProcessing, data_split: ModelExecutionMode) -> bool:
         """
@@ -299,11 +304,9 @@ class WorkflowParams(param.Parameterized):
         :param data_split: Indicates which of the 3 sets (training, test, or validation) is being processed.
         :return: True if inference required.
         """
-        inference_option = WorkflowParams.INFERENCE_OPTIONS[model_proc][data_split]
-        inference_option_val = getattr(self, inference_option)
-
-        if inference_option_val is not None:
-            return inference_option_val
+        inference_option = self.inference_options()[model_proc][data_split]
+        if inference_option is not None:
+            return inference_option
 
         return WorkflowParams.INFERENCE_DEFAULTS[model_proc][data_split]
 
