@@ -431,9 +431,9 @@ class MLRunner:
         :return: Data loader for each model execution mode.
         """
         return {
-            ModelExecutionMode.TRAIN: data.train_dataloader,
             ModelExecutionMode.TEST: data.test_dataloader,
-            ModelExecutionMode.VAL: data.val_dataloader
+            ModelExecutionMode.VAL: data.val_dataloader,
+            ModelExecutionMode.TRAIN: data.train_dataloader
         }
 
     def run_inference_for_lightning_models(self, checkpoint_paths: List[Path]) -> None:
