@@ -4,12 +4,13 @@
 #  ------------------------------------------------------------------------------------------
 
 import numpy as np
+from numpy.core.shape_base import _block_dispatcher
 import pandas as pd
 import pytest
 from pytorch_lightning import seed_everything
 
 from InnerEye.Common import common_util
-from InnerEye.Common.common_util import METRICS_AGGREGATES_FILE, get_best_epoch_results_path
+from InnerEye.Common.common_util import METRICS_AGGREGATES_FILE, SUBJECT_METRICS_FILE_NAME, get_best_epoch_results_path
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.metrics_constants import MetricsFileColumns
 from InnerEye.Common.output_directories import OutputFolderForTests
@@ -23,28 +24,38 @@ from InnerEye.ML.pipelines.ensemble import EnsemblePipeline
 from InnerEye.ML.pipelines.inference import InferencePipeline
 from InnerEye.ML.pipelines.scalar_inference import ScalarEnsemblePipeline, ScalarInferencePipeline
 from InnerEye.ML.utils import io_util
-from InnerEye.ML.visualizers.plot_cross_validation import get_config_and_results_for_offline_runs
+from InnerEye.ML.visualizers.plot_cross_validation import (METRICS_BY_MODE_AND_STRUCTURE_FILE,
+                                                           get_config_and_results_for_offline_runs)
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import (assert_file_contains_string, assert_nifti_content, assert_text_files_match,
-                           assert_csv_column_contains_value, get_default_checkpoint_handler, get_image_shape)
+                           csv_column_contains_value, get_default_checkpoint_handler, get_image_shape)
 from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
-@pytest.mark.parametrize("partial_ground_truth", [True, False])
-def test_model_test(test_output_dirs: OutputFolderForTests, partial_ground_truth: bool) -> None:
+@pytest.mark.parametrize(["use_partial_ground_truth", "allow_partial_ground_truth"], [[True, True], [True, False], [False, False]])
+def test_model_test(
+    test_output_dirs: OutputFolderForTests,
+    use_partial_ground_truth: bool,
+    allow_partial_ground_truth: bool) -> None:
+    """
+    Check the CSVs (and image files) output by InnerEye.ML.model_testing.segmentation_model_test
+    :param test_output_dirs: The fixture in conftest.py
+    :param use_partial_ground_truth: Whether to remove some ground truth labels from some test users
+    :param allow_partial_ground_truth: What to set the allow_incomplete_labels flag to
+    """
     train_and_test_data_dir = full_ml_test_data_path("train_and_test_data")
     seed_everything(42)
     config = DummyModel()
-    config.allow_incomplete_labels = partial_ground_truth
+    config.allow_incomplete_labels = allow_partial_ground_truth
     config.set_output_to(test_output_dirs.root_dir)
     placeholder_dataset_id = "place_holder_dataset_id"
     config.azure_dataset_id = placeholder_dataset_id
     transform = config.get_full_image_sample_transforms().test
     df = pd.read_csv(full_ml_test_data_path(DATASET_CSV_FILE_NAME))
 
-    if partial_ground_truth:
+    if use_partial_ground_truth:
         config.check_exclusive = False
         config.ground_truth_ids = ["region", "region_1"]
 
@@ -67,10 +78,26 @@ def test_model_test(test_output_dirs: OutputFolderForTests, partial_ground_truth
     else:
         df = df[df.subject.isin([1, 2])]
 
-    # noinspection PyTypeHints
-    config._datasets_for_inference = {
-        ModelExecutionMode.TEST:
-            FullImageDataset(config, df, full_image_sample_transforms=transform, allow_incomplete_labels=partial_ground_truth)}  # type: ignore
+    if use_partial_ground_truth and not allow_partial_ground_truth:
+        with pytest.raises(ValueError) as value_error:
+            # noinspection PyTypeHints
+            config._datasets_for_inference = {
+                ModelExecutionMode.TEST:
+                    FullImageDataset(
+                        config,
+                        df,
+                        full_image_sample_transforms=transform,  # type: ignore
+                        allow_incomplete_labels=allow_partial_ground_truth)}
+        assert "Patient 3 does not have channel 'region'" in str(value_error.value)
+    else:
+        # noinspection PyTypeHints
+        config._datasets_for_inference = {
+            ModelExecutionMode.TEST:
+                FullImageDataset(
+                    config,
+                    df,
+                    full_image_sample_transforms=transform,  # type: ignore
+                    allow_incomplete_labels=allow_partial_ground_truth)}
     execution_mode = ModelExecutionMode.TEST
     checkpoint_handler = get_default_checkpoint_handler(model_config=config, project_root=test_output_dirs.root_dir)
     # Mimic the behaviour that checkpoints are downloaded from blob storage into the checkpoints folder.
@@ -84,16 +111,28 @@ def test_model_test(test_output_dirs: OutputFolderForTests, partial_ground_truth
     if not total_num_patients_column_name.endswith("s"):
         total_num_patients_column_name += "s"
 
-    if partial_ground_truth:
+    if use_partial_ground_truth:
         num_subjects = len(pd.unique(df["subject"]))
-        assert_csv_column_contains_value(
-            csv_file_path=epoch_dir / METRICS_AGGREGATES_FILE,
-            column_name=total_num_patients_column_name,
-            value=num_subjects,
-            contains_only_value=True)
+        if allow_partial_ground_truth:
+            assert csv_column_contains_value(
+                csv_file_path=epoch_dir / METRICS_AGGREGATES_FILE,
+                column_name=total_num_patients_column_name,
+                value=num_subjects,
+                contains_only_value=True)
+            assert csv_column_contains_value(
+                csv_file_path=epoch_dir / SUBJECT_METRICS_FILE_NAME,
+                column_name=MetricsFileColumns.Dice.value,
+                value='',
+                contains_only_value=False)
     else:
         aggregates_df = pd.read_csv(epoch_dir / METRICS_AGGREGATES_FILE)
         assert total_num_patients_column_name not in aggregates_df.columns  # Only added if using partial ground truth
+
+        assert not csv_column_contains_value(
+            csv_file_path=epoch_dir / SUBJECT_METRICS_FILE_NAME,
+            column_name=MetricsFileColumns.Dice.value,
+            value='',
+            contains_only_value=False)
 
         assert inference_results.metrics == pytest.approx(0.66606902, abs=1e-6)
         assert config.outputs_folder.is_dir()

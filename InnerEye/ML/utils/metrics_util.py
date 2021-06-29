@@ -4,7 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 from functools import reduce
 from pathlib import Path
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Tuple, Type, Union
 
 import numpy as np
 import pandas as pd
@@ -110,14 +110,14 @@ class MetricsPerPatientWriter:
         # slow, and should be avoided. Hence, work with dictionary as long as possible, and only finally
         # convert to a DataFrame.
 
-        # dtype is specified as (an instance of) str, not the str class itself, but this seems correct.
         # noinspection PyTypeChecker
+        dtypes: Dict[str, Union[Type[float], Type[str]]] = {column: str for column in self.columns}
+        dtypes[MetricsFileColumns.Dice.value] = float
+        dtypes[MetricsFileColumns.HausdorffDistanceMM.value] = float
+        dtypes[MetricsFileColumns.MeanDistanceMM.value] = float
         df = DataFrame(self.columns, dtype=str)
-        df[MetricsFileColumns.DiceNumeric.value] = pd.Series(data=df[MetricsFileColumns.Dice.value].apply(float))
-        df[MetricsFileColumns.HausdorffDistanceMM.value] = pd.Series(
-            data=df[MetricsFileColumns.HausdorffDistanceMM.value].apply(float))
-        df[MetricsFileColumns.MeanDistanceMM.value] = pd.Series(
-            data=df[MetricsFileColumns.MeanDistanceMM.value].apply(float))
+        df = df.astype(dtypes)
+        df[MetricsFileColumns.DiceNumeric.value] = df[MetricsFileColumns.Dice.value]
         df = df.sort_values(by=[MetricsFileColumns.Patient.value, MetricsFileColumns.Structure.value])
         return df
 

@@ -190,27 +190,35 @@ def assert_binary_files_match(actual_file: Path, expected_file: Path) -> None:
     assert False, f"File contents does not match: len(actual)={len(actual)}, len(expected)={len(expected)}"
 
 
-def assert_csv_column_contains_value(
+def csv_column_contains_value(
         csv_file_path: Path,
         column_name: str,
         value: Any,
-        contains_only_value: bool = True) -> None:
+        contains_only_value: bool = True) -> bool:
     """
     Checks that the column in the csv file contains the given value (and perhaps only contains that value)
     :param csv_file_path: The path to the CSV
     :param column_name: The name of the column in which we look for the value
     :param value: The value to look for
     :param contains_only_value: Check that this is the only value in the column (default True)
+    :returns: Boolean, whether the CSV column contains the value (and perhaps only the value)
     """
+    result = True
     if not csv_file_path.exists:
         raise ValueError(f"The CSV at {csv_file_path} does not exist.")
     df = pd.read_csv(csv_file_path)
     if column_name not in df.columns:
-        raise ValueError(f"The column {column_name} is not in the CSV at {csv_file_path}, which has columns {df.columns}.")
-    if contains_only_value:
-        assert int(df[[column_name]].nunique(dropna=True)) == 1
+        ValueError(f"The column {column_name} is not in the CSV at {csv_file_path}, which has columns {df.columns}.")
+    if value:
+        result = result and value in df[column_name].unique()
     else:
-        assert int(df[[column_name]].nunique(dropna=True)) > 0    
+        result = result and df[column_name].isnull().any()
+    if contains_only_value:
+        if value:
+            result = result and df[column_name].nunique(dropna=True) == 1
+        else:
+            result = result and df[column_name].nunique(dropna=True) == 0
+    return result
 
 
 DummyPatientMetadata = PatientMetadata(patient_id='42')
