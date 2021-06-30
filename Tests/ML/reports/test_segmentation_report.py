@@ -2,22 +2,30 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import re
 from io import StringIO
 from pathlib import Path
 
 import pandas as pd
 import pytest
+from numpy.core.numeric import NaN
 
+from InnerEye.Common.common_util import is_windows
 from InnerEye.Common.metrics_constants import MetricsFileColumns
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.Common.common_util import is_windows
 from InnerEye.ML.reports.notebook_report import generate_segmentation_notebook
 from InnerEye.ML.reports.segmentation_report import describe_score, worst_patients_and_outliers
 from InnerEye.ML.utils.csv_util import COL_IS_OUTLIER
 
 
 @pytest.mark.skipif(is_windows(), reason="Random timeout errors on windows.")
-def test_generate_segmentation_report(test_output_dirs: OutputFolderForTests) -> None:
+@pytest.mark.parametrize("use_partial_ground_truth", [False, True])
+def test_generate_segmentation_report(test_output_dirs: OutputFolderForTests, use_partial_ground_truth: bool) -> None:
+    if use_partial_ground_truth:
+        return _test_generate_segmentation_report_with_partial_ground_truth(test_output_dirs)
+    return _test_generate_segmentation_report_without_partial_ground_truth(test_output_dirs)
+
+def _test_generate_segmentation_report_without_partial_ground_truth(test_output_dirs: OutputFolderForTests) -> None:
     reports_folder = Path(__file__).parent
     metrics_file = reports_folder / "metrics_hn.csv"
     current_dir = test_output_dirs.make_sub_dir("test_segmentation_report")
@@ -30,6 +38,43 @@ def test_generate_segmentation_report(test_output_dirs: OutputFolderForTests) ->
     # Check html contains the name of a key structure
     contents = result_html.read_text(encoding='utf-8')
     assert 'parotid_r' in contents
+
+def _test_generate_segmentation_report_with_partial_ground_truth(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    The test without partial ground truth should cover more detail, here we just check that providing
+    partial ground truth results in some labels having a lower user count.
+    """
+    reports_folder = Path(__file__).parent
+    original_metrics_file = reports_folder / "metrics_hn.csv"
+    original_metrics = pd.read_csv(original_metrics_file)
+    partial_metrics = original_metrics
+    partial_metrics.loc[partial_metrics['Structure'].eq('brainstem') & partial_metrics['Patient'].isin([14, 15, 19]),
+                        ['Dice', 'HausdorffDistance_mm', 'MeanDistance_mm']] = NaN
+    current_dir = test_output_dirs.make_sub_dir("test_segmentation_report")
+    partial_metrics_file = current_dir / "metrics_hn.csv"
+    result_file = current_dir / "report.ipynb"
+    partial_metrics.to_csv(partial_metrics_file, index=False, float_format="%.3f", na_rep="")
+    result_html = generate_segmentation_notebook(result_notebook=result_file, test_metrics=partial_metrics_file)
+    result_html_text = result_html.read_text(encoding='utf-8')
+    # Look for this row in the HTML Dice table: 
+    #   <td>brainstem</td>\n      <td>0.82600</td>\n      <td>0.8570</td>\n      <td>0.87600</td>\n      <td>17.0</td>\n 
+    # It shows that for the brainstem label there are only 17, not 20, patients with that label,
+    # because we removed the brainstem label for patients 14, 15, and 19.
+
+    def get_patient_count_for_structure(structure: str, text: str) -> float:
+        regex = f"<td>{structure}" + r"<\/td>(\n\s*<td>[0-9\.]*<\/td>){3}\n\s*<td>([0-9\.]*)"
+        # which results in, for example, this regex:
+        #    regex = "<td>brainstem<\/td>(\n\s*<td>[0-9\.]*<\/td>){3}\n\s*<td>([0-9\.]*)"
+        match = re.search(regex, text)
+        if not match:
+            return NaN
+        patient_count_as_string = match.group(2)
+        return float(patient_count_as_string)
+
+    num_patients_with_lacrimal_gland_l_label = get_patient_count_for_structure("lacrimal_gland_l", result_html_text)
+    num_patients_with_brainstem_label = get_patient_count_for_structure("brainstem", result_html_text)
+    assert num_patients_with_lacrimal_gland_l_label == 20.0
+    assert num_patients_with_brainstem_label == 17.0
 
 
 def test_describe_metric() -> None:
