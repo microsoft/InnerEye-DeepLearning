@@ -5,6 +5,7 @@
 import logging
 import time
 from pathlib import Path
+from typing import Tuple
 from unittest import mock
 from unittest.mock import Mock
 
@@ -99,14 +100,11 @@ def create_train_and_test_data_small_dataset(image_size: TupleInt3,
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("perform_cross_validation", [True, False])
-@pytest.mark.parametrize("inference_on_train_set", [True, False])
-@pytest.mark.parametrize("inference_on_val_set", [True, False])
-@pytest.mark.parametrize("inference_on_test_set", [True, False])
+@pytest.mark.parametrize("inference_on_set", [(True, False, False), (False, True, False), (False, False, True)])
 def test_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
                                         perform_cross_validation: bool,
-                                        inference_on_train_set: bool,
-                                        inference_on_val_set: bool,
-                                        inference_on_test_set: bool) -> None:
+                                        inference_on_set: Tuple[bool, bool, bool]) -> None:
+    (inference_on_train_set, inference_on_val_set, inference_on_test_set) = inference_on_set
     run_model_inference_train_and_test(test_output_dirs,
                                        perform_cross_validation,
                                        inference_on_train_set,
@@ -119,13 +117,10 @@ def test_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
-@pytest.mark.parametrize("ensemble_inference_on_train_set", [True, False])
-@pytest.mark.parametrize("ensemble_inference_on_val_set", [True, False])
-@pytest.mark.parametrize("ensemble_inference_on_test_set", [True, False])
+@pytest.mark.parametrize("ensemble_inference_on_set", [(True, False, False), (False, True, False), (False, False, True)])
 def test_ensemble_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
-                                                 ensemble_inference_on_train_set: bool,
-                                                 ensemble_inference_on_val_set: bool,
-                                                 ensemble_inference_on_test_set: bool) -> None:
+                                                 ensemble_inference_on_set: Tuple[bool, bool, bool]) -> None:
+    (ensemble_inference_on_train_set, ensemble_inference_on_val_set, ensemble_inference_on_test_set) = ensemble_inference_on_set
     run_model_inference_train_and_test(test_output_dirs,
                                        True,
                                        False,
