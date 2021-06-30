@@ -4,7 +4,6 @@
 #  ------------------------------------------------------------------------------------------
 
 import numpy as np
-from numpy.core.shape_base import _block_dispatcher
 import pandas as pd
 import pytest
 from pytorch_lightning import seed_everything
@@ -24,8 +23,7 @@ from InnerEye.ML.pipelines.ensemble import EnsemblePipeline
 from InnerEye.ML.pipelines.inference import InferencePipeline
 from InnerEye.ML.pipelines.scalar_inference import ScalarEnsemblePipeline, ScalarInferencePipeline
 from InnerEye.ML.utils import io_util
-from InnerEye.ML.visualizers.plot_cross_validation import (METRICS_BY_MODE_AND_STRUCTURE_FILE,
-                                                           get_config_and_results_for_offline_runs)
+from InnerEye.ML.visualizers.plot_cross_validation import get_config_and_results_for_offline_runs
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import (assert_file_contains_string, assert_nifti_content, assert_text_files_match,
@@ -36,9 +34,9 @@ from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize(["use_partial_ground_truth", "allow_partial_ground_truth"], [[True, True], [True, False], [False, False]])
 def test_model_test(
-    test_output_dirs: OutputFolderForTests,
-    use_partial_ground_truth: bool,
-    allow_partial_ground_truth: bool) -> None:
+        test_output_dirs: OutputFolderForTests,
+        use_partial_ground_truth: bool,
+        allow_partial_ground_truth: bool) -> None:
     """
     Check the CSVs (and image files) output by InnerEye.ML.model_testing.segmentation_model_test
     :param test_output_dirs: The fixture in conftest.py
