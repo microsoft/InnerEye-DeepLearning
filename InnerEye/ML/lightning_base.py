@@ -161,11 +161,15 @@ class InnerEyeContainer(LightningContainer):
                 unique_ids = set(split_data[CSV_SUBJECT_HEADER])
                 for patient_id in unique_ids:
                     rows = split_data.loc[split_data[CSV_SUBJECT_HEADER] == patient_id]
+                    allow_incomplete_labels = False
+                    if isinstance(self.config, SegmentationModelBase):
+                        allow_incomplete_labels = self.config.allow_incomplete_labels  # type: ignore
                     # Converts channels from data frame to file paths and gets errors if any
                     __, failed_channel_info = convert_channels_to_file_paths(all_channels,
-                                                                              rows,
-                                                                              local_dataset_root_folder,
-                                                                              patient_id)
+                                                                             rows,
+                                                                             local_dataset_root_folder,
+                                                                             patient_id,
+                                                                             allow_incomplete_labels)
                     full_failed_channel_info += failed_channel_info
 
         if full_failed_channel_info:
