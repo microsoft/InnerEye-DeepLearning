@@ -42,10 +42,7 @@ class BasicModel2Epochs(SegmentationModelBase):
             num_epochs=2,
             recovery_checkpoint_save_interval=1,
             use_mixed_precision=True,
-            # azure_dataset_id=AZURE_DATASET_ID,
-            # TEMP CHANGE FOR END-TO-END TEST:
-            # python InnerEye/ML/runner.py --allow_incomplete_labels  --azureml --model=BasicModel2EpochsMoreData --run_recovery_id=main_1625070510_eec68070
-            azure_dataset_id='geonorm_with_train_test_split_partial_test_data_2021_06_30',
+            azure_dataset_id=AZURE_DATASET_ID,
             comparison_blob_storage_paths=comparison_blob_storage_paths,
             dataset_mountpoint="/tmp/innereye",
             # Use an LR scheduler with a pronounced and clearly visible decay, to be able to easily see if that
