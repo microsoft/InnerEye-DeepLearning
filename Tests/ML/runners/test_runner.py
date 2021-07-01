@@ -4,15 +4,18 @@
 #  ------------------------------------------------------------------------------------------
 import logging
 import time
+from unittest import mock
 
 import pytest
+from azureml.train.hyperdrive.runconfig import HyperDriveConfig
 
-from InnerEye.Common import common_util
+from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, ModelExecutionMode
 from InnerEye.ML.metrics import InferenceMetricsForSegmentation
 from InnerEye.ML.run_ml import MLRunner
+from InnerEye.ML.runner import Runner
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import get_default_checkpoint_handler
 from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
@@ -71,3 +74,22 @@ def test_logging_to_file(test_output_dirs: OutputFolderForTests) -> None:
     assert file_path.exists()
     assert log_line in file_path.read_text()
     assert should_not_be_present not in file_path.read_text()
+
+
+def test_cross_validation_for_LightingContainer_models_is_supported() -> None:
+    '''
+    Prior to https://github.com/microsoft/InnerEye-DeepLearning/pull/483 we raised an exception in
+    runner.run when cross validation was attempted on a lightning container. This test checks that
+    we do not raise the exception anymore, and instead pass on a cross validation hyperdrive config
+    to azure_runner's submit_to_azureml method.
+    '''
+    args_list = ["--model=HelloContainer", "--number_of_cross_validation_splits=5", "--azureml=True"]
+    with mock.patch("sys.argv", [""] + args_list):
+        runner = Runner(project_root=fixed_paths.repository_root_directory(), yaml_config_file=fixed_paths.SETTINGS_YAML_FILE)
+        with mock.patch("InnerEye.Azure.azure_runner.create_and_submit_experiment", return_value=None) as create_and_submit_experiment_patch:
+            runner.run()
+            assert runner.lightning_container.model_name == 'HelloContainer'
+            assert runner.lightning_container.number_of_cross_validation_splits == 5
+            args, _ = create_and_submit_experiment_patch.call_args
+            script_run_config = args[1]
+            assert isinstance(script_run_config, HyperDriveConfig)

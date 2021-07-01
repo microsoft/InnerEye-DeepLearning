@@ -130,9 +130,9 @@ at the same time (provided that the cluster has capacity). This means that a com
 takes as long as a single training run.
 
 To start cross validation, you can either modify the `number_of_cross_validation_splits` property of your model,
-or supply it on the command line: Provide all the usual switches, and add `--number_of_cross_validation_splits=N`, 
+or supply it on the command line: provide all the usual switches, and add `--number_of_cross_validation_splits=N`, 
 for some `N` greater than 1; a value of 5 is typical. This will start a 
-[HyperDrive run](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-tune-hyperparameters): A parent
+[HyperDrive run](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-tune-hyperparameters): a parent
 AzureML job, with `N` child runs that will execute in parallel. You can see the child runs in the AzureML UI in the
 "Child Runs" tab.
 
