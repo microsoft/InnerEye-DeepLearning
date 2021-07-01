@@ -146,7 +146,7 @@ class BYOLInnerEye(pl.LightningModule):
         Convolution-Linear bias-terms and batch-norm parameters are excluded from l2-norm weight decay regularisation.
         https://arxiv.org/pdf/2006.07733.pdf Section 3.3 Optimisation and Section F.5.
         """
-        if skip_list is None:150            
+        if skip_list is None:            
            skip_list = ['bias', 'bn']
         params = []
         excluded_params = []
@@ -163,4 +163,3 @@ class BYOLInnerEye(pl.LightningModule):
             {'params': params, 'weight_decay': weight_decay},
             {'params': excluded_params, 'weight_decay': 0.}
         ]
-
