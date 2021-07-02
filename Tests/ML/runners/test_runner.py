@@ -19,6 +19,7 @@ from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, ModelExecutionMode
+from InnerEye.ML.configs.unit_testing.passthrough_model import PassThroughModel
 from InnerEye.ML.metrics import InferenceMetricsForSegmentation
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.runner import Runner
@@ -141,9 +142,18 @@ def run_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
                                        ensemble_inference_on_val_set: bool,
                                        ensemble_inference_on_test_set: bool,
                                        model_proc: ModelProcessing) -> None:
-    config = DummyModel()
-    config.crop_size = (29, 29, 29)
-    config.test_crop_size = (29, 29, 29)
+    dummy_model = DummyModel()
+
+    config = PassThroughModel()
+    # Copy settings from DummyModel
+    config.image_channels = dummy_model.image_channels
+    config.ground_truth_ids = dummy_model.ground_truth_ids
+    config.ground_truth_ids_display_names = dummy_model.ground_truth_ids_display_names
+    config.colours = dummy_model.colours
+    config.fill_holes = dummy_model.fill_holes
+    config.roi_interpreted_types = dummy_model.roi_interpreted_types
+
+    config.test_crop_size = (16, 16, 16)
     config.number_of_cross_validation_splits = 2 if perform_cross_validation else 0
     config.inference_on_train_set = inference_on_train_set
     config.inference_on_val_set = inference_on_val_set
