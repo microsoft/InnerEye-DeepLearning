@@ -22,12 +22,13 @@ from InnerEye.Common.metrics_constants import LoggingColumns, MetricType
 from InnerEye.Common.type_annotations import DictStrFloat, TupleFloat3
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import BACKGROUND_CLASS_NAME
-from InnerEye.ML.metrics_dict import DataframeLogger, INTERNAL_TO_LOGGING_COLUMN_NAMES, MetricsDict, \
-    ScalarMetricsDict
+from InnerEye.ML.metrics_dict import (DataframeLogger, INTERNAL_TO_LOGGING_COLUMN_NAMES, MetricsDict,
+                                      ScalarMetricsDict)
 from InnerEye.ML.scalar_config import ScalarLoss
 from InnerEye.ML.utils.image_util import binaries_from_multi_label_array, is_binary_array
 from InnerEye.ML.utils.io_util import reverse_tuple_float3
-from InnerEye.ML.utils.metrics_util import binary_classification_accuracy, mean_absolute_error, r2_score
+from InnerEye.ML.utils.metrics_util import (binary_classification_accuracy, mean_absolute_error,
+                                            r2_score, is_missing_ground_truth)
 from InnerEye.ML.utils.ml_util import check_size_matches
 from InnerEye.ML.utils.sequence_utils import get_masked_model_outputs_and_labels
 
@@ -247,7 +248,7 @@ def calculate_metrics_per_class(segmentation: np.ndarray,
     binary_classes = [is_binary_array(ground_truth[label_id]) for label_id in range(ground_truth.shape[0])]
 
     # If ground truth image is nan, then will not be used for metrics computation.
-    nan_images = [np.isnan(ground_truth[label_id][0, 0, 0]) for label_id in range(ground_truth.shape[0])]
+    nan_images = [is_missing_ground_truth(ground_truth[label_id]) for label_id in range(ground_truth.shape[0])]
 
     # Compares element-wise if not binary then nan and checks all elements are True.
     assert np.all(np.array(binary_classes) == ~np.array(nan_images))

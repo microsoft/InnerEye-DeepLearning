@@ -16,6 +16,7 @@ from InnerEye.ML.dataset.full_image_dataset import Sample
 from InnerEye.ML.photometric_normalization import PhotometricNormalization
 from InnerEye.ML.utils import plotting_util
 from InnerEye.ML.utils.image_util import binaries_from_multi_label_array, get_largest_z_slice
+from InnerEye.ML.utils.metrics_util import is_missing_ground_truth
 from InnerEye.ML.utils.ml_util import check_size_matches
 from InnerEye.ML.utils.surface_distance_utils import Plane, extract_border
 
@@ -307,7 +308,7 @@ def plot_contours_for_all_classes(sample: Sample,
             continue
         ground_truth = sample.labels[class_index, ...]
 
-        if np.isnan(ground_truth[0, 0, 0]):
+        if is_missing_ground_truth(ground_truth):
             continue
 
         largest_gt_slice = get_largest_z_slice(ground_truth)

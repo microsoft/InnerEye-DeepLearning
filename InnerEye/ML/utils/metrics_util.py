@@ -256,3 +256,15 @@ def convert_input_and_label(model_output: Union[torch.Tensor, np.ndarray],
     if not torch.is_tensor(label):
         label = torch.tensor(label)
     return model_output.float(), label.float()
+
+
+def is_missing_ground_truth(ground_truth: np.array) -> bool:
+    """
+    calculate_metrics_per_class in metrics.py and plot_contours_for_all_classes in plotting.py both
+    check whether there is ground truth missing using this simple check for NaN value at 0, 0, 0.
+    To avoid duplicate code we bring it here as a utility function.
+    :param ground_truth: ground truth binary array with dimensions: [Z x Y x X].
+    :param label_id: Integer index of the label to check.
+    :returns: True if the label is missing (signified by NaN), False otherwise.
+    """
+    return np.isnan(ground_truth[0, 0, 0]
