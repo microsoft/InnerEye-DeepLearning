@@ -68,8 +68,7 @@ class BYOLInnerEye(pl.LightningModule):
     def cosine_loss(a: T, b: T) -> T:
         a = F.normalize(a, dim=-1)
         b = F.normalize(b, dim=-1)
-        neg_cos_sim = -(a * b).sum(dim=-1).mean()
-        return neg_cos_sim
+        return -(a * b).sum(dim=-1).mean()
 
     def shared_step(self, batch: BatchType, batch_idx: int) -> T:
         """
@@ -91,10 +90,8 @@ class BYOLInnerEye(pl.LightningModule):
         with torch.no_grad():
             z_img1 = self.target_network.forward_until_predictor(img_1)
             z_img2 = self.target_network.forward_until_predictor(img_2)
-        loss = 0.5 * (self.cosine_loss(h_img1, z_img2.detach())
+        return 0.5 * (self.cosine_loss(h_img1, z_img2.detach())
                       + self.cosine_loss(h_img2, z_img1.detach()))
-
-        return loss
 
     def training_step(self, batch: BatchType, batch_idx: int, **kwargs: Any) -> T:  # type: ignore
         loss = self.shared_step(batch, batch_idx)
@@ -146,7 +143,7 @@ class BYOLInnerEye(pl.LightningModule):
         Convolution-Linear bias-terms and batch-norm parameters are excluded from l2-norm weight decay regularisation.
         https://arxiv.org/pdf/2006.07733.pdf Section 3.3 Optimisation and Section F.5.
         """
-        if skip_list is None:            
+        if skip_list is None:
            skip_list = ['bias', 'bn']
         params = []
         excluded_params = []
