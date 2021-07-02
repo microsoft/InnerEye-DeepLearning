@@ -489,8 +489,9 @@ class SegmentationModelBase(ModelConfigBase):
 
     allow_incomplete_labels: bool = param.Boolean(
         default=False,
-        doc="If some test data includes patients with missing ground truth data then their data will be ignored "
-        "completely unless this flag is set. Only used for segmentation models.")
+        doc="If False, the default, then test patient data must include all of the ground truth labels. If true then "
+        "some test patient data with missing ground truth data is allowed and will be reflected in the patient "
+        "counts in the metrics and report.")
 
     def __init__(self, center_size: Optional[TupleInt3] = None,
                  inference_stride_size: Optional[TupleInt3] = None,
