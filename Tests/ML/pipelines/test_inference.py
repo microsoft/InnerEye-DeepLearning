@@ -270,6 +270,7 @@ def test_evaluate_model_predictions() -> None:
         ["5", "train_and_test_data/id2_region.nii.gz", "region_1"]]
 
     config = create_config_from_dataset(input_list, train=['1'], val=['2'], test=['3', '4', '5'])
+    config.allow_incomplete_labels = True
     ds = config.get_torch_dataset_for_inference(ModelExecutionMode.TEST)
     results_folder = config.outputs_folder
     if not results_folder.is_dir():

@@ -213,11 +213,10 @@ class FullImageDataset(GeneralDataset):
     """
 
     def __init__(self, args: SegmentationModelBase, data_frame: pd.DataFrame,
-                 full_image_sample_transforms: Optional[Compose3D[Sample]] = None,
-                 allow_incomplete_labels: bool = False):
+                 full_image_sample_transforms: Optional[Compose3D[Sample]] = None):
         super().__init__(args, data_frame)
         self.full_image_sample_transforms = full_image_sample_transforms
-        self.allow_incomplete_labels = allow_incomplete_labels
+        self.allow_incomplete_labels = args.allow_incomplete_labels
         # Check base_path
         assert self.args.local_dataset is not None
         if not self.args.local_dataset.is_dir():
@@ -262,8 +261,7 @@ class FullImageDataset(GeneralDataset):
                                     image_channels=self.args.image_channels,
                                     ground_truth_channels=self.args.ground_truth_ids,
                                     mask_channel=self.args.mask_id,
-                                    allow_incomplete_labels=self.allow_incomplete_labels
-                                    )
+                                    allow_incomplete_labels=self.allow_incomplete_labels)
 
 
 def convert_channels_to_file_paths(channels: List[str],

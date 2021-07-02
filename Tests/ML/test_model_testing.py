@@ -84,9 +84,9 @@ def test_model_test(
                     FullImageDataset(
                         config,
                         df,
-                        full_image_sample_transforms=transform,  # type: ignore
-                        allow_incomplete_labels=allow_partial_ground_truth)}
+                        full_image_sample_transforms=transform)}  # type: ignore
         assert "Patient 3 does not have channel 'region'" in str(value_error.value)
+        return
     else:
         # noinspection PyTypeHints
         config._datasets_for_inference = {
@@ -94,8 +94,7 @@ def test_model_test(
                 FullImageDataset(
                     config,
                     df,
-                    full_image_sample_transforms=transform,  # type: ignore
-                    allow_incomplete_labels=allow_partial_ground_truth)}
+                    full_image_sample_transforms=transform)}  # type: ignore
     execution_mode = ModelExecutionMode.TEST
     checkpoint_handler = get_default_checkpoint_handler(model_config=config, project_root=test_output_dirs.root_dir)
     # Mimic the behaviour that checkpoints are downloaded from blob storage into the checkpoints folder.
