@@ -15,6 +15,7 @@ from pytorch_lightning import LightningModule, Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.plugins import DDPPlugin
+from pytorch_lightning.tuner.tuning import Tuner
 from pytorch_lightning.utilities.exceptions import MisconfigurationException
 
 from InnerEye.Azure.azure_runner import ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK
@@ -232,7 +233,6 @@ def model_train(checkpoint_handler: CheckpointHandler,
     """
     # Get the path to the checkpoint to recover from
     checkpoint_path = checkpoint_handler.get_recovery_path_train()
-    lightning_model = container.model
 
     resource_monitor: Optional[ResourceMonitor] = None
     # Execute some bookkeeping tasks only once if running distributed:
@@ -266,13 +266,41 @@ def model_train(checkpoint_handler: CheckpointHandler,
     rank_info = ", ".join(f"{env}: {os.getenv(env)}"
                           for env in [ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK])
     logging.info(f"Environment variables: {rank_info}. trainer.global_rank: {trainer.global_rank}")
+
+    logging.info("Starting training")
+
+    logging.info(f"Finding best batch size")
+    best_batch_size = 1
+    while True:
+        container.num_epochs = 1
+        container.config.train_batch_size = best_batch_size
+        trainer, storing_logger = create_lightning_trainer(container,
+                                                           checkpoint_path,
+                                                           num_nodes=num_nodes,
+                                                           **container.get_trainer_arguments())
+        lightning_model = container.create_model()
+        try:
+            logging.info(f"Trying batch size: {best_batch_size}")
+            trainer.fit(lightning_model, datamodule=data_module)
+        except:
+            break
+        best_batch_size = best_batch_size * 2
+
+    logging.info(f"Best batch size: {best_batch_size}")
+    container.config.train_batch_size = best_batch_size
+    lightning_model = container.create_model()
+
     # InnerEye models use this logger for diagnostics
     if isinstance(lightning_model, InnerEyeLightning):
         if storing_logger is None:
             raise ValueError("InnerEye models require the storing_logger for diagnostics")
         lightning_model.storing_logger = storing_logger
 
-    logging.info("Starting training")
+    trainer, storing_logger = create_lightning_trainer(container,
+                                                       checkpoint_path,
+                                                       num_nodes=num_nodes,
+                                                       **container.get_trainer_arguments())
+
     # When training models that are not built-in InnerEye models, we have no guarantee that they write
     # files to the right folder. Best guess is to change the current working directory to where files should go.
     with change_working_directory(container.outputs_folder):
