@@ -13,6 +13,8 @@ created.
 ## Upcoming
 
 ### Added
+- ([#465](https://github.com/microsoft/InnerEye-DeepLearning/pull/465/)) Adding ability to run segmentation inference
+module in the test data without or partial ground truth files.
 - ([#492](https://github.com/microsoft/InnerEye-DeepLearning/pull/492)) Adding capability for regression tests for test
 jobs that run in AzureML.
 
