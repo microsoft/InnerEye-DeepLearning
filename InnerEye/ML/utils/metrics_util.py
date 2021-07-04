@@ -79,6 +79,10 @@ class MetricsPerPatientWriter:
         df = self.to_data_frame()
         aggregates = df.groupby(MetricsFileColumns.Structure.value).describe()
 
+        total_num_patients_column_name = f"total_{MetricsFileColumns.Patient.value}".lower()
+        if not total_num_patients_column_name.endswith("s"):
+            total_num_patients_column_name += "s"
+
         def filter_rename_metric_columns(_metric_column: str, is_count_column: bool = False) -> pd.DataFrame:
             _columns = ["count"] + stats_columns if is_count_column else stats_columns
             _df = aggregates[_metric_column][_columns]
@@ -87,9 +91,6 @@ class MetricsPerPatientWriter:
                 # more sense of aggregated metrics where some patients were missing the label (i.e.
                 # partial ground truth).
                 num_subjects = len(pd.unique(df[MetricsFileColumns.Patient.value]))
-                total_num_patients_column_name = f"total_{MetricsFileColumns.Patient.value}".lower()
-                if not total_num_patients_column_name.endswith("s"):
-                    total_num_patients_column_name += "s"
                 _df[total_num_patients_column_name] = num_subjects
                 _df = _df[["count", total_num_patients_column_name] + stats_columns]
             _columns_to_rename = [x for x in _df.columns if x != "count" and x != total_num_patients_column_name]
