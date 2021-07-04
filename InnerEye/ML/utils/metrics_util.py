@@ -267,4 +267,4 @@ def is_missing_ground_truth(ground_truth: np.array) -> bool:
     :param label_id: Integer index of the label to check.
     :returns: True if the label is missing (signified by NaN), False otherwise.
     """
-    return np.isnan(ground_truth[0, 0, 0]
+    return np.isnan(ground_truth[0, 0, 0])
