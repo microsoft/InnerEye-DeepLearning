@@ -333,16 +333,16 @@ def test_innereyecontainer_setup_passes_on_allow_incomplete_labels(
     test_done_message = "Stop now, the test has passed."
 
     def mocked_convert_channels_to_file_paths(
-        _: List[str],
-        __: pd.DataFrame,
-        ___: Path,
-        ____: str,
-        allow_incomplete_labels: bool) -> Tuple[List[Optional[Path]], str]:
-            assert allow_incomplete_labels == allow_partial_ground_truth
-            raise RuntimeError(test_done_message)
+            _: List[str],
+            __: pd.DataFrame,
+            ___: Path,
+            ____: str,
+            allow_incomplete_labels: bool) -> Tuple[List[Optional[Path]], str]:
+        assert allow_incomplete_labels == allow_partial_ground_truth
+        raise RuntimeError(test_done_message)
 
     with pytest.raises(RuntimeError) as runtime_error:
         with mock.patch("InnerEye.ML.lightning_base.convert_channels_to_file_paths") as convert_channels_to_file_paths_mock:
             convert_channels_to_file_paths_mock.side_effect = mocked_convert_channels_to_file_paths
             container.setup()
-    assert  str(runtime_error.value) == test_done_message
+    assert str(runtime_error.value) == test_done_message
