@@ -134,29 +134,29 @@ jobs:
           pytest_mark: after_training_2node
           test_run_title: tests_after_training_2node_run
 
-  # Train a classification model in cross validation mode
-  - job: TrainGlaucomaCV
-    variables:
-      - name: model
-        value: 'GlaucomaPublic'
-      - name: tag
-        value: 'GlaucomaPR'
-      - name: number_of_cross_validation_splits
-        value: 2
-      - name: more_switches
-        value: '--num_epochs=2 --regression_test_folder=RegressionTestResults/PR_GlaucomaCV'
-    pool:
-      vmImage: 'ubuntu-18.04'
-    steps:
-      - template: train_template.yml
-        parameters:
-          wait_for_completion: 'True'
-          pytest_mark: ''
-          max_run_duration: '1h'
-      - template: tests_after_training.yml
-        parameters:
-          pytest_mark: after_training_glaucoma_cv_run
-          test_run_title: tests_after_training_glaucoma_cv_run
+  ## Train a classification model in cross validation mode
+  #- job: TrainGlaucomaCV
+  #  variables:
+  #    - name: model
+  #      value: 'GlaucomaPublic'
+  #    - name: tag
+  #      value: 'GlaucomaPR'
+  #    - name: number_of_cross_validation_splits
+  #      value: 2
+  #    - name: more_switches
+  #      value: '--num_epochs=2 --regression_test_folder=RegressionTestResults/PR_GlaucomaCV'
+  #  pool:
+  #    vmImage: 'ubuntu-18.04'
+  #  steps:
+  #    - template: train_template.yml
+  #      parameters:
+  #        wait_for_completion: 'True'
+  #        pytest_mark: ''
+  #        max_run_duration: '1h'
+  #    - template: tests_after_training.yml
+  #      parameters:
+  #        pytest_mark: after_training_glaucoma_cv_run
+  #        test_run_title: tests_after_training_glaucoma_cv_run
 
   - job: TrainHelloWorld
     variables:

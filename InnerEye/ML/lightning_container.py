@@ -10,8 +10,12 @@ import torch
 from pytorch_lightning import LightningDataModule, LightningModule
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
+from azureml.core import ScriptRunConfig
+from azureml.train.hyperdrive import GridParameterSampling, HyperDriveConfig, PrimaryMetricGoal, choice
 
+from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY
 from InnerEye.Common.generic_parsing import GenericConfig, create_from_matching_params
+from InnerEye.Common.metrics_constants import TrackedMetrics
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.deep_learning_config import DatasetParams, OptimizerParams, OutputParams, TrainerParams, \
     WorkflowParams
@@ -174,6 +178,9 @@ class LightningContainer(GenericConfig,
         The format of the data is not specified any further.
         The method must take cross validation into account, and ensure that logic to create training and validation
         sets takes cross validation with a given number of splits is correctly taken care of.
+        Because the method deals with data loaders, not loaded data, we cannot check automatically that cross validation
+        is handled correctly within the base class, i.e. if the cross validation split is not handled in the method then
+        nothing will fail, but each child run will be identical since they will each be given the full dataset.
         :return: A LightningDataModule
         """
         return None  # type: ignore
@@ -198,6 +205,12 @@ class LightningContainer(GenericConfig,
         Gets additional parameters that will be passed on to the PyTorch Lightning trainer.
         """
         return dict()
+
+    def get_parameter_search_hyperdrive_config(self, _: ScriptRunConfig) -> HyperDriveConfig:  # type: ignore
+        """
+        Parameter search is not implemented. It should be implemented in a sub class if needed.
+        """
+        raise NotImplementedError("Parameter search is not implemented. It should be implemented in a sub class if needed.")
 
     def create_report(self) -> None:
         """
@@ -256,6 +269,38 @@ class LightningContainer(GenericConfig,
         if isinstance(self._model, LightningModuleWithOptimizer):
             self._model._optimizer_params = create_from_matching_params(self, OptimizerParams)
             self._model._trainer_params = create_from_matching_params(self, TrainerParams)
+
+    def get_cross_validation_hyperdrive_config(self, run_config: ScriptRunConfig) -> HyperDriveConfig:
+        """
+        Returns a configuration for AzureML Hyperdrive that varies the cross validation split index.
+        Because this adds a val/Loss metric it is important that when subclassing LightningContainer
+        your implementeation of LightningModule logs val/Loss. There is an example of this in 
+        HelloRegression's validation_step method.
+        :param run_config: The AzureML run configuration object that training for an individual model.
+        :return: A hyperdrive configuration object.
+        """
+        return HyperDriveConfig(
+            run_config=run_config,
+            hyperparameter_sampling=GridParameterSampling(
+                parameter_space={
+                    CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY: choice(list(range(self.number_of_cross_validation_splits)))
+                }),
+            primary_metric_name=TrackedMetrics.Val_Loss.value,
+            primary_metric_goal=PrimaryMetricGoal.MINIMIZE,
+            max_total_runs=self.number_of_cross_validation_splits
+        )
+
+    def get_hyperdrive_config(self, run_config: ScriptRunConfig) -> HyperDriveConfig:
+        """
+        Returns the HyperDrive config for either parameter search or cross validation
+        (if number_of_cross_validation_splits > 1).
+        :param run_config: AzureML estimator
+        :return: HyperDriveConfigs
+        """
+        if self.perform_cross_validation:
+            return self.get_cross_validation_hyperdrive_config(run_config)
+        else:
+            return self.get_parameter_search_hyperdrive_config(run_config)
 
     def __str__(self) -> str:
         """Returns a string describing the present object, as a list of key: value strings."""

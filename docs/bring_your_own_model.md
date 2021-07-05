@@ -38,6 +38,16 @@ correctly. If you'd like to have your model defined in a different folder, pleas
 the `--model_configs_namespace` argument. For example, use `--model_configs_namespace=My.Own.configs` if your
 model configuration classes reside in folder `My/Own/configs` from the repository root.
 
+### Cross Validation
+
+If you are doing cross validation you need to ensure that the `LightningDataModule` returned by your container's 
+`get_data_module` method:
+- Needs to take into account the number of cross validation splits, and the cross validation split index when
+preparing the data.
+- Needs to log val/Loss in its `validation_step` method.
+You can find a working example of handling cross validation in the 
+[HelloContainer](../InnerEye/ML/configs/other/HelloContainer.py) class.
+
 *Example*:
 ```python
 from pathlib import Path
