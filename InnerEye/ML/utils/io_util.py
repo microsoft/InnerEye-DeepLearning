@@ -29,6 +29,7 @@ from InnerEye.ML.dataset.sample import PatientDatasetSource, Sample
 from InnerEye.ML.utils.hdf5_util import HDF5Object
 from InnerEye.ML.utils.image_util import ImageDataType, ImageHeader, check_array_range, get_center_crop, \
     get_unit_image_header, is_binary_array
+from InnerEye.ML.utils.metrics_util import is_missing_ground_truth
 from InnerEye.ML.utils.transforms import LinearTransform, get_range_for_window_level
 
 RESULTS_POSTERIOR_FILE_NAME_PREFIX = "posterior_"
@@ -439,7 +440,7 @@ def load_labels_from_dataset_source(dataset_source: PatientDatasetSource, check_
     # If ground truth image is nan, then will not be used to check check_exclusive
     # Image is nan, if voxel at index [0, 0, 0] is NaN
     not_nan_label_images = [labels[label_id] for label_id in range(labels.shape[0])
-                            if not np.isnan(labels[label_id][0, 0, 0])]
+                            if not is_missing_ground_truth(labels[label_id])]
 
     if check_exclusive and (sum(np.array(not_nan_label_images)) > 1.).any():  # type: ignore
         raise ValueError(f'The labels for patient {dataset_source.metadata.patient_id} are not mutually exclusive. '
