@@ -3,7 +3,6 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import abc
-from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 import param
@@ -15,7 +14,7 @@ from torch.optim.lr_scheduler import _LRScheduler
 from InnerEye.Common.generic_parsing import GenericConfig, create_from_matching_params
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.deep_learning_config import DatasetParams, OptimizerParams, OutputParams, TrainerParams, \
-    WorkflowParams, load_checkpoint
+    WorkflowParams
 from InnerEye.ML.utils import model_util
 from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
 from InnerEye.ML.utils.run_recovery import RunRecovery
