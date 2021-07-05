@@ -363,7 +363,7 @@ def load_dataset_sources(dataframe: pd.DataFrame,
         dataset_sources[patient_id] = PatientDatasetSource(
             metadata=metadata,
             image_channels=get_paths_for_channel_ids(channels=image_channels,  # type: ignore
-                                                     allow_incomplete_labels_flag=allow_incomplete_labels),
+                                                     allow_incomplete_labels_flag=False),
             mask_channel=get_mask_channel_or_default(),
             ground_truth_channels=get_paths_for_channel_ids(channels=ground_truth_channels,  # type: ignore
                                                             allow_incomplete_labels_flag=allow_incomplete_labels),
