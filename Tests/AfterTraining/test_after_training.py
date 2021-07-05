@@ -36,11 +36,13 @@ from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.spawn_subprocess import spawn_and_monitor_subprocess
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.configs.segmentation.BasicModel2Epochs import BasicModel2Epochs
+from InnerEye.ML.configs.other.HelloContainer import HelloContainer
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, ModelCategory
 from InnerEye.ML.model_inference_config import read_model_inference_config
 from InnerEye.ML.model_testing import THUMBNAILS_FOLDER
 from InnerEye.ML.reports.notebook_report import get_html_report_name
 from InnerEye.ML.runner import main
+from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.utils.image_util import get_unit_image_header
 from InnerEye.ML.utils.io_util import zip_random_dicom_series
@@ -447,51 +449,42 @@ def test_download_outputs_skipped(test_output_dirs: OutputFolderForTests) -> Non
     assert len(all_files) == 0
 
 
-@pytest.mark.after_training_single_run
+@pytest.mark.after_training_hello_container
 def test_model_inference_on_single_run(test_output_dirs: OutputFolderForTests) -> None:
-    test_dataset_path = "outputs/test_dataset.csv"
-    metrics_csv_path = "outputs/best_validation_epoch/Test/metrics.csv"
+    fallback_run_id_for_local_execution = FALLBACK_HELLO_CONTAINER_RUN
 
-    training_run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_SINGLE_RUN)
-    training_files = training_run.get_file_names()
-    assert test_dataset_path in training_files, "test_dataset.csv is missing"
-    assert metrics_csv_path in training_files, "best_validation/Test/metrics.csv is missing"
+    paths_to_check = ["test_mse.txt", "test_mae.txt"]
+
+    training_run = get_most_recent_run(fallback_run_id_for_local_execution=fallback_run_id_for_local_execution)
+    all_training_files = training_run.get_file_names()
+    for path in paths_to_check:
+        assert f"outputs/{path}" in all_training_files, f"{path} is missing"
     training_folder = test_output_dirs.root_dir / "training"
     training_folder.mkdir()
-    test_dataset_training = training_folder / test_dataset_path
-    metrics_csv_training = training_folder / metrics_csv_path
-    training_run.download_file(test_dataset_path, output_file_path=str(test_dataset_training))
-    training_run.download_file(metrics_csv_path, output_file_path=str(metrics_csv_training))
+    training_files = [training_folder / path for path in paths_to_check]
+    for path, download_path in zip(paths_to_check, training_files):
+        training_run.download_file(f"outputs/{path}", output_file_path=str(download_path))
 
-    args_list = ["--model", "BasicModel2Epochs",
-                 "--azureml", "True",
-                 "--train", "False",
-                 "--model_id",
-                 get_most_recent_model_id(fallback_run_id_for_local_execution=FALLBACK_SINGLE_RUN),
-                 "--wait_for_completion", "True",
-                 "--cluster", "training-nc12",
-                 "--experiment", get_experiment_name_from_environment() or "model_inference_on_single_run",
-                 "--tag", "model_inference_on_single_run"
-                 ]
-    script = str(repository_root_directory() / "InnerEye" / "ML" / "runner.py")
-    with mock.patch("sys.argv", [script] + args_list):
-        main()
+    container = HelloContainer()
+    container.set_output_to(test_output_dirs.root_dir)
+    azure_config = get_default_azure_config()
+    azure_config.train = False
+    azure_config.model_id = get_most_recent_model_id(fallback_run_id_for_local_execution=fallback_run_id_for_local_execution)
+    ml_runner = MLRunner(container=container, azure_config=azure_config, project_root=test_output_dirs.root_dir)
+    ml_runner.setup()
+    ml_runner.start_logging_to_file()
+    ml_runner.run()
 
-    inference_run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_SINGLE_RUN)
-    assert inference_run.status == RunStatus.COMPLETED
+    inference_files = [container.outputs_folder / path for path in paths_to_check]
+    for path in inference_files:
+        assert path.exists(), f"{path} is missing"
 
-    inference_files = inference_run.get_file_names()
-    assert test_dataset_path in inference_files, "test_dataset.csv is missing"
-    assert metrics_csv_path in inference_files, "best_validation/Test/metrics.csv is missing"
-    inference_folder = test_output_dirs.root_dir / "inference"
-    inference_folder.mkdir()
-    test_dataset_inference = inference_folder / test_dataset_path
-    metrics_csv_inference = inference_folder / metrics_csv_path
-    inference_run.download_file(test_dataset_path, output_file_path=str(test_dataset_inference))
-    inference_run.download_file(metrics_csv_path, output_file_path=str(metrics_csv_inference))
-
-    for training_run_file, inference_run_file in ((test_dataset_training, test_dataset_inference),
-                                                  (metrics_csv_training, metrics_csv_inference)):
-        training_lines = training_run_file.read_text().splitlines()
-        inference_lines = inference_run_file.read_text().splitlines()
-        assert training_lines == inference_lines
+    for training_file, inference_file in zip(training_files, inference_files):
+        training_lines = training_file.read_text().splitlines()
+        inference_lines = inference_file.read_text().splitlines()
+        # We expect all the files we are reading to have a single float value
+        assert len(training_lines) == 1
+        train_value = float(training_lines[0].strip())
+        assert len(inference_lines) == 1
+        inference_value = float(inference_lines[0].strip())
+        assert inference_value == pytest.approx(train_value, 1e-6)

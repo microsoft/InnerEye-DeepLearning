@@ -487,12 +487,12 @@ class MLRunner:
             if torch.distributed.is_initialized():
                 torch.distributed.destroy_process_group()
             trainer, _ = create_lightning_trainer(self.container, num_nodes=1)
+            self.container._model = type(self.container.model).load_from_checkpoint(checkpoint_path=checkpoint_paths[0])
             # When training models that are not built-in InnerEye models, we have no guarantee that they write
             # files to the right folder. Best guess is to change the current working directory to where files should go.
             with change_working_directory(self.container.outputs_folder):
                 trainer.test(self.container.model,
-                             test_dataloaders=self.container.get_data_module().test_dataloader(),
-                             ckpt_path=str(checkpoint_paths[0]))
+                             test_dataloaders=self.container.get_data_module().test_dataloader())
         else:
             logging.warning("None of the suitable test methods is overridden. Skipping inference completely.")
 

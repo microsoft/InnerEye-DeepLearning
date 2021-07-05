@@ -180,7 +180,7 @@ class HelloRegression(LightningModule):
         """
         average_mse = torch.mean(torch.stack(self.test_mse))
         Path("test_mse.txt").write_text(str(average_mse.item()))
-        Path("test_mae.txt").write_text(str(self.test_mae.compute()))
+        Path("test_mae.txt").write_text(str(self.test_mae.compute().item()))
 
 
 class HelloContainer(LightningContainer):

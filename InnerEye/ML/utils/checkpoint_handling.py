@@ -209,7 +209,7 @@ class CheckpointHandler:
             checkpoint_paths = self.container.local_checkpoint_paths
         else:
             download_folder = self.output_params.checkpoint_folder / MODEL_WEIGHTS_DIR_NAME
-            download_folder.mkdir(exist_ok=True)
+            download_folder.mkdir(exist_ok=True, parents=True)
 
             if self.azure_config.model_id:
                 if len(self.azure_config.model_id.split(":")) != 2:
