@@ -40,8 +40,6 @@ def create_checkpoint_file(file: Path) -> None:
 def test_use_checkpoint_paths_or_urls(test_output_dirs: OutputFolderForTests) -> None:
     config = ModelConfigBase(should_validate=False)
     config.set_output_to(test_output_dirs.root_dir)
-    config.outputs_folder.mkdir()
-    config.checkpoint_folder.mkdir()
 
     # No checkpoint handling options set.
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
@@ -112,8 +110,6 @@ def test_download_recovery_checkpoints_from_ensemble_run(test_output_dirs: Outpu
 def test_download_model_from_single_run(test_output_dirs: OutputFolderForTests) -> None:
     config = ModelConfigBase(should_validate=False)
     config.set_output_to(test_output_dirs.root_dir)
-    config.outputs_folder.mkdir()
-    config.checkpoint_folder.mkdir()
 
     # No checkpoint handling options set.
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
@@ -139,8 +135,6 @@ def test_download_model_from_single_run(test_output_dirs: OutputFolderForTests) 
 def test_download_model_from_ensemble_run(test_output_dirs: OutputFolderForTests) -> None:
     config = ModelConfigBase(should_validate=False)
     config.set_output_to(test_output_dirs.root_dir)
-    config.outputs_folder.mkdir()
-    config.checkpoint_folder.mkdir()
 
     # No checkpoint handling options set.
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
@@ -165,7 +159,6 @@ def test_download_model_from_ensemble_run(test_output_dirs: OutputFolderForTests
 def test_get_recovery_path_train(test_output_dirs: OutputFolderForTests) -> None:
     config = ModelConfigBase(should_validate=False)
     config.set_output_to(test_output_dirs.root_dir)
-    config.outputs_folder.mkdir()
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
                                                         project_root=test_output_dirs.root_dir)
 
@@ -241,7 +234,6 @@ def test_get_best_checkpoint_single_run(test_output_dirs: OutputFolderForTests) 
 def test_download_checkpoints_from_hyperdrive_child_runs(test_output_dirs: OutputFolderForTests) -> None:
     config = ModelConfigBase(should_validate=False)
     config.set_output_to(test_output_dirs.root_dir)
-    config.outputs_folder.mkdir()
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
                                                         project_root=test_output_dirs.root_dir)
     hyperdrive_run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_ENSEMBLE_RUN)
@@ -257,7 +249,6 @@ def test_download_checkpoints_from_hyperdrive_child_runs(test_output_dirs: Outpu
 def test_get_checkpoints_to_test(test_output_dirs: OutputFolderForTests) -> None:
     config = ModelConfigBase(should_validate=False)
     config.set_output_to(test_output_dirs.root_dir)
-    config.outputs_folder.mkdir()
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
                                                      project_root=test_output_dirs.root_dir)
 
@@ -289,7 +280,6 @@ def test_get_checkpoints_to_test(test_output_dirs: OutputFolderForTests) -> None
 def test_get_checkpoints_to_test_single_run(test_output_dirs: OutputFolderForTests) -> None:
     config = ModelConfigBase(should_validate=False)
     config.set_output_to(test_output_dirs.root_dir)
-    config.outputs_folder.mkdir()
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
                                                      project_root=test_output_dirs.root_dir)
 
@@ -380,7 +370,6 @@ def test_get_checkpoints_from_model_ensemble_run(test_output_dirs: OutputFolderF
 def test_get_local_weights_path_or_download(test_output_dirs: OutputFolderForTests) -> None:
     config = ModelConfigBase(should_validate=False)
     config.set_output_to(test_output_dirs.root_dir)
-    config.outputs_folder.mkdir()
 
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
                                                         project_root=test_output_dirs.root_dir)
@@ -398,7 +387,6 @@ def test_get_local_weights_path_or_download(test_output_dirs: OutputFolderForTes
     assert local_weights_path == returned_weights_path[0]
 
     # Pointing the model to a URL should trigger a download
-    config.checkpoint_folder.mkdir()
     checkpoint_handler.container.local_checkpoint_paths = []
     checkpoint_handler.container.checkpoint_urls = [EXTERNAL_WEIGHTS_URL_EXAMPLE]
     downloaded_weights = checkpoint_handler.get_local_checkpoints_path_or_download()
