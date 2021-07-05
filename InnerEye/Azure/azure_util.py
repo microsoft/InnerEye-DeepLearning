@@ -455,3 +455,43 @@ def step_up_directories(path: Path) -> Generator[Path, None, None]:
         if parent == path:
             break
         path = parent
+
+
+def remove_arg(arg: str, args: List[str]) -> List[str]:
+    """
+    Remove an argument from a list of arguments. The argument list is assumed to contain
+    elements of the form:
+    "-a", "--arg1", "--arg2", "value2", or "--arg3=value"
+    If there is an item matching "--arg" then it will be removed from the list.
+
+    :param arg: Argument to look for.
+    :param args: List of arguments to scan.
+    :return: List of arguments with --arg removed, if present.
+    """
+    arg_opt = f"--{arg}"
+    no_arg_opt = f"--no-{arg}"
+    retained_args = []
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg.startswith(arg_opt):
+            if len(arg) == len(arg_opt):
+                # The commandline argument is "--arg", with something possibly following: This can either be
+                # "--arg_opt value" or "--arg_opt --some_other_param"
+                if i < (len(args) - 1):
+                    # If the next argument starts with a "-" then assume that it does not belong to the --arg
+                    # argument. If there is no "-", assume it belongs to the --arg_opt argument, and skip both
+                    if not args[i + 1].startswith("-"):
+                        i = i + 1
+            elif arg[len(arg_opt)] == "=":
+                # The commandline argument is "--arg=value": Continue with next arg
+                pass
+            else:
+                # The argument list contains an argument like "--arg_other_param": Keep that.
+                retained_args.append(arg)
+        elif arg == no_arg_opt:
+            pass
+        else:
+            retained_args.append(arg)
+        i = i + 1
+    return retained_args
