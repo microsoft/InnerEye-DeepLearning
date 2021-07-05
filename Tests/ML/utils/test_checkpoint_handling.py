@@ -264,7 +264,7 @@ def test_get_checkpoints_to_test(test_output_dirs: OutputFolderForTests) -> None
     assert checkpoint_and_paths[0] == local_weights_path
 
     checkpoint_handler.additional_training_done()
-    checkpoint_handler.container.checkpoint_folder.mkdir()
+    checkpoint_handler.container.checkpoint_folder.mkdir(parents=True)
 
     # Copy checkpoint to make it seem like training has happened
     expected_checkpoint = config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
