@@ -35,6 +35,8 @@ multiple large checkpoints can time out.
 
 ### Removed
 
+- ([#520](https://github.com/microsoft/InnerEye-DeepLearning/pull/520)) Disable glaucoma job from Azure pipeline.
+
 ### Deprecated
 
 
