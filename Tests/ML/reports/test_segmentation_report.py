@@ -11,6 +11,7 @@ import pytest
 from numpy.core.numeric import NaN
 
 from InnerEye.Common.common_util import is_windows
+from InnerEye.Common.fixed_paths_for_tests import tests_root_directory
 from InnerEye.Common.metrics_constants import MetricsFileColumns
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.reports.notebook_report import generate_segmentation_notebook
@@ -21,13 +22,15 @@ from InnerEye.ML.utils.csv_util import COL_IS_OUTLIER
 @pytest.mark.skipif(is_windows(), reason="Random timeout errors on windows.")
 @pytest.mark.parametrize("use_partial_ground_truth", [False, True])
 def test_generate_segmentation_report(test_output_dirs: OutputFolderForTests, use_partial_ground_truth: bool) -> None:
-    if use_partial_ground_truth:
-        return _test_generate_segmentation_report_with_partial_ground_truth(test_output_dirs)
-    return _test_generate_segmentation_report_without_partial_ground_truth(test_output_dirs)
-
-def _test_generate_segmentation_report_without_partial_ground_truth(test_output_dirs: OutputFolderForTests) -> None:
-    reports_folder = Path(__file__).parent
+    reports_folder = tests_root_directory() / "ML" / "reports"
     metrics_file = reports_folder / "metrics_hn.csv"
+    if use_partial_ground_truth:
+        return _test_generate_segmentation_report_with_partial_ground_truth(test_output_dirs, metrics_file)
+    return _test_generate_segmentation_report_without_partial_ground_truth(test_output_dirs, metrics_file)
+
+def _test_generate_segmentation_report_without_partial_ground_truth(
+        test_output_dirs: OutputFolderForTests,
+        metrics_file: Path) -> None:
     current_dir = test_output_dirs.make_sub_dir("test_segmentation_report")
     result_file = current_dir / "report.ipynb"
     result_html = generate_segmentation_notebook(result_notebook=result_file,
@@ -39,13 +42,13 @@ def _test_generate_segmentation_report_without_partial_ground_truth(test_output_
     contents = result_html.read_text(encoding='utf-8')
     assert 'parotid_r' in contents
 
-def _test_generate_segmentation_report_with_partial_ground_truth(test_output_dirs: OutputFolderForTests) -> None:
+def _test_generate_segmentation_report_with_partial_ground_truth(
+        test_output_dirs: OutputFolderForTests,
+        original_metrics_file: Path) -> None:
     """
     The test without partial ground truth should cover more detail, here we just check that providing
     partial ground truth results in some labels having a lower user count.
     """
-    reports_folder = Path(__file__).parent
-    original_metrics_file = reports_folder / "metrics_hn.csv"
     original_metrics = pd.read_csv(original_metrics_file)
     partial_metrics = original_metrics
     partial_metrics.loc[partial_metrics['Structure'].eq('brainstem') & partial_metrics['Patient'].isin([14, 15, 19]),
