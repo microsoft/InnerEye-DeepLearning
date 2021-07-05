@@ -453,17 +453,17 @@ def test_download_outputs_skipped(test_output_dirs: OutputFolderForTests) -> Non
 def test_model_inference_on_single_run(test_output_dirs: OutputFolderForTests) -> None:
     fallback_run_id_for_local_execution = FALLBACK_HELLO_CONTAINER_RUN
 
-    paths_to_check = ["test_mse.txt", "test_mae.txt"]
+    files_to_check = ["test_mse.txt", "test_mae.txt"]
 
     training_run = get_most_recent_run(fallback_run_id_for_local_execution=fallback_run_id_for_local_execution)
     all_training_files = training_run.get_file_names()
-    for path in paths_to_check:
-        assert f"outputs/{path}" in all_training_files, f"{path} is missing"
+    for file in files_to_check:
+        assert f"outputs/{file}" in all_training_files, f"{file} is missing"
     training_folder = test_output_dirs.root_dir / "training"
     training_folder.mkdir()
-    training_files = [training_folder / path for path in paths_to_check]
-    for path, download_path in zip(paths_to_check, training_files):
-        training_run.download_file(f"outputs/{path}", output_file_path=str(download_path))
+    training_files = [training_folder / file for file in files_to_check]
+    for file, download_path in zip(files_to_check, training_files):
+        training_run.download_file(f"outputs/{file}", output_file_path=str(download_path))
 
     container = HelloContainer()
     container.set_output_to(test_output_dirs.root_dir)
@@ -475,9 +475,9 @@ def test_model_inference_on_single_run(test_output_dirs: OutputFolderForTests) -
     ml_runner.start_logging_to_file()
     ml_runner.run()
 
-    inference_files = [container.outputs_folder / path for path in paths_to_check]
-    for path in inference_files:
-        assert path.exists(), f"{path} is missing"
+    inference_files = [container.outputs_folder / file for file in files_to_check]
+    for inference_file in inference_files:
+        assert inference_file.exists(), f"{inference_file} is missing"
 
     for training_file, inference_file in zip(training_files, inference_files):
         training_lines = training_file.read_text().splitlines()

@@ -487,7 +487,7 @@ class MLRunner:
             if torch.distributed.is_initialized():
                 torch.distributed.destroy_process_group()
             trainer, _ = create_lightning_trainer(self.container, num_nodes=1)
-            self.container._model = type(self.container.model).load_from_checkpoint(checkpoint_path=checkpoint_paths[0])
+            self.container._model = type(self.container.model).load_from_checkpoint(checkpoint_path=str(checkpoint_paths[0]))
             # When training models that are not built-in InnerEye models, we have no guarantee that they write
             # files to the right folder. Best guess is to change the current working directory to where files should go.
             with change_working_directory(self.container.outputs_folder):
