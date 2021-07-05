@@ -236,36 +236,6 @@ class LightningContainer(GenericConfig,
         """
         pass
 
-    def load_checkpoint_and_modify(self, path_to_checkpoint: Path) -> Dict[str, Any]:
-        """
-        This method is called when a file with weights for network initialization is supplied at container level,
-        in the self.weights_url or self.local_weights_path fields. It can load that file as a Torch checkpoint,
-        and rename parameters.
-
-        By default, uses torch.load to read and return the state dict from the checkpoint file, and does no modification
-        of the checkpoint file.
-
-        Overloading this function:
-        When weights_url or local_weights_path is set, the file downloaded may not be in the exact
-        format expected by the model's load_state_dict() - for example, pretrained Imagenet weights for networks
-        may have mismatched layer names in different implementations.
-        In such cases, you can overload this function to extract the state dict from the checkpoint.
-
-        NOTE: The model checkpoint will be loaded using the torch function load_state_dict() with argument strict=False,
-        so extra care needs to be taken to check that the state dict is valid.
-        Check the logs for warnings related to missing and unexpected keys.
-        See https://pytorch.org/tutorials/beginner/saving_loading_models.html#warmstarting-model-using-parameters
-        -from-a-different-model
-        for an explanation on why strict=False is useful when loading parameters from other models.
-        :param path_to_checkpoint: Path to the checkpoint file.
-        :return: Dictionary with model and optimizer state dicts. The dict should have at least the following keys:
-        1. Key ModelAndInfo.MODEL_STATE_DICT_KEY and value set to the model state dict.
-        2. Key ModelAndInfo.EPOCH_KEY and value set to the checkpoint epoch.
-        Other (optional) entries corresponding to keys ModelAndInfo.OPTIMIZER_STATE_DICT_KEY and
-        ModelAndInfo.MEAN_TEACHER_STATE_DICT_KEY are also supported.
-        """
-        return load_checkpoint(path_to_checkpoint=path_to_checkpoint, use_gpu=self.use_gpu)
-
     # The code from here on does not need to be modified.
 
     @property
