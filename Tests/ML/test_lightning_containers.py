@@ -175,7 +175,7 @@ class DummyContainerWithFields(LightningContainer):
 
     def __init__(self) -> None:
         super().__init__()
-        self.perform_training_set_inference = True
+        self.inference_on_train_set = True
         self.num_epochs = 123456
         self.l_rate = 1e-2
 
