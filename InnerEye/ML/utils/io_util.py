@@ -29,6 +29,7 @@ from InnerEye.ML.dataset.sample import PatientDatasetSource, Sample
 from InnerEye.ML.utils.hdf5_util import HDF5Object
 from InnerEye.ML.utils.image_util import ImageDataType, ImageHeader, check_array_range, get_center_crop, \
     get_unit_image_header, is_binary_array
+from InnerEye.ML.utils.metrics_util import is_missing_ground_truth
 from InnerEye.ML.utils.transforms import LinearTransform, get_range_for_window_level
 
 RESULTS_POSTERIOR_FILE_NAME_PREFIX = "posterior_"
@@ -412,24 +413,42 @@ def load_image_in_known_formats(file: Path,
         raise ValueError(f"Unsupported image file type for path {file}")
 
 
-def load_labels_from_dataset_source(dataset_source: PatientDatasetSource, check_exclusive: bool = True) -> np.ndarray:
+def load_labels_from_dataset_source(dataset_source: PatientDatasetSource, check_exclusive: bool = True,
+                                    image_size: Optional[Tuple[int]] = None) -> np.ndarray:
     """
     Load labels containing segmentation binary labels in one-hot-encoding.
     In the future, this function will be used to load global class and non-imaging information as well.
 
+    :type image_size: Image size, tuple of integers.
     :param dataset_source: The dataset source for which channels are to be loaded into memory.
-    :param check_exclusive: Check that the labels are mutually exclusive (defaults to True)
+    :param check_exclusive: Check that the labels are mutually exclusive (defaults to True).
     :return: A label sample object containing ground-truth information.
     """
-    labels = np.stack(
-        [load_image(gt, ImageDataType.SEGMENTATION.value).image for gt in dataset_source.ground_truth_channels])
 
-    if check_exclusive and (sum(labels) > 1.).any():  # type: ignore
+    if dataset_source.ground_truth_channels.count(None) > 0:
+        assert image_size is not None
+
+    label_list = []
+    # label_list keeps track of missing ground truth channels
+    for gt in dataset_source.ground_truth_channels:
+        if gt is None:
+            label_list.append(np.full(image_size, np.NAN, ImageDataType))
+        else:
+            label_list.append(load_image(gt, ImageDataType.SEGMENTATION.value).image)
+    labels = np.stack(label_list)
+
+    # If ground truth image is nan, then will not be used to check check_exclusive
+    # Image is nan, if voxel at index [0, 0, 0] is NaN
+    not_nan_label_images = [labels[label_id] for label_id in range(labels.shape[0])
+                            if not is_missing_ground_truth(labels[label_id])]
+
+    if check_exclusive and (sum(np.array(not_nan_label_images)) > 1.).any():  # type: ignore
         raise ValueError(f'The labels for patient {dataset_source.metadata.patient_id} are not mutually exclusive. '
                          'Some loss functions (e.g. SoftDice) may produce results on overlapping labels, while others '
-                         '(e.g. FocalLoss) will fail. If you are sure that you want to use labels that are not '
-                         'mutually exclusive, then re-run with the check_exclusive flag set to false in the model '
-                         'config. Note that this is the first error encountered, other patients may also have '
+                         '(e.g. FocalLoss) will fail. '
+                         'If you are sure that you want to use mutually exclusive labels, '
+                         'then re-run with the check_exclusive flag set to false in the settings file. '
+                         'Note that this is the first error encountered, other samples/patients may also have '
                          'overlapping labels.')
 
     # Add the background binary map
@@ -502,7 +521,8 @@ def load_images_from_dataset_source(dataset_source: PatientDatasetSource, check_
     # create raw sample to return
     metadata = copy(dataset_source.metadata)
     metadata.image_header = images[0].header
-    labels = load_labels_from_dataset_source(dataset_source, check_exclusive=check_exclusive)
+    labels = load_labels_from_dataset_source(dataset_source, check_exclusive=check_exclusive, image_size=image[0].shape)
+
     return Sample(image=image,
                   labels=labels,
                   mask=mask,

@@ -16,6 +16,9 @@ from InnerEye.ML.utils.split_dataset import DatasetSplits
 
 class DummyModel(SegmentationModelBase):
     fg_ids = ["region"]
+    train_subject_ids = ['1', '2', '3']
+    test_subject_ids = ['4', '7']
+    val_subject_ids = ['5', '6']
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(
@@ -60,16 +63,15 @@ class DummyModel(SegmentationModelBase):
             weight_decay=1e-4,
             class_weights=[0.5, 0.5],
             detect_anomaly=False,
-            use_mixed_precision=False,
-        )
+            use_mixed_precision=False)
         self.add_and_validate(kwargs)
         # Trying to run DDP from the test suite hangs, hence restrict to single GPU.
         self.max_num_gpus = 1
 
     def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:
-        return DatasetSplits(train=dataset_df[dataset_df.subject.isin(['1', '2', '3'])],
-                             test=dataset_df[dataset_df.subject.isin(['4', '7'])],
-                             val=dataset_df[dataset_df.subject.isin(['5', '6'])])
+        return DatasetSplits(train=dataset_df[dataset_df.subject.isin(self.train_subject_ids)],
+                             test=dataset_df[dataset_df.subject.isin(self.test_subject_ids)],
+                             val=dataset_df[dataset_df.subject.isin(self.val_subject_ids)])
 
     def get_parameter_search_hyperdrive_config(self, run_config: ScriptRunConfig) -> HyperDriveConfig:
         return super().get_parameter_search_hyperdrive_config(run_config)
