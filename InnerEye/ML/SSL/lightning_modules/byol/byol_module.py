@@ -32,6 +32,7 @@ class BYOLInnerEye(pl.LightningModule):
                  batch_size: int,
                  encoder_name: str,
                  warmup_epochs: int,
+                 max_epochs: int,
                  use_7x7_first_conv_in_resnet: bool = True,
                  weight_decay: float = 1e-6,
                  **kwargs: Any) -> None:
