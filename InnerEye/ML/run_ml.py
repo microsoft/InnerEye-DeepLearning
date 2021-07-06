@@ -441,8 +441,9 @@ class MLRunner:
         Run inference on the test set for all models that are specified via a LightningContainer.
         :param checkpoint_paths: The path to the checkpoint that should be used for inference.
         """
-        if len(checkpoint_paths) != 1:
-            raise ValueError(f"This method expects exactly 1 checkpoint for inference, but got {len(checkpoint_paths)}")
+        if not isinstance(self.container.model, InnerEyeInference) and len(checkpoint_paths) != 1:
+            raise ValueError("This method can only do ensemble inference on subclasses of InnerEyeInference. For "
+            f"other types of model it expects exactly 1 checkpoint for inference, but got {len(checkpoint_paths)}")
         lightning_model = self.container.model
         # Run the customized inference code only if the the "inference" step has been overridden
         if isinstance(lightning_model, InnerEyeInference) and \
