@@ -3,13 +3,14 @@
 This document contains two sample tasks for the classification and segmentation pipelines. 
 
 The document will walk through the steps in [Training Steps](building_models.md), but with specific examples for each task.
-Before trying tp train these models, you should have followed steps to set up an [environment](environment.md) and [AzureML](setting_up_aml.md)
+Before trying to train these models, you should have followed steps to set up an [environment](environment.md) and [AzureML](setting_up_aml.md)
 
 ## Sample classification task: Glaucoma Detection on OCT volumes
  
 This example is based on the paper [A feature agnostic approach for glaucoma detection in OCT volumes](https://arxiv.org/pdf/1807.04855v3.pdf).
 
 ### Downloading and preparing the dataset
+
 The dataset is available [here](https://zenodo.org/record/1481223#.Xs-ehzPiuM_) <sup>[[1]](#1)</sup>.
 
 After downloading and extracting the zip file, run the [create_glaucoma_dataset_csv.py](https://github.com/microsoft/InnerEye-DeepLearning/blob/main/InnerEye/Scripts/create_glaucoma_dataset_csv.py)
@@ -25,7 +26,6 @@ into a container called `datasets`, with a folder name of your choice (`name_of_
 description below).
 
 ### Creating the model configuration and starting training
-
 
 Next, you need to create a configuration file `InnerEye/ML/configs/MyGlaucoma.py`
  which extends the GlaucomaPublic class like this:
@@ -75,6 +75,7 @@ into a folder in the `datasets` container, for example `my_lung_dataset`. This f
 `azure_dataset_id` field of the model configuration, see below.
 
 ### Creating the model configuration and starting training
+
 You can then create a new model configuration, based on the template 
 [Lung.py](../InnerEye/ML/configs/segmentation/Lung.py). To do this, create a file 
 `InnerEye/ML/configs/segmentation/MyLungModel.py`, where you create a subclass of the template Lung model, and

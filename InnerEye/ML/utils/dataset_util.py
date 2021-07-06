@@ -201,7 +201,9 @@ def add_label_stats_to_dataframe(input_dataframe: pd.DataFrame,
         overlap_stats = metrics_util.get_label_overlap_stats(labels=labels[1:, ...],
                                                              label_names=target_label_names)
 
-        header = io_util.load_nifti_image(dataset_sources[subject_id].ground_truth_channels[0]).header
+        ground_truth_channel = dataset_sources[subject_id].ground_truth_channels[0]
+        assert ground_truth_channel is not None
+        header = io_util.load_nifti_image(ground_truth_channel).header
         volume_stats = metrics_util.get_label_volume(labels=labels[1:, ...],
                                                      label_names=target_label_names,
                                                      label_spacing=header.spacing)

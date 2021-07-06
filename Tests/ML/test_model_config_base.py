@@ -80,7 +80,6 @@ def test_get_total_number_of_cross_validation_runs() -> None:
     config = ModelConfigBase(should_validate=False)
     config.number_of_cross_validation_splits = 2
     assert config.perform_cross_validation
-    assert config.get_total_number_of_cross_validation_runs() == config.number_of_cross_validation_splits
 
 
 def test_config_with_typo() -> None:
