@@ -330,7 +330,6 @@ def test_innereyecontainer_setup_passes_on_allow_incomplete_labels(
     config.set_output_to(test_output_dirs.root_dir)
     config.allow_incomplete_labels = allow_partial_ground_truth
     container = InnerEyeContainer(config)
-    test_done_message = "Stop now, the test has passed."
 
     def mocked_convert_channels_to_file_paths(
             _: List[str],
@@ -338,11 +337,11 @@ def test_innereyecontainer_setup_passes_on_allow_incomplete_labels(
             ___: Path,
             ____: str,
             allow_incomplete_labels: bool) -> Tuple[List[Optional[Path]], str]:
+        paths: List[Optional[Path]] = []
+        failed_channel_info = ''
         assert allow_incomplete_labels == allow_partial_ground_truth
-        raise RuntimeError(test_done_message)
+        return paths, failed_channel_info
 
-    with pytest.raises(RuntimeError) as runtime_error:
-        with mock.patch("InnerEye.ML.lightning_base.convert_channels_to_file_paths") as convert_channels_to_file_paths_mock:
-            convert_channels_to_file_paths_mock.side_effect = mocked_convert_channels_to_file_paths
-            container.setup()
-    assert str(runtime_error.value) == test_done_message
+    with mock.patch("InnerEye.ML.lightning_base.convert_channels_to_file_paths") as convert_channels_to_file_paths_mock:
+        convert_channels_to_file_paths_mock.side_effect = mocked_convert_channels_to_file_paths
+        container.setup()
