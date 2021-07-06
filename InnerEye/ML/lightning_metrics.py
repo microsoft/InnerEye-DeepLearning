@@ -82,7 +82,7 @@ class Accuracy05(metrics.Accuracy):
         Returns True if the present object stores at least 1 prediction (self.update has been called at least once),
         or False if no predictions are stored.
         """
-        return self.total > 0  # type: ignore
+        return (self.total) or (self.tp + self.fp + self.tn + self.fn) > 0  # type: ignore
 
 
 class AverageWithoutNan(Metric):
