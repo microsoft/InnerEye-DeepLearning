@@ -8,18 +8,27 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 import param
+import torch
 from azureml.core import ScriptRunConfig
 from azureml.train.hyperdrive import HyperDriveConfig
 
+from torch.nn import ModuleDict, ModuleList
+
 from InnerEye.Common.common_util import print_exception
 from InnerEye.Common.generic_parsing import ListOrDictParam
+from InnerEye.Common.metrics_constants import LoggingColumns
 from InnerEye.Common.type_annotations import TupleInt3
 
 from InnerEye.ML.common import ModelExecutionMode, OneHotEncoderBase
 from InnerEye.ML.deep_learning_config import ModelCategory
+from InnerEye.ML.lightning_metrics import Accuracy05, AccuracyAtOptimalThreshold, AreaUnderPrecisionRecallCurve, \
+    AreaUnderRocCurve, BinaryCrossEntropyWithLogits, ExplainedVariance, FalseNegativeRateOptimalThreshold, \
+    FalsePositiveRateOptimalThreshold, MeanAbsoluteError, MeanSquaredError, OptimalThreshold, ScalarMetricsBase
+from InnerEye.ML.metrics_dict import DataframeLogger
 from InnerEye.ML.model_config_base import ModelConfigBase, ModelTransformsPerExecutionMode
 from InnerEye.ML.utils.csv_util import CSV_CHANNEL_HEADER, CSV_SUBJECT_HEADER
 from InnerEye.ML.utils.split_dataset import DatasetSplits
+from InnerEye.ML.utils.sequence_utils import get_masked_model_outputs_and_labels
 
 DEFAULT_KEY = "Default"
 
@@ -492,6 +501,82 @@ class ScalarModelBase(ModelConfigBase):
             val=ScalarItemAugmentation(image_transform.val, segmentation_transform.val),
             test=ScalarItemAugmentation(image_transform.test, segmentation_transform.test))
 
+    def create_metric_computers(self) -> ModuleDict:
+        """
+        Gets a set of objects that compute all the metrics for the type of model that is being trained,
+        across all prediction targets (sequence positions when using a sequence model).
+        :return: A dictionary mapping from names of prediction targets to a list of metric computers.
+        """
+        # The metric computers should be stored in an object that derives from torch.Module,
+        # so that they are picked up when moving the whole LightningModule to GPU.
+        # https://github.com/PyTorchLightning/pytorch-lightning/issues/4713
+        return ModuleDict({p: self._get_metrics_computers() for p in self.target_names})
+
+    def _get_metrics_computers(self) -> ModuleList:
+        """
+        Gets the objects that compute metrics for the present kind of models, for a single prediction target.
+        """
+        if self.is_classification_model:
+            return ModuleList([Accuracy05(),
+                               AccuracyAtOptimalThreshold(),
+                               OptimalThreshold(),
+                               FalsePositiveRateOptimalThreshold(),
+                               FalseNegativeRateOptimalThreshold(),
+                               AreaUnderRocCurve(),
+                               AreaUnderPrecisionRecallCurve(),
+                               BinaryCrossEntropyWithLogits()])
+        else:
+            return ModuleList([MeanAbsoluteError(), MeanSquaredError(), ExplainedVariance()])
+
+    def compute_and_log_metrics(self,
+                                logits: torch.Tensor,
+                                targets: torch.Tensor,
+                                subject_ids: List[str],
+                                is_training: bool,
+                                metrics: ModuleDict,
+                                logger: DataframeLogger,
+                                current_epoch: int) -> None:
+        """
+        Computes all the metrics for a given (logits, labels) pair, and writes them to the loggers.
+        :param logits: The model output before normalization.
+        :param targets: The expected model outputs.
+        :param subject_ids: The subject IDs for the present minibatch.
+        :param is_training: If True, write the metrics as training metrics, otherwise as validation metrics.
+        :return:
+        """
+        per_subject_outputs: List[Tuple[str, str, torch.Tensor, torch.Tensor]] = []
+        for i, (prediction_target, metric_list) in enumerate(metrics.items()):
+            # mask the model outputs and labels if required
+            masked = get_masked_model_outputs_and_labels(
+                logits[:, i, ...], targets[:, i, ...], subject_ids)
+            # compute metrics on valid masked tensors only
+            if masked is not None:
+                _logits = masked.model_outputs.data
+                _posteriors = self.logits_to_posterior(_logits)
+                # Classification metrics expect labels as integers, but they are float throughout the rest of the code
+                labels_dtype = torch.int if self.is_classification_model else _posteriors.dtype
+                _labels = masked.labels.data.to(dtype=labels_dtype)
+                _subject_ids = masked.subject_ids
+                assert _subject_ids is not None
+                for metric in metric_list:
+                    if isinstance(metric, ScalarMetricsBase) and metric.compute_from_logits:
+                        metric(_logits, _labels)
+                    else:
+                        metric(_posteriors, _labels)
+                per_subject_outputs.extend(
+                    zip(_subject_ids, [prediction_target] * len(_subject_ids), _posteriors.tolist(), _labels.tolist()))
+        # Write a full breakdown of per-subject predictions and labels to a file. These files are local to the current
+        # rank in distributed training, and will be aggregated after training.
+        data_split = ModelExecutionMode.TRAIN if is_training else ModelExecutionMode.VAL
+        for subject, prediction_target, model_output, label in per_subject_outputs:
+            logger.add_record({
+                LoggingColumns.Epoch.value: current_epoch,
+                LoggingColumns.Patient.value: subject,
+                LoggingColumns.Hue.value: prediction_target,
+                LoggingColumns.ModelOutput.value: model_output,
+                LoggingColumns.Label.value: label,
+                LoggingColumns.DataSplit.value: data_split.value
+            })
 
 def get_non_image_features_dict(default_channels: List[str],
                                 specific_channels: Optional[Dict[str, List[str]]] = None) -> Dict[str, List[str]]:

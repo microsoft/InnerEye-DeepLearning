@@ -3,14 +3,17 @@ import random
 import math
 from pathlib import Path
 
-from typing import Any, Callable
+from typing import Any, Callable, List
 
 import PIL
 import numpy as np
 import pandas as pd
 import param
 import torch
+import torchmetrics
+
 from PIL import Image
+from torch.nn import ModuleList, ModuleDict
 from pytorch_lightning import LightningModule
 from torchvision.transforms import Compose
 
@@ -28,6 +31,7 @@ from InnerEye.ML.configs.ssl.CXR_SSL_configs import path_linear_head_augmentatio
 from InnerEye.ML.deep_learning_config import LRSchedulerType, MultiprocessingStartMethod, \
     OptimizerType
 
+from InnerEye.ML.metrics_dict import DataframeLogger
 from InnerEye.ML.model_config_base import ModelTransformsPerExecutionMode
 from InnerEye.ML.model_testing import MODEL_OUTPUT_CSV
 
@@ -39,6 +43,7 @@ from InnerEye.ML.utils.split_dataset import DatasetSplits
 
 from InnerEye.ML.configs.ssl.CovidContainers import COVID_DATASET_ID
 
+from InnerEye.ML.metrics_dict import MetricsDict
 
 class CovidModel(ScalarModelBase):
     """
@@ -202,6 +207,25 @@ class CovidModel(ScalarModelBase):
 
     def get_post_loss_logits_normalization_function(self) -> Callable:
         return torch.nn.Softmax()
+
+    def create_metric_computers(self) -> ModuleDict:
+        return ModuleDict({MetricsDict.DEFAULT_HUE_KEY: ModuleList([torchmetrics.Accuracy()])})
+
+    def compute_and_log_metrics(self,
+                                logits: torch.Tensor,
+                                targets: torch.Tensor,
+                                subject_ids: List[str],
+                                is_training: bool,
+                                metrics: ModuleDict,
+                                logger: DataframeLogger,
+                                current_epoch: int) -> None:
+        posteriors = self.logits_to_posterior(logits)
+        labels = torch.argmax(targets.data.to(dtype=torch.int), dim=-1)
+        metric = self.train_accuracy if is_training else self.val_accuracy
+        metric[MetricsDict.DEFAULT_HUE_KEY][0](posteriors, labels)
+        self.log_on_epoch(name="MultiClassAccuracy",
+                          value=metric,
+                          is_training=is_training)
 
     def generate_custom_report(self, report_dir: Path, model_proc: ModelProcessing) -> Path:
         """
