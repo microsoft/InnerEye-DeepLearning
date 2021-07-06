@@ -12,6 +12,7 @@ from pandas import DataFrame
 from InnerEye.Common.metrics_constants import LoggingColumns
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.deep_learning_config import TemperatureScalingConfig
+from InnerEye.ML.metrics_dict import SequenceMetricsDict
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 
@@ -64,6 +65,10 @@ class SequenceModelBase(ScalarModelBase):
         if self.temperature_scaling_config:
             logging.info(f"Temperature scaling will be performed on the "
                          f"validation set using the config: {self.temperature_scaling_config}")
+
+    def validate(self) -> None:
+        self.target_names = [SequenceMetricsDict.get_hue_name_from_target_index(p)
+                             for p in self.sequence_target_positions]
 
     def get_target_indices(self) -> List[int]:
         """

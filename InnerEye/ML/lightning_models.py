@@ -176,12 +176,11 @@ class ScalarLightning(InnerEyeLightning):
         if isinstance(config, SequenceModelBase):
             self.loss_fn = lambda model_output, loss: apply_sequence_model_loss(raw_loss, model_output, loss)
             self.target_indices = config.get_target_indices()
-            self.target_names = [SequenceMetricsDict.get_hue_name_from_target_index(p)
-                                 for p in config.sequence_target_positions]
         else:
             self.loss_fn = raw_loss
             self.target_indices = []
-            self.target_names = config.target_names
+
+        self.target_names = config.target_names
         self.is_classification_model = config.is_classification_model
         self.use_mean_teacher_model = config.compute_mean_teacher_model
         self.is_binary_classification_or_regression = True if len(config.class_names) == 1 else False

@@ -437,7 +437,7 @@ def test_run_ml_with_multi_label_sequence_model(test_output_dirs: OutputFolderFo
     when it is started via run_ml.
     """
     logging_to_stdout()
-    config = ToyMultiLabelSequenceModel(should_validate=False)
+    config = ToyMultiLabelSequenceModel()
     assert config.get_target_indices() == [1, 2, 3]
     expected_prediction_targets = [f"{SEQUENCE_POSITION_HUE_NAME_PREFIX} {x}"
                                    for x in ["01", "02", "03"]]
