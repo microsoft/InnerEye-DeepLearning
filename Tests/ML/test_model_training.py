@@ -99,7 +99,7 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     train_config.mask_id = None if no_mask_channel else train_config.mask_id
     train_config.random_seed = 42
     train_config.class_weights = [0.5, 0.25, 0.25]
-    train_config.store_dataset_sample = True
+    train_config.store_dataset_sample = no_mask_channel
     train_config.recovery_checkpoint_save_interval = 1
     train_config.check_exclusive = False
 
@@ -199,9 +199,9 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     model_training_result.get_train_metric(MetricType.SECONDS_PER_BATCH.value)
 
     # # Test for saving of example images
-    assert train_config.example_images_folder.is_dir()
+    assert train_config.example_images_folder.is_dir() if train_config.store_dataset_sample else True
     example_files = list(train_config.example_images_folder.rglob("*.*"))
-    assert len(example_files) == 3 * 2 * 2  # images x epochs x patients
+    assert len(example_files) == (3 * 2 * 2 if train_config.store_dataset_sample else 0)  # images x epochs x patients
 
 
 def test_create_data_loaders() -> None:
