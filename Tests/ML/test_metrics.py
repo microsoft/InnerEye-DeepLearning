@@ -18,7 +18,6 @@ from InnerEye.ML import metrics
 from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
 from InnerEye.ML.configs.regression.DummyRegression import DummyRegression
 from InnerEye.ML.lightning_metrics import AverageWithoutNan, MetricForMultipleStructures, ScalarMetricsBase
-from InnerEye.ML.lightning_models import ScalarLightning
 from InnerEye.ML.metrics_dict import MetricsDict, get_column_name_for_logging
 
 

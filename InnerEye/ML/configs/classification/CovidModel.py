@@ -257,7 +257,7 @@ class CovidModel(ScalarModelBase):
                                            LoggingColumns.ModelOutput.value: [np.argmax(predictions)],
                                            LoggingColumns.Label.value: [np.argmax(labels)]})
 
-        def get_accuracy(df):
+        def get_accuracy(df: pd.DataFrame) -> float:
             df = df.groupby(LoggingColumns.Patient.value, as_index=False).apply(get_labels_and_predictions).reset_index(
                 drop=True)
             df["tp+tn"] = df.apply(
