@@ -9,7 +9,6 @@ from typing import Any, Dict, Iterator, List, Tuple, Union
 import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
-from pl_bolts.optimizers.lars_scheduling import LARSWrapper
 from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
 from torch import Tensor as T
 from torch.optim import Adam
@@ -110,32 +109,14 @@ class BYOLInnerEye(pl.LightningModule):
         global_batch_size = self.trainer.world_size * self.hparams.batch_size  # type: ignore
         self.train_iters_per_epoch = self.hparams.num_samples // global_batch_size  # type: ignore
 
-    def configure_optimizers(self) -> Any:
-        """
-        Configures the optimizer to use for training: Adam optimizer with Lars scheduling, excluding certain parameters
-        (batch norm and bias of convolution) from weight decay. Apply Linear Cosine Annealing schedule of learning
-        rate with warm-up.
-        """
-        # TRICK 1 (Use lars + filter weights)
+    def configure_optimizers(self):
         # exclude certain parameters
         parameters = self.exclude_from_wt_decay(self.online_network.named_parameters(),
                                                 weight_decay=self.hparams.weight_decay)  # type: ignore
-        optimizer = LARSWrapper(Adam(parameters, lr=self.hparams.learning_rate))  # type: ignore
-
-        # Trick 2 (after each step)
-        self.hparams.warmup_epochs = self.hparams.warmup_epochs * self.train_iters_per_epoch  # type: ignore
-        max_epochs = self.trainer.max_epochs * self.train_iters_per_epoch
-
-        linear_warmup_cosine_decay = LinearWarmupCosineAnnealingLR(
-            optimizer,
-            warmup_epochs=self.hparams.warmup_epochs,  # type: ignore
-            max_epochs=max_epochs,
-            warmup_start_lr=0,
-            eta_min=self.min_learning_rate,
+        optimizer = Adam(parameters, lr=self.hparams.learning_rate, weight_decay=self.hparams.weight_decay)
+        scheduler = LinearWarmupCosineAnnealingLR(
+            optimizer, warmup_epochs=self.hparams.warmup_epochs, max_epochs=self.hparams.max_epochs
         )
-
-        scheduler = {'scheduler': linear_warmup_cosine_decay, 'interval': 'step', 'frequency': 1}
-
         return [optimizer], [scheduler]
 
     def exclude_from_wt_decay(self,
