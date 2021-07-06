@@ -232,3 +232,14 @@ class ResourceMonitor(Process):
         pivot = df.pivot(index=COL_GPU, columns=COL_METRIC, values=COL_VALUE)
         result = {index: series.to_dict() for index, series in pivot.iterrows()}
         return result
+
+
+def log_state() -> None:
+    """
+    Log cpu state
+    """
+    logging.info(f"cpu_times {psutil.cpu_times()}")
+    logging.info(f"cpu_percent {psutil.cpu_percent()}")
+    logging.info(f"cpu_count {psutil.cpu_count()}")
+    logging.info(f"cpu_stats {psutil.cpu_stats()}")
+    logging.info(f"cpu_freq {psutil.cpu_freq()}")

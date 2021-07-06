@@ -14,6 +14,7 @@ import torch
 from radio import CTImagesMaskedBatch
 from radio.batchflow import Dataset, action, inbatch_parallel
 
+from InnerEye.Common.resource_monitor import log_state
 from InnerEye.Common.type_annotations import TupleFloat3
 from InnerEye.ML import config
 from InnerEye.ML.common import ModelExecutionMode
@@ -47,6 +48,7 @@ class FullImageInferencePipelineBase(InferencePipelineBase):
                                              voxel_spacing_mm: TupleFloat3,
                                              mask: np.ndarray = None,
                                              patient_id: int = 0) -> InferencePipeline.Result:
+        log_state()
         return self.post_process(self.predict_whole_image(image_channels, voxel_spacing_mm, mask, patient_id))
 
     def predict_whole_image(self, image_channels: np.ndarray,
