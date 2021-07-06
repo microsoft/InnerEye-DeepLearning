@@ -10,6 +10,7 @@ from unittest import mock
 from unittest.mock import Mock
 
 import numpy as np
+import pandas as pd
 import pytest
 from azureml.train.hyperdrive.runconfig import HyperDriveConfig
 
@@ -22,9 +23,11 @@ from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, ModelExecu
 from InnerEye.ML.configs.unit_testing.passthrough_model import PassThroughModel
 from InnerEye.ML.lightning_helpers import adjust_model_for_inference
 from InnerEye.ML.metrics import InferenceMetricsForSegmentation
+from InnerEye.ML.pipelines.inference import FullImageInferencePipelineBase
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.runner import Runner
 from InnerEye.ML.utils import io_util
+from InnerEye.ML.utils.split_dataset import DatasetSplits
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import get_default_checkpoint_handler
 from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
@@ -261,6 +264,19 @@ def test_cross_validation_for_lighting_container_models_is_supported() -> None:
             assert isinstance(script_run_config, HyperDriveConfig)
 
 
+class MultiImagePassThroughModel(PassThroughModel):
+    """
+    Override PassThroughModel to return 2 images for test.
+    """
+    def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:
+        return DatasetSplits.from_subject_ids(
+            df=dataset_df,
+            train_ids=['1'],
+            test_ids=['2', '3'],
+            val_ids=['4']
+        )
+
+
 def test_adjust_model_for_inference_once(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test that the potentially expensive operation adjust_model_for_inference is only called once
@@ -268,7 +284,7 @@ def test_adjust_model_for_inference_once(test_output_dirs: OutputFolderForTests)
     """
     dummy_model = DummyModel()
 
-    config = PassThroughModel()
+    config = MultiImagePassThroughModel()
     # Copy settings from DummyModel
     config.image_channels = dummy_model.image_channels
     config.ground_truth_ids = dummy_model.ground_truth_ids
@@ -278,6 +294,9 @@ def test_adjust_model_for_inference_once(test_output_dirs: OutputFolderForTests)
     config.roi_interpreted_types = dummy_model.roi_interpreted_types
 
     config.test_crop_size = dummy_model.test_crop_size
+    config.inference_on_train_set = False
+    config.inference_on_val_set = False
+    config.inference_on_test_set = True
     # Plotting crashes with random TCL errors on Windows, disable that for Windows PR builds.
     config.is_plotting_enabled = common_util.is_linux()
 
@@ -290,10 +309,25 @@ def test_adjust_model_for_inference_once(test_output_dirs: OutputFolderForTests)
                                                         project_root=test_output_dirs.root_dir)
     checkpoint_handler.additional_training_done()
 
-    orig_adjust_model_for_inference = adjust_model_for_inference
-    with mock.patch("InnerEye.ML.lightning_helpers.adjust_model_for_inference",
-                    wraps=orig_adjust_model_for_inference) as wrap:
-        MLRunner(config).model_inference_train_and_test(
-            checkpoint_handler=checkpoint_handler)
+    def create_class_function_wrapper(callee):  # type: ignore
+        mmock = mock.Mock()
 
-    assert wrap.call_count == 1
+        def wrapper(self, *args, **kwargs):  # type: ignore
+            mmock(*args, **kwargs)
+            return callee(self, *args, **kwargs)
+
+        wrapper.mmock = mmock
+        return wrapper
+
+    wrap_predict = create_class_function_wrapper(FullImageInferencePipelineBase.predict_and_post_process_whole_image)
+    with mock.patch.object(FullImageInferencePipelineBase,
+                           'predict_and_post_process_whole_image',
+                           wrap_predict):
+        orig_adjust_model_for_inference = adjust_model_for_inference
+        with mock.patch("InnerEye.ML.lightning_helpers.adjust_model_for_inference",
+                        wraps=orig_adjust_model_for_inference) as wrap_adjust:
+            MLRunner(config).model_inference_train_and_test(
+                checkpoint_handler=checkpoint_handler)
+
+    assert wrap_predict.mmock.call_count == 2
+    assert wrap_adjust.call_count == 1
