@@ -40,7 +40,7 @@ from InnerEye.ML.utils.split_dataset import DatasetSplits
 from InnerEye.ML.configs.ssl.CovidContainers import COVID_DATASET_ID
 
 
-class CovidHierarchicalModel(ScalarModelBase):
+class CovidModel(ScalarModelBase):
     """
     Model to train a CovidDataset model from scratch or finetune from SSL-pretrained model.
 
