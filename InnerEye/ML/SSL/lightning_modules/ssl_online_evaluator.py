@@ -56,7 +56,7 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
                                                       p=self.drop_p,
                                                       n_hidden=self.hidden_dim).to(pl_module.device)
         assert isinstance(pl_module.non_linear_evaluator, torch.nn.Module)
-        self.online_optimizer = torch.optim.Adam(pl_module.non_linear_evaluator.parameters(),
+        self.optimizer = torch.optim.Adam(pl_module.non_linear_evaluator.parameters(),
                                           lr=self.learning_rate,
                                           weight_decay=self.weight_decay)
 
@@ -126,9 +126,9 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
         if ids_linear_head not in self.visited_ids:
             self.visited_ids.add(ids_linear_head)
             loss = self.shared_step(batch, pl_module, is_training=True)
-            self.online_optimizer.zero_grad()
+            self.optimizer.zero_grad()
             loss.backward()
-            self.online_optimizer.step()
+            self.optimizer.step()
 
             # log metrics
             pl_module.log('ssl_online_evaluator/train/loss', loss)
