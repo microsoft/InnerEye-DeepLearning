@@ -48,6 +48,7 @@ def test_get_total_number_of_training_epochs() -> None:
     c.recovery_start_epoch = 2
     assert c.get_total_number_of_training_epochs() == 8
 
+
 @pytest.mark.parametrize("image_channels", [["region"], ["random_123"]])
 @pytest.mark.parametrize("ground_truth_ids", [["region", "region"], ["region", "other_region"]])
 def test_invalid_model_train(test_output_dirs: OutputFolderForTests, image_channels: Any,
@@ -200,7 +201,7 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     # # Test for saving of example images
     assert train_config.example_images_folder.is_dir()
     example_files = list(train_config.example_images_folder.rglob("*.*"))
-    assert len(example_files) == 6 * 2
+    assert len(example_files) == 3 * 2 * 2  # images x epochs x patients
 
 
 def test_create_data_loaders() -> None:
