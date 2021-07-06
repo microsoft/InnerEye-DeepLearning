@@ -1,6 +1,4 @@
-import codecs
 import logging
-import pickle
 import random
 import math
 from pathlib import Path
@@ -8,6 +6,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 import PIL
+import numpy as np
 import pandas as pd
 import param
 import torch
@@ -16,6 +15,7 @@ from pytorch_lightning import LightningModule
 from torchvision.transforms import Compose
 
 from InnerEye.Common.common_util import ModelProcessing, get_best_epoch_results_path
+from InnerEye.Common.metrics_constants import LoggingColumns
 
 from InnerEye.ML.SSL.lightning_containers.ssl_container import EncoderName
 
@@ -32,14 +32,12 @@ from InnerEye.ML.model_config_base import ModelTransformsPerExecutionMode
 from InnerEye.ML.model_testing import MODEL_OUTPUT_CSV
 
 from InnerEye.ML.models.architectures.classification.image_encoder_with_mlp import ImagingFeatureType
-from InnerEye.ML.reports.notebook_report import generate_notebook, get_ipynb_report_name, str_or_empty
 
 from InnerEye.ML.scalar_config import ScalarLoss, ScalarModelBase
 from InnerEye.ML.utils.run_recovery import RunRecovery
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 
 from InnerEye.ML.configs.ssl.CovidContainers import COVID_DATASET_ID
-from InnerEye.Common import fixed_paths as fixed_paths_innereye
 
 
 class CovidHierarchicalModel(ScalarModelBase):
@@ -64,8 +62,7 @@ class CovidHierarchicalModel(ScalarModelBase):
                                         "is assumed to contain unique ids.")
 
     def __init__(self, covid_dataset_id: str = COVID_DATASET_ID, **kwargs: Any):
-        super().__init__(target_names=['CVX03vs12', 'CVX0vs3', 'CVX1vs2'],
-                         loss_type=ScalarLoss.CustomClassification,
+        super().__init__(loss_type=ScalarLoss.CustomClassification,
                          class_names=['CVX0', 'CVX1', 'CVX2', 'CVX3'],
                          max_num_gpus=1,
                          azure_dataset_id=covid_dataset_id,
@@ -84,7 +81,7 @@ class CovidHierarchicalModel(ScalarModelBase):
                          l_rate_step_gamma=1.0,
                          l_rate_multi_step_milestones=None,
                          should_validate=False)  # validate only after adding kwargs
-        self.num_classes = 3
+        self.num_classes = 4
         self.add_and_validate(kwargs)
 
     def validate(self) -> None:
@@ -193,38 +190,23 @@ class CovidHierarchicalModel(ScalarModelBase):
         pass
 
     @staticmethod
-    def get_posthoc_label_transform() -> Callable:
-        import torch
-
-        def multiclass_to_hierarchical_labels(classes: torch.Tensor) -> torch.Tensor:
-            classes = classes.clone()
-            cvx03vs12 = classes[..., 1] + classes[..., 2]
-            cvx0vs3 = classes[..., 3]
-            cvx1vs2 = classes[..., 2]
-            cvx0vs3[cvx03vs12 == 1] = float('nan')  # CVX0vs3 only gets gradient for CVX03
-            cvx1vs2[cvx03vs12 == 0] = float('nan')  # CVX1vs2 only gets gradient for CVX12
-            return torch.stack([cvx03vs12, cvx0vs3, cvx1vs2], -1)
-
-        return multiclass_to_hierarchical_labels
-
-    @staticmethod
     def get_loss_function() -> Callable:
         import torch
         import torch.nn.functional as F
 
-        def nan_bce_with_logits(output: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
-            """Compute BCE with logits, ignoring NaN values"""
-            valid = labels.isfinite()
-            losses = F.binary_cross_entropy_with_logits(output[valid], labels[valid], reduction='none')
-            return losses.sum() / labels.shape[0]
+        def custom_loss(output: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+            labels = torch.argmax(labels, dim=-1)
+            return F.cross_entropy(input=output, target=labels, reduction="sum")
 
-        return nan_bce_with_logits
+        return custom_loss
+
+    def get_post_loss_logits_normalization_function(self) -> Callable:
+        return torch.nn.Softmax()
 
     def generate_custom_report(self, report_dir: Path, model_proc: ModelProcessing) -> Path:
         """
-        Generate a custom report for the CovidDataset Hierarchical model. At the moment, this report will read the
-        file model_output.csv generated for the training, validation or test sets and compute a 4 class accuracy
-        and confusion matrix based on this.
+        Generate a custom report for the Covid model. This report will read the file model_output.csv generated for
+        the training, validation or test sets and compute a 4 class accuracy and confusion matrix based on this.
         :param report_dir: Directory report is to be written to
         :param model_proc: Whether this is a single or ensemble model (model_output.csv will be located in different
         paths for single vs ensemble runs.)
@@ -234,24 +216,38 @@ class CovidHierarchicalModel(ScalarModelBase):
             p = get_best_epoch_results_path(mode=mode, model_proc=model_proc)
             return self.outputs_folder / p / MODEL_OUTPUT_CSV
 
+        def get_labels_and_predictions(df: pd.DataFrame) -> pd.DataFrame:
+            labels = []
+            predictions = []
+            for i, target in enumerate(self.target_names):
+                predictions.append(df[df[LoggingColumns.Hue.value] == target][LoggingColumns.ModelOutput.value].item())
+                labels.append(df[df[LoggingColumns.Hue.value] == target][LoggingColumns.Label.value])
+
+            return pd.DataFrame.from_dict({LoggingColumns.Patient.value: [df.iloc[0][LoggingColumns.Patient.value]],
+                                           LoggingColumns.ModelOutput.value: [np.argmax(predictions)],
+                                           LoggingColumns.Label.value: [np.argmax(labels)]})
+
+        def get_accuracy(df):
+            df = df.groupby(LoggingColumns.Patient.value, as_index=False).apply(get_labels_and_predictions).reset_index(
+                drop=True)
+            df["tp+tn"] = df.apply(
+                lambda x: 1 if x[LoggingColumns.ModelOutput.value] == x[LoggingColumns.Label.value] else 0, axis=1)
+            return np.sum(df["tp+tn"].values) / len(df)
+
         train_metrics = get_output_csv_path(ModelExecutionMode.TRAIN)
         val_metrics = get_output_csv_path(ModelExecutionMode.VAL)
         test_metrics = get_output_csv_path(ModelExecutionMode.TEST)
 
-        notebook_params = \
-            {
-                'innereye_path': str(fixed_paths_innereye.repository_root_directory()),
-                'train_metrics_csv': str_or_empty(train_metrics),
-                'val_metrics_csv': str_or_empty(val_metrics),
-                'test_metrics_csv': str_or_empty(test_metrics),
-                "config": codecs.encode(pickle.dumps(self), "base64").decode(),
-                "is_crossval_report": False
-            }
-        template = Path(__file__).absolute().parent.parent / "reports" / "CovidHierarchicalModelReport.ipynb"
-        return generate_notebook(template,
-                                 notebook_params=notebook_params,
-                                 result_notebook=report_dir / get_ipynb_report_name(
-                                     f"{self.model_category.value}_hierarchical"))
+        msg = f"Multiclass Accuracy Train: {get_accuracy(pd.read_csv(train_metrics))}\n" if train_metrics.exists() else ""
+        msg += f"Multiclass Accuracy Val: {get_accuracy(pd.read_csv(val_metrics))}\n" if val_metrics.exists() else ""
+        msg += f"Multiclass Accuracy Test: {get_accuracy(pd.read_csv(test_metrics))}\n" if test_metrics.exists() else ""
+
+        report = report_dir / "report.txt"
+        report.write_text(msg)
+
+        logging.info(msg)
+
+        return report
 
 
 class DicomPreparation:
