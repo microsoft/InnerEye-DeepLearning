@@ -139,23 +139,15 @@ class DatasetExample:
 
 
 def store_and_upload_example(dataset_example: DatasetExample,
-                             args: Optional[SegmentationModelBase] = None,
-                             images_folder: Optional[Path] = None) -> None:
+                             segmentation_config: SegmentationModelBase) -> None:
     """
     Stores an example input and output of the network to Nifti files.
 
     :param dataset_example: The dataset example, with image, label and prediction, that should be written.
-    :param args: configuration information to be used for normalization.
-    :param images_folder: The folder to which the result Nifti files should be written. If args is not None,
-    the args.example_images_folder is used instead.
+    :param segmentation_config: configuration information to be used for normalization and example_images_folder
     """
-
-    if images_folder is not None:
-        folder = images_folder
-    else:
-        folder = args.example_images_folder if args else Path("")
-    if folder != "":
-        os.makedirs(folder, exist_ok=True)
+    folder = segmentation_config.example_images_folder
+    os.makedirs(folder, exist_ok=True)
 
     def create_file_name(suffix: str) -> str:
         fn = "p" + str(dataset_example.patient_id) + "_e_" + str(dataset_example.epoch) + "_" + suffix + ".nii.gz"
@@ -165,7 +157,7 @@ def store_and_upload_example(dataset_example: DatasetExample,
     io_util.store_image_as_short_nifti(image=dataset_example.image,
                                        header=dataset_example.header,
                                        file_name=create_file_name(suffix="image"),
-                                       args=args)
+                                       args=segmentation_config)
 
     # merge multiple binary masks (one per class) into a single multi-label map image
     labels = image_util.merge_masks(dataset_example.labels)

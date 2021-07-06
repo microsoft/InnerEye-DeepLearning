@@ -110,7 +110,8 @@ class SegmentationLightning(InnerEyeLightning):
         Computes and stores all metrics coming out of a single training step.
         :param cropped_sample: The batched image crops used for training or validation.
         :param segmentation: The segmentation that was produced by the model.
-        :param is_training: Is a training crop
+        :param is_training: If true, the method is called from `training_step`, otherwise it is called from
+        `validation_step`.
         """
         # dice_per_crop_and_class has one row per crop, with background class removed
         # Dice NaN means that both ground truth and prediction are empty.
