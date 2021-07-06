@@ -39,6 +39,7 @@ class SegmentationLightning(InnerEyeLightning):
 
     def __init__(self, config: SegmentationModelBase, *args: Any, **kwargs: Any) -> None:
         super().__init__(config, *args, **kwargs)
+        self.config = config
         self.model = config.create_model()
         self.loss_fn = model_util.create_segmentation_loss_function(config)
         self.ground_truth_ids = config.ground_truth_ids
