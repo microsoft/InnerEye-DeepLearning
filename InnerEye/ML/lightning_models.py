@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Tuple
 import torch
 from pytorch_lightning.utilities import move_data_to_device
 from torch.nn import ModuleDict, ModuleList
+import torchmetrics
 
 from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME
 from InnerEye.Common.metrics_constants import LoggingColumns, MetricType, TRAIN_PREFIX, VALIDATION_PREFIX
@@ -197,7 +198,8 @@ class ScalarLightning(InnerEyeLightning):
         # and training set, in particular ones that are not possible to compute from a single minibatch (AUC and alike)
         self.train_metric_computers = self.create_metric_computers()
         self.val_metric_computers = self.create_metric_computers()
-
+        self.train_accuracy = torchmetrics.Accuracy()
+        self.val_accuracy = torchmetrics.Accuracy()
         # if config.compute_grad_cam:
         #     model_to_evaluate = self.train_val_params.mean_teacher_model if \
         #         config.compute_mean_teacher_model else self.train_val_params.model
@@ -279,12 +281,22 @@ class ScalarLightning(InnerEyeLightning):
         subject_ids = model_inputs_and_labels.subject_ids
         loss = self.loss_fn(logits, labels)
         self.write_loss(is_training, loss)
+        self.compute_and_log_accuracy(logits, model_inputs_and_labels.labels, is_training)
         self.compute_and_log_metrics(logits, labels, subject_ids, is_training)
         self.log_on_epoch(name=MetricType.SUBJECT_COUNT,
                           value=len(model_inputs_and_labels.subject_ids),
                           is_training=is_training,
                           reduce_fx=sum)
         return loss
+
+    def compute_and_log_accuracy(self, logits, labels, is_training):
+        posteriors = self.logits_to_posterior(logits)
+        labels = torch.argmax(labels.data.to(dtype=torch.int), dim=-1)
+        metric = self.train_accuracy if is_training else self.val_accuracy
+        metric(posteriors, labels)
+        self.log_on_epoch(name="MulticlassAccuracy",
+                          value=metric,
+                          is_training=is_training)
 
     def compute_and_log_metrics(self,
                                 logits: torch.Tensor,

@@ -48,7 +48,7 @@ class CovidModel(ScalarModelBase):
     --pretraining_run_recovery_id=id_of_your_ssl_model, this will download the checkpoints of the run to your
     machine and load the corresponding pretrained model.
 
-    To recover from a particular checkpoint from your SSL run e.g. "recovery_epoch=499.ckpt" please use hte
+    To recover from a particular checkpoint from your SSL run e.g. "recovery_epoch=499.ckpt" please use the
     --name_of_checkpoint argument.
     """
     use_pretrained_model = param.Boolean(default=False, doc="If True, start training from a model pretrained with SSL."
