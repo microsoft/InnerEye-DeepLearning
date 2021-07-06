@@ -191,6 +191,7 @@ class ScalarLightning(InnerEyeLightning):
         # and training set, in particular ones that are not possible to compute from a single minibatch (AUC and alike)
         self.train_metric_computers = config.create_metric_computers()
         self.val_metric_computers = config.create_metric_computers()
+        self.compute_and_log_metrics = config.compute_and_log_metrics
         # if config.compute_grad_cam:
         #     model_to_evaluate = self.train_val_params.mean_teacher_model if \
         #         config.compute_mean_teacher_model else self.train_val_params.model
@@ -246,7 +247,7 @@ class ScalarLightning(InnerEyeLightning):
         self.write_loss(is_training, loss)
         metrics = self.train_metric_computers if is_training else self.val_metric_computers
         logger = self.train_subject_outputs_logger if is_training else self.val_subject_outputs_logger
-        self.config.compute_and_log_metrics(logits, labels, subject_ids, is_training, metrics, logger, self.current_epoch)
+        self.compute_and_log_metrics(logits, labels, subject_ids, is_training, metrics, logger, self.current_epoch)
         self.log_on_epoch(name=MetricType.SUBJECT_COUNT,
                           value=len(model_inputs_and_labels.subject_ids),
                           is_training=is_training,

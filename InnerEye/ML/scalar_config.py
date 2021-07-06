@@ -550,7 +550,7 @@ class ScalarModelBase(ModelConfigBase):
             # compute metrics on valid masked tensors only
             if masked is not None:
                 _logits = masked.model_outputs.data
-                _posteriors = self.logits_to_posterior(_logits)
+                _posteriors = self.get_post_loss_logits_normalization_function()(_logits)
                 # Classification metrics expect labels as integers, but they are float throughout the rest of the code
                 labels_dtype = torch.int if self.is_classification_model else _posteriors.dtype
                 _labels = masked.labels.data.to(dtype=labels_dtype)

@@ -31,19 +31,17 @@ from InnerEye.ML.configs.ssl.CXR_SSL_configs import path_linear_head_augmentatio
 from InnerEye.ML.deep_learning_config import LRSchedulerType, MultiprocessingStartMethod, \
     OptimizerType
 
-from InnerEye.ML.metrics_dict import DataframeLogger
+from InnerEye.ML.models.architectures.classification.image_encoder_with_mlp import ImagingFeatureType
 from InnerEye.ML.model_config_base import ModelTransformsPerExecutionMode
 from InnerEye.ML.model_testing import MODEL_OUTPUT_CSV
 
-from InnerEye.ML.models.architectures.classification.image_encoder_with_mlp import ImagingFeatureType
 
+from InnerEye.ML.configs.ssl.CovidContainers import COVID_DATASET_ID
 from InnerEye.ML.scalar_config import ScalarLoss, ScalarModelBase
 from InnerEye.ML.utils.run_recovery import RunRecovery
 from InnerEye.ML.utils.split_dataset import DatasetSplits
+from InnerEye.ML.metrics_dict import MetricsDict, DataframeLogger
 
-from InnerEye.ML.configs.ssl.CovidContainers import COVID_DATASET_ID
-
-from InnerEye.ML.metrics_dict import MetricsDict
 
 class CovidModel(ScalarModelBase):
     """
@@ -219,13 +217,22 @@ class CovidModel(ScalarModelBase):
                                 metrics: ModuleDict,
                                 logger: DataframeLogger,
                                 current_epoch: int) -> None:
-        posteriors = self.logits_to_posterior(logits)
+        posteriors = self.get_post_loss_logits_normalization_function()(logits)
         labels = torch.argmax(targets.data.to(dtype=torch.int), dim=-1)
-        metric = self.train_accuracy if is_training else self.val_accuracy
-        metric[MetricsDict.DEFAULT_HUE_KEY][0](posteriors, labels)
-        self.log_on_epoch(name="MultiClassAccuracy",
-                          value=metric,
-                          is_training=is_training)
+        metric = metrics[MetricsDict.DEFAULT_HUE_KEY][0]
+        metric(posteriors, labels)
+
+        data_split = ModelExecutionMode.TRAIN if is_training else ModelExecutionMode.VAL
+        per_subject_outputs = list(zip(subject_ids, [MetricsDict.DEFAULT_HUE_KEY] * len(subject_ids), posteriors.tolist(), labels.tolist()))
+        for subject, prediction_target, model_output, label in per_subject_outputs:
+            logger.add_record({
+                LoggingColumns.Epoch.value: current_epoch,
+                LoggingColumns.Patient.value: subject,
+                LoggingColumns.Hue.value: prediction_target,
+                LoggingColumns.ModelOutput.value: model_output,
+                LoggingColumns.Label.value: label,
+                LoggingColumns.DataSplit.value: data_split.value
+            })
 
     def generate_custom_report(self, report_dir: Path, model_proc: ModelProcessing) -> Path:
         """
