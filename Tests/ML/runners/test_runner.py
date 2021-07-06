@@ -20,6 +20,7 @@ from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, ModelExecutionMode
 from InnerEye.ML.configs.unit_testing.passthrough_model import PassThroughModel
+from InnerEye.ML.lightning_helpers import adjust_model_for_inference
 from InnerEye.ML.metrics import InferenceMetricsForSegmentation
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.runner import Runner
@@ -258,3 +259,41 @@ def test_cross_validation_for_lighting_container_models_is_supported() -> None:
             args, _ = create_and_submit_experiment_patch.call_args
             script_run_config = args[1]
             assert isinstance(script_run_config, HyperDriveConfig)
+
+
+def test_adjust_model_for_inference_once(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test that the potentially expensive operation adjust_model_for_inference is only called once
+    for each run.
+    """
+    dummy_model = DummyModel()
+
+    config = PassThroughModel()
+    # Copy settings from DummyModel
+    config.image_channels = dummy_model.image_channels
+    config.ground_truth_ids = dummy_model.ground_truth_ids
+    config.ground_truth_ids_display_names = dummy_model.ground_truth_ids_display_names
+    config.colours = dummy_model.colours
+    config.fill_holes = dummy_model.fill_holes
+    config.roi_interpreted_types = dummy_model.roi_interpreted_types
+
+    config.test_crop_size = dummy_model.test_crop_size
+    # Plotting crashes with random TCL errors on Windows, disable that for Windows PR builds.
+    config.is_plotting_enabled = common_util.is_linux()
+
+    config.set_output_to(test_output_dirs.root_dir)
+    config.local_dataset = full_ml_test_data_path()
+
+    checkpoint_path = config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+    create_model_and_store_checkpoint(config, checkpoint_path)
+    checkpoint_handler = get_default_checkpoint_handler(model_config=config,
+                                                        project_root=test_output_dirs.root_dir)
+    checkpoint_handler.additional_training_done()
+
+    orig_adjust_model_for_inference = adjust_model_for_inference
+    with mock.patch("InnerEye.ML.lightning_helpers.adjust_model_for_inference",
+                    wraps=orig_adjust_model_for_inference) as wrap:
+        MLRunner(config).model_inference_train_and_test(
+            checkpoint_handler=checkpoint_handler)
+
+    assert wrap.call_count == 1
