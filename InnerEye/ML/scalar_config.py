@@ -24,13 +24,11 @@ from InnerEye.ML.deep_learning_config import ModelCategory
 from InnerEye.ML.lightning_metrics import Accuracy05, AccuracyAtOptimalThreshold, AreaUnderPrecisionRecallCurve, \
     AreaUnderRocCurve, BinaryCrossEntropyWithLogits, ExplainedVariance, FalseNegativeRateOptimalThreshold, \
     FalsePositiveRateOptimalThreshold, MeanAbsoluteError, MeanSquaredError, OptimalThreshold, ScalarMetricsBase
-from InnerEye.ML.metrics_dict import DataframeLogger
+from InnerEye.ML.metrics_dict import DEFAULT_KEY, DataframeLogger
 from InnerEye.ML.model_config_base import ModelConfigBase, ModelTransformsPerExecutionMode
 from InnerEye.ML.utils.csv_util import CSV_CHANNEL_HEADER, CSV_SUBJECT_HEADER
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 from InnerEye.ML.utils.sequence_utils import get_masked_model_outputs_and_labels
-
-DEFAULT_KEY = "Default"
 
 
 class AggregationType(Enum):
