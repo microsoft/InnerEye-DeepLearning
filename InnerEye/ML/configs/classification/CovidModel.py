@@ -10,7 +10,6 @@ import numpy as np
 import pandas as pd
 import param
 import torch
-import torchmetrics
 
 from PIL import Image
 from torch.nn import ModuleList, ModuleDict
@@ -31,10 +30,10 @@ from InnerEye.ML.configs.ssl.CXR_SSL_configs import path_linear_head_augmentatio
 from InnerEye.ML.deep_learning_config import LRSchedulerType, MultiprocessingStartMethod, \
     OptimizerType
 
+from InnerEye.ML.lightning_metrics import Accuracy05
 from InnerEye.ML.models.architectures.classification.image_encoder_with_mlp import ImagingFeatureType
 from InnerEye.ML.model_config_base import ModelTransformsPerExecutionMode
 from InnerEye.ML.model_testing import MODEL_OUTPUT_CSV
-
 
 from InnerEye.ML.configs.ssl.CovidContainers import COVID_DATASET_ID
 from InnerEye.ML.scalar_config import ScalarLoss, ScalarModelBase
@@ -207,7 +206,7 @@ class CovidModel(ScalarModelBase):
         return torch.nn.Softmax()
 
     def create_metric_computers(self) -> ModuleDict:
-        return ModuleDict({MetricsDict.DEFAULT_HUE_KEY: ModuleList([torchmetrics.Accuracy()])})
+        return ModuleDict({MetricsDict.DEFAULT_HUE_KEY: ModuleList([Accuracy05()])})
 
     def compute_and_log_metrics(self,
                                 logits: torch.Tensor,
