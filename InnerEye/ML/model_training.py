@@ -21,7 +21,7 @@ from InnerEye.Azure.azure_runner import ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NOD
 from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, change_working_directory
 from InnerEye.Common.resource_monitor import ResourceMonitor
-from InnerEye.ML.common import ModelExecutionMode, RECOVERY_CHECKPOINT_FILE_NAME, create_best_checkpoint
+from InnerEye.ML.common import ModelExecutionMode, RECOVERY_CHECKPOINT_FILE_NAME, create_best_checkpoint, LAST_CHECKPOINT_FILE_NAME
 from InnerEye.ML.deep_learning_config import ARGS_TXT, VISUALIZATION_FOLDER
 from InnerEye.ML.lightning_base import InnerEyeContainer, InnerEyeLightning
 from InnerEye.ML.lightning_container import LightningContainer
@@ -96,7 +96,8 @@ class InnerEyeRecoveryCheckpointCallback(ModelCheckpoint):
                          filename=RECOVERY_CHECKPOINT_FILE_NAME + "_{epoch}",
                          period=container.recovery_checkpoint_save_interval,
                          save_top_k=container.recovery_checkpoints_save_last_k,
-                         mode="max")
+                         mode="max",
+                         save_last=True)
 
     def on_train_epoch_end(self, trainer: Trainer, pl_module: LightningModule, outputs: Any) -> None:
         pl_module.log(name="epoch", value=trainer.current_epoch)
@@ -117,19 +118,13 @@ def create_lightning_trainer(container: LightningContainer,
     :param kwargs: Any additional keyowrd arguments will be passed to the constructor of Trainer.
     :return: A tuple [Trainer object, diagnostic logger]
     """
-    # For now, stick with the legacy behaviour of always saving only the last epoch checkpoint. For large segmentation
-    # models, this still appears to be the best way of choosing them because validation loss on the relatively small
-    # training patches is not stable enough. Going by the validation loss somehow works for the Prostate model, but
-    # not for the HeadAndNeck model.
-    best_checkpoint_callback = ModelCheckpoint(dirpath=str(container.checkpoint_folder),
-                                               # filename=BEST_CHECKPOINT_FILE_NAME,
-                                               # monitor=f"{VALIDATION_PREFIX}{MetricType.LOSS.value}",
-                                               # save_top_k=1,
-                                               save_last=True)
-
     # Recovery checkpoints: {epoch} will turn into a string like "epoch=1"
     # Store 1 recovery checkpoint every recovery_checkpoint_save_interval epochs, keep the last
-    # recovery_checkpoints_save_last_k.
+    # recovery_checkpoints_save_last_k. For now, stick with the legacy behaviour of always using the last epoch 
+    # checkpoint as "best_checkpoint". For large segmentation models, this still appears to be the best way of 
+    # choosing them because validation loss on the relatively small
+    # training patches is not stable enough. Going by the validation loss somehow works for the Prostate model, but
+    # not for the HeadAndNeck model.
     recovery_checkpoint_callback = InnerEyeRecoveryCheckpointCallback(container)
 
     num_gpus = container.num_gpus_per_node
@@ -158,9 +153,9 @@ def create_lightning_trainer(container: LightningContainer,
     else:
         deterministic = False
         benchmark = True
-    # If the users provides additional callbacks via get_trainer_arguments (for custom
-    # containers
-    callbacks = [best_checkpoint_callback, recovery_checkpoint_callback]
+
+    callbacks = [recovery_checkpoint_callback]
+    # If the users provides additional callbacks via get_trainer_arguments (for custom containers)
     if "callbacks" in kwargs:
         callbacks.append(kwargs.pop("callbacks"))  # type: ignore
     is_azureml_run = not is_offline_run_context(RUN_CONTEXT)
