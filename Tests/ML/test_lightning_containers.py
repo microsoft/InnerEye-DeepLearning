@@ -345,3 +345,4 @@ def test_innereyecontainer_setup_passes_on_allow_incomplete_labels(
     with mock.patch("InnerEye.ML.lightning_base.convert_channels_to_file_paths") as convert_channels_to_file_paths_mock:
         convert_channels_to_file_paths_mock.side_effect = mocked_convert_channels_to_file_paths
         container.setup()
+        convert_channels_to_file_paths_mock.assert_called()
