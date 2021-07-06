@@ -97,7 +97,7 @@ class InnerEyeRecoveryCheckpointCallback(ModelCheckpoint):
                          period=container.recovery_checkpoint_save_interval,
                          save_top_k=container.recovery_checkpoints_save_last_k,
                          mode="max",
-                         save_last=True)
+                         save_last=False)
 
     def on_train_epoch_end(self, trainer: Trainer, pl_module: LightningModule, outputs: Any) -> None:
         pl_module.log(name="epoch", value=trainer.current_epoch)
@@ -118,13 +118,15 @@ def create_lightning_trainer(container: LightningContainer,
     :param kwargs: Any additional keyowrd arguments will be passed to the constructor of Trainer.
     :return: A tuple [Trainer object, diagnostic logger]
     """
-    # Recovery checkpoints: {epoch} will turn into a string like "epoch=1"
-    # Store 1 recovery checkpoint every recovery_checkpoint_save_interval epochs, keep the last
-    # recovery_checkpoints_save_last_k. For now, stick with the legacy behaviour of always using the last epoch 
-    # checkpoint as "best_checkpoint". For large segmentation models, this still appears to be the best way of 
-    # choosing them because validation loss on the relatively small
+    # For now, stick with the legacy behaviour of always saving only the last epoch checkpoint. For large segmentation
+    # models, this still appears to be the best way of choosing them because validation loss on the relatively small
     # training patches is not stable enough. Going by the validation loss somehow works for the Prostate model, but
     # not for the HeadAndNeck model.
+    last_checkpoint_callback = ModelCheckpoint(dirpath=str(container.checkpoint_folder), save_last=True, save_top_k=0)
+
+    # Recovery checkpoints: {epoch} will turn into a string like "epoch=1"
+    # Store 1 recovery checkpoint every recovery_checkpoint_save_interval epochs, keep the last
+    # recovery_checkpoints_save_last_k.
     recovery_checkpoint_callback = InnerEyeRecoveryCheckpointCallback(container)
 
     num_gpus = container.num_gpus_per_node
@@ -153,9 +155,9 @@ def create_lightning_trainer(container: LightningContainer,
     else:
         deterministic = False
         benchmark = True
-
-    callbacks = [recovery_checkpoint_callback]
-    # If the users provides additional callbacks via get_trainer_arguments (for custom containers)
+    # If the users provides additional callbacks via get_trainer_arguments (for custom
+    # containers
+    callbacks = [last_checkpoint_callback, recovery_checkpoint_callback]  # last_checkpoint_callback, 
     if "callbacks" in kwargs:
         callbacks.append(kwargs.pop("callbacks"))  # type: ignore
     is_azureml_run = not is_offline_run_context(RUN_CONTEXT)
