@@ -13,6 +13,7 @@ created.
 ## Upcoming
 
 ### Added
+- ([#528](https://github.com/microsoft/InnerEye-DeepLearning/pull/528)) Check resource usage in inference.
 - ([#465](https://github.com/microsoft/InnerEye-DeepLearning/pull/465/)) Adding ability to run segmentation inference
 module on test data with partial ground truth files. (Also [522](https://github.com/microsoft/InnerEye-DeepLearning/pull/522).)
 - ([#502](https://github.com/microsoft/InnerEye-DeepLearning/pull/502)) More flags for fine control of when to run inference.
