@@ -197,11 +197,10 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     model_training_result.get_val_metric(MetricType.SECONDS_PER_BATCH.value)
     model_training_result.get_train_metric(MetricType.SECONDS_PER_BATCH.value)
 
-    # Issue #372
     # # Test for saving of example images
-    # assert train_config.example_images_folder.is_dir()
-    # example_files = list(train_config.example_images_folder.rglob("*.*"))
-    # assert len(example_files) == 3 * 2
+    assert train_config.example_images_folder.is_dir()
+    example_files = list(train_config.example_images_folder.rglob("*.*"))
+    assert len(example_files) == 6 * 2
 
 
 def test_create_data_loaders() -> None:
