@@ -137,13 +137,6 @@ def create_lightning_trainer(container: LightningContainer,
     # Accelerator should be "ddp" when running large models in AzureML (when using DDP_spawn, we get out of GPU memory).
     # For unit tests, only "ddp_spawn" works
     accelerator = "ddp" if effective_num_gpus > 1 else None
-    if effective_num_gpus > 1:
-        # Initialize the DDP plugin with find_unused_parameters=False by default. If True (default), it prints out
-        # lengthy warnings about the performance impact of find_unused_parameters
-        plugins = [InnerEyeDDPPlugin(num_nodes=num_nodes, sync_batchnorm=True,
-                                     find_unused_parameters=container.pl_find_unused_parameters)]
-    else:
-        plugins = []
     logging.info(f"Using {num_gpus} GPUs per node with accelerator '{accelerator}'")
     tensorboard_logger = TensorBoardLogger(save_dir=str(container.logs_folder), name="Lightning", version="")
     loggers = [tensorboard_logger, AzureMLLogger()]
@@ -194,7 +187,6 @@ def create_lightning_trainer(container: LightningContainer,
                       sync_batchnorm=True,
                       terminate_on_nan=container.detect_anomaly,
                       resume_from_checkpoint=str(resume_from_checkpoint) if resume_from_checkpoint else None,
-                      plugins=plugins,
                       **kwargs)
     return trainer, storing_logger
 
