@@ -179,7 +179,6 @@ class ScalarLightning(InnerEyeLightning):
         super().__init__(config, *args, **kwargs)
         self.model = config.create_model()
         raw_loss = model_util.create_scalar_loss_function(config)
-        self.posthoc_label_transform = config.get_posthoc_label_transform()
         if isinstance(config, SequenceModelBase):
             self.loss_fn = lambda model_output, loss: apply_sequence_model_loss(raw_loss, model_output, loss)
             self.target_indices = config.get_target_indices()
@@ -272,7 +271,6 @@ class ScalarLightning(InnerEyeLightning):
         """
         model_inputs_and_labels = get_scalar_model_inputs_and_labels(self.model, self.target_indices, sample)
         labels = model_inputs_and_labels.labels
-        labels = self.posthoc_label_transform(labels)
         if is_training:
             logits = self.model(*model_inputs_and_labels.model_inputs)
         else:
@@ -281,7 +279,7 @@ class ScalarLightning(InnerEyeLightning):
         subject_ids = model_inputs_and_labels.subject_ids
         loss = self.loss_fn(logits, labels)
         self.write_loss(is_training, loss)
-        self.compute_and_log_accuracy(logits, model_inputs_and_labels.labels, is_training)
+        self.compute_and_log_accuracy(logits, labels, is_training)
         self.compute_and_log_metrics(logits, labels, subject_ids, is_training)
         self.log_on_epoch(name=MetricType.SUBJECT_COUNT,
                           value=len(model_inputs_and_labels.subject_ids),

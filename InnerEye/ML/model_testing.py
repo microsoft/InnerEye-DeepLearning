@@ -423,8 +423,6 @@ def classification_model_test(config: ScalarModelBase,
     :param model_proc: whether we are testing an ensemble or single model
     :return: InferenceMetricsForClassification object that contains metrics related for all of the checkpoint epochs.
     """
-    posthoc_label_transform = config.get_posthoc_label_transform()
-
     checkpoint_paths = checkpoint_handler.get_checkpoints_to_test()
     if not checkpoint_paths:
         raise ValueError("There were no checkpoints available for model testing.")
@@ -457,7 +455,6 @@ def classification_model_test(config: ScalarModelBase,
         result = pipeline.predict(sample)
         model_output = result.posteriors
         label = result.labels.to(device=model_output.device)
-        label = posthoc_label_transform(label)
         sample_id = result.subject_ids[0]
         if output_logger:
             for i in range(len(config.target_names)):
