@@ -9,7 +9,7 @@ import time
 from dataclasses import dataclass
 from multiprocessing import Process
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 import GPUtil
 import pandas as pd
@@ -232,6 +232,38 @@ class ResourceMonitor(Process):
         pivot = df.pivot(index=COL_GPU, columns=COL_METRIC, values=COL_VALUE)
         result = {index: series.to_dict() for index, series in pivot.iterrows()}
         return result
+
+
+def reduce_gpu_data(gpu: GPU) -> Dict[str, Any]:
+    """
+    Reduce GPU data to a smaller dictionary.
+
+    :param gpu: GPU data from GPUtil.
+    :return: A subset of GPU data as a dictionary.
+    """
+    return {
+        'id': gpu.id,
+        'name': gpu.name,
+        'memory_total': memory_in_gb(gpu.memoryTotal)
+    }
+
+
+def create_cpu_gpu_config() -> Dict[str, Any]:
+    """
+    Create a simple dictionary describing the current cpu/gpu configuration.
+
+    :return: Dictionary of CPU/GPU machine configuration.
+    """
+    config = {
+        'cpu': {
+            'count_logical': psutil.cpu_count(),
+            'count_physical': psutil.cpu_count(logical=False),
+            'memory_virtual': memory_in_gb(psutil.virtual_memory().total),
+            'memory_swap': memory_in_gb(psutil.swap_memory().total)
+        },
+        'gpus': [reduce_gpu_data(gpu) for gpu in GPUtil.getGPUs()] if is_gpu_available() else []
+    }
+    return config
 
 
 def log_state() -> None:

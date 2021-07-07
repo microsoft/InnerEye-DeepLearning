@@ -19,6 +19,7 @@ from InnerEye.Azure.azure_util import is_offline_run_context
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.fixed_paths import DEFAULT_RESULT_ZIP_DICOM_NAME
 from InnerEye.Common.generic_parsing import GenericConfig
+from InnerEye.Common.resource_monitor import create_cpu_gpu_config
 from InnerEye.Common.type_annotations import TupleFloat3, TupleInt3
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.model_inference_config import read_model_inference_config
@@ -61,6 +62,7 @@ def init_from_model_inference_json(model_folder: Path, use_gpu: bool = True) -> 
     :return: Tuple[InferencePipeline, Config]
     """
     logging.info('Python version: ' + sys.version)
+    logging.info(f'system config: {create_cpu_gpu_config()}')
     path_to_model_inference_config = model_folder / fixed_paths.MODEL_INFERENCE_JSON_FILE_NAME
     logging.info(f'path_to_model_inference_config: {path_to_model_inference_config}')
     model_inference_config = read_model_inference_config(path_to_model_inference_config)
