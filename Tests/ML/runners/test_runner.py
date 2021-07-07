@@ -27,10 +27,13 @@ from InnerEye.ML.pipelines.inference import FullImageInferencePipelineBase
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.runner import Runner
 from InnerEye.ML.utils import io_util
+from InnerEye.ML.utils.ml_util import is_gpu_available
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import get_default_checkpoint_handler
 from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
+
+no_gpu = not is_gpu_available()
 
 
 def create_smaller_image(image_size: TupleInt3, source_image_dir: Path, target_image_dir: Path,
@@ -278,6 +281,8 @@ class MultiImagePassThroughModel(PassThroughModel):
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
+@pytest.mark.gpu
+@pytest.mark.skipif(no_gpu, reason="CUDA capable GPU is not available")
 def test_adjust_model_for_inference_once(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test that the potentially expensive operation adjust_model_for_inference is only called once
