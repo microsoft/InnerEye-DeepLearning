@@ -44,6 +44,7 @@ class BasicModel2Epochs(SegmentationModelBase):
             use_mixed_precision=True,
             azure_dataset_id=AZURE_DATASET_ID,
             comparison_blob_storage_paths=comparison_blob_storage_paths,
+            inference_on_test_set=True,
             dataset_mountpoint="/tmp/innereye",
             # Use an LR scheduler with a pronounced and clearly visible decay, to be able to easily see if that
             # is applied correctly in run recovery.
