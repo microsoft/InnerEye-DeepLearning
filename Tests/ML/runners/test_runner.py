@@ -277,6 +277,7 @@ class MultiImagePassThroughModel(PassThroughModel):
         )
 
 
+@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 def test_adjust_model_for_inference_once(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test that the potentially expensive operation adjust_model_for_inference is only called once
