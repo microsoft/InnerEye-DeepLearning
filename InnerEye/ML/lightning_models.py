@@ -15,7 +15,7 @@ from InnerEye.ML.dataset.scalar_sample import ScalarItem
 from InnerEye.ML.lightning_base import InnerEyeLightning
 from InnerEye.ML.lightning_metrics import MetricForMultipleStructures
 from InnerEye.ML.metrics import compute_dice_across_patches
-from InnerEye.ML.metrics_dict import DataframeLogger, MetricsDict, SequenceMetricsDict
+from InnerEye.ML.metrics_dict import DataframeLogger, MetricsDict
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
