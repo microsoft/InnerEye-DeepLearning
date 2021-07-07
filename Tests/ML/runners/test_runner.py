@@ -255,6 +255,20 @@ def run_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
         if mode in metrics:
             metric = metrics[mode]
             assert isinstance(metric, InferenceMetricsForSegmentation)
+
+        if flag is None:
+            # No override supplied, calculate the expected default:
+            if model_proc == ModelProcessing.DEFAULT:
+                if not perform_cross_validation:
+                    # If a "normal" run then default to val or test.
+                    flag = mode in (ModelExecutionMode.VAL, ModelExecutionMode.TEST)
+                else:
+                    # If an ensemble child then default to never.
+                    flag = False
+            else:
+                # If an ensemble then default to test only.
+                flag = mode == ModelExecutionMode.TEST
+
         if mode in metrics and not flag:
             error = error + f"Error: {mode.value} cannot be not None."
         elif mode not in metrics and flag:
