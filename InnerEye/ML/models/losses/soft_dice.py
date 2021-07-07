@@ -5,9 +5,42 @@
 from typing import Any, Optional
 
 import torch
+from pl_bolts.models.self_supervised.simclr.simclr_module import SyncFunction
 
-from InnerEye.ML.utils.image_util import get_class_weights
+from InnerEye.ML.utils.image_util import get_class_weights, get_class_weights_from_counts
 from InnerEye.ML.utils.supervised_criterion import SupervisedLearningCriterion
+
+
+def synchronize_across_gpus(tensor: torch.Tensor) -> torch.Tensor:
+    """
+    Synchronizes a tensor across all GPUs, if distributed computation is enabled. The tensors from all GPUs are stacked
+    up along the batch dimension (dim=0) using torch.cat. If no distributed setup is available, return the argument
+    unchanged.
+    :param tensor: The tensor that should be synchronized, of size [B, ...]
+    :return: If torch.distributed is enabled, return a tensor of size [B * num_GPUs, ...]. If not distributed,
+    return the argument of size [B, ...] unchanged.
+    """
+    if torch.distributed.is_available() and torch.distributed.is_initialized():
+        synced = SyncFunction.apply(tensor)
+        return synced
+    return tensor
+
+
+def sum_sync_and_sum(t: torch.Tensor) -> torch.Tensor:
+    """
+    Sums a tensor across batch and spatial dimensions, synchronizes across all GPUs, and then sums again
+    across the batch dimension (that is now the number of GPUs). Returns a tensor of size [Classes]
+    :param t: A tensor of shape [Batch, Classes, Z, Y, X]
+    """
+    # All core statistics are summed across the spatial dimensions AND the batch dimension
+    sum_across = [0, *range(2, len(t.shape))]
+    # Sum across the batch dimension and all spatial dimension, then add a singleton batch dimension.
+    # Returns a tensor of size [1, Classes]
+    sum_spatial = t.sum(dim=sum_across).unsqueeze(0)
+    # Synchronize across all GPUs. This will add along the batch dimension, giving a tensor of size [GPUs, Classes]
+    synced = synchronize_across_gpus(sum_spatial)
+    # Sum again across batch dimension that is now equal to number of GPUs, to get a tensor of size [Classes]
+    return synced.sum(dim=0)
 
 
 class SoftDiceLoss(SupervisedLearningCriterion):
@@ -18,7 +51,7 @@ class SoftDiceLoss(SupervisedLearningCriterion):
     """
 
     def __init__(self,
-                 eps: float = 1e-10,
+                 eps: float = 1e-5,
                  apply_softmax: bool = True,
                  class_weight_power: Optional[float] = None):
         """
@@ -61,27 +94,20 @@ class SoftDiceLoss(SupervisedLearningCriterion):
 
         if self.apply_softmax:
             output = torch.nn.functional.softmax(output, dim=1)
-        # Get the spatial dimensions; we'll sum numerator and denominator over these for efficiency.
-        axes = list(range(2, len(output.shape)))
 
-        # Eps is added to all products, avoiding division errors and problems
-        # when a class does not exist in the current patch
-        eps = torch.tensor([self.eps])
-        if output.is_cuda:
-            eps = eps.cuda(device=output.device)
-
-        intersection = torch.sum(output * target + eps, axes)
+        # Intersection has size [1, classes], all the spatial dimensions are summed across.
+        intersection = sum_sync_and_sum(output * target)
 
         if self.class_weight_power is not None and self.class_weight_power != 0.0:
-            # Multiply target by the class weight.
-            class_weights = get_class_weights(target, self.class_weight_power)
-            # noinspection PyTypeChecker
-            intersection = torch.einsum("ij,j->ij", intersection, class_weights)
+            # Count classes across all batches and GPUs
+            class_counts = sum_sync_and_sum(target)
+            class_weights = get_class_weights_from_counts(class_counts, class_weight_power=self.class_weight_power)
+            intersection = intersection * class_weights
 
-        output_sum_square = torch.sum(output * output + eps, axes)
-        target_sum_square = torch.sum(target * target + eps, axes)
-        sum_squares = output_sum_square + target_sum_square
+        # All these tensors also have shape [1, classes]
+        output_sum_square = sum_sync_and_sum(output * output)
+        target_sum_square = sum_sync_and_sum(target * target)
 
-        # Average per Batch and Class
-        # noinspection PyTypeChecker
-        return 1.0 - 2.0 * torch.mean(intersection / sum_squares)  # type: ignore
+        # Average across all classes, including background
+        synced = 1.0 - 2.0 * torch.mean((intersection + self.eps) / (output_sum_square + target_sum_square + self.eps))
+        return synced  # type: ignore

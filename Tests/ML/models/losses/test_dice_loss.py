@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from typing import Any
+from unittest import mock
 
 import pytest
 import torch
@@ -96,3 +97,40 @@ def test_dice_loss_regression() -> None:
         result = dice.forward_minibatch(random_output, random_targets)
         assert result.item() == expected_results[index]
 
+
+def test_dice_loss_2gpus() -> None:
+    """
+    Regression tests for specific values of the Dice loss for random input, simulating that two GPUs are present.
+    """
+    batch_size = 10
+    classes = 3
+    spatial = (3, 4, 5)
+    total_size = (batch_size, classes, *spatial)
+    dice = SoftDiceLoss()
+    expected_results = [0.613937258720398, 0.6056110262870789, 0.6131367683410645]
+
+    with mock.patch()
+    for index, seed in enumerate([1, 2, 3]):
+        torch.random.manual_seed(seed)
+        random_output = torch.rand(*total_size).float() * 100
+        random_targets = torch.randint_like(random_output, low=0, high=2).float()
+        result = dice.forward_minibatch(random_output, random_targets)
+        assert result.item() == expected_results[index]
+
+
+def test_dice_loss_with_power() -> None:
+    """
+    Regression tests for Dice loss when class weight power is used.
+    """
+    batch_size = 10
+    classes = 3
+    spatial = (3, 4, 5)
+    total_size = (batch_size, classes, *spatial)
+    dice = SoftDiceLoss(class_weight_power=0.5)
+    expected_results = [0.6104415655136108, 0.6056110262870789, 0.6131367683410645]
+    for index, seed in enumerate([1, 2, 3]):
+        torch.random.manual_seed(seed)
+        random_output = torch.rand(*total_size).float() * 100
+        random_targets = torch.randint_like(random_output, low=0, high=2).float()
+        result = dice.forward_minibatch(random_output, random_targets)
+        assert result.item() == expected_results[index]
