@@ -35,6 +35,16 @@ def memory_in_gb(bytes: int) -> float:
     return bytes / gb
 
 
+def format_memory_in_gb(bytes: int) -> str:
+    """
+    Format a memory amount in bytes to a short string.
+
+    :param bytes: Memory size in bytes.
+    :return: String format in Gb.
+    """
+    return f"{memory_in_gb(bytes):.2f} GB"
+
+
 @dataclass
 class GpuUtilization:
     # The numeric ID of the GPU
@@ -244,7 +254,7 @@ def reduce_gpu_data(gpu: GPU) -> Dict[str, Any]:
     return {
         'id': gpu.id,
         'name': gpu.name,
-        'memory_total': memory_in_gb(gpu.memoryTotal)
+        'memory_total': format_memory_in_gb(gpu.memoryTotal)
     }
 
 
@@ -258,8 +268,7 @@ def create_cpu_gpu_config() -> Dict[str, Any]:
         'cpu': {
             'count_logical': psutil.cpu_count(),
             'count_physical': psutil.cpu_count(logical=False),
-            'memory_virtual': memory_in_gb(psutil.virtual_memory().total),
-            'memory_swap': memory_in_gb(psutil.swap_memory().total)
+            'memory_virtual': format_memory_in_gb(psutil.virtual_memory().total)
         },
         'gpus': [reduce_gpu_data(gpu) for gpu in GPUtil.getGPUs()] if is_gpu_available() else []
     }
