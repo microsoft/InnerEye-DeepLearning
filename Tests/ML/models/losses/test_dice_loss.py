@@ -2,7 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from typing import Any
+from typing import Any, List
 from unittest import mock
 
 import pytest
@@ -80,57 +80,60 @@ def test_half_dice_loss() -> None:
     assert dice_loss_f(half_right_output, half_right_target).item() == 0.5
 
 
+def mocked_synchronize(tensor: torch.Tensor) -> torch.Tensor:
+    """
+    A mock function that simulates synchronization across 2 GPUs: Stack up two copies of the tensor
+    across the batch dimension.
+    """
+    return torch.cat([tensor, tensor], dim=0)
+
+
+def compare_dice_loss(loss_fn: SoftDiceLoss,
+                      expected_results: List[float],
+                      expected_mock_call_count: int) -> None:
+    """
+    Regression tests for specific values of the Dice loss for random input, for 3 different seeds.
+    :param loss_fn: The SoftDice function to test.
+    :param expected_results: The list of expected results for each of the 3 seeds.
+    :param expected_mock_call_count: The expected number of calls to the mock function that simulates synchronization
+    across GPUs.
+    """
+    batch_size = 10
+    classes = 3
+    spatial = (3, 4, 5)
+    total_size = (batch_size, classes, *spatial)
+    actual_dice: List[float] = []
+    actual_dice_2gpu: List[float] = []
+    for index, seed in enumerate([1, 2, 3]):
+        torch.random.manual_seed(seed)
+        random_output = torch.rand(*total_size).float() * 100
+        random_targets = torch.randint_like(random_output, low=0, high=2).float()
+        result = loss_fn.forward_minibatch(random_output, random_targets)
+        actual_dice.append(result.item())
+        # Now simulate that a second GPU is available, and has exactly the same results: loss should not change
+        with mock.patch("InnerEye.ML.models.losses.soft_dice.synchronize_across_gpus") as sync_mock:
+            sync_mock.side_effect = mocked_synchronize
+            result = loss_fn.forward_minibatch(random_output, random_targets)
+            actual_dice_2gpu.append(result.item())
+            assert sync_mock.call_count == expected_mock_call_count
+    assert actual_dice == expected_results
+    assert actual_dice_2gpu == expected_results
+
+
 def test_dice_loss_regression() -> None:
     """
-    Regression tests for specific values of the Dice loss for random input.
+    Regression test for SoftDice loss on random input.
     """
-    batch_size = 10
-    classes = 3
-    spatial = (3, 4, 5)
-    total_size = (batch_size, classes, *spatial)
-    dice = SoftDiceLoss()
-    expected_results = [0.613937258720398, 0.6056110262870789, 0.6131367683410645]
-    for index, seed in enumerate([1, 2, 3]):
-        torch.random.manual_seed(seed)
-        random_output = torch.rand(*total_size).float() * 100
-        random_targets = torch.randint_like(random_output, low=0, high=2).float()
-        result = dice.forward_minibatch(random_output, random_targets)
-        assert result.item() == expected_results[index]
-
-
-def test_dice_loss_2gpus() -> None:
-    """
-    Regression tests for specific values of the Dice loss for random input, simulating that two GPUs are present.
-    """
-    batch_size = 10
-    classes = 3
-    spatial = (3, 4, 5)
-    total_size = (batch_size, classes, *spatial)
-    dice = SoftDiceLoss()
-    expected_results = [0.613937258720398, 0.6056110262870789, 0.6131367683410645]
-
-    with mock.patch()
-    for index, seed in enumerate([1, 2, 3]):
-        torch.random.manual_seed(seed)
-        random_output = torch.rand(*total_size).float() * 100
-        random_targets = torch.randint_like(random_output, low=0, high=2).float()
-        result = dice.forward_minibatch(random_output, random_targets)
-        assert result.item() == expected_results[index]
+    # Synchronization should be called for intersection, output squared and target squared
+    compare_dice_loss(SoftDiceLoss(),
+                      expected_results=[0.6102917194366455, 0.603467583656311, 0.6067448854446411],
+                      expected_mock_call_count=3)
 
 
 def test_dice_loss_with_power() -> None:
     """
     Regression tests for Dice loss when class weight power is used.
     """
-    batch_size = 10
-    classes = 3
-    spatial = (3, 4, 5)
-    total_size = (batch_size, classes, *spatial)
-    dice = SoftDiceLoss(class_weight_power=0.5)
-    expected_results = [0.6104415655136108, 0.6056110262870789, 0.6131367683410645]
-    for index, seed in enumerate([1, 2, 3]):
-        torch.random.manual_seed(seed)
-        random_output = torch.rand(*total_size).float() * 100
-        random_targets = torch.randint_like(random_output, low=0, high=2).float()
-        result = dice.forward_minibatch(random_output, random_targets)
-        assert result.item() == expected_results[index]
+    compare_dice_loss(SoftDiceLoss(class_weight_power=0.5),
+                      expected_results=[0.6104415655136108, 0.6035614013671875, 0.6065493822097778],
+                      expected_mock_call_count=4)
