@@ -24,6 +24,9 @@ jobs that run in AzureML.
 - ([#496](https://github.com/microsoft/InnerEye-DeepLearning/pull/496)) All plots are now saved as PNG, rather than JPG.
 - ([#497](https://github.com/microsoft/InnerEye-DeepLearning/pull/497)) Reducing the size of the code snapshot that
 gets uploaded to AzureML, by skipping all test folders.
+- ([#526](https://github.com/microsoft/InnerEye-DeepLearning/pull/526)) Updated Covid config to use a multiclass
+  formulation. Moved functions `create_metric_computers` and `compute_and_log_metrics` from `ScalarLightning` to
+  `ScalarModelBase`.
 
 ### Fixed
 
@@ -40,6 +43,9 @@ multiple large checkpoints can time out.
 ### Removed
 
 - ([#520](https://github.com/microsoft/InnerEye-DeepLearning/pull/520)) Disable glaucoma job from Azure pipeline.
+- ([#526](https://github.com/microsoft/InnerEye-DeepLearning/pull/526)) Removed `get_posthoc_label_transform` in
+  class `ScalarModelBase`. Instead, functions `get_loss_function` and `compute_and_log_metrics` in
+  `ScalarModelBase` can be implemented to compute the loss and metrics in a task-specific manner.
 
 ### Deprecated
 
