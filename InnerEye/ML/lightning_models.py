@@ -25,6 +25,7 @@ from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import image_util, metrics_util, model_util
+from InnerEye.ML.utils.dataset_util import DatasetExample, store_and_upload_example
 from InnerEye.ML.utils.model_util import get_scalar_model_inputs_and_labels
 from InnerEye.ML.utils.sequence_utils import apply_sequence_model_loss, get_masked_model_outputs_and_labels
 
@@ -38,6 +39,7 @@ class SegmentationLightning(InnerEyeLightning):
 
     def __init__(self, config: SegmentationModelBase, *args: Any, **kwargs: Any) -> None:
         super().__init__(config, *args, **kwargs)
+        self.config = config
         self.model = config.create_model()
         self.loss_fn = model_util.create_segmentation_loss_function(config)
         self.ground_truth_ids = config.ground_truth_ids
@@ -108,6 +110,8 @@ class SegmentationLightning(InnerEyeLightning):
         Computes and stores all metrics coming out of a single training step.
         :param cropped_sample: The batched image crops used for training or validation.
         :param segmentation: The segmentation that was produced by the model.
+        :param is_training: If true, the method is called from `training_step`, otherwise it is called from
+        `validation_step`.
         """
         # dice_per_crop_and_class has one row per crop, with background class removed
         # Dice NaN means that both ground truth and prediction are empty.
@@ -133,11 +137,18 @@ class SegmentationLightning(InnerEyeLightning):
             self.storing_logger.train_diagnostics.append(center_indices)
         else:
             self.storing_logger.val_diagnostics.append(center_indices)
-        # if self.train_val_params.in_training_mode:
-        #     # store the sample train patch from this epoch for visualization
-        #     if batch_index == self.example_to_save and self.config.store_dataset_sample:
-        #         _store_dataset_sample(self.config, self.train_val_params.epoch, forward_pass_result,
-        #                               cropped_sample)
+
+        if is_training and self.config.store_dataset_sample:
+            # store the sample train patch from this epoch for visualization
+            # remove batches and channels
+            dataset_example = DatasetExample(image=cropped_sample.image[0][0].cpu().detach().numpy(),
+                                             labels=cropped_sample.labels[0].cpu().detach().numpy(),
+                                             prediction=segmentation[0].cpu().detach().numpy(),
+                                             header=cropped_sample.metadata[0].image_header,  # type: ignore
+                                             patient_id=cropped_sample.metadata[0].patient_id,  # type: ignore
+                                             epoch=self.current_epoch)
+            store_and_upload_example(dataset_example, self.config)
+
         num_subjects = cropped_sample.image.shape[0]
         self.log_on_epoch(name=MetricType.SUBJECT_COUNT,
                           value=num_subjects,

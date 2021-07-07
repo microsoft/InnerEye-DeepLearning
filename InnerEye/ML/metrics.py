@@ -12,6 +12,7 @@ from typing import List, Optional, Sequence, Set
 
 import SimpleITK as sitk
 import numpy as np
+from numpy.core.numeric import NaN
 import torch
 import torch.nn.functional as F
 from azureml.core import Run
@@ -21,12 +22,13 @@ from InnerEye.Common.metrics_constants import LoggingColumns, MetricType
 from InnerEye.Common.type_annotations import DictStrFloat, TupleFloat3
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import BACKGROUND_CLASS_NAME
-from InnerEye.ML.metrics_dict import DataframeLogger, INTERNAL_TO_LOGGING_COLUMN_NAMES, MetricsDict, \
-    ScalarMetricsDict
+from InnerEye.ML.metrics_dict import (DataframeLogger, INTERNAL_TO_LOGGING_COLUMN_NAMES, MetricsDict,
+                                      ScalarMetricsDict)
 from InnerEye.ML.scalar_config import ScalarLoss
 from InnerEye.ML.utils.image_util import binaries_from_multi_label_array, is_binary_array
 from InnerEye.ML.utils.io_util import reverse_tuple_float3
-from InnerEye.ML.utils.metrics_util import binary_classification_accuracy, mean_absolute_error, r2_score
+from InnerEye.ML.utils.metrics_util import (binary_classification_accuracy, mean_absolute_error,
+                                            r2_score, is_missing_ground_truth)
 from InnerEye.ML.utils.ml_util import check_size_matches
 from InnerEye.ML.utils.sequence_utils import get_masked_model_outputs_and_labels
 
@@ -56,7 +58,7 @@ class InferenceMetricsForSegmentation(InferenceMetrics):
     """
     Stores metrics for segmentation models, per execution mode and epoch.
     """
-    data_split: ModelExecutionMode
+    execution_mode: ModelExecutionMode
     metrics: float
 
     def get_metrics_log_key(self) -> str:
@@ -64,7 +66,7 @@ class InferenceMetricsForSegmentation(InferenceMetrics):
         Gets a string name for logging the metrics specific to the execution mode (train, val, test)
         :return:
         """
-        return f"InferenceMetrics_{self.data_split.value}"
+        return f"InferenceMetrics_{self.execution_mode.value}"
 
     def log_metrics(self, run_context: Run = None) -> None:
         """
@@ -230,9 +232,10 @@ def calculate_metrics_per_class(segmentation: np.ndarray,
     Calculate the dice for all foreground structures (the background class is completely ignored).
     Returns a MetricsDict with metrics for each of the foreground
     structures. Metrics are NaN if both ground truth and prediction are all zero for a class.
+    If first element of a ground truth image channel is NaN, the image is flagged as NaN and not use.
     :param ground_truth_ids: The names of all foreground classes.
     :param segmentation: predictions multi-value array with dimensions: [Z x Y x X]
-    :param ground_truth: ground truth binary array with dimensions: [C x Z x Y x X]
+    :param ground_truth: ground truth binary array with dimensions: [C x Z x Y x X].
     :param voxel_spacing: voxel_spacing in 3D Z x Y x X
     :param patient_id: for logging
     """
@@ -242,14 +245,33 @@ def calculate_metrics_per_class(segmentation: np.ndarray,
                          f"the label tensor indicates that there are {number_of_classes - 1} classes.")
     binaries = binaries_from_multi_label_array(segmentation, number_of_classes)
 
-    all_classes_are_binary = [is_binary_array(ground_truth[label_id]) for label_id in range(ground_truth.shape[0])]
-    if not np.all(all_classes_are_binary):
+    binary_classes = [is_binary_array(ground_truth[label_id]) for label_id in range(ground_truth.shape[0])]
+
+    # If ground truth image is nan, then will not be used for metrics computation.
+    nan_images = [is_missing_ground_truth(ground_truth[label_id]) for label_id in range(ground_truth.shape[0])]
+
+    # Compares element-wise if not binary then nan and checks all elements are True.
+    assert np.all(np.array(binary_classes) == ~np.array(nan_images))
+
+    #  Validates that all binary images should be 0 or 1
+    if not np.all(np.array(binary_classes)[~np.array(nan_images)]):
         raise ValueError("Ground truth values should be 0 or 1")
     overlap_measures_filter = sitk.LabelOverlapMeasuresImageFilter()
     hausdorff_distance_filter = sitk.HausdorffDistanceImageFilter()
     metrics = MetricsDict(hues=ground_truth_ids)
+
+    def add_metric(metric_type: MetricType, value: float) -> None:
+        metrics.add_metric(metric_type, value, skip_nan_when_averaging=True, hue=ground_truth_ids[i - 1])
+
     for i, prediction in enumerate(binaries):
+        # Skip if background image
         if i == 0:
+            continue
+        # Skip but record if nan_image
+        elif nan_images[i]:
+            add_metric(MetricType.DICE, NaN)
+            add_metric(MetricType.HAUSDORFF_mm, NaN)
+            add_metric(MetricType.MEAN_SURFACE_DIST_mm, NaN)
             continue
         check_size_matches(prediction, ground_truth[i], arg1_name="prediction", arg2_name="ground_truth")
         if not is_binary_array(prediction):
@@ -280,10 +302,6 @@ def calculate_metrics_per_class(segmentation: np.ndarray,
                 except Exception as e:
                     logging.warning(f"Cannot calculate mean distance for structure {i} of patient {patient_id}: {e}")
             logging.debug(f"Patient {patient_id}, class {i} has Dice score {dice}")
-
-        def add_metric(metric_type: MetricType, value: float) -> None:
-            metrics.add_metric(metric_type, value, skip_nan_when_averaging=True, hue=ground_truth_ids[i - 1])
-
         add_metric(MetricType.DICE, dice)
         add_metric(MetricType.HAUSDORFF_mm, hausdorff_distance)
         add_metric(MetricType.MEAN_SURFACE_DIST_mm, mean_surface_distance)
