@@ -2,25 +2,25 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import shutil
+import uuid
 from copy import copy
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-import shutil
 from typing import Dict, Generic, Iterable, List, Optional, Tuple, Type, TypeVar, Union
-import uuid
-
-import h5py
-from numpy.lib.npyio import NpzFile
-from skimage.transform import resize
 
 import SimpleITK as sitk
+import h5py
 import numpy as np
 import pandas as pd
 import pydicom as dicom
 import torch
+from numpy.lib.npyio import NpzFile
+from skimage.transform import resize
 from tabulate import tabulate
 
+from InnerEye.Azure.azure_util import RUN_CONTEXT
 from InnerEye.Common import common_util
 from InnerEye.Common.type_annotations import PathOrString, TupleFloat3, TupleInt3
 from InnerEye.ML.config import DEFAULT_POSTERIOR_VALUE_RANGE, PhotometricNormalizationMethod, \
@@ -226,7 +226,13 @@ def load_nifti_image(path: PathOrString, image_type: Optional[Type] = float) -> 
     if path is None or not _is_valid_image_path(path):
         raise ValueError("Invalid path to image: {}".format(path))
 
-    img, header = read_image_as_array_with_header(path)
+    try:
+        img, header = read_image_as_array_with_header(path)
+    except Exception:
+        uploaded_name = f"loading_failure_{str(uuid.uuid4().hex)}"
+        print(f"Unable to read image {path}. Uploading the failed image to AML as {uploaded_name}")
+        RUN_CONTEXT.upload_file(uploaded_name, path)
+        raise
 
     # ensure a 3D image is loaded
     if not len(img.shape) == 3:
