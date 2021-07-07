@@ -48,6 +48,7 @@ def test_get_total_number_of_training_epochs() -> None:
     c.recovery_start_epoch = 2
     assert c.get_total_number_of_training_epochs() == 8
 
+
 @pytest.mark.parametrize("image_channels", [["region"], ["random_123"]])
 @pytest.mark.parametrize("ground_truth_ids", [["region", "region"], ["region", "other_region"]])
 def test_invalid_model_train(test_output_dirs: OutputFolderForTests, image_channels: Any,
@@ -98,7 +99,7 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     train_config.mask_id = None if no_mask_channel else train_config.mask_id
     train_config.random_seed = 42
     train_config.class_weights = [0.5, 0.25, 0.25]
-    train_config.store_dataset_sample = True
+    train_config.store_dataset_sample = no_mask_channel
     train_config.recovery_checkpoint_save_interval = 1
     train_config.check_exclusive = False
 
@@ -197,11 +198,10 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     model_training_result.get_val_metric(MetricType.SECONDS_PER_BATCH.value)
     model_training_result.get_train_metric(MetricType.SECONDS_PER_BATCH.value)
 
-    # Issue #372
-    # Test for saving of example images
-    assert train_config.example_images_folder.is_dir()
+    # # Test for saving of example images
+    assert train_config.example_images_folder.is_dir() if train_config.store_dataset_sample else True
     example_files = list(train_config.example_images_folder.rglob("*.*"))
-    assert len(example_files) == 3 * 2 * 2  # images x epochs x patients
+    assert len(example_files) == (3 * 2 * 2 if train_config.store_dataset_sample else 0)  # images x epochs x patients
 
 
 def test_create_data_loaders() -> None:

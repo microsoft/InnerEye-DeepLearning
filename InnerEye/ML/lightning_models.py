@@ -105,13 +105,13 @@ class SegmentationLightning(InnerEyeLightning):
         return loss
 
     def compute_metrics(self, cropped_sample: CroppedSample, segmentation: torch.Tensor,
-                        is_training: bool, batch_index: int = 0) -> None:
+                        is_training: bool) -> None:
         """
         Computes and stores all metrics coming out of a single training step.
         :param cropped_sample: The batched image crops used for training or validation.
         :param segmentation: The segmentation that was produced by the model.
-        :param is_training: Is a training crop
-        :param batch_index: Batch index number
+        :param is_training: If true, the method is called from `training_step`, otherwise it is called from
+        `validation_step`.
         """
         # dice_per_crop_and_class has one row per crop, with background class removed
         # Dice NaN means that both ground truth and prediction are empty.
@@ -137,7 +137,8 @@ class SegmentationLightning(InnerEyeLightning):
             self.storing_logger.train_diagnostics.append(center_indices)
         else:
             self.storing_logger.val_diagnostics.append(center_indices)
-        if is_training and self.config.store_dataset_sample and batch_index == 0:
+
+        if is_training and self.config.store_dataset_sample:
             # store the sample train patch from this epoch for visualization
             # remove batches and channels
             dataset_example = DatasetExample(image=cropped_sample.image[0][0].cpu().detach().numpy(),

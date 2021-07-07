@@ -7,6 +7,7 @@ from typing import Any, Dict, Iterable, List, Optional, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
+import sys
 from matplotlib import colors
 from matplotlib.pyplot import Axes
 
@@ -15,6 +16,7 @@ from InnerEye.ML.dataset.full_image_dataset import Sample
 from InnerEye.ML.photometric_normalization import PhotometricNormalization
 from InnerEye.ML.utils import plotting_util
 from InnerEye.ML.utils.image_util import binaries_from_multi_label_array, get_largest_z_slice
+from InnerEye.ML.utils.metrics_util import is_missing_ground_truth
 from InnerEye.ML.utils.ml_util import check_size_matches
 from InnerEye.ML.utils.surface_distance_utils import Plane, extract_border
 
@@ -98,6 +100,8 @@ def resize_and_save(width_inch: int, height_inch: int, filename: PathOrString, d
     """
     fig = plt.gcf()
     fig.set_size_inches(width_inch, height_inch)
+    # Workaround for Exception in Tkinter callback
+    fig.canvas.start_event_loop(sys.float_info.min)
     plt.savefig(filename, dpi=dpi, bbox_inches='tight', pad_inches=0.1)
 
 
@@ -303,6 +307,10 @@ def plot_contours_for_all_classes(sample: Sample,
         if class_index == 0:
             continue
         ground_truth = sample.labels[class_index, ...]
+
+        if is_missing_ground_truth(ground_truth):
+            continue
+
         largest_gt_slice = get_largest_z_slice(ground_truth)
         labels_at_largest_gt = ground_truth[largest_gt_slice]
         segmentation_at_largest_gt = binary[largest_gt_slice, ...]

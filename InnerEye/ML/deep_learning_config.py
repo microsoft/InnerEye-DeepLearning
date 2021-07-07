@@ -5,17 +5,16 @@
 from __future__ import annotations
 
 import logging
+import param
 from enum import Enum, unique
+from pandas import DataFrame
+from param import Parameterized
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import param
-from pandas import DataFrame
-from param import Parameterized
-
 from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common import fixed_paths
-from InnerEye.Common.common_util import is_windows
+from InnerEye.Common.common_util import ModelProcessing, is_windows
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.Common.type_annotations import PathOrString, TupleFloat2
@@ -199,14 +198,24 @@ class WorkflowParams(param.Parameterized):
     cross_validation_split_index: int = param.Integer(DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, bounds=(-1, None),
                                                       doc="The index of the cross validation fold this model is "
                                                           "associated with when performing k-fold cross validation")
-    perform_training_set_inference: bool = \
-        param.Boolean(False,
-                      doc="If True, run full image inference on the training set at the end of training. If False and "
-                          "perform_validation_and_test_set_inference is True (default), only run inference on "
-                          "validation and test set. If both flags are False do not run inference.")
-    perform_validation_and_test_set_inference: bool = \
-        param.Boolean(True,
-                      doc="If True (default), run full image inference on validation and test set after training.")
+    inference_on_train_set: Optional[bool] = \
+        param.Boolean(None,
+                      doc="If set, enable/disable full image inference on training set after training.")
+    inference_on_val_set: Optional[bool] = \
+        param.Boolean(None,
+                      doc="If set, enable/disable full image inference on validation set after training.")
+    inference_on_test_set: Optional[bool] = \
+        param.Boolean(None,
+                      doc="If set, enable/disable full image inference on test set after training.")
+    ensemble_inference_on_train_set: Optional[bool] = \
+        param.Boolean(None,
+                      doc="If set, enable/disable full image inference on the training set after ensemble training.")
+    ensemble_inference_on_val_set: Optional[bool] = \
+        param.Boolean(None,
+                      doc="If set, enable/disable full image inference on validation set after ensemble training.")
+    ensemble_inference_on_test_set: Optional[bool] = \
+        param.Boolean(None,
+                      doc="If set, enable/disable full image inference on test set after ensemble training.")
     weights_url: str = param.String(doc="If provided, a url from which weights will be downloaded and used for model "
                                         "initialization.")
     local_weights_path: Optional[Path] = param.ClassSelector(class_=Path,
@@ -253,6 +262,53 @@ class WorkflowParams(param.Parameterized):
             raise ValueError(f"Cross validation split index must be -1 for a non cross validation run, "
                              f"found number_of_cross_validation_splits = {self.number_of_cross_validation_splits} "
                              f"and cross_validation_split_index={self.cross_validation_split_index}")
+
+    """ Defaults for when to run inference in the absence of any command line switches. """
+    INFERENCE_DEFAULTS: Dict[ModelProcessing, Dict[ModelExecutionMode, bool]] = {
+        ModelProcessing.DEFAULT: {
+            ModelExecutionMode.TRAIN: False,
+            ModelExecutionMode.TEST: True,
+            ModelExecutionMode.VAL: True,
+        },
+        ModelProcessing.ENSEMBLE_CREATION: {
+            ModelExecutionMode.TRAIN: False,
+            ModelExecutionMode.TEST: True,
+            ModelExecutionMode.VAL: False,
+        }
+    }
+
+    def inference_options(self) -> Dict[ModelProcessing, Dict[ModelExecutionMode, Optional[bool]]]:
+        """
+        Return a mapping from ModelProcesing and ModelExecutionMode to command line switch.
+
+        :return: Command line switch for each combination of ModelProcessing and ModelExecutionMode.
+        """
+        return {
+            ModelProcessing.DEFAULT: {
+                ModelExecutionMode.TRAIN: self.inference_on_train_set,
+                ModelExecutionMode.TEST: self.inference_on_test_set,
+                ModelExecutionMode.VAL: self.inference_on_val_set,
+            },
+            ModelProcessing.ENSEMBLE_CREATION: {
+                ModelExecutionMode.TRAIN: self.ensemble_inference_on_train_set,
+                ModelExecutionMode.TEST: self.ensemble_inference_on_test_set,
+                ModelExecutionMode.VAL: self.ensemble_inference_on_val_set,
+            }
+        }
+
+    def inference_on_set(self, model_proc: ModelProcessing, data_split: ModelExecutionMode) -> bool:
+        """
+        Returns True if inference is required for this model_proc and data_split.
+
+        :param model_proc: Whether we are testing an ensemble or single model.
+        :param data_split: Indicates which of the 3 sets (training, test, or validation) is being processed.
+        :return: True if inference required.
+        """
+        inference_option = self.inference_options()[model_proc][data_split]
+        if inference_option is not None:
+            return inference_option
+
+        return WorkflowParams.INFERENCE_DEFAULTS[model_proc][data_split]
 
     @property
     def is_offline_run(self) -> bool:

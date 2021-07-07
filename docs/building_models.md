@@ -332,3 +332,26 @@ def get_image_transform(self) -> ModelTransformsPerExecutionMode:
         val=ImageTransformationPipeline(transforms=[Resize(256)]),
         test=ImageTransformationPipeline(transforms=[Resize(256)]))
 ```
+
+### Segmentation Models and Inference.
+
+By default when building a segmentation model a full image inference will be performed on the validation and test data sets; 
+and when building an ensemble model, a full image inference will be performed on the test data set only (because the 
+training and validation sets are first combined before being split into each of the folds). 
+There are a total of six command line options for controlling this in more detail.
+
+For non-ensemble models use any of the following command line options to enable or disable inference on training, test, or validation data sets:
+
+```
+--inference_on_train_set=True or False
+--inference_on_test_set=True or False
+--inference_on_val_set=True or False
+```
+
+For ensemble models use any of the following corresponding command line options:
+
+```
+--ensemble_inference_on_train_set=True or False
+--ensemble_inference_on_test_set=True or False
+--ensemble_inference_on_val_set=True or False
+```

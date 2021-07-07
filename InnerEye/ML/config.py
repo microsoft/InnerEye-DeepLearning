@@ -292,13 +292,13 @@ class SegmentationModelBase(ModelConfigBase):
                                                                      "`inside/outside body` information."
                                                                      "This channel must be present in the dataset")
 
-    #: The type of image normalization that should be applied. Must be None, or of type
+    #: The type of image normalization that should be applied. Must be of type
     # :attr:`PhotometricNormalizationMethod`: Unchanged, SimpleNorm, MriWindow , CtWindow, TrimmedNorm
     norm_method: PhotometricNormalizationMethod = \
         param.ClassSelector(default=PhotometricNormalizationMethod.CtWindow,
                             class_=PhotometricNormalizationMethod,
                             instantiate=False,
-                            doc="The type of image normalization that should be applied. Must be one of None, "
+                            doc="The type of image normalization that should be applied. Must be one of "
                                 "Unchanged, SimpleNorm, MriWindow , CtWindow, TrimmedNorm")
 
     #: The Window setting for the :attr:`PhotometricNormalizationMethod.CtWindow` normalization.
@@ -477,11 +477,13 @@ class SegmentationModelBase(ModelConfigBase):
     is_plotting_enabled: bool = param.Boolean(True, doc="If true, various overview plots with results are generated "
                                                         "during model evaluation. Set to False if you see "
                                                         "non-deterministic pull request build failures.")
+
     show_patch_sampling: int = param.Integer(1, bounds=(0, None),
                                              doc="Number of patients from the training set for which the effect of"
                                                  "patch sampling will be shown. Nifti images and thumbnails for each"
                                                  "of the first N subjects in the training set will be "
                                                  "written to the outputs folder.")
+
     #: If true an error is raised in InnerEye.ML.utils.io_util.load_labels_from_dataset_source if the labels are not
     #: mutually exclusive. Some loss functions (e.g. SoftDice) may produce results on overlapping labels, but others
     # (e.g.
@@ -489,6 +491,12 @@ class SegmentationModelBase(ModelConfigBase):
     #: are not mutually exclusive.
     check_exclusive: bool = param.Boolean(True,
                                           doc="Raise an error if the segmentation labels are not mutually exclusive.")
+
+    allow_incomplete_labels: bool = param.Boolean(
+        default=False,
+        doc="If False, the default, then test patient data must include all of the ground truth labels. If true then "
+            "some test patient data with missing ground truth data is allowed and will be reflected in the patient "
+            "counts in the metrics and report.")
 
     def __init__(self, center_size: Optional[TupleInt3] = None,
                  inference_stride_size: Optional[TupleInt3] = None,
