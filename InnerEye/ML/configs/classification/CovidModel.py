@@ -215,13 +215,13 @@ class CovidModel(ScalarModelBase):
                                 is_training: bool,
                                 metrics: ModuleDict,
                                 logger: DataframeLogger,
-                                current_epoch: int) -> None:
+                                current_epoch: int,
+                                data_split: ModelExecutionMode) -> None:
         posteriors = self.get_post_loss_logits_normalization_function()(logits)
         labels = torch.argmax(targets.data.to(dtype=torch.int), dim=-1)
         metric = metrics[MetricsDict.DEFAULT_HUE_KEY][0]
         metric(posteriors, labels)
 
-        data_split = ModelExecutionMode.TRAIN if is_training else ModelExecutionMode.VAL
         per_subject_outputs = list(zip(subject_ids, [MetricsDict.DEFAULT_HUE_KEY] * len(subject_ids), posteriors.tolist(), labels.tolist()))
         for subject, prediction_target, model_output, label in per_subject_outputs:
             logger.add_record({

@@ -535,7 +535,8 @@ class ScalarModelBase(ModelConfigBase):
                                 is_training: bool,
                                 metrics: ModuleDict,
                                 logger: DataframeLogger,
-                                current_epoch: int) -> None:
+                                current_epoch: int,
+                                data_split: ModelExecutionMode) -> None:
         """
         Computes all the metrics for a given (logits, labels) pair, and writes them to the loggers.
         :param logits: The model output before normalization.
@@ -567,7 +568,6 @@ class ScalarModelBase(ModelConfigBase):
                     zip(_subject_ids, [prediction_target] * len(_subject_ids), _posteriors.tolist(), _labels.tolist()))
         # Write a full breakdown of per-subject predictions and labels to a file. These files are local to the current
         # rank in distributed training, and will be aggregated after training.
-        data_split = ModelExecutionMode.TRAIN if is_training else ModelExecutionMode.VAL
         for subject, prediction_target, model_output, label in per_subject_outputs:
             logger.add_record({
                 LoggingColumns.Epoch.value: current_epoch,

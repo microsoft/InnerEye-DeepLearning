@@ -9,6 +9,7 @@ from pytorch_lightning.utilities import move_data_to_device
 
 from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME
 from InnerEye.Common.metrics_constants import LoggingColumns, MetricType, TRAIN_PREFIX, VALIDATION_PREFIX
+from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.dataset.sample import CroppedSample
 from InnerEye.ML.dataset.scalar_sample import ScalarItem
@@ -246,7 +247,15 @@ class ScalarLightning(InnerEyeLightning):
         self.write_loss(is_training, loss)
         metrics = self.train_metric_computers if is_training else self.val_metric_computers
         logger = self.train_subject_outputs_logger if is_training else self.val_subject_outputs_logger
-        self.compute_and_log_metrics(logits, labels, subject_ids, is_training, metrics, logger, self.current_epoch)
+        data_split = ModelExecutionMode.TRAIN if is_training else ModelExecutionMode.VAL
+        self.compute_and_log_metrics(logits=logits,
+                                     targets=labels,
+                                     subject_ids=subject_ids,
+                                     is_training=is_training,
+                                     metrics=metrics,
+                                     logger=logger,
+                                     current_epoch=self.current_epoch,
+                                     data_split=data_split)
         self.log_on_epoch(name=MetricType.SUBJECT_COUNT,
                           value=len(model_inputs_and_labels.subject_ids),
                           is_training=is_training,
