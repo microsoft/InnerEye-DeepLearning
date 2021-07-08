@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import shutil
+import time
 import uuid
 from copy import copy
 from dataclasses import dataclass
@@ -231,7 +232,10 @@ def load_nifti_image(path: PathOrString, image_type: Optional[Type] = float) -> 
     except Exception as ex:
         uploaded_name = f"loading_failure_{str(uuid.uuid4().hex)}"
         print(f"Unable to read image {path}. Uploading the failed image to AML as {uploaded_name}")
+        print(f"File has size {path.stat().st_size}")
         RUN_CONTEXT.upload_file(uploaded_name, path)
+        time.sleep(30)
+        print("Done sleeping")
         raise ex
 
     # ensure a 3D image is loaded
