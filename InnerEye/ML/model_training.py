@@ -157,7 +157,7 @@ def create_lightning_trainer(container: LightningContainer,
         benchmark = True
     # If the users provides additional callbacks via get_trainer_arguments (for custom
     # containers
-    callbacks = [last_checkpoint_callback, recovery_checkpoint_callback]  # last_checkpoint_callback, 
+    callbacks = [last_checkpoint_callback, recovery_checkpoint_callback]
     if "callbacks" in kwargs:
         callbacks.append(kwargs.pop("callbacks"))  # type: ignore
     is_azureml_run = not is_offline_run_context(RUN_CONTEXT)
