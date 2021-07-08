@@ -16,6 +16,7 @@ from torch.optim import Adam
 from InnerEye.ML.SSL.lightning_modules.byol.byol_models import SiameseArm
 from InnerEye.ML.SSL.lightning_modules.byol.byol_moving_average import ByolMovingAverageWeightUpdate
 from InnerEye.ML.SSL.utils import SSLDataModuleType
+from pytorch_lightning import Trainer
 
 SingleBatchType = Tuple[List, T]
 BatchType = Union[Dict[SSLDataModuleType, SingleBatchType], SingleBatchType]
@@ -59,6 +60,7 @@ class BYOLInnerEye(pl.LightningModule):
 
     def on_train_batch_end(self, *args: Any, **kwargs: Any) -> None:
         # Add callback for user automatically since it's key to BYOL weight update
+        assert isinstance(self.trainer, Trainer)
         self.weight_callback.on_before_zero_grad(self.trainer, self)
 
     def forward(self, x: T) -> T:  # type: ignore
@@ -110,14 +112,13 @@ class BYOLInnerEye(pl.LightningModule):
         global_batch_size = self.trainer.world_size * self.hparams.batch_size  # type: ignore
         self.train_iters_per_epoch = self.hparams.num_samples // global_batch_size  # type: ignore
 
-    def configure_optimizers(self):
+    def configure_optimizers(self) -> Any:
         # exclude certain parameters
         parameters = self.exclude_from_wt_decay(self.online_network.named_parameters(),
                                                 weight_decay=self.hparams.weight_decay)  # type: ignore
-        optimizer = Adam(parameters, lr=self.hparams.learning_rate, weight_decay=self.hparams.weight_decay)
+        optimizer = Adam(parameters, lr=self.hparams.learning_rate, weight_decay=self.hparams.weight_decay)  # type: ignore
         scheduler = LinearWarmupCosineAnnealingLR(
-            optimizer, warmup_epochs=self.hparams.warmup_epochs, max_epochs=self.hparams.max_epochs
-        )
+            optimizer, warmup_epochs=self.hparams.warmup_epochs, max_epochs=self.hparams.max_epochs)   # type: ignore
         return [optimizer], [scheduler]
 
     def exclude_from_wt_decay(self,

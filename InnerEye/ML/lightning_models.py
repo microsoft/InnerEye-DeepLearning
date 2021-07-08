@@ -27,6 +27,7 @@ from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import image_util, metrics_util, model_util
 from InnerEye.ML.utils.model_util import get_scalar_model_inputs_and_labels
 from InnerEye.ML.utils.sequence_utils import apply_sequence_model_loss, get_masked_model_outputs_and_labels
+from pytorch_lightning import Trainer
 
 SUBJECT_OUTPUT_PER_RANK_PREFIX = f"{SUBJECT_METRICS_FILE_NAME}.rank"
 
@@ -249,6 +250,7 @@ class ScalarLightning(InnerEyeLightning):
         """
         # These loggers store the per-subject model outputs. They cannot be initialized in the constructor because
         # the trainer object will not yet be set, and we need to get the rank from there.
+        assert isinstance(self.trainer, Trainer)
         fixed_logger_columns = {LoggingColumns.CrossValidationSplitIndex.value: self.cross_validation_split_index}
         subject_output_file = get_subject_output_file_per_rank(self.trainer.global_rank)
         self.train_subject_outputs_logger = DataframeLogger(self.train_metrics_folder / subject_output_file,
@@ -323,7 +325,7 @@ class ScalarLightning(InnerEyeLightning):
                     zip(_subject_ids, [prediction_target] * len(_subject_ids), _posteriors.tolist(), _labels.tolist()))
         # Write a full breakdown of per-subject predictions and labels to a file. These files are local to the current
         # rank in distributed training, and will be aggregated after training.
-        logger = self.train_subject_outputs_logger if is_training else self.val_subject_outputs_logger
+        logger = self.train_subject_outputs_logger if is_training else self.val_subject_outputs_logger  # type: ignore
         data_split = ModelExecutionMode.TRAIN if is_training else ModelExecutionMode.VAL
         for subject, prediction_target, model_output, label in per_subject_outputs:
             logger.add_record({
@@ -350,7 +352,7 @@ class ScalarLightning(InnerEyeLightning):
                     # Hence, only log if anything has been accumulated.
                     self.log(name=prefix + metric.name + target_suffix, value=metric.compute())
                     metric.reset()
-        logger = self.train_subject_outputs_logger if is_training else self.val_subject_outputs_logger
+        logger = self.train_subject_outputs_logger if is_training else self.val_subject_outputs_logger  # type: ignore
         logger.flush()
         super().training_or_validation_epoch_end(is_training)
 

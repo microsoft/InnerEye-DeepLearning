@@ -99,8 +99,8 @@ class InnerEyeRecoveryCheckpointCallback(ModelCheckpoint):
                          mode="max",
                          save_last=False)
 
-    def on_train_epoch_end(self, trainer: Trainer, pl_module: LightningModule, outputs: Any) -> None:
-        pl_module.log(name="epoch", value=trainer.current_epoch)
+    def on_train_epoch_end(self, trainer: Trainer, pl_module: LightningModule, unused: bool=None) -> None:
+        pl_module.log(name="epoch", value=trainer.current_epoch)  # type: ignore
 
 
 def create_lightning_trainer(container: LightningContainer,
@@ -272,8 +272,8 @@ def model_train(checkpoint_handler: CheckpointHandler,
     # Per-subject model outputs for regression models are written per rank, and need to be aggregated here.
     # Each thread per rank will come here, and upload its files to the run outputs. Rank 0 will later download them.
     if is_azureml_run and world_size > 1 and isinstance(lightning_model, ScalarLightning):
-        upload_output_file_as_temp(lightning_model.train_subject_outputs_logger.csv_path, container.outputs_folder)
-        upload_output_file_as_temp(lightning_model.val_subject_outputs_logger.csv_path, container.outputs_folder)
+        upload_output_file_as_temp(lightning_model.train_subject_outputs_logger.csv_path, container.outputs_folder)  # type: ignore
+        upload_output_file_as_temp(lightning_model.val_subject_outputs_logger.csv_path, container.outputs_folder)  # type: ignore
     # DDP will start multiple instances of the runner, one for each GPU. Those should terminate here after training.
     # We can now use the global_rank of the Lightining model, rather than environment variables, because DDP has set
     # all necessary properties.

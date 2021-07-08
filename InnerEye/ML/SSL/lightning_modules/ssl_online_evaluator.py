@@ -9,7 +9,7 @@ import pytorch_lightning as pl
 import torch
 from pl_bolts.callbacks.ssl_online import SSLOnlineEvaluator
 from pl_bolts.models.self_supervised.evaluator import SSLEvaluator
-from pytorch_lightning.metrics import Metric
+from torchmetrics import Metric
 from torch import Tensor as T
 from torch.nn import functional as F
 

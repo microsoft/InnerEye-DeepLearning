@@ -9,7 +9,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 import torchmetrics as metrics
-from pytorch_lightning.metrics import Metric
+from torchmetrics import Metric
 from pytorch_lightning.metrics.functional import accuracy, auc, auroc, precision_recall_curve, roc
 from torch.nn import ModuleList
 

@@ -5,7 +5,7 @@
 from typing import Any, List, Optional
 
 import torch
-from pytorch_lightning.metrics import Metric
+from torchmetrics import Metric
 from pl_bolts.models.self_supervised import SSLEvaluator
 from torch.nn import functional as F
 
