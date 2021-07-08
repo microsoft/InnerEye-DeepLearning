@@ -383,7 +383,7 @@ class InnerEyeLightning(LightningModule):
         if isinstance(value, numbers.Number):
             value = torch.tensor(value, dtype=torch.float, device=self.device)
         prefix = TRAIN_PREFIX if is_training else VALIDATION_PREFIX
-        sync_dist = self.use_sync_dist if sync_dist_override is None else sync_dist_override
+        sync_dist = True if sync_dist_override is None else sync_dist_override
         self.log(prefix + metric_name, value,
                  sync_dist=sync_dist,
                  on_step=False, on_epoch=True,
