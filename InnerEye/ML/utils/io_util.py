@@ -228,11 +228,11 @@ def load_nifti_image(path: PathOrString, image_type: Optional[Type] = float) -> 
 
     try:
         img, header = read_image_as_array_with_header(path)
-    except Exception:
+    except Exception as ex:
         uploaded_name = f"loading_failure_{str(uuid.uuid4().hex)}"
         print(f"Unable to read image {path}. Uploading the failed image to AML as {uploaded_name}")
         RUN_CONTEXT.upload_file(uploaded_name, path)
-        raise
+        raise ex
 
     # ensure a 3D image is loaded
     if not len(img.shape) == 3:
