@@ -86,7 +86,7 @@ class SSLClassifier(LightningModuleWithOptimizer, DeviceAwareModule):
 
     def validation_step(self, batch: Any, batch_id: int, *args: Any, **kwargs: Any) -> None:  # type: ignore
         loss = self.shared_step(batch, is_training=False)
-        self.log('val/loss', loss, on_step=False, on_epoch=True, sync_dist=False)
+        self.log('val/loss', loss, on_step=False, on_epoch=True, sync_dist=True)
         for metric in self.val_metrics:
             self.log(f"val/{metric.name}", metric, on_epoch=True, on_step=False)
 

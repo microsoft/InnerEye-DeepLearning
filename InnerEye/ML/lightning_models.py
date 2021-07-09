@@ -143,8 +143,8 @@ class SegmentationLightning(InnerEyeLightning):
         self.log_on_epoch(name=MetricType.SUBJECT_COUNT,
                           value=num_subjects,
                           is_training=is_training,
-                          reduce_fx=sum,
-                          sync_dist_op=None)
+                          reduce_fx=torch.sum,
+                          sync_dist_op="sum")
 
     def training_or_validation_epoch_end(self, is_training: bool) -> None:
         """
