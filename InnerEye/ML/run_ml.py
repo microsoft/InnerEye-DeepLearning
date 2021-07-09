@@ -393,7 +393,8 @@ class MLRunner:
                                                        self.container.cross_validation_split_index == 0
                     if should_wait_for_other_child_runs:
                         self.wait_for_runs_to_finish()
-                        self.create_ensemble_model_and_run_inference()
+                        checkpoint_handler = self.create_checkpoint_handler_for_crossval_child_0()
+                        self.create_ensemble_model_and_run_inference(checkpoint_handler)
             else:
                 # Inference for all models that are specified via LightningContainers.
                 with logging_section("Model inference"):
@@ -448,7 +449,7 @@ class MLRunner:
         if isinstance(self.container.model, InnerEyeInference):
             self.run_inference_for_innereyeinference(self.container.model, checkpoint_paths)
         else:
-            self.run_inference_for_non_legacy_lightning_model(self.container.model, checkpoint_paths)
+            self.run_inference_for_non_innereyeinference_lightning_model(self.container.model, checkpoint_paths)
 
     def run_inference_for_innereyeinference(
             self,
