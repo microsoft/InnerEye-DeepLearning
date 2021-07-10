@@ -908,27 +908,37 @@ class MLRunner:
 
     def create_ensemble_model_and_run_inference_for_innereyeinference(
             self,
-            lightning_model: InnerEyeInference,
+            model: InnerEyeInference,
             checkpoint_paths: List[Path]) -> None:
         """
-        Create an ensemble model for a model derived from InnerEyeInference  from a cross validation run. This collates
-        the results of the sibling runs of the present run (i.e. cross validation child run 0).
+        Create an ensemble model from a cross validation run for a model derived from InnerEyeInference and use the
+        ensemble for inference over the test set.
+        :param model: The InnerEyeInference model to use for the inference.
+        :param checkpoint_paths: The paths to the checkpoints gleaned from the cross validation runs.
         """
         assert isinstance(self.container.model, InnerEyeInference), "Used for for the InnerEyeInference lightning "
         "models. For InnerEye built-in models use create_ensemble_model_and_run_inference_for_innereyecontainer."
         
-        model = self.container.model
-        for checkpoint in checkpoint_handler.
-        model.on_inference_start()
-        for dataset_split in [Train, Val, Test]
-            model.on_inference_epoch_start(dataset_split, is_ensemble_model=False)
-            for batch_idx, item in enumerate(dataloader[dataset_split])):
+        # Load the checkpoints
+        ensemble: List[InnerEyeInference] = []
+        for checkpoint_path in checkpoint_paths:
+            subtype_of_innereyeinference = type(model)
+            ensemblette = subtype_of_innereyeinference()
+            ensemblette.load_from_checkpoint(checkpoint_path)
+            # assert isinstance(ensemblette, InnerEyeInference)  # for mypy
+            ensemble.append(ensemblette)
+        
+        test_dataloader = self.container.get_data_module().test_dataloader
+
+        for model in ensemble:
+            model.on_inference_start()
+            model.on_inference_epoch_start(ModelExecutionMode.TEST, is_ensemble_model=False)
+            for batch_idx, item in enumerate(test_dataloader[ModelExecutionMode.TEST]):  # This line makes no sense, we already know it is a test data_loader
                 model_outputs = model.forward(item)
                 model.inference_step(item, batch_idx, model_outputs)
             model.on_inference_epoch_end()
-        model.on_inference_end()
+            model.on_inference_end()
         
-
     def plot_cross_validation_and_upload_results(self) -> Path:
         from InnerEye.ML.visualizers.plot_cross_validation import crossval_config_from_model_config, \
             plot_cross_validation, unroll_aggregate_metrics
