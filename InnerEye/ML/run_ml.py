@@ -386,7 +386,7 @@ class MLRunner:
                 if self.container.generate_report:
                     self.generate_report(ModelProcessing.DEFAULT)
 
-                # If this is an cross validation run, and the present run is child run 0, then wait for the sibling
+                # If this is a cross validation run, and the present run is child run 0, then wait for the sibling
                 # runs, build the ensemble model, and write a report for that.
                 if self.container.perform_cross_validation:
                     should_wait_for_other_child_runs = (not self.is_offline_run) and \
@@ -394,9 +394,9 @@ class MLRunner:
                     if should_wait_for_other_child_runs:
                         self.wait_for_runs_to_finish()
                         checkpoint_handler = self.create_checkpoint_handler_for_crossval_child_0()
-                        self.create_ensemble_model_and_run_inference(checkpoint_handler)
+                        self.create_ensemble_model_and_run_inference_for_innereyecontainer(checkpoint_handler)
             else:
-                # Inference for all models that are specified via LightningContainers.
+                # Inference for all models that are specified via LightningContainers and not InnerEyeContainers
                 with logging_section("Model inference"):
                     self.run_inference_for_lightning_models(self.checkpoint_handler.get_checkpoints_to_test())
                 # We can't enforce that files are written to the output folder, hence change the working directory
@@ -447,11 +447,11 @@ class MLRunner:
             f"other types of model it expects exactly 1 checkpoint for inference, but got {len(checkpoint_paths)}")
 
         if isinstance(self.container.model, InnerEyeInference):
-            self.run_inference_for_innereyeinference(self.container.model, checkpoint_paths)
+            self.run_inference_for_innereyeinference_lightning_model(self.container.model, checkpoint_paths)
         else:
             self.run_inference_for_non_innereyeinference_lightning_model(self.container.model, checkpoint_paths)
 
-    def run_inference_for_innereyeinference(
+    def run_inference_for_innereyeinference_lightning_model(
             self,
             lightning_model: InnerEyeInference,
             checkpoint_paths: List[Path]) -> None:
@@ -464,27 +464,31 @@ class MLRunner:
         if type(lightning_model).inference_step == InnerEyeInference.inference_step:
             logging.warning("The InnerEyeInference's `inference_step` is not overridden. Skipping inference completely.")
             return
-        logging.info("Running inference via the InnerEyeInference.inference_step method")
-        # Read the data modules before changing the working directory, in case the code relies on relative paths
-        data = self.container.get_inference_data_module()
-        dataloaders: List[Tuple[DataLoader, ModelExecutionMode]] = []
-        data_dataloaders = MLRunner.lightning_data_module_dataloaders(data)
-        for data_split, dataloader in data_dataloaders.items():
-            if self.container.inference_on_set(ModelProcessing.DEFAULT, data_split):
-                dataloaders.append((dataloader(), data_split))
-        checkpoint = load_checkpoint(checkpoint_paths[0], use_gpu=self.container.use_gpu)
-        lightning_model.load_state_dict(checkpoint['state_dict'])
-        lightning_model.eval()
-        with change_working_directory(self.container.outputs_folder):
-            lightning_model.on_inference_start()
-            for loader, split in dataloaders:
-                logging.info(f"Starting inference on {split.value} set")
-                lightning_model.on_inference_epoch_start(dataset_split=split, is_ensemble_model=False)
-                for batch_idx, item in enumerate(loader):
-                    model_output = lightning_model.forward(item[0])
-                    lightning_model.inference_step(item, batch_idx, model_output=model_output)
-                lightning_model.on_inference_epoch_end()
-            lightning_model.on_inference_end()
+
+        if len(checkpoint_paths) > 1:
+            self.create_ensemble_model_and_run_inference_for_innereyeinference(lightning_model, checkpoint_paths)
+        else:
+            logging.info("Running inference via the InnerEyeInference.inference_step method")
+            # Read the data modules before changing the working directory, in case the code relies on relative paths
+            data = self.container.get_inference_data_module()
+            dataloaders: List[Tuple[DataLoader, ModelExecutionMode]] = []
+            data_dataloaders = MLRunner.lightning_data_module_dataloaders(data)
+            for data_split, dataloader in data_dataloaders.items():
+                if self.container.inference_on_set(ModelProcessing.DEFAULT, data_split):
+                    dataloaders.append((dataloader(), data_split))
+            checkpoint = load_checkpoint(checkpoint_paths[0], use_gpu=self.container.use_gpu)
+            lightning_model.load_state_dict(checkpoint['state_dict'])
+            lightning_model.eval()
+            with change_working_directory(self.container.outputs_folder):
+                lightning_model.on_inference_start()
+                for loader, split in dataloaders:
+                    logging.info(f"Starting inference on {split.value} set")
+                    lightning_model.on_inference_epoch_start(dataset_split=split, is_ensemble_model=False)
+                    for batch_idx, item in enumerate(loader):
+                        model_output = lightning_model.forward(item[0])
+                        lightning_model.inference_step(item, batch_idx, model_output=model_output)
+                    lightning_model.on_inference_epoch_end()
+                lightning_model.on_inference_end()
 
     def run_inference_for_non_innereyeinference_lightning_model(
             self,
@@ -492,11 +496,16 @@ class MLRunner:
             checkpoint_paths: List[Path]) -> None:
         """
         Run inference over the test set for an InnerEyeInference container. Containers that are derived from
-        InnerEyeInference should use run_inference_for_innereyeinference instead.
+        InnerEyeInference should use run_inference_for_innereyeinference_lightning_model instead.
+        Note that doing inference from an ensemble model built from cross validation checkpoints is only supported for
+        LightningContainers that inherit from InnerEyeInference and so cannot be used here. Use
+        run_inference_for_innereyeinference_lightning_model instead.
         :param lightning_model: The LightningContainer container to be used.
         :param checkpoint_paths: The path to the checkpoint that should be used for inference.
         """
-        assert not isinstance(lightning_model, InnerEyeInference), "Call run_inference_for_innereyeinference instead"
+        assert not isinstance(lightning_model, InnerEyeInference), "Call run_inference_for_innereyeinference_lightning_model instead"
+        assert len(checkpoint_paths) == 1, "Doing inference from an ensemble model built from cross validation checkpoints is only supported for"
+        "LightningContainers that inherit from InnerEyeInference and so cannot be used here."
         # Check that lightning_model.inference_step is an override:
         if type(lightning_model).test_step == LightningModule.test_step:
             logging.warning("The LightningContainer's `inference_step` is not overridden. Skipping inference completely.")
@@ -858,11 +867,13 @@ class MLRunner:
             checkpoint_handler.download_checkpoints_from_hyperdrive_child_runs(PARENT_RUN_CONTEXT)
             return checkpoint_handler
 
-    def create_ensemble_model_and_run_inference(self, checkpoint_handler: CheckpointHandler) -> None:
+    def create_ensemble_model_and_run_inference_for_innereyecontainer(self, checkpoint_handler: CheckpointHandler) -> None:
         """
-        Create an ensemble model from the results of the sibling runs of the present run. The present run here will
-        be cross validation child run 0.
+        Create an ensemble model for one of the InnerEye built-in models from a cross validation run. This collates the
+        results of the sibling runs of the present run (i.e. cross validation child run 0).
         """
+        assert isinstance(self.container, InnerEyeContainer), "Used for for the InnerEye built-in models. For "
+        "InnerEyeInference lightning models use create_ensemble_model_and_run_inference_for_innereyeinference."
         # Register the model, and then run inference as required. No models should be registered when running outside
         # AzureML.
         if not self.is_offline_run:
@@ -894,6 +905,29 @@ class MLRunner:
             else:
                 logging.warning(f"Directory not found for upload: {other_runs_ensemble_dir}")
         remove_file_or_directory(other_runs_dir)
+
+    def create_ensemble_model_and_run_inference_for_innereyeinference(
+            self,
+            lightning_model: InnerEyeInference,
+            checkpoint_paths: List[Path]) -> None:
+        """
+        Create an ensemble model for a model derived from InnerEyeInference  from a cross validation run. This collates
+        the results of the sibling runs of the present run (i.e. cross validation child run 0).
+        """
+        assert isinstance(self.container.model, InnerEyeInference), "Used for for the InnerEyeInference lightning "
+        "models. For InnerEye built-in models use create_ensemble_model_and_run_inference_for_innereyecontainer."
+        
+        model = self.container.model
+        for checkpoint in checkpoint_handler.
+        model.on_inference_start()
+        for dataset_split in [Train, Val, Test]
+            model.on_inference_epoch_start(dataset_split, is_ensemble_model=False)
+            for batch_idx, item in enumerate(dataloader[dataset_split])):
+                model_outputs = model.forward(item)
+                model.inference_step(item, batch_idx, model_outputs)
+            model.on_inference_epoch_end()
+        model.on_inference_end()
+        
 
     def plot_cross_validation_and_upload_results(self) -> Path:
         from InnerEye.ML.visualizers.plot_cross_validation import crossval_config_from_model_config, \
