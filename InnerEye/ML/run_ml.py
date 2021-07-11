@@ -8,7 +8,7 @@ import os
 import shutil
 import time
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 from pytorch_lightning.core.datamodule import LightningDataModule
@@ -449,11 +449,11 @@ class MLRunner:
         if isinstance(self.container.model, InnerEyeInference):
             self.run_inference_for_innereyeinference_lightning_model(self.container.model, checkpoint_paths)
         else:
-            self.run_inference_for_non_innereyeinference_lightning_model(self.container.model, checkpoint_paths)
+            self.run_inference_for_non_innereyeinference_lightning_model(self.container, checkpoint_paths)
 
     def run_inference_for_innereyeinference_lightning_model(
             self,
-            lightning_model: InnerEyeInference,
+            lightning_model: Union[InnerEyeInference, LightningModule],
             checkpoint_paths: List[Path]) -> None:
         """
         Run inference over the test set for an InnerEyeInference container.
@@ -918,7 +918,7 @@ class MLRunner:
         """
         assert isinstance(self.container.model, InnerEyeInference), "Used for for the InnerEyeInference lightning "
         "models. For InnerEye built-in models use create_ensemble_model_and_run_inference_for_innereyecontainer."
-        
+
         # Load the checkpoints
         ensemble: List[InnerEyeInference] = []
         for checkpoint_path in checkpoint_paths:
@@ -938,7 +938,7 @@ class MLRunner:
                 model.inference_step(item, batch_idx, model_outputs)
             model.on_inference_epoch_end()
             model.on_inference_end()
-        
+
     def plot_cross_validation_and_upload_results(self) -> Path:
         from InnerEye.ML.visualizers.plot_cross_validation import crossval_config_from_model_config, \
             plot_cross_validation, unroll_aggregate_metrics

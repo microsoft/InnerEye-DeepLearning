@@ -4,7 +4,6 @@
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
 from typing import Dict, List
-from param.parameterized import output
 
 import torch
 from pytorch_lightning.metrics import MeanAbsoluteError
@@ -25,8 +24,8 @@ class DummyEnsembleRegressionModule(HelloRegression, InnerEyeInference):
     """
 
     def __init__(self, outputs_folder: Path) -> None:
-        HelloRegression.__init__()
-        InnerEyeInference.__init__()
+        HelloRegression.__init__(self)
+        InnerEyeInference.__init__(self)
         self.outputs_folder = outputs_folder
         self.siblings: List[DummyEnsembleRegressionModule] = [self]
         self.inference_mse: List[float] = []
@@ -55,13 +54,13 @@ class DummyEnsembleRegressionModule(HelloRegression, InnerEyeInference):
         level.
         """
         checkpoint = load_checkpoint(path_to_checkpoint, use_gpu)
-        sibling = DummyEnsembleRegressionModule()
+        sibling = DummyEnsembleRegressionModule(self.outputs_folder)
         sibling.load_state_dict(checkpoint['state_dict'])
         self.siblings.append(sibling)
         self.inference_losses: List[List[List[torch.Tensor]]] = []  # losses for each epoch, sibling, and step
         self.epoch_count = 0
 
-    #region InnerEyeInference Overrides
+    # region InnerEyeInference Overrides
     def on_inference_start(self) -> None:
         """
         Runs initialization for everything that inference might require. This can initialize
@@ -99,11 +98,11 @@ class DummyEnsembleRegressionModule(HelloRegression, InnerEyeInference):
         target = batch["y"]
         for sibling in self.siblings:
             predictions.append(sibling.test_step(batch, batch_idx))
-        prediction = InnerEyeInference.aggregate_ensemble_model_outputs(predictions)
+        prediction = InnerEyeInference.aggregate_ensemble_model_outputs(iter(predictions))
         loss = torch.nn.functional.mse_loss(prediction, target)
         self.test_mse.append(loss)
         self.test_mae.update(preds=prediction, target=target)
-        
+
     def on_inference_epoch_end(self) -> None:
         """
         Write the metrics from the inference epoch to disk
@@ -111,16 +110,16 @@ class DummyEnsembleRegressionModule(HelloRegression, InnerEyeInference):
         TODO: The InnerEyeInference version of this method states that it may be called three times, with train, val,
         and test data. But the files will be overwtitten if it is. Should we be taking that into account?
         """
-        output_dir = self.outputs_folder / self.epoch_count
+        output_dir = self.outputs_folder / str(self.epoch_count)
         average_mse = torch.mean(torch.stack(self.test_mse))
         with (output_dir / "test_mse.txt").open("a") as test_mse_file:
             test_mse_file.write(f"Epoch {self.epoch_count + 1}: {average_mse.item()}\n")
         with (output_dir / "test_mae.txt").open("a") as test_mae_file:
-            test_mse_file.write(f"Epoch {self.epoch_count + 1}: {str(self.test_mae.compute())}\n")
+            test_mae_file.write(f"Epoch {self.epoch_count + 1}: {str(self.test_mae.compute())}\n")
         self.epoch_count += 1
-    #endregion
+    # endregion
 
-    #region HelloRegression Overrides
+    # region HelloRegression Overrides
     def test_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> torch.Tensor:  # type: ignore
         """
         The HelloRegression version only returns the loss, not the prediction, which we need for ensemble calculations.
@@ -130,7 +129,7 @@ class DummyEnsembleRegressionModule(HelloRegression, InnerEyeInference):
         """
         input = batch["x"]
         return self.forward(input)
-    #endregion
+    # endregion
 
 class DummyEnsembleRegressionContainer(HelloContainer):
     """
