@@ -72,7 +72,7 @@ class DummyEnsembleRegressionModule(HelloRegression, InnerEyeInference):
         self.test_mae = MeanAbsoluteError()
         self.epoch_count = 0
 
-    def on_inference_epoch_start(self, model_execution_mode: ModelExecutionMode, _: bool) -> None:
+    def on_inference_epoch_start(self, _: ModelExecutionMode, __: bool) -> None:
         """
         Runs initialization for inference, when starting inference on a new dataset split (train/val/test).
         Depending on the settings, this can be called anywhere between 0 (no inference at all) to 3 times (inference
@@ -87,12 +87,12 @@ class DummyEnsembleRegressionModule(HelloRegression, InnerEyeInference):
         self.test_mse = []
         self.test_mae.reset()
 
-    def inference_step(self, batch: Dict[str, torch.Tensor], batch_idx: int, model_output: torch.Tensor) -> None:
+    def inference_step(self, batch: Dict[str, torch.Tensor], batch_idx: int, _: torch.Tensor) -> None:
         """
         This hook is called when the model has finished making a prediction. It can write the results to a file,
         or compute metrics and store them.
         :param batch: The batch of data for which the model made a prediction.
-        :param model_output: The model outputs. This would usually be a torch.Tensor, but can be any datatype.
+        :param model_output/_: The model outputs.
         """
         predictions: List[torch.Tensor] = []
         target = batch["y"]
@@ -120,7 +120,7 @@ class DummyEnsembleRegressionModule(HelloRegression, InnerEyeInference):
     # endregion
 
     # region HelloRegression Overrides
-    def test_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> torch.Tensor:  # type: ignore
+    def test_step(self, batch: Dict[str, torch.Tensor], _: int) -> torch.Tensor:  # type: ignore
         """
         The HelloRegression version only returns the loss, not the prediction, which we need for ensemble calculations.
         :param batch: The batch of test data.
