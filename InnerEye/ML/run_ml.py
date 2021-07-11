@@ -8,7 +8,7 @@ import os
 import shutil
 import time
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import pandas as pd
 from pytorch_lightning.core.datamodule import LightningDataModule
@@ -453,13 +453,16 @@ class MLRunner:
 
     def run_inference_for_innereyeinference_lightning_model(
             self,
-            lightning_model: Union[InnerEyeInference, LightningModule],
+            lightning_model: InnerEyeInference,
             checkpoint_paths: List[Path]) -> None:
         """
         Run inference over the test set for an InnerEyeInference container.
         :param lightning_model: The InnerEyeInference container to be used.
         :param checkpoint_paths: The path to the checkpoint that should be used for inference.
         """
+        # Cannot pass lightning_model in as a parameter since MyPy has no Intersection:
+        #lightning_model = self.container.model
+        #assert isinstance(lightning_model, InnerEyeInference)
         # Check that lightning_model.inference_step is an override:
         if type(lightning_model).inference_step == InnerEyeInference.inference_step:
             logging.warning("The InnerEyeInference's `inference_step` is not overridden. Skipping inference completely.")
@@ -477,6 +480,7 @@ class MLRunner:
                 if self.container.inference_on_set(ModelProcessing.DEFAULT, data_split):
                     dataloaders.append((dataloader(), data_split))
             checkpoint = load_checkpoint(checkpoint_paths[0], use_gpu=self.container.use_gpu)
+            assert isinstance(lightning_model, LightningModule)  # MyPy: cannot type parameter as Intersection yet https://github.com/python/typing/issues/213
             lightning_model.load_state_dict(checkpoint['state_dict'])
             lightning_model.eval()
             with change_working_directory(self.container.outputs_folder):
@@ -924,8 +928,9 @@ class MLRunner:
         for checkpoint_path in checkpoint_paths:
             subtype_of_innereyeinference = type(model)
             ensemblette = subtype_of_innereyeinference()
-            ensemblette.load_from_checkpoint(checkpoint_path)
-            # assert isinstance(ensemblette, InnerEyeInference)  # for mypy
+            assert isinstance(ensemblette, LightningModule)  # for mypy
+            ensemblette.load_from_checkpoint(str(checkpoint_path))
+            assert isinstance(ensemblette, InnerEyeInference)  # for mypy
             ensemble.append(ensemblette)
 
         test_dataloader = self.container.get_data_module().test_dataloader()
@@ -934,7 +939,7 @@ class MLRunner:
             model.on_inference_start()
             model.on_inference_epoch_start(ModelExecutionMode.TEST, is_ensemble_model=False)
             for batch_idx, item in enumerate(test_dataloader):
-                model_outputs = model.forward(item)
+                model_outputs = model.forward(item)  # type: ignore
                 model.inference_step(item, batch_idx, model_outputs)
             model.on_inference_epoch_end()
             model.on_inference_end()
