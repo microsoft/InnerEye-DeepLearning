@@ -87,7 +87,8 @@ class InnerEyeInference(abc.ABC):
         """
         pass
 
-    def aggregate_ensemble_model_outputs(self, model_outputs: Iterator[torch.Tensor]) -> torch.Tensor:
+    @staticmethod
+    def aggregate_ensemble_model_outputs(model_outputs: Iterator[torch.Tensor]) -> torch.Tensor:
         """
         Aggregates the outputs of multiple models when using an ensemble model. In the default implementation,
         this averages the tensors coming from all the models.
