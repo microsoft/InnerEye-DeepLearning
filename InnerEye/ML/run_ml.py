@@ -927,13 +927,13 @@ class MLRunner:
             ensemblette.load_from_checkpoint(checkpoint_path)
             # assert isinstance(ensemblette, InnerEyeInference)  # for mypy
             ensemble.append(ensemblette)
-        
-        test_dataloader = self.container.get_data_module().test_dataloader
+
+        test_dataloader = self.container.get_data_module().test_dataloader()
 
         for model in ensemble:
             model.on_inference_start()
             model.on_inference_epoch_start(ModelExecutionMode.TEST, is_ensemble_model=False)
-            for batch_idx, item in enumerate(test_dataloader[ModelExecutionMode.TEST]):  # This line makes no sense, we already know it is a test data_loader
+            for batch_idx, item in enumerate(test_dataloader):
                 model_outputs = model.forward(item)
                 model.inference_step(item, batch_idx, model_outputs)
             model.on_inference_epoch_end()
