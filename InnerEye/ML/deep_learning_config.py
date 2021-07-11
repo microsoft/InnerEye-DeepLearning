@@ -834,7 +834,7 @@ class DeepLearningConfig(WorkflowParams,
 
 def load_checkpoint(path_to_checkpoint: Path, use_gpu: bool = True) -> Dict[str, Any]:
     """
-    Loads a Torch checkpoint from the given file. If use_gpu==False, map all parameters to the GPU, otherwise
+    Loads a Torch checkpoint from the given file. If use_gpu==False, map all parameters to the CPU, otherwise
     left the device of all parameters unchanged.
     """
     import torch
