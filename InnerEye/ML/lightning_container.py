@@ -35,11 +35,11 @@ class InnerEyeInference(abc.ABC):
 
     model.on_inference_start()
     for dataset_split in [Train, Val, Test]
-        model.on_inference_epoch_start(dataset_split, is_ensemble_model=False)
-        for batch_idx, item in enumerate(dataloader[dataset_split])):
-            model_outputs = model.forward(item)
-            model.inference_step(item, batch_idx, model_outputs)
-        model.on_inference_epoch_end()
+        model.on_inference_start_dataset(dataset_split, is_ensemble_model=False)
+        for batch_idx, batch in enumerate(dataloader[dataset_split])):
+            posteriors = model.forward(item)
+            model.record_posteriors(batch, batch_idx, posteriors)
+        model.on_inference_end_dataset()
     model.on_inference_end()
     """
 
@@ -50,7 +50,7 @@ class InnerEyeInference(abc.ABC):
         """
         pass
 
-    def on_inference_epoch_start(self, dataset_split: ModelExecutionMode, is_ensemble_model: bool) -> None:
+    def on_inference_start_dataset(self, dataset_split: ModelExecutionMode, is_ensemble_model: bool) -> None:
         """
         Runs initialization for inference, when starting inference on a new dataset split (train/val/test).
         Depending on the settings, this can be called anywhere between 0 (no inference at all) to 3 times (inference
@@ -61,18 +61,18 @@ class InnerEyeInference(abc.ABC):
         """
         pass
 
-    def inference_step(self, batch: Any, batch_idx: int, model_output: torch.Tensor) -> None:
+    def record_posteriors(self, batch: Any, batch_idx: int, posteriors: torch.Tensor) -> None:
         """
         This hook is called when the model has finished making a prediction. It can write the results to a file,
         or compute metrics and store them.
         :param batch: The batch of data for which the model made a prediction.
-        :param model_output: The model outputs. This would usually be a torch.Tensor, but can be any datatype.
+        :param posteriors: The posteriors output by the model.
         """
         # We don't want abstract methods here, it avoids class creation for unit tests, and we also want this
         # method to be left optional (it should be possible to also use Lightning's native test_step method)
         raise NotImplementedError("Method on_inference_start must be overwritten in a derived class.")
 
-    def on_inference_epoch_end(self) -> None:
+    def on_inference_end_dataset(self) -> None:
         """
         Called when the inference on one of the dataset splits (train/val/test) has finished.
         Depending on the settings, this can be called anywhere between 0 (no inference at all) to 3 times (inference
