@@ -42,7 +42,7 @@ class DummyEnsembleRegressionModule(HelloRegression, InnerEyeInference):
         if len(paths_to_checkpoints) < 1:
             raise ValueError("The list of paths to checkpoints must include at least one path.")
         checkpoint = load_checkpoint(paths_to_checkpoints[0], use_gpu)
-        self.load_state_dict(checkpoint['state_dict'])
+        self.load_state_dict(checkpoint['state_dict'], strict=False)
         for path_to_checkpoint in paths_to_checkpoints[1:]:
             self.load_checkpoint_as_sibling(path_to_checkpoint, use_gpu)
 
@@ -56,7 +56,7 @@ class DummyEnsembleRegressionModule(HelloRegression, InnerEyeInference):
         """
         checkpoint = load_checkpoint(path_to_checkpoint, use_gpu)
         sibling = DummyEnsembleRegressionModule(self.outputs_folder)
-        sibling.load_state_dict(checkpoint['state_dict'])
+        sibling.load_state_dict(checkpoint['state_dict'], strict=False)
         self.siblings.append(sibling)
         self.inference_losses: List[List[List[torch.Tensor]]] = []  # losses for each epoch, sibling, and step
         self.epoch_count = 0
@@ -107,8 +107,9 @@ class DummyEnsembleRegressionModule(HelloRegression, InnerEyeInference):
         We do not call HelloRegression.on_test_epoch_end since we handle the writing to disk.
         """
         output_dir = self.outputs_folder / str(self.execution_mode)
+        output_dir.mkdir(parents=True, exist_ok=True)
         average_mse = torch.mean(torch.stack(self.test_mse))
-        with (output_dir / "test_mse.txt").open("a") as test_mse_file:
+        with (output_dir / "test_mse.txt").open("a",) as test_mse_file:
             test_mse_file.write(f"Epoch {self.epoch_count + 1}: {average_mse.item()}\n")
         with (output_dir / "test_mae.txt").open("a") as test_mae_file:
             test_mae_file.write(f"Epoch {self.epoch_count + 1}: {str(self.test_mae.compute())}\n")
