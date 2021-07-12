@@ -37,7 +37,7 @@ class InnerEyeInference(abc.ABC):
     for dataset_split in [Train, Val, Test]
         model.on_inference_start_dataset(dataset_split, is_ensemble_model=False)
         for batch_idx, batch in enumerate(dataloader[dataset_split])):
-            posteriors = model.forward(item)
+            posteriors = model.forward(batch)
             model.record_posteriors(batch, batch_idx, posteriors)
         model.on_inference_end_dataset()
     model.on_inference_end()
