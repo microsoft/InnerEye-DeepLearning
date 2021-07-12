@@ -50,12 +50,12 @@ class InnerEyeInference(abc.ABC):
         """
         pass
 
-    def on_inference_start_dataset(self, dataset_split: ModelExecutionMode, is_ensemble_model: bool) -> None:
+    def on_inference_start_dataset(self, execution_mode: ModelExecutionMode, is_ensemble_model: bool) -> None:
         """
         Runs initialization for inference, when starting inference on a new dataset split (train/val/test).
         Depending on the settings, this can be called anywhere between 0 (no inference at all) to 3 times (inference
         on all of train/val/test split).
-        :param dataset_split: Indicates whether the item comes from the training, validation or test set.
+        :param execution_mode: Indicates whether the item comes from the training, validation or test set.
         :param is_ensemble_model: If False, the model_outputs come from an individual model. If True, the model
         outputs come from multiple models.
         """
