@@ -25,10 +25,11 @@ class DummyEnsembleRegressionModule(HelloRegression, InnerEyeInference):
 
     def __init__(self, outputs_folder: Path) -> None:
         HelloRegression.__init__(self)
-        InnerEyeInference.__init__(self)
         self.outputs_folder = outputs_folder
         self.siblings: List[DummyEnsembleRegressionModule] = [self]
-        self.inference_mse: List[float] = []
+        self.test_mse: List[torch.Tensor] = []
+        self.test_mae = MeanAbsoluteError()
+        self.epoch_count = 0
 
     def load_checkpoints_as_siblings(self, paths_to_checkpoints: List[Path], use_gpu: bool) -> None:
         """
@@ -68,8 +69,6 @@ class DummyEnsembleRegressionModule(HelloRegression, InnerEyeInference):
         """
         for sibling in self.siblings:
             sibling.eval()
-        self.test_mse: List[torch.Tensor] = []
-        self.test_mae = MeanAbsoluteError()
         self.epoch_count = 0
 
     def on_inference_epoch_start(self, _: ModelExecutionMode, __: bool) -> None:
