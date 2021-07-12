@@ -8,7 +8,7 @@ import torch
 import torch.nn.functional as F
 
 from InnerEye.ML.models.losses.soft_dice import sum_sync_and_sum
-from InnerEye.ML.utils.image_util import get_class_weights, get_class_weights_from_counts
+from InnerEye.ML.utils.image_util import get_class_weights_from_counts
 from InnerEye.ML.utils.supervised_criterion import SupervisedLearningCriterion
 
 

@@ -7,7 +7,7 @@ from typing import Any, Optional
 import torch
 from pl_bolts.models.self_supervised.simclr.simclr_module import SyncFunction
 
-from InnerEye.ML.utils.image_util import get_class_weights, get_class_weights_from_counts
+from InnerEye.ML.utils.image_util import get_class_weights_from_counts
 from InnerEye.ML.utils.supervised_criterion import SupervisedLearningCriterion
 
 
