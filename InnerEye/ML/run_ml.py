@@ -461,8 +461,8 @@ class MLRunner:
         :param checkpoint_paths: The path to the checkpoint that should be used for inference.
         """
         # Cannot pass lightning_model in as a parameter since MyPy has no Intersection:
-        #lightning_model = self.container.model
-        #assert isinstance(lightning_model, InnerEyeInference)
+        # lightning_model = self.container.model
+        # assert isinstance(lightning_model, InnerEyeInference)
         # Check that lightning_model.inference_step is an override:
         if type(lightning_model).inference_step == InnerEyeInference.inference_step:
             logging.warning("The InnerEyeInference's `inference_step` is not overridden. Skipping inference completely.")
