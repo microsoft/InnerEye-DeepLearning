@@ -4,8 +4,11 @@
 #  ------------------------------------------------------------------------------------------
 import pytest
 from unittest import mock
+from typing import Any, Dict, List, Optional, Tuple
+from pathlib import Path
 
 from pytorch_lightning.trainer import configuration_validator
+import torch
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.configs.other.HelloContainer import HelloDataModule, HelloDataset, HelloContainer, HelloRegression
@@ -49,6 +52,41 @@ def test_attempt_1(test_output_dirs: OutputFolderForTests) -> None:
         ensemble_module.record_posteriors(batch, batch_idx, posteriors)
     ensemble_module.on_inference_end_dataset()
     # Assert something
+
+
+def test_attempt_2(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Make my own dummy checkpoints
+    """
+    # Make checkpoints, with random initial weights, i.e. without training
+    cross_validation_children: List[DummyEnsembleRegressionModule] = []
+    checkpoint_paths: List[Path] = []
+    for idx in range(5):
+        checkpoint_path = test_output_dirs.root_dir / f"{idx}.ckpt"
+        module = DummyEnsembleRegressionModule(outputs_folder=test_output_dirs.root_dir)
+        torch.save({'state_dict': module.model.state_dict()}, checkpoint_path)
+        cross_validation_children.append(module)
+        checkpoint_paths.append(checkpoint_path)
+    # Load checkpoints as ensemble
+    eldest = cross_validation_children[0]
+    eldest.load_checkpoints_as_siblings(checkpoint_paths, use_gpu=False)
+    # Get test data split
+    data_module_xval = HelloDataModule(
+        root_folder=HelloContainer().local_dataset,
+        cross_validation_split_index=0,
+        number_of_cross_validation_splits=5)
+    test_dataloader = data_module_xval.test_dataloader()
+    # Run inference loop
+    eldest.on_inference_start()
+    eldest.on_inference_start_dataset(execution_mode=ModelExecutionMode.TEST, _=True)
+    for batch_idx, batch in enumerate(test_dataloader):
+        posteriors = eldest.forward(batch['x'])
+        eldest.record_posteriors(batch, batch_idx, posteriors)
+    eldest.on_inference_end_dataset()
+    xval_metrics_dir = test_output_dirs.root_dir / str(ModelExecutionMode.TEST)
+    assert (xval_metrics_dir / "test_mse.txt").exists
+    assert (xval_metrics_dir / "test_mae.txt").exists
+
 
 def test_checkpoint_handling(test_output_dirs: OutputFolderForTests) -> None:
     """
