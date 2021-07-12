@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import torch
 from pytorch_lightning.metrics import MeanAbsoluteError
@@ -29,7 +29,7 @@ class DummyEnsembleRegressionModule(HelloRegression, InnerEyeInference):
         self.siblings: List[DummyEnsembleRegressionModule] = [self]
         self.test_mse: List[torch.Tensor] = []
         self.test_mae = MeanAbsoluteError()
-        self.epoch_count = 0
+        self.execution_mode: Optional[ModelExecutionMode] = None
 
     def load_checkpoints_as_siblings(self, paths_to_checkpoints: List[Path], use_gpu: bool) -> None:
         """
@@ -69,15 +69,14 @@ class DummyEnsembleRegressionModule(HelloRegression, InnerEyeInference):
         """
         for sibling in self.siblings:
             sibling.eval()
-        self.epoch_count = 0
+        self.execution_mode = None
 
-    def on_inference_epoch_start(self, _: ModelExecutionMode, __: bool) -> None:
+    def on_inference_start_dataset(self, execution_mode: ModelExecutionMode, _: bool) -> None:
         """
         Runs initialization for inference, when starting inference on a new dataset split (train/val/test).
         Depending on the settings, this can be called anywhere between 0 (no inference at all) to 3 times (inference
         on all of train/val/test split).
-        :param dataset_split: Indicates whether the item comes from the training, validation or test set.
-        :param is_ensemble_model/_: TODO Why do we need this? Why wouldn't the model know if it were an ensemble model?
+        :param execution_mode: Indicates whether the item comes from the training, validation or test set.
         """
         # We will use the HelloRegression test provision, regardless of the actual ModelExecutionMode specified for the
         # inference.
@@ -85,37 +84,34 @@ class DummyEnsembleRegressionModule(HelloRegression, InnerEyeInference):
             sibling.on_test_epoch_start()
         self.test_mse = []
         self.test_mae.reset()
+        self.execution_mode = execution_mode
 
-    def inference_step(self, batch: Dict[str, torch.Tensor], batch_idx: int, _: torch.Tensor) -> None:
+    def record_posteriors(self, batch: Dict[str, torch.Tensor], batch_idx: int, _: torch.Tensor) -> None:
         """
         This hook is called when the model has finished making a prediction. It can write the results to a file,
         or compute metrics and store them.
         :param batch: The batch of data for which the model made a prediction.
-        :param model_output/_: The model outputs.
         """
-        predictions: List[torch.Tensor] = []
+        posteriors: List[torch.Tensor] = []
         target = batch["y"]
         for sibling in self.siblings:
-            predictions.append(sibling.test_step(batch, batch_idx))
-        prediction = InnerEyeInference.aggregate_ensemble_model_outputs(iter(predictions))
-        loss = torch.nn.functional.mse_loss(prediction, target)
+            posteriors.append(sibling.test_step(batch, batch_idx))
+        posterior = InnerEyeInference.aggregate_ensemble_model_outputs(iter(posteriors))
+        loss = torch.nn.functional.mse_loss(posterior, target)
         self.test_mse.append(loss)
-        self.test_mae.update(preds=prediction, target=target)
+        self.test_mae.update(preds=posterior, target=target)
 
-    def on_inference_epoch_end(self) -> None:
+    def on_inference_end_dataset(self) -> None:
         """
-        Write the metrics from the inference epoch to disk
+        Write the metrics from the inference execution to disk
         We do not call HelloRegression.on_test_epoch_end since we handle the writing to disk.
-        TODO: The InnerEyeInference version of this method states that it may be called three times, with train, val,
-        and test data. But the files will be overwtitten if it is. Should we be taking that into account?
         """
-        output_dir = self.outputs_folder / str(self.epoch_count)
+        output_dir = self.outputs_folder / str(self.execution_mode)
         average_mse = torch.mean(torch.stack(self.test_mse))
         with (output_dir / "test_mse.txt").open("a") as test_mse_file:
             test_mse_file.write(f"Epoch {self.epoch_count + 1}: {average_mse.item()}\n")
         with (output_dir / "test_mae.txt").open("a") as test_mae_file:
             test_mae_file.write(f"Epoch {self.epoch_count + 1}: {str(self.test_mae.compute())}\n")
-        self.epoch_count += 1
     # endregion
 
     # region HelloRegression Overrides
