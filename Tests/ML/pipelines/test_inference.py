@@ -2,9 +2,11 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from typing import Any, List
+from InnerEye.ML.metrics_dict import MetricsDict
+from typing import Any, List, Tuple
 
 import numpy as np
+import pandas as pd
 import pytest
 import torch
 from torch.nn import Parameter
@@ -18,6 +20,11 @@ from InnerEye.ML.pipelines.ensemble import EnsemblePipeline
 from InnerEye.ML.pipelines.inference import InferencePipeline
 from InnerEye.ML.utils import image_util
 from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
+from Tests.ML.configs.DummyModel import DummyModel
+from InnerEye.ML.utils.split_dataset import DatasetSplits
+from InnerEye.ML.dataset.sample import PatientMetadata, Sample
+from InnerEye.ML.common import ModelExecutionMode
+from InnerEye.ML.model_testing import store_inference_results, evaluate_model_predictions, populate_metrics_writer
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
@@ -198,3 +205,153 @@ class PyTorchMockModel(BaseSegmentationModel):
 
     def get_all_child_layers(self) -> List[torch.nn.Module]:
         return list()
+
+
+def create_config_from_dataset(input_list: List[List[str]], train: List[str], val: List[str], test: List[str]) \
+        -> DummyModel:
+    """
+    Creates an "DummyModel(SegmentationModelBase)" object given patient list
+    and training, validation and test subjects id.
+    """
+
+    class MyDummyModel(DummyModel):
+        def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:
+            return DatasetSplits(train=dataset_df[dataset_df.subject.isin(train)],
+                                 test=dataset_df[dataset_df.subject.isin(test)],
+                                 val=dataset_df[dataset_df.subject.isin(val)])
+
+    config = MyDummyModel()
+    # Sets two regions for ground truth
+    config.fg_ids = ["region", "region_1"]
+    config.ground_truth_ids = config.fg_ids
+    config.ground_truth_ids_display_names = config.fg_ids
+    config.colours = [(255, 255, 255)] * len(config.fg_ids)
+    config.fill_holes = [False] * len(config.fg_ids)
+    config.roi_interpreted_types = ["Organ"] * len(config.fg_ids)
+    config.check_exclusive = False
+    df = pd.DataFrame(input_list, columns=['subject', 'filePath', 'channel'])
+    config._dataset_data_frame = df
+    return config
+
+
+def test_evaluate_model_predictions() -> None:
+    """
+    Creates an 'InferencePipeline.Result' object using pre-defined volumes, stores results and evaluates metrics.
+    """
+    # Patients 3, 4, and 5 are in test dataset such that:
+    # Patient 3 has one missing ground truth channel: "region"
+    # Patient 4 has all missing ground truth channels: "region", "region_1"
+    # Patient 5 has no missing ground truth channels.
+    input_list = [
+        ["1", "train_and_test_data/id1_channel1.nii.gz", "channel1"],
+        ["1", "train_and_test_data/id1_channel1.nii.gz", "channel2"],
+        ["1", "train_and_test_data/id1_mask.nii.gz", "mask"],
+        ["1", "train_and_test_data/id1_region.nii.gz", "region"],
+        ["1", "train_and_test_data/id1_region.nii.gz", "region_1"],
+        ["2", "train_and_test_data/id2_channel1.nii.gz", "channel1"],
+        ["2", "train_and_test_data/id2_channel1.nii.gz", "channel2"],
+        ["2", "train_and_test_data/id2_mask.nii.gz", "mask"],
+        ["2", "train_and_test_data/id2_region.nii.gz", "region"],
+        ["2", "train_and_test_data/id2_region.nii.gz", "region_1"],
+        ["3", "train_and_test_data/id2_channel1.nii.gz", "channel1"],
+        ["3", "train_and_test_data/id2_channel1.nii.gz", "channel2"],
+        ["3", "train_and_test_data/id2_mask.nii.gz", "mask"],
+        # ["3", "train_and_test_data/id2_region.nii.gz", "region"], # commented on purpose
+        ["3", "train_and_test_data/id2_region.nii.gz", "region_1"],
+        ["4", "train_and_test_data/id2_channel1.nii.gz", "channel1"],
+        ["4", "train_and_test_data/id2_channel1.nii.gz", "channel2"],
+        ["4", "train_and_test_data/id2_mask.nii.gz", "mask"],
+        # ["4", "train_and_test_data/id2_region.nii.gz", "region"], # commented on purpose
+        # ["4", "train_and_test_data/id2_region.nii.gz", "region_1"], # commented on purpose
+        ["5", "train_and_test_data/id2_channel1.nii.gz", "channel1"],
+        ["5", "train_and_test_data/id2_channel1.nii.gz", "channel2"],
+        ["5", "train_and_test_data/id2_mask.nii.gz", "mask"],
+        ["5", "train_and_test_data/id2_region.nii.gz", "region"],
+        ["5", "train_and_test_data/id2_region.nii.gz", "region_1"]]
+
+    config = create_config_from_dataset(input_list, train=['1'], val=['2'], test=['3', '4', '5'])
+    config.allow_incomplete_labels = True
+    ds = config.get_torch_dataset_for_inference(ModelExecutionMode.TEST)
+    results_folder = config.outputs_folder
+    if not results_folder.is_dir():
+        results_folder.mkdir()
+
+    model_prediction_evaluations: List[Tuple[PatientMetadata, MetricsDict]] = []
+
+    for sample_index, sample in enumerate(ds, 1):
+        sample = Sample.from_dict(sample=sample)
+        posteriors = np.zeros((3,) + sample.mask.shape, 'float32')
+        posteriors[0][:] = 0.2
+        posteriors[1][:] = 0.6
+        posteriors[2][:] = 0.2
+
+        assert config.dataset_expected_spacing_xyz is not None
+
+        inference_result = InferencePipeline.Result(
+            patient_id=sample.patient_id,
+            posteriors=posteriors,
+            segmentation=np.argmax(posteriors, 0),
+            voxel_spacing_mm=config.dataset_expected_spacing_xyz
+        )
+        store_inference_results(inference_result=inference_result,
+                                config=config,
+                                results_folder=results_folder,
+                                image_header=sample.metadata.image_header)
+
+        metadata, metrics_per_class = evaluate_model_predictions(
+            sample_index - 1,
+            config=config,
+            dataset=ds,
+            results_folder=results_folder)
+
+        model_prediction_evaluations.append((metadata, metrics_per_class))
+
+        # Patient 3 has one missing ground truth channel: "region"
+        if sample.metadata.patient_id == '3':
+            assert 'Dice' in metrics_per_class.values('region_1').keys()
+            assert 'HausdorffDistance_millimeters' in metrics_per_class.values('region_1').keys()
+            assert 'MeanSurfaceDistance_millimeters' in metrics_per_class.values('region_1').keys()
+            for hue_name in ['region', 'Default']:
+                for metric_type in metrics_per_class.values(hue_name).keys():
+                    assert np.isnan(metrics_per_class.values(hue_name)[metric_type]).all()
+
+        # Patient 4 has all missing ground truth channels: "region", "region_1"
+        if sample.metadata.patient_id == '4':
+            for hue_name in ['region_1', 'region', 'Default']:
+                for metric_type in metrics_per_class.values(hue_name).keys():
+                    assert np.isnan(metrics_per_class.values(hue_name)[metric_type]).all()
+
+        # Patient 5 has no missing ground truth channels
+        if sample.metadata.patient_id == '5':
+            for metric_type in metrics_per_class.values('Default').keys():
+                assert np.isnan(metrics_per_class.values('Default')[metric_type]).all()
+            for hue_name in ['region_1', 'region']:
+                assert 'Dice' in metrics_per_class.values(hue_name).keys()
+                assert 'HausdorffDistance_millimeters' in metrics_per_class.values(hue_name).keys()
+                assert 'MeanSurfaceDistance_millimeters' in metrics_per_class.values(hue_name).keys()
+
+    metrics_writer, average_dice = populate_metrics_writer(model_prediction_evaluations, config)
+    # Patient 3 has only one missing ground truth channel
+    assert not np.isnan(average_dice[0])
+    assert np.isnan(float(metrics_writer.columns["Dice"][0]))
+    assert not np.isnan(float(metrics_writer.columns["Dice"][1]))
+    assert np.isnan(float(metrics_writer.columns["HausdorffDistance_mm"][0]))
+    assert not np.isnan(float(metrics_writer.columns["HausdorffDistance_mm"][1]))
+    assert np.isnan(float(metrics_writer.columns["MeanDistance_mm"][0]))
+    assert not np.isnan(float(metrics_writer.columns["MeanDistance_mm"][1]))
+    # Patient 4 has all missing ground truth channels
+    assert np.isnan(average_dice[1])
+    assert np.isnan(float(metrics_writer.columns["Dice"][2]))
+    assert np.isnan(float(metrics_writer.columns["Dice"][3]))
+    assert np.isnan(float(metrics_writer.columns["HausdorffDistance_mm"][2]))
+    assert np.isnan(float(metrics_writer.columns["HausdorffDistance_mm"][3]))
+    assert np.isnan(float(metrics_writer.columns["MeanDistance_mm"][2]))
+    assert np.isnan(float(metrics_writer.columns["MeanDistance_mm"][3]))
+    # Patient 5 has no missing ground truth channels.
+    assert average_dice[2] > 0
+    assert float(metrics_writer.columns["Dice"][4]) >= 0
+    assert float(metrics_writer.columns["Dice"][5]) >= 0
+    assert float(metrics_writer.columns["HausdorffDistance_mm"][4]) >= 0
+    assert float(metrics_writer.columns["HausdorffDistance_mm"][5]) >= 0
+    assert float(metrics_writer.columns["MeanDistance_mm"][4]) >= 0
+    assert float(metrics_writer.columns["MeanDistance_mm"][5]) >= 0

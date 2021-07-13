@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, List, Optional, Tuple, Union
 
 import numpy as np
+import pandas as pd
 import pytest
 import torch
 from PIL import Image
@@ -73,7 +74,8 @@ def load_train_and_test_data_channels(patient_ids: List[int],
         metadata=PatientMetadata(patient_id=z),
         image_channels=[file_name(z, c) for c in TEST_CHANNEL_IDS],
         mask_channel=file_name(z, TEST_MASK_ID),
-        ground_truth_channels=[file_name(z, TEST_GT_ID)]
+        ground_truth_channels=[file_name(z, TEST_GT_ID)],
+        allow_incomplete_labels=False
     ))
 
     samples = []
@@ -98,7 +100,7 @@ def assert_file_contains_string(full_file: Union[str, Path], expected: Any = Non
     file_path = full_file if isinstance(full_file, Path) else Path(full_file)
     assert_file_exists(file_path)
     if expected is not None:
-        _assert_line(file_path.read_text(), expected)
+        assert expected.strip() in file_path.read_text()
 
 
 def assert_text_files_match(full_file: Path, expected_file: Path) -> None:
@@ -186,6 +188,37 @@ def assert_binary_files_match(actual_file: Path, expected_file: Path) -> None:
         assert actual_size == expected_size, f"Image sizes don't match: actual {actual_size}, expected {expected_size}"
         assert np.allclose(np.array(actual_image), np.array(expected_image)), "Image pixel data does not match."
     assert False, f"File contents does not match: len(actual)={len(actual)}, len(expected)={len(expected)}"
+
+
+def csv_column_contains_value(
+        csv_file_path: Path,
+        column_name: str,
+        value: Any,
+        contains_only_value: bool = True) -> bool:
+    """
+    Checks that the column in the csv file contains the given value (and perhaps only contains that value)
+    :param csv_file_path: The path to the CSV
+    :param column_name: The name of the column in which we look for the value
+    :param value: The value to look for
+    :param contains_only_value: Check that this is the only value in the column (default True)
+    :returns: Boolean, whether the CSV column contains the value (and perhaps only the value)
+    """
+    result = True
+    if not csv_file_path.exists:
+        raise ValueError(f"The CSV at {csv_file_path} does not exist.")
+    df = pd.read_csv(csv_file_path)
+    if column_name not in df.columns:
+        ValueError(f"The column {column_name} is not in the CSV at {csv_file_path}, which has columns {df.columns}.")
+    if value:
+        result = result and value in df[column_name].unique()
+    else:
+        result = result and df[column_name].isnull().any()
+    if contains_only_value:
+        if value:
+            result = result and df[column_name].nunique(dropna=True) == 1
+        else:
+            result = result and df[column_name].nunique(dropna=True) == 0
+    return result
 
 
 DummyPatientMetadata = PatientMetadata(patient_id='42')

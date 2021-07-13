@@ -130,7 +130,7 @@ class CombinedDataModule(LightningDataModule):
         logging.info(f"Len encoder train dataloader {len(self.encoder_module.train_dataloader())}")
         logging.info(f"Len total train dataloader {len(self.train_dataloader())}")
 
-    def train_dataloader(self, *args: Any, **kwargs: Any) -> Dict[SSLDataModuleType, DataLoader]:
+    def train_dataloader(self, *args: Any, **kwargs: Any) -> Dict[SSLDataModuleType, DataLoader]:  # type: ignore
         """
         The train dataloaders
         """

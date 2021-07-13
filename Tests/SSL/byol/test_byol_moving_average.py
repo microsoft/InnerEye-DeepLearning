@@ -43,7 +43,8 @@ def test_update_tau() -> None:
                                learning_rate=1e-3,
                                batch_size=4,
                                encoder_name="resnet50",
-                               warmup_epochs=10)
+                               warmup_epochs=10,
+                               max_epochs=100)
     with mock.patch("InnerEye.ML.SSL.lightning_modules.byol.byol_module.BYOLInnerEye.global_step", 15):
         new_tau = byol_weight_update.update_tau(pl_module=byol_module, trainer=trainer)
     assert new_tau == 1 - 0.01 * (math.cos(math.pi * 15 / total_steps) + 1) / 2

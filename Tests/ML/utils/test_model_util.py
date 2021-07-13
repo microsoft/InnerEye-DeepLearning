@@ -45,8 +45,8 @@ def create_model_and_store_checkpoint(config: ModelConfigBase, checkpoint_path: 
     trainer.model = model
     # Before saving, the values for epoch and step are incremented. Save them here in such a way that we can assert
     # easily later.
-    trainer.current_epoch = FIXED_EPOCH - 1
-    trainer.global_step = FIXED_GLOBAL_STEP - 1
+    trainer.current_epoch = FIXED_EPOCH - 1  # type: ignore
+    trainer.global_step = FIXED_GLOBAL_STEP - 1  # type: ignore
     # In PL, it is the Trainer's responsibility to save the model. Checkpoint handling refers back to the trainer
     # to get a save_func. Mimicking that here.
     trainer.save_checkpoint(checkpoint_path, weights_only=weights_only)
