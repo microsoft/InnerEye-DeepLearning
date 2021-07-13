@@ -272,7 +272,7 @@ def test_invalid_number_of_cv_files() -> None:
 
 def test_check_result_file_counts() -> None:
     """
-    More tests on the function that checks the number of files of each ModeExecutionMode.
+    More tests on the function that checks the number of files of each ModelExecutionMode.
     """
     val_files, plotting_config = load_result_files_for_classification()
     # This test assumes that the loaded val_files all have mode Val
