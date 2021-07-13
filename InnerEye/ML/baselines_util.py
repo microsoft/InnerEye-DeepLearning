@@ -71,7 +71,7 @@ def compare_scores_against_baselines(model_config: SegmentationModelBase, azure_
     if not outputs_path.is_dir():
         if not model_config.inference_on_set(model_proc, ModelExecutionMode.TEST):
             logging.info(
-                f"Not performing comparison of model against baseline(s), because inference is currently disabled. "
+                "Not performing comparison of model against baseline(s), because inference is currently disabled. "
                 "If comparison is required, use either the inference_on_test_set or ensemble_inference_on_test_set "
                 "option, as appropriate.")
             return
