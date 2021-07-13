@@ -9,7 +9,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import param
 import torch
-from pytorch_lightning import LightningDataModule, LightningModule
+from pytorch_lightning import LightningDataModule, LightningModule, Trainer
 from pytorch_lightning.utilities import rank_zero_only
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
@@ -257,8 +257,8 @@ class InnerEyeLightning(LightningModule):
         """
         Returns True if metric logging should use sync_dist=True. This is read off from the use_ddp flag of the trainer.
         """
-        # For PL from version 1.2.0 on: self.trainer.accelerator_connector.use_ddp
-        return self.trainer.use_ddp
+        assert isinstance(self.trainer, Trainer)
+        return self.trainer.accelerator_connector.use_ddp
 
     def on_train_epoch_start(self) -> None:
         self.train_timers.reset()
@@ -497,6 +497,7 @@ class InnerEyeLightning(LightningModule):
         :param is_training: If True, the logged metric will be called "train/Loss". If False, the metric will
         be called "val/Loss"
         """
+        assert isinstance(self.trainer, Trainer)
         self.log_on_epoch(MetricType.LOSS, loss, is_training)
         if is_training:
             learning_rate = self.trainer.lr_schedulers[0]['scheduler'].get_last_lr()[0]

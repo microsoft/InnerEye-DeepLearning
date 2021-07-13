@@ -248,10 +248,6 @@ def test_average_without_nan() -> None:
     average.reset()
     assert average.count == 0
     assert average.sum == 0.0
-    # This is a weird side effect of Lightning's way of caching metric results. As long as we don't call
-    # .update, the last computed value will be kept and returned, even though we have called .reset() already.
-    assert average.compute() == expected
-    average.reset()
     # Update with a tensor that does not contain any values: Can't compute the average then.
     average.update(torch.zeros((0,)))
     with pytest.raises(ValueError) as ex:
