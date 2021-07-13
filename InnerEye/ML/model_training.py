@@ -96,10 +96,11 @@ class InnerEyeRecoveryCheckpointCallback(ModelCheckpoint):
                          filename=RECOVERY_CHECKPOINT_FILE_NAME + "_{epoch}",
                          period=container.recovery_checkpoint_save_interval,
                          save_top_k=container.recovery_checkpoints_save_last_k,
-                         mode="max")
+                         mode="max",
+                         save_last=False)
 
-    def on_train_epoch_end(self, trainer: Trainer, pl_module: LightningModule, outputs: Any) -> None:
-        pl_module.log(name="epoch", value=trainer.current_epoch)
+    def on_train_epoch_end(self, trainer: Trainer, pl_module: LightningModule, unused: bool = None) -> None:
+        pl_module.log(name="epoch", value=trainer.current_epoch)  # type: ignore
 
 
 def create_lightning_trainer(container: LightningContainer,
@@ -121,11 +122,7 @@ def create_lightning_trainer(container: LightningContainer,
     # models, this still appears to be the best way of choosing them because validation loss on the relatively small
     # training patches is not stable enough. Going by the validation loss somehow works for the Prostate model, but
     # not for the HeadAndNeck model.
-    best_checkpoint_callback = ModelCheckpoint(dirpath=str(container.checkpoint_folder),
-                                               # filename=BEST_CHECKPOINT_FILE_NAME,
-                                               # monitor=f"{VALIDATION_PREFIX}{MetricType.LOSS.value}",
-                                               # save_top_k=1,
-                                               save_last=True)
+    last_checkpoint_callback = ModelCheckpoint(dirpath=str(container.checkpoint_folder), save_last=True, save_top_k=0)
 
     # Recovery checkpoints: {epoch} will turn into a string like "epoch=1"
     # Store 1 recovery checkpoint every recovery_checkpoint_save_interval epochs, keep the last
@@ -137,13 +134,6 @@ def create_lightning_trainer(container: LightningContainer,
     # Accelerator should be "ddp" when running large models in AzureML (when using DDP_spawn, we get out of GPU memory).
     # For unit tests, only "ddp_spawn" works
     accelerator = "ddp" if effective_num_gpus > 1 else None
-    if effective_num_gpus > 1:
-        # Initialize the DDP plugin with find_unused_parameters=False by default. If True (default), it prints out
-        # lengthy warnings about the performance impact of find_unused_parameters
-        plugins = [InnerEyeDDPPlugin(num_nodes=num_nodes, sync_batchnorm=True,
-                                     find_unused_parameters=container.pl_find_unused_parameters)]
-    else:
-        plugins = []
     logging.info(f"Using {num_gpus} GPUs per node with accelerator '{accelerator}'")
     tensorboard_logger = TensorBoardLogger(save_dir=str(container.logs_folder), name="Lightning", version="")
     loggers = [tensorboard_logger, AzureMLLogger()]
@@ -167,7 +157,7 @@ def create_lightning_trainer(container: LightningContainer,
         benchmark = True
     # If the users provides additional callbacks via get_trainer_arguments (for custom
     # containers
-    callbacks = [best_checkpoint_callback, recovery_checkpoint_callback]
+    callbacks = [last_checkpoint_callback, recovery_checkpoint_callback]
     if "callbacks" in kwargs:
         callbacks.append(kwargs.pop("callbacks"))  # type: ignore
     is_azureml_run = not is_offline_run_context(RUN_CONTEXT)
@@ -194,7 +184,6 @@ def create_lightning_trainer(container: LightningContainer,
                       sync_batchnorm=True,
                       terminate_on_nan=container.detect_anomaly,
                       resume_from_checkpoint=str(resume_from_checkpoint) if resume_from_checkpoint else None,
-                      plugins=plugins,
                       **kwargs)
     return trainer, storing_logger
 
@@ -283,8 +272,8 @@ def model_train(checkpoint_handler: CheckpointHandler,
     # Per-subject model outputs for regression models are written per rank, and need to be aggregated here.
     # Each thread per rank will come here, and upload its files to the run outputs. Rank 0 will later download them.
     if is_azureml_run and world_size > 1 and isinstance(lightning_model, ScalarLightning):
-        upload_output_file_as_temp(lightning_model.train_subject_outputs_logger.csv_path, container.outputs_folder)
-        upload_output_file_as_temp(lightning_model.val_subject_outputs_logger.csv_path, container.outputs_folder)
+        upload_output_file_as_temp(lightning_model.train_subject_outputs_logger.csv_path, container.outputs_folder)  # type: ignore
+        upload_output_file_as_temp(lightning_model.val_subject_outputs_logger.csv_path, container.outputs_folder)  # type: ignore
     # DDP will start multiple instances of the runner, one for each GPU. Those should terminate here after training.
     # We can now use the global_rank of the Lightining model, rather than environment variables, because DDP has set
     # all necessary properties.

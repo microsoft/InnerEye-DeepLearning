@@ -263,19 +263,41 @@ class WorkflowParams(param.Parameterized):
                              f"found number_of_cross_validation_splits = {self.number_of_cross_validation_splits} "
                              f"and cross_validation_split_index={self.cross_validation_split_index}")
 
-    """ Defaults for when to run inference in the absence of any command line switches. """
-    INFERENCE_DEFAULTS: Dict[ModelProcessing, Dict[ModelExecutionMode, bool]] = {
+    """
+    Defaults for when to run inference in the absence of any command line switches.
+    This depends on ModelProcessing, perform_cross_validation, and ModelExecutionMode.
+    If the current combination of these three parameters is not in this data structure,
+    then default to False.
+    """
+    INFERENCE_DEFAULTS: Dict[ModelProcessing, Dict[bool, Dict[ModelExecutionMode, bool]]] = {
         ModelProcessing.DEFAULT: {
-            ModelExecutionMode.TRAIN: False,
-            ModelExecutionMode.TEST: True,
-            ModelExecutionMode.VAL: True,
+            False: {
+                ModelExecutionMode.TRAIN: False,
+                ModelExecutionMode.TEST: True,
+                ModelExecutionMode.VAL: True
+            }
         },
         ModelProcessing.ENSEMBLE_CREATION: {
-            ModelExecutionMode.TRAIN: False,
-            ModelExecutionMode.TEST: True,
-            ModelExecutionMode.VAL: False,
+            True: {
+                ModelExecutionMode.TRAIN: False,
+                ModelExecutionMode.TEST: True,
+                ModelExecutionMode.VAL: False
+            }
         }
     }
+
+    def inference_defaults(self, model_proc: ModelProcessing, data_split: ModelExecutionMode) -> bool:
+        """
+        Returns True if inference is required by default for this model_proc and data_split.
+
+        :param model_proc: Whether we are testing an ensemble or single model.
+        :param data_split: Indicates which of the 3 sets (training, test, or validation) is being processed.
+        :return: True if inference required by default.
+        """
+        try:
+            return WorkflowParams.INFERENCE_DEFAULTS[model_proc][self.perform_cross_validation][data_split]
+        except KeyError:
+            return False
 
     def inference_options(self) -> Dict[ModelProcessing, Dict[ModelExecutionMode, Optional[bool]]]:
         """
@@ -308,7 +330,7 @@ class WorkflowParams(param.Parameterized):
         if inference_option is not None:
             return inference_option
 
-        return WorkflowParams.INFERENCE_DEFAULTS[model_proc][data_split]
+        return self.inference_defaults(model_proc, data_split)
 
     @property
     def is_offline_run(self) -> bool:

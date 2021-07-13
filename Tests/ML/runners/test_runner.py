@@ -5,7 +5,7 @@
 import logging
 import time
 from pathlib import Path
-from typing import Tuple
+from typing import Optional, Tuple
 from unittest import mock
 from unittest.mock import Mock
 
@@ -101,47 +101,100 @@ def create_train_and_test_data_small_dataset(image_size: TupleInt3,
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("perform_cross_validation", [True, False])
+def test_model_inference_train_and_test_default(test_output_dirs: OutputFolderForTests,
+                                                perform_cross_validation: bool) -> None:
+    """
+    Test inference defaults with ModelProcessing.DEFAULT.
+
+    :param test_output_dirs: Test output directories.
+    :param perform_cross_validation: Whether to test with cross validation.
+    :return: None.
+    """
+    run_model_inference_train_and_test(test_output_dirs,
+                                       perform_cross_validation,
+                                       model_proc=ModelProcessing.DEFAULT)
+
+
+@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
+@pytest.mark.parametrize("perform_cross_validation", [True, False])
 @pytest.mark.parametrize("inference_on_set", [(True, False, False), (False, True, False), (False, False, True)])
 def test_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
                                         perform_cross_validation: bool,
                                         inference_on_set: Tuple[bool, bool, bool]) -> None:
+    """
+    Test inference overrides with ModelProcessing.DEFAULT.
+
+    :param test_output_dirs: Test output directories.
+    :param perform_cross_validation: Whether to test with cross validation.
+    :param inference_on_set: Overrides for inference on data sets.
+    :return: None.
+    """
     (inference_on_train_set, inference_on_val_set, inference_on_test_set) = inference_on_set
     run_model_inference_train_and_test(test_output_dirs,
                                        perform_cross_validation,
-                                       inference_on_train_set,
-                                       inference_on_val_set,
-                                       inference_on_test_set,
-                                       False,
-                                       False,
-                                       False,
-                                       ModelProcessing.DEFAULT)
+                                       inference_on_train_set=inference_on_train_set,
+                                       inference_on_val_set=inference_on_val_set,
+                                       inference_on_test_set=inference_on_test_set,
+                                       model_proc=ModelProcessing.DEFAULT)
+
+
+@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
+def test_ensemble_model_inference_train_and_test_default(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test inference defaults with ModelProcessing.ENSEMBLE_CREATION.
+
+    :param test_output_dirs: Test output directories.
+    :return: None.
+    """
+    run_model_inference_train_and_test(test_output_dirs,
+                                       True,
+                                       model_proc=ModelProcessing.ENSEMBLE_CREATION)
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("ensemble_inference_on_set", [(True, False, False), (False, True, False), (False, False, True)])
 def test_ensemble_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
                                                  ensemble_inference_on_set: Tuple[bool, bool, bool]) -> None:
+    """
+    Test inference overrides with ModelProcessing.ENSEMBLE_CREATION.
+
+    :param test_output_dirs: Test output directories.
+    :param perform_cross_validation: Whether to test with cross validation.
+    :param ensemble_inference_on_set: Overrides for inference on data sets.
+    :return: None.
+    """
     (ensemble_inference_on_train_set, ensemble_inference_on_val_set, ensemble_inference_on_test_set) = ensemble_inference_on_set
     run_model_inference_train_and_test(test_output_dirs,
                                        True,
-                                       False,
-                                       False,
-                                       False,
-                                       ensemble_inference_on_train_set,
-                                       ensemble_inference_on_val_set,
-                                       ensemble_inference_on_test_set,
-                                       ModelProcessing.ENSEMBLE_CREATION)
+                                       ensemble_inference_on_train_set=ensemble_inference_on_train_set,
+                                       ensemble_inference_on_val_set=ensemble_inference_on_val_set,
+                                       ensemble_inference_on_test_set=ensemble_inference_on_test_set,
+                                       model_proc=ModelProcessing.ENSEMBLE_CREATION)
 
 
 def run_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
                                        perform_cross_validation: bool,
-                                       inference_on_train_set: bool,
-                                       inference_on_val_set: bool,
-                                       inference_on_test_set: bool,
-                                       ensemble_inference_on_train_set: bool,
-                                       ensemble_inference_on_val_set: bool,
-                                       ensemble_inference_on_test_set: bool,
-                                       model_proc: ModelProcessing) -> None:
+                                       inference_on_train_set: Optional[bool] = None,
+                                       inference_on_val_set: Optional[bool] = None,
+                                       inference_on_test_set: Optional[bool] = None,
+                                       ensemble_inference_on_train_set: Optional[bool] = None,
+                                       ensemble_inference_on_val_set: Optional[bool] = None,
+                                       ensemble_inference_on_test_set: Optional[bool] = None,
+                                       model_proc: ModelProcessing = ModelProcessing.DEFAULT) -> None:
+    """
+    Test running inference produces expected output metrics, files, folders and calls to upload_folder.
+
+    :param test_output_dirs: Test output directories.
+    :param perform_cross_validation: Whether to test with cross validation.
+    :param inference_on_train_set: Override for inference on train data sets.
+    :param inference_on_val_set: Override for inference on validation data sets.
+    :param inference_on_test_set: Override for inference on test data sets.
+    :param ensemble_inference_on_train_set: Override for ensemble inference on train data sets.
+    :param ensemble_inference_on_val_set: Override for ensemble inference on validation data sets.
+    :param ensemble_inference_on_test_set: Override for ensemble inference on test data sets.
+    :param model_proc: Model processing to test.
+    :return: None.
+    """
     dummy_model = DummyModel()
 
     config = PassThroughModel()
@@ -202,6 +255,20 @@ def run_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
         if mode in metrics:
             metric = metrics[mode]
             assert isinstance(metric, InferenceMetricsForSegmentation)
+
+        if flag is None:
+            # No override supplied, calculate the expected default:
+            if model_proc == ModelProcessing.DEFAULT:
+                if not perform_cross_validation:
+                    # If a "normal" run then default to val or test.
+                    flag = mode in (ModelExecutionMode.VAL, ModelExecutionMode.TEST)
+                else:
+                    # If an ensemble child then default to never.
+                    flag = False
+            else:
+                # If an ensemble then default to test only.
+                flag = mode == ModelExecutionMode.TEST
+
         if mode in metrics and not flag:
             error = error + f"Error: {mode.value} cannot be not None."
         elif mode not in metrics and flag:
