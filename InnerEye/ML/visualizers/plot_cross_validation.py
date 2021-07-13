@@ -810,6 +810,9 @@ def plot_cross_validation_from_files(config_and_files: OfflineCrossvalConfigAndF
     result_files = config_and_files.files
     metrics_dfs = load_dataframes(result_files, config)
     full_csv_file = root_folder / FULL_METRICS_DATAFRAME_FILE
+    if not any(metrics_dfs.values()):
+        logging.info("Insufficient inference results to plot cross validation")
+        return
     initial_metrics = pd.concat(list(metrics_dfs.values()))
     if is_segmentation_run:
         if config.create_plots:
