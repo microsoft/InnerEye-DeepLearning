@@ -98,7 +98,7 @@ def test_innereye_container_init() -> None:
     """
     # The constructor should copy all fields that belong to either WorkflowParams or DatasetParams from the
     # config object to the container.
-    for (attrib, type_) in [("checkpoint_urls", WorkflowParams), ("extra_dataset_mountpoints", DatasetParams)]:
+    for (attrib, type_) in [("weights_url", WorkflowParams), ("extra_dataset_mountpoints", DatasetParams)]:
         config = ModelConfigBase(should_validate=False)
         assert hasattr(type_, attrib)
         assert hasattr(config, attrib)

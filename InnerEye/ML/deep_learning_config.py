@@ -215,11 +215,11 @@ class WorkflowParams(param.Parameterized):
     ensemble_inference_on_test_set: Optional[bool] = \
         param.Boolean(None,
                       doc="If set, enable/disable full image inference on test set after ensemble training.")
-    checkpoint_urls: List[str] = param.List(default=[],
-                                            doc="If provided, a set of urls from which checkpoints will be downloaded"
+    weights_url: List[str] = param.List(default=[],
+                                        doc="If provided, a set of urls from which checkpoints will be downloaded"
                                                 "and used for training/inference.")
-    local_checkpoint_paths: List[Path] = param.List(default=[], class_=Path,
-                                                    doc="A list of checkpoints paths to use for training/inference, "
+    local_weights_path: List[Path] = param.List(default=[], class_=Path,
+                                                doc="A list of checkpoints paths to use for training/inference, "
                                                         "when training is running outside Azure.")
     generate_report: bool = param.Boolean(default=True,
                                           doc="If True (default), write a modelling report in HTML format. If False,"
@@ -246,7 +246,7 @@ class WorkflowParams(param.Parameterized):
                                 "be relative to the repository root directory.")
 
     def validate(self) -> None:
-        if self.checkpoint_urls and self.local_checkpoint_paths:
+        if self.weights_url and self.local_weights_path:
             raise ValueError("Cannot specify both local_weights_path and weights_url.")
 
         if self.number_of_cross_validation_splits == 1:

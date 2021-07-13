@@ -74,9 +74,9 @@ class CheckpointHandler:
             self.run_recovery = RunRecovery.download_all_checkpoints_from_run(self.output_params, run_to_recover,
                                                                               only_return_path=only_return_path)
 
-        if self.container.checkpoint_urls or self.container.local_checkpoint_paths or self.azure_config.model_id:
-            if self.azure_config.model_id and (self.container.local_checkpoint_paths or self.container.checkpoint_urls):
-                logging.warning("model_id will take precedence over local_checkpoint_paths or checkpoint_urls.")
+        if self.container.weights_url or self.container.local_weights_path or self.azure_config.model_id:
+            if self.azure_config.model_id and (self.container.local_weights_path or self.container.weights_url):
+                logging.warning("model_id will take precedence over local_weights_path or weights_url.")
 
             self.trained_weights_paths = self.get_local_checkpoints_path_or_download()
 
@@ -201,12 +201,12 @@ class CheckpointHandler:
         """
         Get the path to the local weights to use or download them and set local_weights_path
         """
-        if not self.azure_config.model_id and not self.container.local_checkpoint_paths and not self.container.checkpoint_urls:
+        if not self.azure_config.model_id and not self.container.local_weights_path and not self.container.weights_url:
             raise ValueError("Cannot download weights - none of model_id, local_weights_path or weights_url is set in "
                              "the model config.")
 
-        if self.container.local_checkpoint_paths:
-            checkpoint_paths = self.container.local_checkpoint_paths
+        if self.container.local_weights_path:
+            checkpoint_paths = self.container.local_weights_path
         else:
             download_folder = self.output_params.checkpoint_folder / MODEL_WEIGHTS_DIR_NAME
             download_folder.mkdir(exist_ok=True, parents=True)
@@ -219,8 +219,8 @@ class CheckpointHandler:
                 checkpoint_paths = CheckpointHandler.get_checkpoints_from_model(model_id=self.azure_config.model_id,
                                                                                 workspace=self.azure_config.get_workspace(),
                                                                                 download_path=download_folder)
-            elif self.container.checkpoint_urls:
-                urls = self.container.checkpoint_urls
+            elif self.container.weights_url:
+                urls = self.container.weights_url
                 checkpoint_paths = CheckpointHandler.download_weights(urls=urls,
                                                                       download_folder=download_folder)
 

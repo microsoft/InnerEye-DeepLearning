@@ -53,7 +53,7 @@ def test_use_checkpoint_paths_or_urls(test_output_dirs: OutputFolderForTests) ->
 
     # Set a weights_path
     checkpoint_handler.azure_config.run_recovery_id = ""
-    checkpoint_handler.container.checkpoint_urls = [EXTERNAL_WEIGHTS_URL_EXAMPLE]
+    checkpoint_handler.container.weights_url = [EXTERNAL_WEIGHTS_URL_EXAMPLE]
     checkpoint_handler.download_recovery_checkpoints_or_weights()
     expected_download_path = checkpoint_handler.output_params.checkpoint_folder / MODEL_WEIGHTS_DIR_NAME /\
                              os.path.basename(urlparse(EXTERNAL_WEIGHTS_URL_EXAMPLE).path)
@@ -61,10 +61,10 @@ def test_use_checkpoint_paths_or_urls(test_output_dirs: OutputFolderForTests) ->
     assert checkpoint_handler.trained_weights_paths[0].is_file()
 
     # set a local_weights_path
-    checkpoint_handler.container.checkpoint_urls = []
+    checkpoint_handler.container.weights_url = []
     local_weights_path = test_output_dirs.root_dir / "exist.pth"
     create_checkpoint_file(local_weights_path)
-    checkpoint_handler.container.local_checkpoint_paths = [local_weights_path]
+    checkpoint_handler.container.local_weights_path = [local_weights_path]
     checkpoint_handler.download_recovery_checkpoints_or_weights()
     assert checkpoint_handler.trained_weights_paths[0] == local_weights_path
     assert checkpoint_handler.trained_weights_paths[0].is_file()
@@ -252,11 +252,11 @@ def test_get_checkpoints_to_test(test_output_dirs: OutputFolderForTests) -> None
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
                                                      project_root=test_output_dirs.root_dir)
 
-    # Set a local_checkpoint_paths to get checkpoint from. Model has not trained and no run recovery provided,
+    # Set a local_weights_path to get checkpoint from. Model has not trained and no run recovery provided,
     # so the local weights should be used ignoring any epochs to test
     local_weights_path = test_output_dirs.root_dir / "exist.pth"
     create_checkpoint_file(local_weights_path)
-    checkpoint_handler.container.local_checkpoint_paths = [local_weights_path]
+    checkpoint_handler.container.local_weights_path = [local_weights_path]
     checkpoint_handler.download_recovery_checkpoints_or_weights()
     checkpoint_and_paths = checkpoint_handler.get_checkpoints_to_test()
     assert checkpoint_and_paths
@@ -374,21 +374,21 @@ def test_get_local_weights_path_or_download(test_output_dirs: OutputFolderForTes
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
                                                         project_root=test_output_dirs.root_dir)
 
-    # If the model has neither local_checkpoint_paths or checkpoint_urls set, should fail.
+    # If the model has neither local_weights_path or weights_url set, should fail.
     with pytest.raises(ValueError) as ex:
         checkpoint_handler.get_local_checkpoints_path_or_download()
     assert "none of model_id, local_weights_path or weights_url is set in the model config." in ex.value.args[0]
 
-    # If local_checkpoint_paths folder exists, get_local_checkpoints_path_or_download should not do anything.
+    # If local_weights_path folder exists, get_local_checkpoints_path_or_download should not do anything.
     local_weights_path = test_output_dirs.root_dir / "exist.pth"
     create_checkpoint_file(local_weights_path)
-    checkpoint_handler.container.local_checkpoint_paths = [local_weights_path]
+    checkpoint_handler.container.local_weights_path = [local_weights_path]
     returned_weights_path = checkpoint_handler.get_local_checkpoints_path_or_download()
     assert local_weights_path == returned_weights_path[0]
 
     # Pointing the model to a URL should trigger a download
-    checkpoint_handler.container.local_checkpoint_paths = []
-    checkpoint_handler.container.checkpoint_urls = [EXTERNAL_WEIGHTS_URL_EXAMPLE]
+    checkpoint_handler.container.local_weights_path = []
+    checkpoint_handler.container.weights_url = [EXTERNAL_WEIGHTS_URL_EXAMPLE]
     downloaded_weights = checkpoint_handler.get_local_checkpoints_path_or_download()
     expected_path = checkpoint_handler.output_params.checkpoint_folder / MODEL_WEIGHTS_DIR_NAME / \
                     os.path.basename(urlparse(EXTERNAL_WEIGHTS_URL_EXAMPLE).path)
