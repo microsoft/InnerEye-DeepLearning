@@ -23,7 +23,7 @@ from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import image_util, metrics_util, model_util
 from InnerEye.ML.utils.dataset_util import DatasetExample, store_and_upload_example
 from InnerEye.ML.utils.model_util import get_scalar_model_inputs_and_labels
-from InnerEye.ML.utils.sequence_utils import apply_sequence_model_loss, get_masked_model_outputs_and_labels
+from InnerEye.ML.utils.sequence_utils import apply_sequence_model_loss
 from pytorch_lightning import Trainer
 
 SUBJECT_OUTPUT_PER_RANK_PREFIX = f"{SUBJECT_METRICS_FILE_NAME}.rank"
