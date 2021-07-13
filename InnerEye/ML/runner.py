@@ -3,11 +3,16 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import json
+import logging
 import os
 import subprocess
 import sys
 import warnings
 from pathlib import Path
+from typing import Optional, Tuple
+
+from azureml._base_sdk_common import user_agent
+from azureml.core import Run
 
 # Suppress all errors here because the imports after code cause loads of warnings. We can't specifically suppress
 # individual warnings only.
@@ -27,12 +32,6 @@ if (innereye_root / "InnerEye").is_dir():
 runner_path = Path(sys.argv[0])
 if not runner_path.is_absolute():
     sys.argv[0] = str(runner_path.absolute())
-
-import logging
-from typing import Optional, Tuple
-
-from azureml._base_sdk_common import user_agent
-from azureml.core import Run
 
 from InnerEye.Azure import azure_util
 from InnerEye.Azure.azure_config import AzureConfig, ParserResult, SourceConfig
