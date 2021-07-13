@@ -78,7 +78,8 @@ class AzureConfig(GenericConfig):
                                         "run the tests that have the mark given in this argument "
                                         "('--pytest_mark gpu' will run all tests marked with 'pytest.mark.gpu')")
     run_recovery_id: str = param.String(doc="A run recovery id string in the form 'experiment name:run id' "
-                                            "to use for recovering a model training run or to register a model.")
+                                            "to use for inference, recovering a model training run or to register "
+                                            "a model.")
     pretraining_run_recovery_id: str = param.String(default=None,
                                                     allow_None=True,
                                                     doc="Extra run recovery id to download checkpoints from,"
