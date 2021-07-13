@@ -141,7 +141,7 @@ empty, in which case the union of all validation sets for the `N` child runs wil
 
 To train further with an already-created model, give the above command with additional switches like these:
 ```
---run_recovery_id=foo_bar:foo_bar_12345_abcd --start_epoch=120
+--run_recovery_id=foo_bar:foo_bar_12345_abcd
 ```
 The run recovery ID is of the form "experiment_id:run_id". When you trained your original model, it will have been
 queued as a "Run" inside of an "Experiment". The experiment will be given a name derived from the branch name - for 
@@ -152,7 +152,7 @@ If you are recovering a HyperDrive run, the value of `--run_recovery_id` should 
 and `--number_of_cross_validation_splits` should have the same value as in the recovered run. 
 For example:
 ```
---run_recovery_id=foo_bar:HD_55d4beef-7be9-45d7-89a5-1acf1f99078a --start_epoch=120 --number_of_cross_validation_splits=5
+--run_recovery_id=foo_bar:HD_55d4beef-7be9-45d7-89a5-1acf1f99078a --number_of_cross_validation_splits=5
 ```
 
 The run recovery ID of a parent HyperDrive run is currently not displayed in the "Details" section
@@ -168,7 +168,7 @@ Thus your command should look like this:
 
 ```shell script
 python Inner/ML/runner.py --azureml --model=Prostate --no-train --cluster=my_cluster_name \
-   --run_recovery_id=foo_bar:foo_bar_12345_abcd --start_epoch=120
+   --run_recovery_id=foo_bar:foo_bar_12345_abcd
 ```
 #### From a local checkpoint:
 To evaluate a model using a local checkpoint, use the local_weights_path to specify the path to the model checkpoint 
