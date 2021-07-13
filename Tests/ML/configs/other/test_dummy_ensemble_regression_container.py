@@ -14,7 +14,7 @@ from InnerEye.ML.configs.other.DummyEnsembleRegressionContainer import DummyEnse
 from InnerEye.ML.configs.other.HelloContainer import HelloContainer, HelloDataModule
 
 
-def test_attempt_2(test_output_dirs: OutputFolderForTests) -> None:
+def test_random_ensemble(test_output_dirs: OutputFolderForTests) -> None:
     """
     Make dummy checkpoints and load them, test ensemble behaves reasonably.
 
