@@ -2,7 +2,9 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import json
 import os
+import subprocess
 import sys
 import warnings
 from pathlib import Path
@@ -271,6 +273,18 @@ class Runner:
         for key, value in tags_to_print.items():
             logging.info(f"    {key:20}: {value}")
 
+    def print_environment(self) -> None:
+        """
+        Print diagnostic information about all installed Python packages.
+        """
+        data = subprocess.check_output(["pip", "list", "--format", "json"])
+        parsed_results = json.loads(data)
+        # Print a list of all Python packages and their versions, as one huge line so that it does not occupy
+        # too much space on the screen
+        logging.info("Installed Python packages:")
+        packages = " ".join(f"{element['name']}=={element['version']}" for element in parsed_results)
+        logging.info(f"    {packages}")
+
     def run_in_situ(self) -> None:
         """
         Actually run the AzureML job; this method will typically run on an Azure VM.
@@ -282,6 +296,7 @@ class Runner:
         suppress_logging_noise()
         if is_global_rank_zero():
             self.print_git_tags()
+            self.print_environment()
         # For the PR build in AzureML, we can either pytest, or the training of the simple PR model. Running both
         # only works when using DDP_spawn, but that has as a side-effect that it messes up memory consumption of the
         # large models.
