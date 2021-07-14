@@ -5,12 +5,13 @@
 from __future__ import annotations
 
 import logging
-import param
 from enum import Enum, unique
-from pandas import DataFrame
-from param import Parameterized
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+import param
+from pandas import DataFrame
+from param import Parameterized
 
 from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common import fixed_paths
@@ -263,49 +264,20 @@ class WorkflowParams(param.Parameterized):
                              f"found number_of_cross_validation_splits = {self.number_of_cross_validation_splits} "
                              f"and cross_validation_split_index={self.cross_validation_split_index}")
 
-    """
-    Defaults for when to run inference in the absence of any command line switches.
-    This depends on ModelProcessing, perform_cross_validation, and ModelExecutionMode.
-    If the current combination of these three parameters is not in this data structure,
-    then default to False.
-    """
-    INFERENCE_DEFAULTS: Dict[ModelProcessing, Dict[bool, Dict[ModelExecutionMode, bool]]] = {
-        ModelProcessing.DEFAULT: {
-            False: {
-                ModelExecutionMode.TRAIN: False,
-                ModelExecutionMode.TEST: True,
-                ModelExecutionMode.VAL: True
-            }
-        },
-        ModelProcessing.ENSEMBLE_CREATION: {
-            True: {
-                ModelExecutionMode.TRAIN: False,
-                ModelExecutionMode.TEST: True,
-                ModelExecutionMode.VAL: False
-            }
-        }
-    }
-
-    def inference_defaults(self, model_proc: ModelProcessing, data_split: ModelExecutionMode) -> bool:
+    def is_inference_required(self,
+                              model_proc: ModelProcessing,
+                              data_split: ModelExecutionMode,
+                              is_classification_model: bool = False) -> bool:
         """
-        Returns True if inference is required by default for this model_proc and data_split.
-
+        Returns True if inference is required for this model_proc (single or ensemble), data_split (Train/Val/Test),
+        and model type (classification models require special logic).
         :param model_proc: Whether we are testing an ensemble or single model.
         :param data_split: Indicates which of the 3 sets (training, test, or validation) is being processed.
-        :return: True if inference required by default.
+        :param is_classification_model: If True, get the settings for an InnerEye classification model. False for any
+        other model type.
+        :return: True if inference required.
         """
-        try:
-            return WorkflowParams.INFERENCE_DEFAULTS[model_proc][self.perform_cross_validation][data_split]
-        except KeyError:
-            return False
-
-    def inference_options(self) -> Dict[ModelProcessing, Dict[ModelExecutionMode, Optional[bool]]]:
-        """
-        Return a mapping from ModelProcesing and ModelExecutionMode to command line switch.
-
-        :return: Command line switch for each combination of ModelProcessing and ModelExecutionMode.
-        """
-        return {
+        settings = {
             ModelProcessing.DEFAULT: {
                 ModelExecutionMode.TRAIN: self.inference_on_train_set,
                 ModelExecutionMode.TEST: self.inference_on_test_set,
@@ -317,20 +289,41 @@ class WorkflowParams(param.Parameterized):
                 ModelExecutionMode.VAL: self.ensemble_inference_on_val_set,
             }
         }
-
-    def inference_on_set(self, model_proc: ModelProcessing, data_split: ModelExecutionMode) -> bool:
-        """
-        Returns True if inference is required for this model_proc and data_split.
-
-        :param model_proc: Whether we are testing an ensemble or single model.
-        :param data_split: Indicates which of the 3 sets (training, test, or validation) is being processed.
-        :return: True if inference required.
-        """
-        inference_option = self.inference_options()[model_proc][data_split]
+        inference_option = settings[model_proc][data_split]
         if inference_option is not None:
             return inference_option
 
-        return self.inference_defaults(model_proc, data_split)
+        # Defaults for when to run inference in the absence of any command line switches.
+        # This depends on ModelProcessing, perform_cross_validation, and ModelExecutionMode.
+        # If the current combination of these three parameters is not in this data structure,
+        # then default to False.
+        defaults: Dict[ModelProcessing, Dict[bool, Dict[ModelExecutionMode, bool]]] = {
+            ModelProcessing.DEFAULT: {
+                False: {
+                    ModelExecutionMode.TRAIN: False,
+                    ModelExecutionMode.VAL: False,
+                    ModelExecutionMode.TEST: True,
+                },
+                True: {
+                    ModelExecutionMode.TRAIN: False,
+                    ModelExecutionMode.VAL: False,
+                    # The built-in InnerEye classification models need special logic when run in crossvalidation model
+                    # because the report expects metrics on the test set.
+                    ModelExecutionMode.TEST: is_classification_model,
+                }
+            },
+            ModelProcessing.ENSEMBLE_CREATION: {
+                True: {
+                    ModelExecutionMode.TRAIN: False,
+                    ModelExecutionMode.VAL: False,
+                    ModelExecutionMode.TEST: True,
+                }
+            }
+        }
+        try:
+            return defaults[model_proc][self.perform_cross_validation][data_split]
+        except KeyError:
+            return False
 
     @property
     def is_offline_run(self) -> bool:
