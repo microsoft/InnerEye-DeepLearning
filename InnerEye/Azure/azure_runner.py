@@ -231,6 +231,7 @@ def get_or_create_python_environment(azure_config: AzureConfig,
         "MKL_SERVICE_FORCE_INTEL": "1",
         # Switching to a new software stack in AML for mounting datasets
         "RSLEX_DIRECT_VOLUME_MOUNT": "true",
+        "RSLEX_DIRECT_VOLUME_MOUNT_MAX_CACHE_SIZE": "1",
         **(source_config.environment_variables or {})
     }
     base_image = "mcr.microsoft.com/azureml/openmpi3.1.2-cuda10.2-cudnn8-ubuntu18.04"
