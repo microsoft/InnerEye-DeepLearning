@@ -17,6 +17,7 @@ from azureml.train.hyperdrive import GridParameterSampling, HyperDriveConfig, Pr
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY
 from InnerEye.Common.generic_parsing import GenericConfig, create_from_matching_params
 from InnerEye.Common.metrics_constants import TrackedMetrics
+from InnerEye.ML.deep_learning_config import load_checkpoint
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.deep_learning_config import DatasetParams, OptimizerParams, OutputParams, TrainerParams, \
     WorkflowParams
@@ -86,6 +87,51 @@ class InnerEyeInference(abc.ABC):
         is called exactly once.
         """
         pass
+
+
+class InnerEyeEnsembleInference(InnerEyeInference):
+    """
+    """
+    def __init__(self):
+        super().__init__()
+        self.ensemble_models: List[InnerEyeInference] = []
+
+    def load_checkpoints_into_ensemble(
+            self, 
+            checkpoint_paths: List[Path], 
+            lightning_module_subtype: Any,
+            use_gpu: bool,
+            *args, **kwargs) -> None:
+        """
+        Convenience method to load each checkpoint path in a list as an additional member of the ensemble.
+        :param checkpoint_paths: A list of paths to checkpoints to load into new models in the ensemble.
+        :param lightning_module_subtype: The type of the ensemble models to be instantiated and then load a checkpoint.
+        # TODO: Should these be tuples of paths and types? I.e. can the ensemble be made from heterogeneous model types
+        (all derived from InnerEyeInference)?
+        :param use_gpu: Passed on to deep_learning_config.load_checkpoint
+        :params *args, **kwargs: Additional arguments which are passed on to the model constructor.
+        """
+        for checkpoint_path in checkpoint_paths:
+            self.load_checkpoint_into_ensemble(checkpoint_path, lightning_module_subtype, *args, **kwargs)
+
+    def load_checkpoint_into_ensemble(
+            self, 
+            checkpoint_path: Path, 
+            lightning_module_subtype: Any,
+            use_gpu: bool,
+            *args, **kwargs) -> None:
+        """
+        Load a checkpoint path as an additional member of the ensemble.
+        :param checkpoint_path: The path to the to checkpoint file to load into a new model in the ensemble.
+        :param lightning_module_subtype: The type of the ensemble model to be instantiated and then load a checkpoint.
+        :param use_gpu: Passed on to deep_learning_config.load_checkpoint
+        :params *args, **kwargs: Additional arguments which are passed on to the model constructor.
+        """
+        checkpoint = load_checkpoint(checkpoint_path, use_gpu)
+        new_ensemble_model = lightning_module_subtype(*args, **kwargs)
+        assert isinstance(new_ensemble_model, InnerEyeInference)
+        new_ensemble_model.load_state_dict(checkpoint['state_dict'], strict=False)
+        self.ensemble_models.append(new_ensemble_model)
 
     @staticmethod
     def aggregate_ensemble_model_outputs(model_outputs: Iterator[torch.Tensor]) -> torch.Tensor:
