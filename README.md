@@ -135,7 +135,7 @@ Details can be found [here](docs/deploy_on_aml.md).
 If you have any feature requests, or find issues in the code, please create an 
 [issue on GitHub](https://github.com/microsoft/InnerEye-DeepLearning/issues).
 
-Please send an email to InnerEyeInfo@microsoft.com if you would like further information about this project.
+Please send an email to InnerEyeInfo@microsoft.com if you would like further information about this project. 
 
 ## Publications
 
