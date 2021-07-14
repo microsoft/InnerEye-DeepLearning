@@ -303,11 +303,13 @@ class LightningContainer(GenericConfig,
         else:
             return self.get_parameter_search_hyperdrive_config(run_config)
 
-    def load_model_checkpoint(self, checkpoint_path: Path):
+    def load_model_checkpoint(self, checkpoint_path: Path) -> None:
         """
         Load a checkpoint from the given path. We need to define a separate method since pytorch lightning cannot
         access the _model attribute to modify it.
         """
+        if self._model is None:
+            raise ValueError("No Lightning module has been set yet.")
         self._model = type(self._model).load_from_checkpoint(checkpoint_path=str(checkpoint_path))
 
     def __str__(self) -> str:

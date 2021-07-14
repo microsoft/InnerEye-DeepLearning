@@ -726,7 +726,7 @@ class DeepLearningConfig(WorkflowParams,
         self.create_filesystem(fixed_paths.repository_root_directory())
         # Disable the PL progress bar because all InnerEye models have their own console output
         self.pl_progress_bar_refresh_rate = 0
-        self.pretraining_run_checkpoints: Optional["RunRecovery"] = None
+        self.pretraining_run_checkpoints: Optional[Any] = None
 
     def validate(self) -> None:
         """
