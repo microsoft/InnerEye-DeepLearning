@@ -12,6 +12,7 @@ from InnerEye.Common.common_util import ModelProcessing
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.common import ModelExecutionMode
+from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.configs.classification.GlaucomaPublic import GlaucomaPublic
 from InnerEye.ML.configs.segmentation.BasicModel2Epochs import BasicModel2Epochs
 from InnerEye.ML.dataset.sample import GeneralSampleMetadata
@@ -199,37 +200,32 @@ def test_inference_required_single_runs() -> None:
     model = GlaucomaPublic()
     assert not model.perform_cross_validation
     # Normal training run without cross validation: it should not matter if the model is a classification model or not
-    for is_classification in [True, False]:
-        assert model.is_inference_required(model_proc=ModelProcessing.DEFAULT,
-                                           data_split=ModelExecutionMode.TEST,
-                                           is_classification_model=is_classification)
+    assert model.is_inference_required(model_proc=ModelProcessing.DEFAULT,
+                                       data_split=ModelExecutionMode.TEST)
     # If a flag is set explicitly, use that.
     model.inference_on_test_set = False
-    for is_classification in [True, False]:
-        assert not model.is_inference_required(model_proc=ModelProcessing.DEFAULT,
-                                               data_split=ModelExecutionMode.TEST,
-                                               is_classification_model=is_classification)
+    assert not model.is_inference_required(model_proc=ModelProcessing.DEFAULT,
+                                           data_split=ModelExecutionMode.TEST)
 
 
 def test_inference_required_crossval_runs() -> None:
     """
     Test the flags for running full inference on the test set, for models that are trained in crossval mode.
     """
-    model = GlaucomaPublic()
-    model.number_of_cross_validation_splits = 2
-    assert model.perform_cross_validation
+    classification_model = GlaucomaPublic()
+    classification_model.number_of_cross_validation_splits = 2
+    segmentation_model = SegmentationModelBase(should_validate=False)
+    segmentation_model.number_of_cross_validation_splits = 2
+    assert classification_model.perform_cross_validation
+    assert segmentation_model.perform_cross_validation
     # Cross validation child runs for classification models need test set inference to ensure that the report works
     # correctly.
-    assert model.is_inference_required(model_proc=ModelProcessing.DEFAULT,
-                                       data_split=ModelExecutionMode.TEST,
-                                       is_classification_model=True)
+    assert classification_model.is_inference_required(model_proc=ModelProcessing.DEFAULT,
+                                                      data_split=ModelExecutionMode.TEST)
     # For models other than classification models, there is by default no inference on the test set.
-    assert not model.is_inference_required(model_proc=ModelProcessing.DEFAULT,
-                                           data_split=ModelExecutionMode.TEST,
-                                           is_classification_model=False)
-    model.inference_on_test_set = False
+    assert not segmentation_model.is_inference_required(model_proc=ModelProcessing.DEFAULT,
+                                                        data_split=ModelExecutionMode.TEST)
+    classification_model.inference_on_test_set = False
     # If a flag is set explicitly, use that.
-    for is_classification in [True, False]:
-        assert not model.is_inference_required(model_proc=ModelProcessing.DEFAULT,
-                                               data_split=ModelExecutionMode.TEST,
-                                               is_classification_model=is_classification)
+    assert not classification_model.is_inference_required(model_proc=ModelProcessing.DEFAULT,
+                                                          data_split=ModelExecutionMode.TEST)

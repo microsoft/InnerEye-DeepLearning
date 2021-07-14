@@ -266,15 +266,11 @@ class WorkflowParams(param.Parameterized):
 
     def is_inference_required(self,
                               model_proc: ModelProcessing,
-                              data_split: ModelExecutionMode,
-                              is_classification_model: bool = False) -> bool:
+                              data_split: ModelExecutionMode) -> bool:
         """
-        Returns True if inference is required for this model_proc (single or ensemble), data_split (Train/Val/Test),
-        and model type (classification models require special logic).
+        Returns True if inference is required for this model_proc (single or ensemble) and data_split (Train/Val/Test).
         :param model_proc: Whether we are testing an ensemble or single model.
         :param data_split: Indicates which of the 3 sets (training, test, or validation) is being processed.
-        :param is_classification_model: If True, get the settings for an InnerEye classification model. False for any
-        other model type.
         :return: True if inference required.
         """
         settings = {
@@ -303,13 +299,6 @@ class WorkflowParams(param.Parameterized):
                     ModelExecutionMode.TRAIN: False,
                     ModelExecutionMode.VAL: False,
                     ModelExecutionMode.TEST: True,
-                },
-                True: {
-                    ModelExecutionMode.TRAIN: False,
-                    ModelExecutionMode.VAL: False,
-                    # The built-in InnerEye classification models need special logic when run in crossvalidation model
-                    # because the report expects metrics on the test set.
-                    ModelExecutionMode.TEST: is_classification_model,
                 }
             },
             ModelProcessing.ENSEMBLE_CREATION: {

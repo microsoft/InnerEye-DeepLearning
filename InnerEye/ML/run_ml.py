@@ -135,10 +135,11 @@ def log_metrics(metrics: Dict[ModelExecutionMode, InferenceMetrics],
 
 def is_classification_model(model: Any) -> bool:
     """
-    Returns True if the given object is a subclass of ScalarModel (InnerEye classification or regression model), but
-    not a sequence model.
+    Returns True if the given object is an InnerEye classification, but not a sequence model.
     """
-    return isinstance(model, ScalarModelBase) and not isinstance(model, SequenceModelBase)
+    return (isinstance(model, ScalarModelBase)
+            and model.is_classification_model and
+            not isinstance(model, SequenceModelBase))
 
 
 class MLRunner:
@@ -777,8 +778,7 @@ class MLRunner:
         config = self.innereye_config
 
         for data_split in ModelExecutionMode:
-            if self.container.is_inference_required(model_proc, data_split,
-                                                    is_classification_model=is_classification_model(config)):
+            if self.container.is_inference_required(model_proc, data_split):
                 opt_metrics = model_test(config, data_split=data_split, checkpoint_handler=checkpoint_handler,
                                          model_proc=model_proc)
                 if opt_metrics is not None:
