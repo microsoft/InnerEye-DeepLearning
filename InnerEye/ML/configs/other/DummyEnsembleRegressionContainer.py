@@ -136,8 +136,6 @@ class DummyEnsembleRegressionContainer(HelloContainer):
     def __init__(self) -> None:
         super().__init__()
         self.number_of_cross_validation_splits = 5
-        self.created_model: DummyEnsembleRegressionModule = None
 
     def create_model(self) -> LightningModule:
-        self.created_model = DummyEnsembleRegressionModule(outputs_folder=self.outputs_folder)
-        return self.model
+        return DummyEnsembleRegressionModule(outputs_folder=self.outputs_folder)
