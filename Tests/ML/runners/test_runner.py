@@ -13,6 +13,7 @@ import numpy as np
 import pytest
 from azureml.train.hyperdrive.runconfig import HyperDriveConfig
 
+from InnerEye.Azure.azure_util import RUN_RECOVERY_ID_KEY_NAME
 from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.common_util import ModelProcessing, get_best_epoch_results_path
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
@@ -231,10 +232,21 @@ def run_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
                                                         project_root=test_output_dirs.root_dir)
     checkpoint_handler.additional_training_done()
 
+    runner = MLRunner(config)
     with mock.patch("InnerEye.ML.model_testing.PARENT_RUN_CONTEXT", Mock()) as m:
-        metrics = MLRunner(config).model_inference_train_and_test(
+        metrics = runner.model_inference_train_and_test(
             checkpoint_handler=checkpoint_handler,
             model_proc=model_proc)
+
+    if model_proc == ModelProcessing.ENSEMBLE_CREATION:
+        parent_run_context = Mock()
+        parent_run_context.tags = {
+            RUN_RECOVERY_ID_KEY_NAME: None
+        }
+
+        with mock.patch("InnerEye.ML.run_ml.PARENT_RUN_CONTEXT", parent_run_context):
+            runner.plot_cross_validation_and_upload_results()
+            runner.generate_report(ModelProcessing.ENSEMBLE_CREATION)
 
     if model_proc == ModelProcessing.DEFAULT:
         named_metrics = {
