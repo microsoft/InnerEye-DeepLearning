@@ -222,12 +222,12 @@ class CovidModel(ScalarModelBase):
         metric = metrics[MetricsDict.DEFAULT_HUE_KEY][0]
         metric(posteriors, labels)
 
-        per_subject_outputs = list(zip(subject_ids, [MetricsDict.DEFAULT_HUE_KEY] * len(subject_ids), posteriors.tolist(), labels.tolist()))
-        for subject, prediction_target, model_output, label in per_subject_outputs:
+        per_subject_outputs = zip(subject_ids, posteriors.tolist(), labels.tolist())
+        for subject, model_output, label in per_subject_outputs:
             logger.add_record({
                 LoggingColumns.Epoch.value: current_epoch,
                 LoggingColumns.Patient.value: subject,
-                LoggingColumns.Hue.value: prediction_target,
+                LoggingColumns.Hue.value: MetricsDict.DEFAULT_HUE_KEY,
                 LoggingColumns.ModelOutput.value: model_output,
                 LoggingColumns.Label.value: label,
                 LoggingColumns.DataSplit.value: data_split.value
@@ -236,7 +236,7 @@ class CovidModel(ScalarModelBase):
     def generate_custom_report(self, report_dir: Path, model_proc: ModelProcessing) -> Path:
         """
         Generate a custom report for the Covid model. This report will read the file model_output.csv generated for
-        the training, validation or test sets and compute a 4 class accuracy and confusion matrix based on this.
+        the training, validation or test sets and compute the multiclass accuracy based on this.
         :param report_dir: Directory report is to be written to
         :param model_proc: Whether this is a single or ensemble model (model_output.csv will be located in different
         paths for single vs ensemble runs.)
@@ -249,9 +249,10 @@ class CovidModel(ScalarModelBase):
         def get_labels_and_predictions(df: pd.DataFrame) -> pd.DataFrame:
             labels = []
             predictions = []
-            for i, target in enumerate(self.target_names):
-                predictions.append(df[df[LoggingColumns.Hue.value] == target][LoggingColumns.ModelOutput.value].item())
-                labels.append(df[df[LoggingColumns.Hue.value] == target][LoggingColumns.Label.value])
+            for target in self.target_names:
+                target_df = df[df[LoggingColumns.Hue.value] == target]
+                predictions.append(target_df[LoggingColumns.ModelOutput.value])
+                labels.append(target_df[LoggingColumns.Label.value])
 
             return pd.DataFrame.from_dict({LoggingColumns.Patient.value: [df.iloc[0][LoggingColumns.Patient.value]],
                                            LoggingColumns.ModelOutput.value: [np.argmax(predictions)],
@@ -260,9 +261,7 @@ class CovidModel(ScalarModelBase):
         def get_accuracy(df: pd.DataFrame) -> float:
             df = df.groupby(LoggingColumns.Patient.value, as_index=False).apply(get_labels_and_predictions).reset_index(
                 drop=True)
-            df["tp+tn"] = df.apply(
-                lambda x: 1 if x[LoggingColumns.ModelOutput.value] == x[LoggingColumns.Label.value] else 0, axis=1)
-            return np.sum(df["tp+tn"].values) / len(df)
+            return (df[LoggingColumns.ModelOutput.value] == df[LoggingColumns.Label.value]).mean()  # type: ignore
 
         train_metrics = get_output_csv_path(ModelExecutionMode.TRAIN)
         val_metrics = get_output_csv_path(ModelExecutionMode.VAL)

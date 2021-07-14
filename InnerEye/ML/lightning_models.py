@@ -259,7 +259,7 @@ class ScalarLightning(InnerEyeLightning):
         loss = self.loss_fn(logits, labels)
         self.write_loss(is_training, loss)
         metrics = self.train_metric_computers if is_training else self.val_metric_computers
-        logger: DataframeLogger = self.train_subject_outputs_logger if is_training else self.val_subject_outputs_logger
+        logger = self.train_subject_outputs_logger if is_training else self.val_subject_outputs_logger
         data_split = ModelExecutionMode.TRAIN if is_training else ModelExecutionMode.VAL
         self.compute_and_log_metrics(logits=logits,
                                      targets=labels,
