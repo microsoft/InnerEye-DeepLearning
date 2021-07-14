@@ -224,21 +224,19 @@ class MLRunner:
                                                     run_context=RUN_CONTEXT)
         self.checkpoint_handler.download_recovery_checkpoints_or_weights(only_return_path=not is_global_rank_zero())
 
-        if self.azure_config.pretraining_run_recovery_id is not None:
-            run_to_recover = self.azure_config.fetch_run(self.azure_config.pretraining_run_recovery_id.strip())
+        if self.container.pretraining_run_recovery_id is not None:
+            run_to_recover = self.azure_config.fetch_run(self.container.pretraining_run_recovery_id.strip())
             run_recovery_object = RunRecovery.download_all_checkpoints_from_run(self.container,
                                                                                 run_to_recover,
                                                                                 EXTRA_RUN_SUBFOLDER,
                                                                                 only_return_path=not is_global_rank_zero())
-            self.container.extra_downloaded_run_id = run_recovery_object
-        else:
-            self.container.extra_downloaded_run_id = None
+            self.container.pretraining_run_checkpoints = run_recovery_object
 
         # A lot of the code for the built-in InnerEye models expects the output paths directly in the config files.
         if isinstance(self.container, InnerEyeContainer):
             self.container.config.local_dataset = self.container.local_dataset
             self.container.config.file_system_config = self.container.file_system_config
-            self.container.config.extra_downloaded_run_id = self.container.extra_downloaded_run_id
+            self.container.config.pretraining_run_checkpoints = self.container.pretraining_run_checkpoints
         self.container.setup()
         self.container.create_lightning_module_and_store()
         self._has_setup_run = True
