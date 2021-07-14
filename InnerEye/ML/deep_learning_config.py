@@ -215,7 +215,7 @@ class WorkflowParams(param.Parameterized):
     ensemble_inference_on_test_set: Optional[bool] = \
         param.Boolean(None,
                       doc="If set, enable/disable full image inference on test set after ensemble training.")
-    weights_url: List[str] = param.List(default=[],
+    weights_url: List[str] = param.List(default=[], class_=str,
                                         doc="If provided, a set of urls from which checkpoints will be downloaded"
                                                 "and used for training/inference.")
     local_weights_path: List[Path] = param.List(default=[], class_=Path,
