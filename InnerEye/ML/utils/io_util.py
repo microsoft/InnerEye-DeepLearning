@@ -227,16 +227,7 @@ def load_nifti_image(path: PathOrString, image_type: Optional[Type] = float) -> 
     if path is None or not _is_valid_image_path(path):
         raise ValueError("Invalid path to image: {}".format(path))
 
-    try:
-        img, header = read_image_as_array_with_header(path)
-    except Exception as ex:
-        uploaded_name = f"loading_failure_{str(uuid.uuid4().hex)}"
-        print(f"Unable to read image {path}. Uploading the failed image to AML as {uploaded_name}")
-        print(f"File has size {path.stat().st_size}")
-        RUN_CONTEXT.upload_file(uploaded_name, path)
-        time.sleep(30)
-        print("Done sleeping")
-        raise ex
+    img, header = read_image_as_array_with_header(path)
 
     # ensure a 3D image is loaded
     if not len(img.shape) == 3:
