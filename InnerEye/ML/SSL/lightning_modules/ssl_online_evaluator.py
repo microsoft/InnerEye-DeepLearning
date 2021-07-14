@@ -9,7 +9,7 @@ import pytorch_lightning as pl
 import torch
 from pl_bolts.callbacks.ssl_online import SSLOnlineEvaluator
 from pl_bolts.models.self_supervised.evaluator import SSLEvaluator
-from pytorch_lightning.metrics import Metric
+from torchmetrics import Metric
 from torch import Tensor as T
 from torch.nn import functional as F
 
@@ -126,9 +126,9 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
         if ids_linear_head not in self.visited_ids:
             self.visited_ids.add(ids_linear_head)
             loss = self.shared_step(batch, pl_module, is_training=True)
+            self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
-            self.optimizer.zero_grad()
 
             # log metrics
             pl_module.log('ssl_online_evaluator/train/loss', loss)

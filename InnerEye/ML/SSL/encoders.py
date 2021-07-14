@@ -71,7 +71,7 @@ def get_encoder_output_dim(pl_module: Union[pl.LightningModule, torch.nn.Module]
     if dm is not None:
         from InnerEye.ML.SSL.lightning_modules.ssl_online_evaluator import SSLOnlineEvaluatorInnerEye
         dataloader = dm.train_dataloader()
-        dataloader = dataloader[SSLDataModuleType.LINEAR_HEAD] if isinstance(dataloader, dict) else dataloader
+        dataloader = dataloader[SSLDataModuleType.LINEAR_HEAD] if isinstance(dataloader, dict) else dataloader  # type: ignore
         batch = iter(dataloader).next()  # type: ignore
         x, _ = SSLOnlineEvaluatorInnerEye.to_device(batch, device)
     else:

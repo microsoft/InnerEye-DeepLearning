@@ -157,7 +157,8 @@ class SSLContainer(LightningContainer):
                                  batch_size=self.data_module.batch_size,
                                  learning_rate=self.l_rate,
                                  use_7x7_first_conv_in_resnet=use_7x7_first_conv_in_resnet,
-                                 warmup_epochs=10)
+                                 warmup_epochs=10,
+                                 max_epochs=self.num_epochs)
         else:
             raise ValueError(
                 f"Unknown value for ssl_training_type, should be {SSLTrainingType.SimCLR.value} or "
