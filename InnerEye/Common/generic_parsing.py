@@ -146,7 +146,7 @@ class GenericConfig(param.Parameterized):
             elif isinstance(_p, param.String):
                 p_type = str
             elif isinstance(_p, param.List):
-                p_type = lambda x: [_p.class_(item) for item in x.split(',')]
+                p_type = _p.class_
             elif isinstance(_p, param.NumericTuple):
                 float_or_int = lambda y: int(y) if isinstance(_p, IntTuple) else float(y)
                 p_type = lambda x: tuple([float_or_int(item) for item in x.split(',')])
@@ -202,6 +202,8 @@ class GenericConfig(param.Parameterized):
             # an optional argument.
             if isinstance(p, param.Boolean):
                 add_boolean_argument(parser, k, p)
+            elif isinstance(p, param.List):
+                parser.add_argument("--" + k, action="append", help=p.doc, type=_get_basic_type(p), default=p.default)
             else:
                 parser.add_argument("--" + k, help=p.doc, type=_get_basic_type(p), default=p.default)
 

@@ -139,9 +139,9 @@ empty, in which case the union of all validation sets for the `N` child runs wil
 
 ### Recovering failed runs and continuing training
 
-To train further with an already-created model, give the above command with additional switches like these:
+To train further with an already-created model, give the above command with the `run_recovery_id` argument:
 ```
---run_recovery_id=foo_bar:foo_bar_12345_abcd --start_epoch=120
+--run_recovery_id=foo_bar:foo_bar_12345_abcd
 ```
 The run recovery ID is of the form "experiment_id:run_id". When you trained your original model, it will have been
 queued as a "Run" inside of an "Experiment". The experiment will be given a name derived from the branch name - for 
@@ -160,24 +160,47 @@ of the AzureML UI. The easiest way to get it is to go to any of the child runs a
 run recovery ID without the final underscore and digit.
 
 ### Testing an existing model
-To evaluate an existing model on a test set, you can use models from previous runs in AzureML or from local checkpoints.
+To evaluate an existing model on a test set, you can use registered models from previous runs in AzureML, a set of
+local checkpoints or a set of URLs pointing to model checkpoints. For all these options, you will need to set the
+flag `no-train` along with additional command line arguments to specify the checkpoints.
 
-#### From a previus run in AzureML:
-This is similar to continuing training using a run_recovery object, but you will need to set `--no-train`.
-Thus your command should look like this:
+#### From a registered model on AzureML:
+You will need to specify the registered model to run on using the `model_id` argument. You can find the model name and
+version by clicking on `Registered Models` on the Details tab of a run in the AzureML UI.
+The model id is of the form "model_name:model_version". Thus your command should look like this:
 
 ```shell script
-python Inner/ML/runner.py --azureml --model=Prostate --no-train --cluster=my_cluster_name \
-   --run_recovery_id=foo_bar:foo_bar_12345_abcd --start_epoch=120
+python Inner/ML/runner.py --azureml --model=Prostate --cluster=my_cluster_name \
+   --no-train --model_id=Prostate:1
 ```
-#### From a local checkpoint:
-To evaluate a model using a local checkpoint, use the local_weights_path to specify the path to the model checkpoint 
-and set train to `False`.
+#### From local checkpoints:
+To evaluate a model using one or more local checkpoints, use the `local_weights_path` argument to specify the path(s) to the
+model checkpoint(s) on the local disk.
 ```shell script
 python Inner/ML/runner.py --model=Prostate --no-train --local_weights_path=path_to_your_checkpoint
 ```
+To run on multiple checkpoints (if you have trained an ensemble model), specify each checkpoint using the argument
+`local_weights_path`.
+```shell script
+python Inner/ML/runner.py --model=Prostate --no-train --local_weights_path=path_to_first_checkpoint \
+  --local_weights_path=path_to_second_checkpoint
+```
 
-Alternatively, to submit an AzureML run to apply a model to a single image on your local disc, 
+#### From URLs:
+To evaluate a model using one or more checkpoints each specified by a URL, use the `weights_url` argument to specify the
+url(s) from which the model checkpoint(s) should be downloaded.
+```shell script
+python Inner/ML/runner.py --model=Prostate --no-train --weights_url=url_for_your_checkpoint
+```
+To run on multiple checkpoints (if you have trained an ensemble model), specify each checkpoint using the argument
+`weights_url`.
+```shell script
+python Inner/ML/runner.py --model=Prostate --no-train --weights_url=url_for_first_checkpoint \
+  --weights_url=url_for_second_checkpoint
+```
+
+#### Running a registered AzureML model on a single image on the local disk
+To submit an AzureML run to apply a model to a single image on your local disc,
 you can use the script `submit_for_inference.py`, with a command of this form:
 ```shell script
 python InnerEye/Scripts/submit_for_inference.py --image_file ~/somewhere/ct.nii.gz --model_id Prostate:555 \

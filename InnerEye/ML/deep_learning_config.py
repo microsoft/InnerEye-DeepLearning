@@ -220,7 +220,7 @@ class WorkflowParams(param.Parameterized):
                                                 "and used for training/inference.")
     local_weights_path: List[Path] = param.List(default=[], class_=Path,
                                                 doc="A list of checkpoints paths to use for training/inference, "
-                                                        "when training is running outside Azure.")
+                                                    "when training is running outside Azure.")
     model_id: str = param.String(default="",
                                  doc="A model id string in the form 'model name:version' "
                                      "to use a registered model for inference.")
@@ -254,9 +254,6 @@ class WorkflowParams(param.Parameterized):
                                 "folder, and their contents must match exactly. When running in AzureML, you need to "
                                 "ensure that this folder is part of the snapshot that gets uploaded. The path should "
                                 "be relative to the repository root directory.")
-
-    def __init__(self) -> None:
-        self.pretraining_run_checkpoints: Optional["RunRecovery"] = None
 
     def validate(self) -> None:
         if sum([bool(param) for param in [self.weights_url, self.local_weights_path, self.model_id]]) > 1:
@@ -729,6 +726,7 @@ class DeepLearningConfig(WorkflowParams,
         self.create_filesystem(fixed_paths.repository_root_directory())
         # Disable the PL progress bar because all InnerEye models have their own console output
         self.pl_progress_bar_refresh_rate = 0
+        self.pretraining_run_checkpoints: Optional["RunRecovery"] = None
 
     def validate(self) -> None:
         """

@@ -150,6 +150,7 @@ class LightningContainer(GenericConfig,
         super().__init__(**kwargs)
         self._model: Optional[LightningModule] = None
         self._model_name = type(self).__name__
+        self.pretraining_run_checkpoints: Optional[RunRecovery] = None
         self.num_nodes = 1
 
     def validate(self) -> None:
