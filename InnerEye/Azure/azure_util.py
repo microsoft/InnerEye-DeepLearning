@@ -79,6 +79,10 @@ def split_recovery_id(id: str) -> Tuple[str, str]:
             raise ValueError("The recovery ID was not in the expected format: {}".format(id))
         return (match.group(1) or match.group(2)), id
 
+def fetch_run_using_mlflow( run_recovery_id: str):
+    experiment, run = split_recovery_id(run_recovery_id)
+    run_to_recover = MlflowClient().get_run(run)
+    return run_to_recover
 
 def fetch_run(workspace: Workspace, run_recovery_id: str) -> Run:
     """
@@ -147,17 +151,21 @@ def fetch_child_runs(run: Run, status: Optional[str] = None,
     if is_ensemble_run(run):
         run_recovery_id = run.data.tags.get(RUN_RECOVERY_FROM_ID_KEY_NAME, None)
         if run_recovery_id:
-            run = fetch_run(run.experiment.workspace, run_recovery_id)
+            run = fetch_run_using_mlflow(run_recovery_id)
         elif get_parent_run_or_default():
             run = get_parent_run_or_default()
-    children_runs = list(run.get_children(tags=RUN_RECOVERY_ID_KEY_NAME))
+    # children_runs = list(run.get_children(tags=RUN_RECOVERY_ID_KEY_NAME))
+    children_runs = list(MlflowClient().search_runs(
+        run.info.experiment_id,
+        filter_string=f"tags.{RUN_RECOVERY_FROM_ID_KEY_NAME} = `""`"
+    ))
     if 0 < expected_number_cross_validation_splits != len(children_runs):
         logging.warning(
             f"The expected number of child runs was {expected_number_cross_validation_splits}."
             f"Fetched only: {len(children_runs)} runs. Now trying to fetch them manually.")
         run_ids_to_evaluate = [f"{create_run_recovery_id(run)}_{i}"
                                for i in range(expected_number_cross_validation_splits)]
-        children_runs = [fetch_run(run.experiment.workspace, id) for id in run_ids_to_evaluate]
+        children_runs = [fetch_run(id) for id in run_ids_to_evaluate]
     if status is not None:
         children_runs = [child_run for child_run in children_runs if child_run.get_status() == status]
     return children_runs
@@ -358,15 +366,15 @@ def download_outputs_from_run(blobs_path: Path,
     If False then the prefix is removed from the output file path.
     :return: Destination path to the downloaded file(s)
     """
-    run = run or Run.get_context()
+    run = run or RUN_CONTEXT
     blobs_root_path = str(fixed_paths.DEFAULT_AML_UPLOAD_DIR / blobs_path)
     if is_file:
         destination = destination / blobs_path.name
         logging.info(f"Downloading single file from run {run.id}: {blobs_root_path} -> {str(destination)}")
-        run.download_file(blobs_root_path, str(destination), _validate_checksum=True)
+        MlflowClient().download_artifacts(run.info.run_id, blobs_root_path, str(destination))
     else:
         logging.info(f"Downloading multiple files from run {run.id}: {blobs_root_path} -> {str(destination)}")
-        run.download_files(blobs_root_path, str(destination), append_prefix=append_prefix)
+        MlflowClient().download_artifacts(run.info.run_id, blobs_root_path, str(destination))
     return destination
 
 

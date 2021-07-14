@@ -11,6 +11,7 @@ import mlflow
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 from mlflow.tracking.client import MlflowClient
+from mlflow.exceptions import MlflowException
 
 import pandas as pd
 import stopit
@@ -651,10 +652,20 @@ class MLRunner:
             # When registering the model on the run, we need to provide a relative path inside of the run's output
             # folder in `model_path`
 
-            # mlflow_client.create_registered_model(name=self.container.model_name)
+            # try:
+            #     mlflow_client.create_registered_model(name=self.container.model_name)
+            #     logging.info(f"Model {self.container.model_name} was successfully registered")
+            # except MlflowException as ex:
+            #     print("Caught exception")
+            #     if ex.error_code == "RESOURCE_ALREADY_EXISTS":
+            #         logging.warning(f"Model {self.container.model_name} already exists")
+            #     else:
+            #         raise ex
+
             # model = mlflow_client.create_model_version(
             #     self.container.model_name,
-            #     "runs:/{}/{}".format(run_to_register_on.info.run_id, artifacts_path),
+            #     f"{run_to_register_on.info.artifact_uri}/{artifacts_path}", # TODO : Better way to form the artifact uri maybe using Pathlib
+            #     run_to_register_on.info.run_id,
             #     tags=RUN_CONTEXT.data.tags
             # )
 
