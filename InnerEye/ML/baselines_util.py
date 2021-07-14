@@ -35,6 +35,10 @@ CONTENTS_MISMATCH = "Contents mismatch"
 MISSING_FILE = "Missing"
 TEXT_FILE_SUFFIXES = [".txt", ".csv", ".json", ".html", ".md"]
 
+INFERENCE_DISABLED_WARNING = "Not performing comparison of model against baseline(s), because inference is currently " \
+                             "disabled. If comparison is required, use either the inference_on_test_set or " \
+                             "ensemble_inference_on_test_set option, as appropriate."
+
 
 @dataclass
 class DiceScoreComparisonResult:
@@ -70,12 +74,10 @@ def compare_scores_against_baselines(model_config: SegmentationModelBase, azure_
     outputs_path = model_config.outputs_folder / get_best_epoch_results_path(ModelExecutionMode.TEST, model_proc)
     if not outputs_path.is_dir():
         if not model_config.inference_on_set(model_proc, ModelExecutionMode.TEST):
-            logging.info(
-                "Not performing comparison of model against baseline(s), because inference is currently disabled. "
-                "If comparison is required, use either the inference_on_test_set or ensemble_inference_on_test_set "
-                "option, as appropriate.")
+            logging.info(INFERENCE_DISABLED_WARNING)
             return
-        raise FileNotFoundError(f"Cannot compare scores against baselines: no best epoch results found at {outputs_path}")
+        raise FileNotFoundError(
+            f"Cannot compare scores against baselines: no best epoch results found at {outputs_path}")
     model_metrics_path = outputs_path / SUBJECT_METRICS_FILE_NAME
     model_dataset_path = outputs_path / DATASET_CSV_FILE_NAME
     if not model_dataset_path.exists():
