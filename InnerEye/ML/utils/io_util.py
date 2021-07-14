@@ -3,7 +3,6 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import shutil
-import time
 import uuid
 from copy import copy
 from dataclasses import dataclass
@@ -21,7 +20,6 @@ from numpy.lib.npyio import NpzFile
 from skimage.transform import resize
 from tabulate import tabulate
 
-from InnerEye.Azure.azure_util import RUN_CONTEXT
 from InnerEye.Common import common_util
 from InnerEye.Common.type_annotations import PathOrString, TupleFloat3, TupleInt3
 from InnerEye.ML.config import DEFAULT_POSTERIOR_VALUE_RANGE, PhotometricNormalizationMethod, \
