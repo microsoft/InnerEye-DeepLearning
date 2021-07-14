@@ -76,6 +76,7 @@ def read_csv_and_filter_prediction_target(csv: Path, prediction_target: str,
     :param epoch: If specified, filter rows for given epoch (default: last epoch only; requires LoggingColumns.Epoch).
     :return: Filtered dataframe.
     """
+
     def check_column_present(dataframe: pd.DataFrame, column: LoggingColumns) -> None:
         if column.value not in dataframe:
             raise ValueError(f"Missing {column.value} column.")
@@ -365,9 +366,10 @@ def get_all_metrics(predictions_to_set_optimal_threshold: LabelsAndPredictions,
     for metric in ReportedScalarMetrics:  # type: ReportedScalarMetrics
         if is_thresholded and not metric.requires_threshold:
             continue
-        metrics[metric.description] = get_metric(predictions_to_set_optimal_threshold=predictions_to_set_optimal_threshold,
-                                                 predictions_to_compute_metrics=predictions_to_compute_metrics,
-                                                 metric=metric, optimal_threshold=optimal_threshold)
+        metrics[metric.description] = get_metric(
+            predictions_to_set_optimal_threshold=predictions_to_set_optimal_threshold,
+            predictions_to_compute_metrics=predictions_to_compute_metrics,
+            metric=metric, optimal_threshold=optimal_threshold)
 
     return metrics
 
@@ -415,8 +417,11 @@ def get_metrics_table_for_prediction_target(csv_to_set_optimal_threshold: Path,
     :return: Tuple of rows and header, where each row and the header are lists of strings of same length (2 if
         `is_crossval_report` is False, `config.number_of_cross_validation_splits`+2 otherwise).
     """
-    def get_metrics_for_crossval_split(prediction_target: str, crossval_split: Optional[int] = None) -> Dict[str, float]:
-        predictions_to_set_optimal_threshold = get_labels_and_predictions(csv_to_set_optimal_threshold, prediction_target,
+
+    def get_metrics_for_crossval_split(prediction_target: str,
+                                       crossval_split: Optional[int] = None) -> Dict[str, float]:
+        predictions_to_set_optimal_threshold = get_labels_and_predictions(csv_to_set_optimal_threshold,
+                                                                          prediction_target,
                                                                           crossval_split_index=crossval_split,
                                                                           data_split=data_split_to_set_optimal_threshold)
         predictions_to_compute_metrics = get_labels_and_predictions(csv_to_compute_metrics, prediction_target,
@@ -551,7 +556,10 @@ def get_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Pat
     return sorted
 
 
-def print_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Path, k: int, prediction_target: str) -> None:
+def print_k_best_and_worst_performing(val_metrics_csv: Path,
+                                      test_metrics_csv: Path,
+                                      k: int,
+                                      prediction_target: str) -> None:
     """
     Print the top "k" best predictions (i.e. correct classifications where the model was the most certain) and the
     top "k" worst predictions (i.e. misclassifications where the model was the most confident).

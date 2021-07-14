@@ -23,7 +23,7 @@ from azureml.core import Model, Run
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_runner import RUN_RECOVERY_FILE
-from InnerEye.Azure.azure_util import MODEL_ID_KEY_NAME, download_run_outputs_by_prefix, \
+from InnerEye.Azure.azure_util import MODEL_ID_KEY_NAME, download_run_output_file, download_run_outputs_by_prefix, \
     get_comparison_baseline_paths, \
     is_running_on_azure_agent, to_azure_friendly_string
 from InnerEye.Common import common_util, fixed_paths, fixed_paths_for_tests
@@ -44,6 +44,7 @@ from InnerEye.ML.runner import main
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.utils.image_util import get_unit_image_header
 from InnerEye.ML.utils.io_util import zip_random_dicom_series
+from InnerEye.ML.visualizers.plot_cross_validation import PlotCrossValidationConfig
 from InnerEye.Scripts import submit_for_inference
 from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_nifti_shape
 
@@ -434,3 +435,36 @@ def test_download_outputs_skipped(test_output_dirs: OutputFolderForTests) -> Non
     download_run_outputs_by_prefix(prefix, test_output_dirs.root_dir, run=run)
     all_files = list(test_output_dirs.root_dir.rglob("*"))
     assert len(all_files) == 0
+
+
+@pytest.mark.after_training_single_run
+def test_download_non_existing_file(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Trying to download a file that does not exist should raise an exception.
+    """
+    run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_SINGLE_RUN)
+    does_not_exist = Path("does_not_exist.csv")
+    with pytest.raises(ValueError) as ex:
+        download_run_output_file(blob_path=does_not_exist, destination=test_output_dirs.root_dir, run=run)
+    assert str(does_not_exist) in str(ex)
+    assert "Unable to download file" in str(ex)
+
+
+@pytest.mark.after_training_single_run
+def test_download_non_existent_file(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Trying to download a non-existing file when doing cross validation should raise an exception.
+    """
+    run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_SINGLE_RUN)
+    config = PlotCrossValidationConfig(run_recovery_id=None,
+                                       model_category=ModelCategory.Classification,
+                                       epoch=None,
+                                       should_validate=False)
+    config.outputs_directory = test_output_dirs.root_dir
+    does_not_exist = "does_not_exist.txt"
+    with pytest.raises(ValueError) as ex:
+        config.download_or_get_local_file(run,
+                                          blob_to_download=does_not_exist,
+                                          destination=test_output_dirs.root_dir)
+    assert does_not_exist in str(ex)
+    assert "Unable to download file" in str(ex)

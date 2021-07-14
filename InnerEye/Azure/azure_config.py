@@ -229,9 +229,8 @@ class AzureConfig(GenericConfig):
         application_key = secrets_handler.get_secret_from_environment(fixed_paths.SERVICE_PRINCIPAL_KEY,
                                                                       allow_missing=True)
         if not application_key:
-            logging.warning("Unable to retrieve the key for the Service Principal authentication "
-                            f"(expected in environment variable '{fixed_paths.SERVICE_PRINCIPAL_KEY}' or YAML). "
-                            f"Switching to interactive login.")
+            logging.info("Using interactive login to Azure. To use Service Principal authentication, "
+                         f"supply the password in in environment variable '{fixed_paths.SERVICE_PRINCIPAL_KEY}'.")
             return InteractiveLoginAuthentication()
 
         return ServicePrincipalAuthentication(
