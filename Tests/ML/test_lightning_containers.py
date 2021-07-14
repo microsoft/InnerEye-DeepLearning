@@ -98,13 +98,13 @@ def test_innereye_container_init() -> None:
     """
     # The constructor should copy all fields that belong to either WorkflowParams or DatasetParams from the
     # config object to the container.
-    for (attrib, type_) in [("weights_url", WorkflowParams), ("azure_dataset_id", DatasetParams)]:
+    for (attrib, type_) in [("weights_url", WorkflowParams), ("extra_dataset_mountpoints", DatasetParams)]:
         config = ModelConfigBase(should_validate=False)
         assert hasattr(type_, attrib)
         assert hasattr(config, attrib)
-        setattr(config, attrib, "foo")
+        setattr(config, attrib, ["foo"])
         container = InnerEyeContainer(config)
-        assert getattr(container, attrib) == "foo"
+        assert getattr(container, attrib) == ["foo"]
 
 
 def test_copied_properties() -> None:

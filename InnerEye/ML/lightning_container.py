@@ -3,8 +3,8 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import abc
-from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Tuple
+from pathlib import Path
 
 import param
 import torch
@@ -19,7 +19,7 @@ from InnerEye.Common.generic_parsing import GenericConfig, create_from_matching_
 from InnerEye.Common.metrics_constants import TrackedMetrics
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.deep_learning_config import DatasetParams, OptimizerParams, OutputParams, TrainerParams, \
-    WorkflowParams, load_checkpoint
+    WorkflowParams
 from InnerEye.ML.utils import model_util
 from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
 from InnerEye.ML.utils.run_recovery import RunRecovery
@@ -151,7 +151,7 @@ class LightningContainer(GenericConfig,
         super().__init__(**kwargs)
         self._model: Optional[LightningModule] = None
         self._model_name = type(self).__name__
-        self.extra_downloaded_run_id: Optional[RunRecovery] = None
+        self.pretraining_run_checkpoints: Optional[RunRecovery] = None
         self.num_nodes = 1
 
     def validate(self) -> None:
@@ -250,36 +250,6 @@ class LightningContainer(GenericConfig,
         """
         pass
 
-    def load_checkpoint_and_modify(self, path_to_checkpoint: Path) -> Dict[str, Any]:
-        """
-        This method is called when a file with weights for network initialization is supplied at container level,
-        in the self.weights_url or self.local_weights_path fields. It can load that file as a Torch checkpoint,
-        and rename parameters.
-
-        By default, uses torch.load to read and return the state dict from the checkpoint file, and does no modification
-        of the checkpoint file.
-
-        Overloading this function:
-        When weights_url or local_weights_path is set, the file downloaded may not be in the exact
-        format expected by the model's load_state_dict() - for example, pretrained Imagenet weights for networks
-        may have mismatched layer names in different implementations.
-        In such cases, you can overload this function to extract the state dict from the checkpoint.
-
-        NOTE: The model checkpoint will be loaded using the torch function load_state_dict() with argument strict=False,
-        so extra care needs to be taken to check that the state dict is valid.
-        Check the logs for warnings related to missing and unexpected keys.
-        See https://pytorch.org/tutorials/beginner/saving_loading_models.html#warmstarting-model-using-parameters
-        -from-a-different-model
-        for an explanation on why strict=False is useful when loading parameters from other models.
-        :param path_to_checkpoint: Path to the checkpoint file.
-        :return: Dictionary with model and optimizer state dicts. The dict should have at least the following keys:
-        1. Key ModelAndInfo.MODEL_STATE_DICT_KEY and value set to the model state dict.
-        2. Key ModelAndInfo.EPOCH_KEY and value set to the checkpoint epoch.
-        Other (optional) entries corresponding to keys ModelAndInfo.OPTIMIZER_STATE_DICT_KEY and
-        ModelAndInfo.MEAN_TEACHER_STATE_DICT_KEY are also supported.
-        """
-        return load_checkpoint(path_to_checkpoint=path_to_checkpoint, use_gpu=self.use_gpu)
-
     # The code from here on does not need to be modified.
 
     @property
@@ -333,6 +303,15 @@ class LightningContainer(GenericConfig,
             return self.get_cross_validation_hyperdrive_config(run_config)
         else:
             return self.get_parameter_search_hyperdrive_config(run_config)
+
+    def load_model_checkpoint(self, checkpoint_path: Path) -> None:
+        """
+        Load a checkpoint from the given path. We need to define a separate method since pytorch lightning cannot
+        access the _model attribute to modify it.
+        """
+        if self._model is None:
+            raise ValueError("No Lightning module has been set yet.")
+        self._model = type(self._model).load_from_checkpoint(checkpoint_path=str(checkpoint_path))
 
     def __str__(self) -> str:
         """Returns a string describing the present object, as a list of key: value strings."""
