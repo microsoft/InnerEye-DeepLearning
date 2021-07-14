@@ -6,7 +6,7 @@
 import logging
 import pandas as pd
 import pytest
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 from unittest import mock
 
 from InnerEye.Common import common_util
@@ -115,7 +115,7 @@ def test_get_comparison_data(test_output_dirs: OutputFolderForTests) -> None:
                                                     (ModelProcessing.ENSEMBLE_CREATION, 3, None)])
 def test_compare_scores_against_baselines_throws(model_proc_split_infer: Tuple[ModelProcessing, int, Optional[bool]],
                                                  test_output_dirs: OutputFolderForTests,
-                                                 caplog) -> None:  # type: ignore
+                                                 caplog: Any) -> None:
     """
     Test that exceptions are raised if the files necessary for baseline comparison are missing,
     then test that when all required files are present that baseline comparison files are written.
