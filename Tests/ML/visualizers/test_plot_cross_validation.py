@@ -43,16 +43,6 @@ def test_config() -> PlotCrossValidationConfig:
     )
 
 
-@pytest.fixture
-def test_config_comparison() -> PlotCrossValidationConfig:
-    return PlotCrossValidationConfig(
-        run_recovery_id=get_most_recent_run_id() + "_0",
-        epoch=1,
-        comparison_run_recovery_ids=[get_most_recent_run_id() + "_1"],
-        model_category=ModelCategory.Segmentation
-    )
-
-
 def _get_metrics_df(run_recovery_id: str, mode: ModelExecutionMode) -> pd.DataFrame:
     metrics_df = pd.read_csv(full_ml_test_data_path("{}_agg_splits.csv".format(mode.value)))
     # noinspection PyUnresolvedReferences

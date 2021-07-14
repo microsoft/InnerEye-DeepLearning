@@ -570,16 +570,17 @@ def test_plot_image_from_filepath(test_output_dirs: OutputFolderForTests) -> Non
 def test_get_image_outputs_from_subject_id(test_output_dirs: OutputFolderForTests) -> None:
     hues = ["Hue1", "Hue2"]
 
-    metrics_df = pd.DataFrame.from_dict({LoggingColumns.Hue.value: [hues[0], hues[1]] * 6,
-                                         LoggingColumns.Epoch.value: [0] * 12,
-                                         LoggingColumns.Patient.value: [s for s in range(6) for _ in range(2)],
-                                         LoggingColumns.ModelOutput.value: [0.1, 0.1, 0.1, 0.9, 0.1, 0.9,
-                                                                            0.9, 0.9, 0.9, 0.9, 0.9, 0.1],
-                                         LoggingColumns.Label.value: [0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 0],
-                                         LoggingColumns.CrossValidationSplitIndex: [
-                                                                                       DEFAULT_CROSS_VALIDATION_SPLIT_INDEX] * 12,
-                                         LoggingColumns.DataSplit.value: [0] * 12,
-                                         }, dtype=str)
+    metrics_df = pd.DataFrame.from_dict(
+        {LoggingColumns.Hue.value: [hues[0], hues[1]] * 6,
+         LoggingColumns.Epoch.value: [0] * 12,
+         LoggingColumns.Patient.value: [s for s in range(6) for _ in range(2)],
+         LoggingColumns.ModelOutput.value: [0.1, 0.1, 0.1, 0.9, 0.1, 0.9,
+                                            0.9, 0.9, 0.9, 0.9, 0.9, 0.1],
+         LoggingColumns.Label.value: [0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 0],
+         LoggingColumns.CrossValidationSplitIndex: [DEFAULT_CROSS_VALIDATION_SPLIT_INDEX] * 12,
+         LoggingColumns.DataSplit.value: [0] * 12,
+         },
+        dtype=str)
 
     config = DummyMulticlassClassification()
     config.class_names = hues
