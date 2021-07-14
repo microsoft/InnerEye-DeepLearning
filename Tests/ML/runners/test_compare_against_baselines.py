@@ -5,7 +5,7 @@
 
 import pandas as pd
 import pytest
-from typing import List
+from typing import List, Optional, Tuple
 from unittest import mock
 
 from InnerEye.Common import common_util
@@ -109,8 +109,10 @@ def test_get_comparison_data(test_output_dirs: OutputFolderForTests) -> None:
     assert baselines[0].name == comparison_name
 
 
-@pytest.mark.parametrize('model_proc', [ModelProcessing.DEFAULT, ModelProcessing.ENSEMBLE_CREATION])
-def test_compare_scores_against_baselines_throws(model_proc: ModelProcessing,
+@pytest.mark.parametrize('model_proc_split_infer', [(ModelProcessing.DEFAULT, 0, None),
+                                                    (ModelProcessing.DEFAULT, 3, True),
+                                                    (ModelProcessing.ENSEMBLE_CREATION, 3, None)])
+def test_compare_scores_against_baselines_throws(model_proc_split_infer: Tuple[ModelProcessing, int, Optional[bool]],
                                                  test_output_dirs: OutputFolderForTests) -> None:
     """
     Test that exceptions are raised if the files necessary for baseline comparison are missing,
@@ -120,12 +122,13 @@ def test_compare_scores_against_baselines_throws(model_proc: ModelProcessing,
     :param test_output_dirs: Test output directories.
     :return: None.
     """
-    number_of_cross_validation_splits = 2 if model_proc == ModelProcessing.ENSEMBLE_CREATION else 0
+    (model_proc, number_of_cross_validation_splits, inference_on_test_set) = model_proc_split_infer
     config = SegmentationModelBase(should_validate=False,
                                    comparison_blob_storage_paths=[
                                        ('Single', 'dummy_blob_single/outputs/epoch_120/Test'),
                                        ('5fold', 'dummy_blob_ensemble/outputs/epoch_120/Test')],
-                                   number_of_cross_validation_splits=number_of_cross_validation_splits)
+                                   number_of_cross_validation_splits=number_of_cross_validation_splits,
+                                   inference_on_test_set=inference_on_test_set)
     config.set_output_to(test_output_dirs.root_dir)
 
     azure_config = get_default_azure_config()
