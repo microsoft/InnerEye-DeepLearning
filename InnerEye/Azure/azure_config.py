@@ -123,8 +123,6 @@ class AzureConfig(GenericConfig):
     _workspace: Workspace = param.ClassSelector(class_=Workspace,
                                                 doc="The cached workspace object that has been created in the first"
                                                     "call to get_workspace")
-    model_id: str = param.String(doc="A model id string in the form 'model name:version' "
-                                     "to use a registered model for inference.")
 
     def __init__(self, **params: Any) -> None:
         super().__init__(**params)

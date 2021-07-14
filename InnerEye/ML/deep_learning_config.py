@@ -221,6 +221,9 @@ class WorkflowParams(param.Parameterized):
     local_weights_path: List[Path] = param.List(default=[], class_=Path,
                                                 doc="A list of checkpoints paths to use for training/inference, "
                                                         "when training is running outside Azure.")
+    model_id: str = param.String(default="",
+                                 doc="A model id string in the form 'model name:version' "
+                                     "to use a registered model for inference.")
     generate_report: bool = param.Boolean(default=True,
                                           doc="If True (default), write a modelling report in HTML format. If False,"
                                               "do not write that report.")
@@ -246,8 +249,13 @@ class WorkflowParams(param.Parameterized):
                                 "be relative to the repository root directory.")
 
     def validate(self) -> None:
-        if self.weights_url and self.local_weights_path:
-            raise ValueError("Cannot specify both local_weights_path and weights_url.")
+        if sum([bool(param) for param in [self.weights_url, self.local_weights_path, self.model_id]]) > 1:
+            raise ValueError("Cannot specify more than one of local_weights_path, weights_url or model_id.")
+
+        if self.model_id:
+            if len(self.model_id.split(":")) != 2:
+                raise ValueError(
+                    f"model_id should be in the form 'model_name:version', got {self.model_id}")
 
         if self.number_of_cross_validation_splits == 1:
             raise ValueError("At least two splits required to perform cross validation, but got "

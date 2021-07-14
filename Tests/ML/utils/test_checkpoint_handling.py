@@ -117,7 +117,7 @@ def test_download_model_from_single_run(test_output_dirs: OutputFolderForTests) 
     model_id = get_most_recent_model_id(fallback_run_id_for_local_execution=FALLBACK_SINGLE_RUN)
 
     # Set a run recovery object - non ensemble
-    checkpoint_handler.azure_config.model_id = model_id
+    checkpoint_handler.container.model_id = model_id
     checkpoint_handler.download_recovery_checkpoints_or_weights()
     assert checkpoint_handler.trained_weights_paths
 
@@ -142,7 +142,7 @@ def test_download_model_from_ensemble_run(test_output_dirs: OutputFolderForTests
     model_id = get_most_recent_model_id(fallback_run_id_for_local_execution=FALLBACK_ENSEMBLE_RUN)
 
     # Set a run recovery object - non ensemble
-    checkpoint_handler.azure_config.model_id = model_id
+    checkpoint_handler.container.model_id = model_id
     checkpoint_handler.download_recovery_checkpoints_or_weights()
     assert checkpoint_handler.trained_weights_paths
 

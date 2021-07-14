@@ -74,10 +74,7 @@ class CheckpointHandler:
             self.run_recovery = RunRecovery.download_all_checkpoints_from_run(self.output_params, run_to_recover,
                                                                               only_return_path=only_return_path)
 
-        if self.container.weights_url or self.container.local_weights_path or self.azure_config.model_id:
-            if self.azure_config.model_id and (self.container.local_weights_path or self.container.weights_url):
-                logging.warning("model_id will take precedence over local_weights_path or weights_url.")
-
+        if self.container.weights_url or self.container.local_weights_path or self.container.model_id:
             self.trained_weights_paths = self.get_local_checkpoints_path_or_download()
 
     def additional_training_done(self) -> None:
@@ -189,6 +186,9 @@ class CheckpointHandler:
 
     @staticmethod
     def get_checkpoints_from_model(model_id: str, workspace: Workspace, download_path: Path) -> List[Path]:
+        if len(model_id.split(":")) != 2:
+            raise ValueError(
+                f"model_id should be in the form 'model_name:version', got {model_id}")
 
         model_name, model_version = model_id.split(":")
         model = Model(workspace=workspace, name=model_name, version=int(model_version))
@@ -201,7 +201,7 @@ class CheckpointHandler:
         """
         Get the path to the local weights to use or download them and set local_weights_path
         """
-        if not self.azure_config.model_id and not self.container.local_weights_path and not self.container.weights_url:
+        if not self.container.model_id and not self.container.local_weights_path and not self.container.weights_url:
             raise ValueError("Cannot download weights - none of model_id, local_weights_path or weights_url is set in "
                              "the model config.")
 
@@ -211,12 +211,8 @@ class CheckpointHandler:
             download_folder = self.output_params.checkpoint_folder / MODEL_WEIGHTS_DIR_NAME
             download_folder.mkdir(exist_ok=True, parents=True)
 
-            if self.azure_config.model_id:
-                if len(self.azure_config.model_id.split(":")) != 2:
-                    raise ValueError(
-                        f"model_id should be in the form 'model_name:version', got {self.azure_config.model_id}")
-
-                checkpoint_paths = CheckpointHandler.get_checkpoints_from_model(model_id=self.azure_config.model_id,
+            if self.container.model_id:
+                checkpoint_paths = CheckpointHandler.get_checkpoints_from_model(model_id=self.container.model_id,
                                                                                 workspace=self.azure_config.get_workspace(),
                                                                                 download_path=download_folder)
             elif self.container.weights_url:

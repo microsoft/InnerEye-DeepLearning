@@ -467,9 +467,9 @@ def test_model_inference_on_single_run(test_output_dirs: OutputFolderForTests) -
 
     container = HelloContainer()
     container.set_output_to(test_output_dirs.root_dir)
+    container.model_id = get_most_recent_model_id(fallback_run_id_for_local_execution=fallback_run_id_for_local_execution)
     azure_config = get_default_azure_config()
     azure_config.train = False
-    azure_config.model_id = get_most_recent_model_id(fallback_run_id_for_local_execution=fallback_run_id_for_local_execution)
     ml_runner = MLRunner(container=container, azure_config=azure_config, project_root=test_output_dirs.root_dir)
     ml_runner.setup()
     ml_runner.start_logging_to_file()
