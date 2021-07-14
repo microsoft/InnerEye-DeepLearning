@@ -54,7 +54,7 @@ def model_test(config: ModelConfigBase,
     differ for model categories (classification, segmentation).
     :param config: The configuration of the model
     :param data_split: Indicates which of the 3 sets (training, test, or validation) is being processed.
-    :param checkpoint_paths: Checkpoint paths initialize model.
+    :param checkpoint_paths: Checkpoint paths to initialize model.
     :param model_proc: whether we are testing an ensemble or single model; this affects where results are written.
     :return: The metrics that the model achieved on the given data set, or None if the data set is empty.
     """

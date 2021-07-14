@@ -4,6 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 import abc
 from typing import Any, Dict, Iterator, List, Optional, Tuple
+from pathlib import Path
 
 import param
 import torch
@@ -301,6 +302,13 @@ class LightningContainer(GenericConfig,
             return self.get_cross_validation_hyperdrive_config(run_config)
         else:
             return self.get_parameter_search_hyperdrive_config(run_config)
+
+    def load_model_checkpoint(self, checkpoint_path: Path):
+        """
+        Load a checkpoint from the given path. We need to define a separate method since pytorch lightning cannot
+        access the _model attribute to modify it.
+        """
+        self._model = type(self._model).load_from_checkpoint(checkpoint_path=str(checkpoint_path))
 
     def __str__(self) -> str:
         """Returns a string describing the present object, as a list of key: value strings."""

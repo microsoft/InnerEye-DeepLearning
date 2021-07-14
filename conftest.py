@@ -9,12 +9,15 @@ DO NOT RENAME THIS FILE: (https://docs.pytest.org/en/latest/fixture.html#sharing
 -or-class-session)
 """
 import uuid
-from typing import Generator
+from typing import Generator, List
 
 import pytest
+from _pytest.python import Function
 
 from InnerEye.Common.output_directories import OutputFolderForTests, remove_and_create_folder
 from InnerEye.Common.fixed_paths_for_tests import TEST_OUTPUTS_PATH
+
+NO_MARK = "no_mark"
 
 
 @pytest.fixture(autouse=True, scope='session')
@@ -37,3 +40,12 @@ def test_output_dirs() -> Generator:
     print(f"Created temporary folder for test: {root_dir}")
     # let the test function run
     yield OutputFolderForTests(root_dir=root_dir)
+
+
+def pytest_collection_modifyitems(items: List[Function]) -> None:
+    """
+    Add a marker "no_mark" to all tests that do not have a pytest marker. From https://stackoverflow.com/a/55921954
+    """
+    for item in items:
+        if not list(item.iter_markers()):
+            item.add_marker(NO_MARK)
