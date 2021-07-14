@@ -8,8 +8,8 @@ from typing import Any, Iterator, List, Tuple
 import numpy as np
 import torch
 import torch.nn.functional as F
-from pytorch_lightning import metrics
-from pytorch_lightning.metrics import Metric
+import torchmetrics as metrics
+from torchmetrics import Metric
 from pytorch_lightning.metrics.functional import accuracy, auc, auroc, precision_recall_curve, roc
 from torch.nn import ModuleList
 
@@ -68,7 +68,7 @@ class ExplainedVariance(metrics.ExplainedVariance):
         Returns True if the present object stores at least 1 prediction (self.update has been called at least once),
         or False if no predictions are stored.
         """
-        return len(self.y_pred) > 0  # type: ignore
+        return self.n_obs > 0  # type: ignore
 
 
 class Accuracy05(metrics.Accuracy):
@@ -82,7 +82,7 @@ class Accuracy05(metrics.Accuracy):
         Returns True if the present object stores at least 1 prediction (self.update has been called at least once),
         or False if no predictions are stored.
         """
-        return self.total > 0  # type: ignore
+        return (self.total) or (self.tp + self.fp + self.tn + self.fn) > 0  # type: ignore
 
 
 class AverageWithoutNan(Metric):
