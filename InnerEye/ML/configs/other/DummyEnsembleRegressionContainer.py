@@ -77,6 +77,7 @@ class DummyEnsembleRegressionModule(HelloRegression, InnerEyeInference):
         Depending on the settings, this can be called anywhere between 0 (no inference at all) to 3 times (inference
         on all of train/val/test split).
         :param execution_mode: Indicates whether the item comes from the training, validation or test set.
+        :param is_ensemble_model: Ignored but needed to override InnerEyeInference correctly.
         """
         # We will use the HelloRegression test provision, regardless of the actual ModelExecutionMode specified for the
         # inference.
@@ -91,12 +92,13 @@ class DummyEnsembleRegressionModule(HelloRegression, InnerEyeInference):
         This hook is called when the model has finished making a prediction. It can write the results to a file,
         or compute metrics and store them.
         :param batch: The batch of data for which the model made a prediction.
+        :param posteriors: Ignored but needed to override InnerEyeInference correctly.
         """
-        posteriors: List[torch.Tensor] = []
+        model_outputs: List[torch.Tensor] = []
         target = batch["y"]
         for sibling in self.siblings:
-            posteriors.append(sibling.test_step(batch, batch_idx))
-        posterior = InnerEyeInference.aggregate_ensemble_model_outputs(iter(posteriors))
+            model_outputs.append(sibling.test_step(batch, batch_idx))
+        posterior = InnerEyeInference.aggregate_ensemble_model_outputs(iter(model_outputs))
         loss = torch.nn.functional.mse_loss(posterior, target)
         self.test_mse.append(loss)
         self.test_mae.update(preds=posterior, target=target)
@@ -106,21 +108,19 @@ class DummyEnsembleRegressionModule(HelloRegression, InnerEyeInference):
         Write the metrics from the inference execution to disk
         We do not call HelloRegression.on_test_epoch_end since we handle the writing to disk.
         """
-        #output_dir = self.outputs_folder
-        #output_dir.mkdir(parents=True, exist_ok=True)
         average_mse = torch.mean(torch.stack(self.test_mse))
         with (self.outputs_folder / "test_mse.txt").open("a",) as test_mse_file:
-            test_mse_file.write(f"{str(self.execution_mode.name)}: {str(average_mse.item())}\n")
+            test_mse_file.write(f"{str(self.execution_mode.name)}: {str(average_mse.item())}\n")  # type: ignore
         with (self.outputs_folder / "test_mae.txt").open("a") as test_mae_file:
-            test_mae_file.write(f"{str(self.execution_mode.name)}: {str(self.test_mae.compute().item())}\n")
+            test_mae_file.write(f"{str(self.execution_mode.name)}: {str(self.test_mae.compute().item())}\n")  # type: ignore
     # endregion
 
     # region HelloRegression Overrides
-    def test_step(self, batch: Dict[str, torch.Tensor], _: int) -> torch.Tensor:  # type: ignore
+    def test_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> torch.Tensor:  # type: ignore
         """
         The HelloRegression version only returns the loss, not the prediction, which we need for ensemble calculations.
         :param batch: The batch of test data.
-        :param batch_idx: The index (0, 1, ...) of the batch when the data loader is enumerated.
+        :param batch_idx: Ignored, but needed for override.
         :return: The posterior from the test data.
         """
         input = batch["x"]

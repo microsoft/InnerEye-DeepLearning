@@ -8,54 +8,14 @@ from typing import Dict, List
 from unittest import mock
 
 import numpy as np
-from numpy.lib.function_base import append
 from sklearn.model_selection import KFold
-import torch
 
 from InnerEye.Common.fixed_paths_for_tests import tests_root_directory
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import ModelExecutionMode
-from InnerEye.ML.configs.other.DummyEnsembleRegressionContainer import (DummyEnsembleRegressionContainer,
-                                                                        DummyEnsembleRegressionModule)
+from InnerEye.ML.configs.other.DummyEnsembleRegressionContainer import DummyEnsembleRegressionModule
 from InnerEye.ML.configs.other.HelloContainer import HelloContainer, HelloDataModule
 from Tests.ML.util import default_runner
-
-
-# def test_random_ensemble(test_output_dirs: OutputFolderForTests) -> None:
-#     """
-#     Make dummy checkpoints and load them, test ensemble creates correct files.
-
-#     N.B. we cannot use create_model_and_store_checkpoint as its call to create_lightning_model fails with an
-#     AttributeError: 'DummyEnsembleRegressionContainer' object has no attribute 'is_segmentation_model'
-#     """
-#     # Create checkpoints from initial random weights (i.e. without training)
-#     cross_validation_children: List[DummyEnsembleRegressionModule] = []
-#     checkpoint_paths: List[Path] = []
-#     for idx in range(5):
-#         checkpoint_path = test_output_dirs.root_dir / f"{idx}.ckpt"
-#         module = DummyEnsembleRegressionModule(outputs_folder=test_output_dirs.root_dir)
-#         torch.save({'state_dict': module.model.state_dict()}, checkpoint_path)
-#         cross_validation_children.append(module)
-#         checkpoint_paths.append(checkpoint_path)
-#     # Load checkpoints as ensemble
-#     eldest = cross_validation_children[0]
-#     eldest.load_checkpoints_as_siblings(checkpoint_paths, use_gpu=False)
-#     # Get test data split
-#     data_module_xval = HelloDataModule(
-#         root_folder=HelloContainer().local_dataset,  # type: ignore
-#         cross_validation_split_index=0,
-#         number_of_cross_validation_splits=5)
-#     test_dataloader = data_module_xval.test_dataloader()
-#     # Run inference loop
-#     eldest.on_inference_start()
-#     eldest.on_inference_start_dataset(execution_mode=ModelExecutionMode.TEST, _=True)
-#     for batch_idx, batch in enumerate(test_dataloader):
-#         posteriors = eldest.forward(batch['x'])
-#         eldest.record_posteriors(batch, batch_idx, posteriors)
-#     eldest.on_inference_end_dataset()
-#     xval_metrics_dir = test_output_dirs.root_dir / str(ModelExecutionMode.TEST)
-#     assert (xval_metrics_dir / "test_mse.txt").exists
-#     assert (xval_metrics_dir / "test_mae.txt").exists
 
 def test_trained_ensemble(test_output_dirs: OutputFolderForTests) -> None:
     """
@@ -93,11 +53,11 @@ def test_trained_ensemble(test_output_dirs: OutputFolderForTests) -> None:
         np.savetxt(local_dataset / "hellocontainer.csv", fold_data, delimiter=",")
         with mock.patch("sys.argv", args):
             loaded_config, _ = runner.run()
-        checkpoint_path = loaded_config.file_system_config.run_folder / "checkpoints" / "best_checkpoint.ckpt"
+        checkpoint_path = loaded_config.file_system_config.run_folder / "checkpoints" / "best_checkpoint.ckpt"  # type: ignore
         checkpoint_paths.append(checkpoint_path)
-        mse_metrics = _load_metrics(metrics_file=loaded_config.file_system_config.run_folder / "test_mse.txt")
+        mse_metrics = _load_metrics_from_file(metrics_file=loaded_config.file_system_config.run_folder / "test_mse.txt")  # type: ignore
         test_mses.append(mse_metrics["TEST"])
-        mae_metrics = _load_metrics(metrics_file=loaded_config.file_system_config.run_folder / "test_mae.txt")
+        mae_metrics = _load_metrics_from_file(metrics_file=loaded_config.file_system_config.run_folder / "test_mae.txt")  # type: ignore
         test_maes.append(mae_metrics["TEST"])
         print("wait")
     # Load checkpoints as ensemble
@@ -117,19 +77,19 @@ def test_trained_ensemble(test_output_dirs: OutputFolderForTests) -> None:
         ensemble.record_posteriors(batch, batch_idx, posteriors)
     ensemble.on_inference_end_dataset()
     # Compare ensembke metrics with those from the cross validation runs
-    mse_metrics = _load_metrics(metrics_file=ensemble.outputs_folder / "test_mse.txt")
+    mse_metrics = _load_metrics_from_file(metrics_file=ensemble.outputs_folder / "test_mse.txt")
     test_mse = mse_metrics["TEST"]
     for xval_run_mse in test_mses:
         assert test_mse < xval_run_mse
     # TODO: Why is the ensemble MAE worse than two of the xval run ones?
-    # ensemble: 0.08132067322731018, xval runs: [0.0805181935429573, 0.08127883821725845,
-    # 0.08167694509029388, 0.08316199481487274, 0.08165483176708221]
-    # mae_metrics = _load_metrics(metrics_file=ensemble.outputs_folder / "test_mae.txt")
+    # ensemble: 0.08132067322731018,
+    # xval runs: 0.0805181935429573, 0.08127883821725845, 0.08167694509029388, 0.08316199481487274, 0.08165483176708221
+    # mae_metrics = _load_metrics_from_file(metrics_file=ensemble.outputs_folder / "test_mae.txt")
     # test_mae = mae_metrics["TEST"]
     # for xval_run_mae in test_maes:
     #     assert test_mae < xval_run_mae
 
-def _load_metrics(metrics_file: Path) -> Dict[str, float]:
+def _load_metrics_from_file(metrics_file: Path) -> Dict[str, float]:
     """
     Load the metrics for each execution mode present in the file saved during inference.
     :param metrics_file_path: The path to the metrics file saved during inference.

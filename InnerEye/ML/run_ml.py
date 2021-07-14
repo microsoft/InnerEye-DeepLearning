@@ -937,11 +937,11 @@ class MLRunner:
 
         for model in ensemble:
             model.on_inference_start()
-            model.on_inference_epoch_start(ModelExecutionMode.TEST, is_ensemble_model=False)
+            model.on_inference_start_dataset(ModelExecutionMode.TEST, is_ensemble_model=False)
             for batch_idx, item in enumerate(test_dataloader):
-                model_outputs = model.forward(item)  # type: ignore
-                model.inference_step(item, batch_idx, model_outputs)
-            model.on_inference_epoch_end()
+                posteriors = model.forward(item)  # type: ignore
+                model.record_posteriors(item, batch_idx, posteriors)
+            model.on_inference_end_dataset()
             model.on_inference_end()
 
     def plot_cross_validation_and_upload_results(self) -> Path:
