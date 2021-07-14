@@ -120,10 +120,12 @@ def test_compare_scores_against_baselines_throws(model_proc: ModelProcessing,
     :param test_output_dirs: Test output directories.
     :return: None.
     """
+    number_of_cross_validation_splits = 2 if model_proc == ModelProcessing.ENSEMBLE_CREATION else 0
     config = SegmentationModelBase(should_validate=False,
                                    comparison_blob_storage_paths=[
                                        ('Single', 'dummy_blob_single/outputs/epoch_120/Test'),
-                                       ('5fold', 'dummy_blob_ensemble/outputs/epoch_120/Test')])
+                                       ('5fold', 'dummy_blob_ensemble/outputs/epoch_120/Test')],
+                                   number_of_cross_validation_splits=number_of_cross_validation_splits)
     config.set_output_to(test_output_dirs.root_dir)
 
     azure_config = get_default_azure_config()
