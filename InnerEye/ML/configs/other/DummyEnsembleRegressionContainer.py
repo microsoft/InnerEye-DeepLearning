@@ -71,7 +71,7 @@ class DummyEnsembleRegressionModule(HelloRegression, InnerEyeInference):
             sibling.eval()
         self.execution_mode = None
 
-    def on_inference_start_dataset(self, execution_mode: ModelExecutionMode, _: bool) -> None:
+    def on_inference_start_dataset(self, execution_mode: ModelExecutionMode, is_ensemble_model: bool) -> None:
         """
         Runs initialization for inference, when starting inference on a new dataset split (train/val/test).
         Depending on the settings, this can be called anywhere between 0 (no inference at all) to 3 times (inference
@@ -86,7 +86,7 @@ class DummyEnsembleRegressionModule(HelloRegression, InnerEyeInference):
         self.test_mae.reset()
         self.execution_mode = execution_mode
 
-    def record_posteriors(self, batch: Dict[str, torch.Tensor], batch_idx: int, _: torch.Tensor) -> None:
+    def record_posteriors(self, batch: Dict[str, torch.Tensor], batch_idx: int, posteriors: torch.Tensor) -> None:
         """
         This hook is called when the model has finished making a prediction. It can write the results to a file,
         or compute metrics and store them.
@@ -106,13 +106,13 @@ class DummyEnsembleRegressionModule(HelloRegression, InnerEyeInference):
         Write the metrics from the inference execution to disk
         We do not call HelloRegression.on_test_epoch_end since we handle the writing to disk.
         """
-        output_dir = self.outputs_folder / str(self.execution_mode)
-        output_dir.mkdir(parents=True, exist_ok=True)
+        #output_dir = self.outputs_folder
+        #output_dir.mkdir(parents=True, exist_ok=True)
         average_mse = torch.mean(torch.stack(self.test_mse))
-        with (output_dir / "test_mse.txt").open("a",) as test_mse_file:
-            test_mse_file.write(f"Epoch {self.epoch_count + 1}: {average_mse.item()}\n")
-        with (output_dir / "test_mae.txt").open("a") as test_mae_file:
-            test_mae_file.write(f"Epoch {self.epoch_count + 1}: {str(self.test_mae.compute())}\n")
+        with (self.outputs_folder / "test_mse.txt").open("a",) as test_mse_file:
+            test_mse_file.write(f"{str(self.execution_mode.name)}: {str(average_mse.item())}\n")
+        with (self.outputs_folder / "test_mae.txt").open("a") as test_mae_file:
+            test_mae_file.write(f"{str(self.execution_mode.name)}: {str(self.test_mae.compute().item())}\n")
     # endregion
 
     # region HelloRegression Overrides
@@ -136,6 +136,8 @@ class DummyEnsembleRegressionContainer(HelloContainer):
     def __init__(self) -> None:
         super().__init__()
         self.number_of_cross_validation_splits = 5
+        self.created_model: DummyEnsembleRegressionModule = None
 
     def create_model(self) -> LightningModule:
-        return DummyEnsembleRegressionModule(outputs_folder=self.outputs_folder)
+        self.created_model = DummyEnsembleRegressionModule(outputs_folder=self.outputs_folder)
+        return self.model

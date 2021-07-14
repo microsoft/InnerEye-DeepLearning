@@ -463,15 +463,15 @@ class MLRunner:
         # Cannot pass lightning_model in as a parameter since MyPy has no Intersection:
         # lightning_model = self.container.model
         # assert isinstance(lightning_model, InnerEyeInference)
-        # Check that lightning_model.inference_step is an override:
-        if type(lightning_model).inference_step == InnerEyeInference.inference_step:
-            logging.warning("The InnerEyeInference's `inference_step` is not overridden. Skipping inference completely.")
+        # Check that lightning_model.record_posteriors is an override:
+        if type(lightning_model).record_posteriors == InnerEyeInference.record_posteriors:
+            logging.warning("The InnerEyeInference's `record_posteriors` is not overridden. Skipping inference completely.")
             return
 
         if len(checkpoint_paths) > 1:
             self.create_ensemble_model_and_run_inference_for_innereyeinference(lightning_model, checkpoint_paths)
         else:
-            logging.info("Running inference via the InnerEyeInference.inference_step method")
+            logging.info("Running inference via the InnerEyeInference.record_posteriors method")
             # Read the data modules before changing the working directory, in case the code relies on relative paths
             data = self.container.get_inference_data_module()
             dataloaders: List[Tuple[DataLoader, ModelExecutionMode]] = []
@@ -487,11 +487,11 @@ class MLRunner:
                 lightning_model.on_inference_start()
                 for loader, split in dataloaders:
                     logging.info(f"Starting inference on {split.value} set")
-                    lightning_model.on_inference_epoch_start(dataset_split=split, is_ensemble_model=False)
+                    lightning_model.on_inference_start_dataset(execution_mode=split, is_ensemble_model=False)
                     for batch_idx, item in enumerate(loader):
-                        model_output = lightning_model.forward(item[0])
-                        lightning_model.inference_step(item, batch_idx, model_output=model_output)
-                    lightning_model.on_inference_epoch_end()
+                        posteriors = lightning_model.forward(item['x'])
+                        lightning_model.record_posteriors(item, batch_idx, posteriors)
+                    lightning_model.on_inference_end_dataset()
                 lightning_model.on_inference_end()
 
     def run_inference_for_non_innereyeinference_lightning_model(
