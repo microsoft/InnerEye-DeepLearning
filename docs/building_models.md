@@ -182,8 +182,7 @@ python Inner/ML/runner.py --model=Prostate --no-train --local_weights_path=path_
 To run on multiple checkpoints (if you have trained an ensemble model), specify each checkpoint using the argument
 `local_weights_path`.
 ```shell script
-python Inner/ML/runner.py --model=Prostate --no-train --local_weights_path=path_to_first_checkpoint \
-  --local_weights_path=path_to_second_checkpoint
+python Inner/ML/runner.py --model=Prostate --no-train --local_weights_path=path_to_first_checkpoint,path_to_second_checkpoint
 ```
 
 #### From URLs:
@@ -195,8 +194,7 @@ python Inner/ML/runner.py --model=Prostate --no-train --weights_url=url_for_your
 To run on multiple checkpoints (if you have trained an ensemble model), specify each checkpoint using the argument
 `weights_url`.
 ```shell script
-python Inner/ML/runner.py --model=Prostate --no-train --weights_url=url_for_first_checkpoint \
-  --weights_url=url_for_second_checkpoint
+python Inner/ML/runner.py --model=Prostate --no-train --weights_url=url_for_first_checkpoint,url_for_second_checkpoint
 ```
 
 #### Running a registered AzureML model on a single image on the local disk
