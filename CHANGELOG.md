@@ -27,6 +27,8 @@ jobs that run in AzureML.
 - ([#496](https://github.com/microsoft/InnerEye-DeepLearning/pull/496)) All plots are now saved as PNG, rather than JPG.
 - ([#497](https://github.com/microsoft/InnerEye-DeepLearning/pull/497)) Reducing the size of the code snapshot that
 gets uploaded to AzureML, by skipping all test folders.
+- ([#509](https://github.com/microsoft/InnerEye-DeepLearning/pull/509)) Parameter `extra_downloaded_run_id` has been
+  renamed to `pretraining_run_checkpoints`.
 
 ### Fixed
 - ([#525](https://github.com/microsoft/InnerEye-DeepLearning/pull/525)) Enable --store_dataset_sample
@@ -39,9 +41,14 @@ any large models anymore because data loaders ran out of memory.
 LightningContainer models can get stuck at test set inference.
 - ([#498](https://github.com/microsoft/InnerEye-DeepLearning/pull/498)) Workaround for the problem that downloading
 multiple large checkpoints can time out.
+- ([#515](https://github.com/microsoft/InnerEye-DeepLearning/pull/515)) Workaround for occasional issues with dataset
+mounting and running matplotblib on some machines. Re-instantiated a disabled test.
+- ([#509](https://github.com/microsoft/InnerEye-DeepLearning/pull/509)) Fix issue where model checkpoints were not loaded
+in inference-only runs when using lightning containers.
 
 ### Removed
 
+- ([#542](https://github.com/microsoft/InnerEye-DeepLearning/pull/542)) Removed Windows test leg from build pipeline.
 - ([#520](https://github.com/microsoft/InnerEye-DeepLearning/pull/520)) Disable glaucoma job from Azure pipeline.
 - ([#509](https://github.com/microsoft/InnerEye-DeepLearning/pull/509)) Parameters `local_weights_path` and
   `weights_url` can no longer be used to initialize a training run, only inference runs.

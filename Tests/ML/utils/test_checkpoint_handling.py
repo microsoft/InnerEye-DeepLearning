@@ -355,7 +355,7 @@ def test_get_checkpoints_from_model_ensemble_run(test_output_dirs: OutputFolderF
     downloaded_checkpoints = CheckpointHandler.get_checkpoints_from_model(model_id=model_id,
                                                                           workspace=get_default_workspace(),
                                                                           download_path=test_output_dirs.root_dir)
-    # Check a single checkpoint has been downloaded
+    # Check that all the ensemble checkpoints have been downloaded
     expected_model_root = test_output_dirs.root_dir / FINAL_ENSEMBLE_MODEL_FOLDER
     assert expected_model_root.is_dir()
     model_inference_config = read_model_inference_config(expected_model_root / MODEL_INFERENCE_JSON_FILE_NAME)

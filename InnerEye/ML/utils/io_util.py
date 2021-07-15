@@ -2,23 +2,22 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import shutil
+import uuid
 from copy import copy
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-import shutil
 from typing import Dict, Generic, Iterable, List, Optional, Tuple, Type, TypeVar, Union
-import uuid
-
-import h5py
-from numpy.lib.npyio import NpzFile
-from skimage.transform import resize
 
 import SimpleITK as sitk
+import h5py
 import numpy as np
 import pandas as pd
 import pydicom as dicom
 import torch
+from numpy.lib.npyio import NpzFile
+from skimage.transform import resize
 from tabulate import tabulate
 
 from InnerEye.Common import common_util

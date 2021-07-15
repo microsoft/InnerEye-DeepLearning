@@ -217,10 +217,10 @@ class WorkflowParams(param.Parameterized):
                       doc="If set, enable/disable full image inference on test set after ensemble training.")
     weights_url: List[str] = param.List(default=[], class_=str,
                                         doc="If provided, a set of urls from which checkpoints will be downloaded"
-                                                "and used for training/inference.")
+                                                "and used for inference.")
     local_weights_path: List[Path] = param.List(default=[], class_=Path,
-                                                doc="A list of checkpoints paths to use for training/inference, "
-                                                    "when training is running outside Azure.")
+                                                doc="A list of checkpoints paths to use for inference, "
+                                                    "when the job is running outside Azure.")
     model_id: str = param.String(default="",
                                  doc="A model id string in the form 'model name:version' "
                                      "to use a registered model for inference.")

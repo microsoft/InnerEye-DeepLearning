@@ -4,7 +4,7 @@ steps:
     submodules: true
 
   - bash: |
-      subdir=bin
+      subdir=Scripts
       echo "Adding this directory to PATH: $CONDA/$subdir"
       echo "##vso[task.prependpath]$CONDA/$subdir"
     displayName: Add conda to PATH
@@ -15,8 +15,3 @@ steps:
       conda --version
       conda list
     displayName: Print conda version and initial package list
-
-  - bash: |
-      sudo chown -R $USER /usr/share/miniconda
-    condition: and(succeeded(), eq( variables['Agent.OS'], 'Linux' ))
-    displayName: Take ownership of conda installation
