@@ -1,3 +1,4 @@
+steps:
   - template: checkout_windows.yml
 
   - task: CredScan@3
