@@ -18,6 +18,7 @@ from skimage.transform import resize
 
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
+from InnerEye.ML.config import PhotometricNormalizationMethod, SegmentationModelBase
 from InnerEye.ML.dataset.sample import PatientDatasetSource, PatientMetadata
 from InnerEye.ML.utils import io_util
 from InnerEye.ML.utils.dataset_util import DatasetExample, store_and_upload_example
@@ -85,14 +86,17 @@ def test_load_images_from_dataset_source(
     # metadata, image and GT channels must be present. Mask is optional
     if None in [metadata, image_channel, ground_truth_channel]:
         with pytest.raises(Exception):
-            _test_load_images_from_channels(metadata, image_channel, ground_truth_channel, mask_channel, check_exclusive)
+            _test_load_images_from_channels(metadata, image_channel, ground_truth_channel, mask_channel,
+                                            check_exclusive)
     else:
         if check_exclusive:
             with pytest.raises(ValueError) as mutually_exclusive_labels_error:
-                _test_load_images_from_channels(metadata, image_channel, ground_truth_channel, mask_channel, check_exclusive)
+                _test_load_images_from_channels(metadata, image_channel, ground_truth_channel, mask_channel,
+                                                check_exclusive)
             assert 'not mutually exclusive' in str(mutually_exclusive_labels_error.value)
         else:
-            _test_load_images_from_channels(metadata, image_channel, ground_truth_channel, mask_channel, check_exclusive)
+            _test_load_images_from_channels(metadata, image_channel, ground_truth_channel, mask_channel,
+                                            check_exclusive)
 
 
 def _test_load_images_from_channels(
@@ -188,10 +192,12 @@ def test_save_dataset_example(test_output_dirs: OutputFolderForTests) -> None:
                                     labels=labels)
 
     images_folder = test_output_dirs.root_dir
-    store_and_upload_example(dataset_sample, images_folder=images_folder)
-    image_from_disk = io_util.load_nifti_image(os.path.join(images_folder, "p2_e_1_image.nii.gz"))
-    labels_from_disk = io_util.load_nifti_image(os.path.join(images_folder, "p2_e_1_label.nii.gz"))
-    prediction_from_disk = io_util.load_nifti_image(os.path.join(images_folder, "p2_e_1_prediction.nii.gz"))
+    config = SegmentationModelBase(should_validate=False, norm_method=PhotometricNormalizationMethod.Unchanged)
+    config.set_output_to(images_folder)
+    store_and_upload_example(dataset_sample, config)
+    image_from_disk = io_util.load_nifti_image(os.path.join(config.example_images_folder, "p2_e_1_image.nii.gz"))
+    labels_from_disk = io_util.load_nifti_image(os.path.join(config.example_images_folder, "p2_e_1_label.nii.gz"))
+    prediction_from_disk = io_util.load_nifti_image(os.path.join(config.example_images_folder, "p2_e_1_prediction.nii.gz"))
     assert image_from_disk.header.spacing == spacing
     # When no photometric normalization is provided when saving, image is multiplied by 1000.
     # It is then rounded to int64, but converted back to float when read back in.

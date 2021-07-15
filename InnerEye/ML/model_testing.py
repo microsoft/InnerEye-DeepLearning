@@ -26,7 +26,7 @@ from InnerEye.ML.dataset.full_image_dataset import FullImageDataset
 from InnerEye.ML.dataset.sample import PatientMetadata, Sample
 from InnerEye.ML.metrics import InferenceMetrics, InferenceMetricsForClassification, InferenceMetricsForSegmentation, \
     compute_scalar_metrics
-from InnerEye.ML.metrics_dict import DataframeLogger, MetricsDict, ScalarMetricsDict, SequenceMetricsDict
+from InnerEye.ML.metrics_dict import DataframeLogger, FloatOrInt, MetricsDict, ScalarMetricsDict, SequenceMetricsDict
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.pipelines.ensemble import EnsemblePipeline
 from InnerEye.ML.pipelines.inference import FullImageInferencePipelineBase, InferencePipeline, InferencePipelineBase
@@ -77,16 +77,17 @@ def model_test(config: ModelConfigBase,
 
 
 def segmentation_model_test(config: SegmentationModelBase,
-                            data_split: ModelExecutionMode,
+                            execution_mode: ModelExecutionMode,
                             checkpoint_handler: CheckpointHandler,
                             model_proc: ModelProcessing = ModelProcessing.DEFAULT) -> InferenceMetricsForSegmentation:
     """
     The main testing loop for segmentation models.
     It loads the model and datasets, then proceeds to test the model for all requested checkpoints.
     :param config: The arguments object which has a valid random seed attribute.
-    :param data_split: Indicates which of the 3 sets (training, test, or validation) is being processed.
-    :param checkpoint_handler: Checkpoint handler object to find checkpoint paths for model initialization
-    :param model_proc: whether we are testing an ensemble or single model
+    :param execution_mode: Indicates which of the 3 sets (training, test, or validation) is being processed.
+    :param checkpoint_handler: Checkpoint handler object to find checkpoint paths for model initialization.
+    :param model_proc: Whether we are testing an ensemble or single model.
+    :param patient_id: String which contains subject identifier.
     :return: InferenceMetric object that contains metrics related for all of the checkpoint epochs.
     """
     checkpoints_to_test = checkpoint_handler.get_checkpoints_to_test()
@@ -94,12 +95,12 @@ def segmentation_model_test(config: SegmentationModelBase,
     if not checkpoints_to_test:
         raise ValueError("There were no checkpoints available for model testing.")
 
-    epoch_results_folder = config.outputs_folder / get_best_epoch_results_path(data_split, model_proc)
+    epoch_results_folder = config.outputs_folder / get_best_epoch_results_path(execution_mode, model_proc)
     # save the datasets.csv used
     config.write_dataset_files(root=epoch_results_folder)
-    epoch_and_split = f"{data_split.value} set"
+    epoch_and_split = f"{execution_mode.value} set"
     epoch_dice_per_image = segmentation_model_test_epoch(config=copy.deepcopy(config),
-                                                         data_split=data_split,
+                                                         execution_mode=execution_mode,
                                                          checkpoint_paths=checkpoints_to_test,
                                                          results_folder=epoch_results_folder,
                                                          epoch_and_split=epoch_and_split)
@@ -114,11 +115,11 @@ def segmentation_model_test(config: SegmentationModelBase,
             name = str(get_best_epoch_results_path(data_split, ModelProcessing.DEFAULT))
             # PARENT_RUN_CONTEXT.upload_folder(name=name, path=str(epoch_results_folder))
             MlflowClient().log_artifacts(PARENT_RUN_CONTEXT.info.run_id, local_dir=str(epoch_results_folder), artifact_path=name)
-    return InferenceMetricsForSegmentation(data_split=data_split, metrics=result)
+    return InferenceMetricsForSegmentation(execution_mode=execution_mode, metrics=result)
 
 
 def segmentation_model_test_epoch(config: SegmentationModelBase,
-                                  data_split: ModelExecutionMode,
+                                  execution_mode: ModelExecutionMode,
                                   checkpoint_paths: List[Path],
                                   results_folder: Path,
                                   epoch_and_split: str) -> Optional[List[float]]:
@@ -128,8 +129,8 @@ def segmentation_model_test_epoch(config: SegmentationModelBase,
     where the average is taken across all non-background structures in the image.
     :param checkpoint_paths: Checkpoint paths to run inference on.
     :param config: The arguments which specify all required information.
-    :param data_split: Is the model evaluated on train, test, or validation set?
-    :param results_folder: The folder where to store the results
+    :param execution_mode: Is the model evaluated on train, test, or validation set?
+    :param results_folder: The folder where to store the results.
     :param epoch_and_split: A string that should uniquely identify the epoch and the data split (train/val/test).
     :raises TypeError: If the arguments are of the wrong type.
     :raises ValueError: When there are issues loading the model.
@@ -138,8 +139,8 @@ def segmentation_model_test_epoch(config: SegmentationModelBase,
     ml_util.set_random_seed(config.get_effective_random_seed(), "Model testing")
     results_folder.mkdir(exist_ok=True)
 
-    test_dataframe = config.get_dataset_splits()[data_split]
-    test_csv_path = results_folder / STORED_CSV_FILE_NAMES[data_split]
+    test_dataframe = config.get_dataset_splits()[execution_mode]
+    test_csv_path = results_folder / STORED_CSV_FILE_NAMES[execution_mode]
     test_dataframe.to_csv(path_or_buf=test_csv_path, index=False)
     logging.info("Results directory: {}".format(results_folder))
     logging.info(f"Starting evaluation of model {config.model_name} on {epoch_and_split}")
@@ -147,7 +148,7 @@ def segmentation_model_test_epoch(config: SegmentationModelBase,
     # Write the dataset id and ground truth ids into the results folder
     store_run_information(results_folder, config.azure_dataset_id, config.ground_truth_ids, config.image_channels)
 
-    ds = config.get_torch_dataset_for_inference(data_split)
+    ds = config.get_torch_dataset_for_inference(execution_mode)
 
     inference_pipeline = create_inference_pipeline(config=config, checkpoint_paths=checkpoint_paths)
 
@@ -184,25 +185,9 @@ def segmentation_model_test_epoch(config: SegmentationModelBase,
                     results_folder=results_folder),
             range(len(ds)))
 
-    average_dice = list()
-    metrics_writer = MetricsPerPatientWriter()
-    for (patient_metadata, metrics_for_patient) in pool_outputs:
-        # Add the Dice score for the foreground classes, stored in the default hue
-        metrics.add_average_foreground_dice(metrics_for_patient)
-        average_dice.append(metrics_for_patient.get_single_metric(MetricType.DICE))
-        # Structure names does not include the background class (index 0)
-        for structure_name in config.ground_truth_ids:
-            dice_for_struct = metrics_for_patient.get_single_metric(MetricType.DICE, hue=structure_name)
-            hd_for_struct = metrics_for_patient.get_single_metric(MetricType.HAUSDORFF_mm, hue=structure_name)
-            md_for_struct = metrics_for_patient.get_single_metric(MetricType.MEAN_SURFACE_DIST_mm, hue=structure_name)
-            metrics_writer.add(patient=str(patient_metadata.patient_id),
-                               structure=structure_name,
-                               dice=dice_for_struct,
-                               hausdorff_distance_mm=hd_for_struct,
-                               mean_distance_mm=md_for_struct)
-
+    metrics_writer, average_dice = populate_metrics_writer(pool_outputs, config)
     metrics_writer.to_csv(results_folder / SUBJECT_METRICS_FILE_NAME)
-    metrics_writer.save_aggregates_to_csv(results_folder / METRICS_AGGREGATES_FILE)
+    metrics_writer.save_aggregates_to_csv(results_folder / METRICS_AGGREGATES_FILE, config.allow_incomplete_labels)
     if config.is_plotting_enabled:
         plt.figure()
         boxplot_per_structure(metrics_writer.to_data_frame(),
@@ -233,6 +218,7 @@ def evaluate_model_predictions(process_id: int,
     """
     sample = dataset.get_samples_at_index(index=process_id)[0]
     logging.info(f"Evaluating predictions for patient {sample.patient_id}")
+
     patient_results_folder = get_patient_results_folder(results_folder, sample.patient_id)
     segmentation = load_nifti_image(patient_results_folder / DEFAULT_RESULT_IMAGE_NAME).image
     metrics_per_class = metrics.calculate_metrics_per_class(segmentation,
@@ -248,6 +234,35 @@ def evaluate_model_predictions(process_id: int,
                                            result_folder=thumbnails_folder,
                                            image_range=config.output_range)
     return sample.metadata, metrics_per_class
+
+
+def populate_metrics_writer(
+        model_prediction_evaluations: List[Tuple[PatientMetadata, MetricsDict]],
+        config: SegmentationModelBase) -> Tuple[MetricsPerPatientWriter, List[FloatOrInt]]:
+    """
+    Populate a MetricsPerPatientWriter with the metrics for each patient
+    :param model_prediction_evaluations: The list of PatientMetadata/MetricsDict tuples obtained
+    from evaluate_model_predictions
+    :param config: The SegmentationModelBase config from which we read the ground_truth_ids
+    :returns: A new MetricsPerPatientWriter and a list of foreground DICE score averages
+    """
+    average_dice: List[FloatOrInt] = []
+    metrics_writer = MetricsPerPatientWriter()
+    for (patient_metadata, metrics_for_patient) in model_prediction_evaluations:
+        # Add the Dice score for the foreground classes, stored in the default hue
+        metrics.add_average_foreground_dice(metrics_for_patient)
+        average_dice.append(metrics_for_patient.get_single_metric(MetricType.DICE))
+        # Structure names does not include the background class (index 0)
+        for structure_name in config.ground_truth_ids:
+            dice_for_struct = metrics_for_patient.get_single_metric(MetricType.DICE, hue=structure_name)
+            hd_for_struct = metrics_for_patient.get_single_metric(MetricType.HAUSDORFF_mm, hue=structure_name)
+            md_for_struct = metrics_for_patient.get_single_metric(MetricType.MEAN_SURFACE_DIST_mm, hue=structure_name)
+            metrics_writer.add(patient=str(patient_metadata.patient_id),
+                               structure=structure_name,
+                               dice=dice_for_struct,
+                               hausdorff_distance_mm=hd_for_struct,
+                               mean_distance_mm=md_for_struct)
+    return metrics_writer, average_dice
 
 
 def get_patient_results_folder(results_folder: Path, patient_id: int) -> Path:

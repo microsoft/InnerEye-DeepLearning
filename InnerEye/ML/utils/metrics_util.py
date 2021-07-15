@@ -4,7 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 from functools import reduce
 from pathlib import Path
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Tuple, Type, Union
 
 import numpy as np
 import pandas as pd
@@ -36,7 +36,7 @@ class MetricsPerPatientWriter:
             hausdorff_distance_mm: float,
             mean_distance_mm: float) -> None:
         """
-        Adds a Dice score, Mean nad Hausdorff Distances for a patient + structure combination to the present object.
+        Adds a Dice score, Mean and Hausdorff Distances for a patient + structure combination to the present object.
 
         :param patient: The name of the patient.
         :param structure: The structure that is predicted for.
@@ -63,22 +63,37 @@ class MetricsPerPatientWriter:
         del sorted_by_dice[dice_numeric]
         sorted_by_dice.to_csv(file_name, index=False, float_format=self.float_format)
 
-    def save_aggregates_to_csv(self, file_path: Path) -> None:
+    def save_aggregates_to_csv(self, file_path: Path, allow_incomplete_labels: bool = False) -> None:
         """
         Writes the per-structure aggregate Dice scores (mean, median, and others) to a CSV file.
         The aggregates are those that are output by the Dataframe 'describe' method.
 
         :param file_path: The name of the file to write to.
+        :param allow_incomplete_labels: boolean flag. If false, all ground truth files must be provided.
+        If true, ground truth files are optional and we add a total_patients count column for easy
+        comparison. (Defaults to False.)
         """
 
         stats_columns = ['mean', 'std', 'min', 'max']
         # get aggregates for all metrics
-        aggregates = self.to_data_frame().groupby(MetricsFileColumns.Structure.value).describe()
+        df = self.to_data_frame()
+        aggregates = df.groupby(MetricsFileColumns.Structure.value).describe()
+
+        total_num_patients_column_name = f"total_{MetricsFileColumns.Patient.value}".lower()
+        if not total_num_patients_column_name.endswith("s"):
+            total_num_patients_column_name += "s"
 
         def filter_rename_metric_columns(_metric_column: str, is_count_column: bool = False) -> pd.DataFrame:
             _columns = ["count"] + stats_columns if is_count_column else stats_columns
             _df = aggregates[_metric_column][_columns]
-            _columns_to_rename = [x for x in _df.columns if x != "count"]
+            if is_count_column and allow_incomplete_labels:
+                # For this condition we add a total_patient count column so that readers can make
+                # more sense of aggregated metrics where some patients were missing the label (i.e.
+                # partial ground truth).
+                num_subjects = len(pd.unique(df[MetricsFileColumns.Patient.value]))
+                _df[total_num_patients_column_name] = num_subjects
+                _df = _df[["count", total_num_patients_column_name] + stats_columns]
+            _columns_to_rename = [x for x in _df.columns if x != "count" and x != total_num_patients_column_name]
             return _df.rename(columns={k: f"{_metric_column}_{k}" for k in _columns_to_rename})
 
         def _merge_df(df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
@@ -100,14 +115,15 @@ class MetricsPerPatientWriter:
         # slow, and should be avoided. Hence, work with dictionary as long as possible, and only finally
         # convert to a DataFrame.
 
-        # dtype is specified as (an instance of) str, not the str class itself, but this seems correct.
         # noinspection PyTypeChecker
+        dtypes: Dict[str, Union[Type[float], Type[str]]] = {column: str for column in self.columns}
+        dtypes[MetricsFileColumns.Dice.value] = float
+        dtypes[MetricsFileColumns.HausdorffDistanceMM.value] = float
+        dtypes[MetricsFileColumns.MeanDistanceMM.value] = float
         df = DataFrame(self.columns, dtype=str)
-        df[MetricsFileColumns.DiceNumeric.value] = pd.Series(data=df[MetricsFileColumns.Dice.value].apply(float))
-        df[MetricsFileColumns.HausdorffDistanceMM.value] = pd.Series(
-            data=df[MetricsFileColumns.HausdorffDistanceMM.value].apply(float))
-        df[MetricsFileColumns.MeanDistanceMM.value] = pd.Series(
-            data=df[MetricsFileColumns.MeanDistanceMM.value].apply(float))
+        df = df.astype(dtypes)
+        df[MetricsFileColumns.DiceNumeric.value] = df[MetricsFileColumns.Dice.value]
+        df = df.sort_values(by=[MetricsFileColumns.Patient.value, MetricsFileColumns.Structure.value])
         return df
 
 
@@ -245,3 +261,15 @@ def convert_input_and_label(model_output: Union[torch.Tensor, np.ndarray],
     if not torch.is_tensor(label):
         label = torch.tensor(label)
     return model_output.float(), label.float()
+
+
+def is_missing_ground_truth(ground_truth: np.array) -> bool:
+    """
+    calculate_metrics_per_class in metrics.py and plot_contours_for_all_classes in plotting.py both
+    check whether there is ground truth missing using this simple check for NaN value at 0, 0, 0.
+    To avoid duplicate code we bring it here as a utility function.
+    :param ground_truth: ground truth binary array with dimensions: [Z x Y x X].
+    :param label_id: Integer index of the label to check.
+    :returns: True if the label is missing (signified by NaN), False otherwise.
+    """
+    return np.isnan(ground_truth[0, 0, 0])

@@ -150,13 +150,6 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         # because this would prevent us from easily instantiating this class in tests.
         raise NotImplementedError("create_model must be overridden")
 
-    def get_total_number_of_cross_validation_runs(self) -> int:
-        """
-        Returns the total number of HyperDrive/offline runs required to sample the entire
-        cross validation parameter space.
-        """
-        return self.number_of_cross_validation_splits
-
     def get_cross_validation_hyperdrive_sampler(self) -> GridParameterSampling:
         """
         Returns the cross validation sampler, required to sample the entire parameter space for cross validation.
@@ -176,7 +169,7 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
             hyperparameter_sampling=self.get_cross_validation_hyperdrive_sampler(),
             primary_metric_name=TrackedMetrics.Val_Loss.value,
             primary_metric_goal=PrimaryMetricGoal.MINIMIZE,
-            max_total_runs=self.get_total_number_of_cross_validation_runs()
+            max_total_runs=self.number_of_cross_validation_splits
         )
 
     def get_cross_validation_dataset_splits(self, dataset_split: DatasetSplits) -> DatasetSplits:

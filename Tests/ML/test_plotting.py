@@ -167,7 +167,7 @@ def test_plot_normalization_result(test_output_dirs: OutputFolderForTests) -> No
     expected = ["042_slice_001.png", "042_slice_001_contour.png"]
     compare_files(files, expected)
 
-
+@pytest.mark.skipif(common_util.is_windows(), reason="Random plotting errors on Windows")
 def test_plot_contours_for_all_classes(test_output_dirs: OutputFolderForTests) -> None:
     size = (3, 3, 3)
     image = np.zeros((1,) + size)

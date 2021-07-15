@@ -13,9 +13,13 @@ from InnerEye.ML.utils.split_dataset import DatasetSplits
 
 fg_classes = ["spinalcord", "lung_r", "lung_l"]
 
+default_single_comparison_blob = "refs_pull_483_merge_1624269679_90b1d23c/outputs/best_validation_epoch/Test"
+
 
 class BasicModel2Epochs(SegmentationModelBase):
     def __init__(self, **kwargs: Any) -> None:
+        comparison_blob_storage_paths = kwargs.pop("comparison_blob_storage_paths",
+                                                   [("Single", default_single_comparison_blob)])
         super().__init__(
             should_validate=False,
             architecture="Basic",
@@ -39,6 +43,9 @@ class BasicModel2Epochs(SegmentationModelBase):
             recovery_checkpoint_save_interval=1,
             use_mixed_precision=True,
             azure_dataset_id=AZURE_DATASET_ID,
+            comparison_blob_storage_paths=comparison_blob_storage_paths,
+            inference_on_test_set=True,
+            inference_on_val_set=True,
             dataset_mountpoint="/tmp/innereye",
             # Use an LR scheduler with a pronounced and clearly visible decay, to be able to easily see if that
             # is applied correctly in run recovery.

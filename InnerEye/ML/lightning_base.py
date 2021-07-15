@@ -9,7 +9,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import param
 import torch
-from pytorch_lightning import LightningDataModule, LightningModule
+from pytorch_lightning import LightningDataModule, LightningModule, Trainer
 from pytorch_lightning.utilities import rank_zero_only
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
@@ -161,11 +161,13 @@ class InnerEyeContainer(LightningContainer):
                 unique_ids = set(split_data[CSV_SUBJECT_HEADER])
                 for patient_id in unique_ids:
                     rows = split_data.loc[split_data[CSV_SUBJECT_HEADER] == patient_id]
+                    allow_incomplete_labels = self.config.allow_incomplete_labels  # type: ignore
                     # Converts channels from data frame to file paths and gets errors if any
                     __, failed_channel_info = convert_channels_to_file_paths(all_channels,
-                                                                              rows,
-                                                                              local_dataset_root_folder,
-                                                                              patient_id)
+                                                                             rows,
+                                                                             local_dataset_root_folder,
+                                                                             patient_id,
+                                                                             allow_incomplete_labels)
                     full_failed_channel_info += failed_channel_info
 
         if full_failed_channel_info:
@@ -255,8 +257,8 @@ class InnerEyeLightning(LightningModule):
         """
         Returns True if metric logging should use sync_dist=True. This is read off from the use_ddp flag of the trainer.
         """
-        # For PL from version 1.2.0 on: self.trainer.accelerator_connector.use_ddp
-        return self.trainer.use_ddp
+        assert isinstance(self.trainer, Trainer)
+        return self.trainer.accelerator_connector.use_ddp
 
     def on_train_epoch_start(self) -> None:
         self.train_timers.reset()
@@ -495,6 +497,7 @@ class InnerEyeLightning(LightningModule):
         :param is_training: If True, the logged metric will be called "train/Loss". If False, the metric will
         be called "val/Loss"
         """
+        assert isinstance(self.trainer, Trainer)
         self.log_on_epoch(MetricType.LOSS, loss, is_training)
         if is_training:
             learning_rate = self.trainer.lr_schedulers[0]['scheduler'].get_last_lr()[0]

@@ -127,9 +127,9 @@ at the same time (provided that the cluster has capacity). This means that a com
 takes as long as a single training run.
 
 To start cross validation, you can either modify the `number_of_cross_validation_splits` property of your model,
-or supply it on the command line: Provide all the usual switches, and add `--number_of_cross_validation_splits=N`, 
+or supply it on the command line: provide all the usual switches, and add `--number_of_cross_validation_splits=N`, 
 for some `N` greater than 1; a value of 5 is typical. This will start a 
-[HyperDrive run](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-tune-hyperparameters): A parent
+[HyperDrive run](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-tune-hyperparameters): a parent
 AzureML job, with `N` child runs that will execute in parallel. You can see the child runs in the AzureML UI in the
 "Child Runs" tab.
 
@@ -328,4 +328,27 @@ def get_image_transform(self) -> ModelTransformsPerExecutionMode:
         train=ImageTransformationPipeline(transforms=[Resize(256), RandomAffine(degrees=10), ColorJitter(brightness=0.2)]),
         val=ImageTransformationPipeline(transforms=[Resize(256)]),
         test=ImageTransformationPipeline(transforms=[Resize(256)]))
+```
+
+### Segmentation Models and Inference.
+
+By default when building a segmentation model a full image inference will be performed on the validation and test data sets; 
+and when building an ensemble model, a full image inference will be performed on the test data set only (because the 
+training and validation sets are first combined before being split into each of the folds). 
+There are a total of six command line options for controlling this in more detail.
+
+For non-ensemble models use any of the following command line options to enable or disable inference on training, test, or validation data sets:
+
+```
+--inference_on_train_set=True or False
+--inference_on_test_set=True or False
+--inference_on_val_set=True or False
+```
+
+For ensemble models use any of the following corresponding command line options:
+
+```
+--ensemble_inference_on_train_set=True or False
+--ensemble_inference_on_test_set=True or False
+--ensemble_inference_on_val_set=True or False
 ```

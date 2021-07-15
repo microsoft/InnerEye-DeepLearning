@@ -279,6 +279,7 @@ def test_run_ml_with_classification_model(test_output_dirs: OutputFolderForTests
     azure_config = get_default_azure_config()
     azure_config.train = True
     config: ScalarModelBase = ModelConfigLoader().create_model_config_from_name(model_name)
+    config.inference_on_test_set = True
     config.number_of_cross_validation_splits = number_of_offline_cross_validation_splits
     config.set_output_to(test_output_dirs.root_dir)
     # Trying to run DDP from the test suite hangs, hence restrict to single GPU.
@@ -293,7 +294,7 @@ def test_run_ml_with_classification_model(test_output_dirs: OutputFolderForTests
         config_and_files = get_config_and_results_for_offline_runs(config)
         result_files = config_and_files.files
         # One file for VAL, one for TRAIN and one for TEST for each child run
-        assert len(result_files) == config.get_total_number_of_cross_validation_runs() * 3
+        assert len(result_files) == config.number_of_cross_validation_splits * 3
         for file in result_files:
             assert file.dataset_csv_file is not None
             assert file.dataset_csv_file.exists()
@@ -313,8 +314,9 @@ def test_run_ml_with_segmentation_model(test_output_dirs: OutputFolderForTests) 
     # This is for a bug in an earlier version of the code where the wrong execution mode was used to
     # compute the expected mask size at training time.
     config.test_crop_size = (75, 75, 75)
-    config.perform_training_set_inference = False
-    config.perform_validation_and_test_set_inference = True
+    config.inference_on_train_set = False
+    config.inference_on_val_set = True
+    config.inference_on_test_set = True
     config.set_output_to(test_output_dirs.root_dir)
     azure_config = get_default_azure_config()
     azure_config.train = True
@@ -526,7 +528,7 @@ def test_is_offline_cross_val_parent_run(offline_parent_cv_run: bool) -> None:
 def _check_offline_cross_validation_output_files(train_config: ScalarModelBase) -> None:
     metrics: Dict[ModelExecutionMode, List[pd.DataFrame]] = dict()
     root = Path(train_config.file_system_config.outputs_folder)
-    for x in range(train_config.get_total_number_of_cross_validation_runs()):
+    for x in range(train_config.number_of_cross_validation_splits):
         expected_outputs_folder = root / str(x)
         assert expected_outputs_folder.exists()
         for m in [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL, ModelExecutionMode.TEST]:

@@ -9,7 +9,6 @@ from typing import Any, Dict, Iterator, List, Tuple, Union
 import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
-from pl_bolts.optimizers.lars_scheduling import LARSWrapper
 from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
 from torch import Tensor as T
 from torch.optim import Adam
@@ -17,6 +16,7 @@ from torch.optim import Adam
 from InnerEye.ML.SSL.lightning_modules.byol.byol_models import SiameseArm
 from InnerEye.ML.SSL.lightning_modules.byol.byol_moving_average import ByolMovingAverageWeightUpdate
 from InnerEye.ML.SSL.utils import SSLDataModuleType
+from pytorch_lightning import Trainer
 
 SingleBatchType = Tuple[List, T]
 BatchType = Union[Dict[SSLDataModuleType, SingleBatchType], SingleBatchType]
@@ -33,6 +33,7 @@ class BYOLInnerEye(pl.LightningModule):
                  batch_size: int,
                  encoder_name: str,
                  warmup_epochs: int,
+                 max_epochs: int,
                  use_7x7_first_conv_in_resnet: bool = True,
                  weight_decay: float = 1e-6,
                  **kwargs: Any) -> None:
@@ -59,6 +60,7 @@ class BYOLInnerEye(pl.LightningModule):
 
     def on_train_batch_end(self, *args: Any, **kwargs: Any) -> None:
         # Add callback for user automatically since it's key to BYOL weight update
+        assert isinstance(self.trainer, Trainer)
         self.weight_callback.on_before_zero_grad(self.trainer, self)
 
     def forward(self, x: T) -> T:  # type: ignore
@@ -111,31 +113,12 @@ class BYOLInnerEye(pl.LightningModule):
         self.train_iters_per_epoch = self.hparams.num_samples // global_batch_size  # type: ignore
 
     def configure_optimizers(self) -> Any:
-        """
-        Configures the optimizer to use for training: Adam optimizer with Lars scheduling, excluding certain parameters
-        (batch norm and bias of convolution) from weight decay. Apply Linear Cosine Annealing schedule of learning
-        rate with warm-up.
-        """
-        # TRICK 1 (Use lars + filter weights)
         # exclude certain parameters
         parameters = self.exclude_from_wt_decay(self.online_network.named_parameters(),
                                                 weight_decay=self.hparams.weight_decay)  # type: ignore
-        optimizer = LARSWrapper(Adam(parameters, lr=self.hparams.learning_rate))  # type: ignore
-
-        # Trick 2 (after each step)
-        self.hparams.warmup_epochs = self.hparams.warmup_epochs * self.train_iters_per_epoch  # type: ignore
-        max_epochs = self.trainer.max_epochs * self.train_iters_per_epoch
-
-        linear_warmup_cosine_decay = LinearWarmupCosineAnnealingLR(
-            optimizer,
-            warmup_epochs=self.hparams.warmup_epochs,  # type: ignore
-            max_epochs=max_epochs,
-            warmup_start_lr=0,
-            eta_min=self.min_learning_rate,
-        )
-
-        scheduler = {'scheduler': linear_warmup_cosine_decay, 'interval': 'step', 'frequency': 1}
-
+        optimizer = Adam(parameters, lr=self.hparams.learning_rate, weight_decay=self.hparams.weight_decay)  # type: ignore
+        scheduler = LinearWarmupCosineAnnealingLR(
+            optimizer, warmup_epochs=self.hparams.warmup_epochs, max_epochs=self.hparams.max_epochs)   # type: ignore
         return [optimizer], [scheduler]
 
     def exclude_from_wt_decay(self,

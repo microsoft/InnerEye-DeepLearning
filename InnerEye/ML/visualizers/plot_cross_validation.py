@@ -29,7 +29,7 @@ from matplotlib import pyplot
 
 import InnerEye.Common.Statistics.mann_whitney_test as mann_whitney
 from InnerEye.Azure.azure_config import AzureConfig
-from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, download_outputs_from_run, \
+from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, download_run_output_file, \
     fetch_child_runs, is_offline_run_context, is_parent_run
 from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.Statistics.wilcoxon_signed_rank_test import WilcoxonTestConfig, wilcoxon_signed_rank_test
@@ -232,11 +232,10 @@ class PlotCrossValidationConfig(GenericConfig):
             return None
         else:
             try:
-                return download_outputs_from_run(
-                    blobs_path=blob_path,
+                return download_run_output_file(
+                    blob_path=blob_path,
                     destination=destination,
-                    run=run,
-                    is_file=True
+                    run=run
                 )
             except Exception as ex:
                 logging.warning(f"File {blob_to_download} not found in output of run {run.id}: {ex}")
@@ -441,7 +440,7 @@ def crossval_config_from_model_config(train_config: DeepLearningConfig) -> PlotC
         model_category=train_config.model_category,
         epoch=epoch,
         should_validate=False,
-        number_of_cross_validation_splits=train_config.get_total_number_of_cross_validation_runs())
+        number_of_cross_validation_splits=train_config.number_of_cross_validation_splits)
 
 
 def get_config_and_results_for_offline_runs(train_config: DeepLearningConfig) -> OfflineCrossvalConfigAndFiles:

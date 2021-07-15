@@ -21,7 +21,7 @@ from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.train.hyperdrive import HyperDriveConfig
 from git import Repo
 
-from InnerEye.Azure.azure_util import fetch_run, fetch_run_using_mlflow, get_run_context_or_default, is_offline_run_context
+from InnerEye.Azure.azure_util import fetch_run, fetch_run_using_mlflow, get_run_context_or_default, is_offline_run_context, remove_arg
 from InnerEye.Azure.secrets_handling import SecretsHandling, read_all_settings
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.generic_parsing import GenericConfig
@@ -329,31 +329,7 @@ class SourceConfig:
         Populates the script_param field of the present object from the arguments in sys.argv, with the exception
         of the "azureml" flag.
         """
-        args = sys.argv[1:]
-        submit_flag = f"--{AZURECONFIG_SUBMIT_TO_AZUREML}"
-        retained_args = []
-        i = 0
-        while i < len(args):
-            arg = args[i]
-            if arg.startswith(submit_flag):
-                if len(arg) == len(submit_flag):
-                    # The commandline argument is "--azureml", with something possibly following: This can either be
-                    # "--azureml True" or "--azureml --some_other_param"
-                    if i < (len(args) - 1):
-                        # If the next argument starts with a "-" then assume that it does not belong to the --azureml
-                        # flag. If there is no "-", assume it belongs to the --azureml flag, and skip both
-                        if not args[i + 1].startswith("-"):
-                            i = i + 1
-                elif arg[len(submit_flag)] == "=":
-                    # The commandline argument is "--azureml=True" or "--azureml=False": Continue with next arg
-                    pass
-                else:
-                    # The argument list contains a flag like "--azureml_foo": Keep that.
-                    retained_args.append(arg)
-            else:
-                retained_args.append(arg)
-            i = i + 1
-        self.script_params = retained_args
+        self.script_params = remove_arg(AZURECONFIG_SUBMIT_TO_AZUREML, sys.argv[1:])
 
 
 @dataclass
