@@ -91,6 +91,26 @@ class InnerEyeInference(abc.ABC):
 
 class InnerEyeEnsembleInference(InnerEyeInference):
     """
+    A base class that defines the methods that need to be present for doing inference on a trained ensemble model,
+    including gathering the ensemble from checkpoint files. As this inherits from InnerEyeInference the form of
+    inference is still slightly different from what PyTorch Lightning does in its `Trainer.test` method. In particular,
+    this inference can be executed on any of the training, validation, or test set.
+
+    The inference code calls the methods in this order:
+
+    model.load_checkpoints_into_ensemble(checkpoints, lightning_module_subtype, use_gpu, *args, **kwargs)
+    model.on_inference_start()
+    for dataset_split in [Train, Val, Test]
+        model.on_inference_start_dataset(dataset_split, is_ensemble_model=False)
+        for batch_idx, batch in enumerate(dataloader[dataset_split])):
+            posteriors = model.ensemble_forward(batch)
+            model.record_posteriors(batch, batch_idx, posteriors)
+        model.on_inference_end_dataset()
+    model.on_inference_end()
+
+    Note the two paces that this differs from the method calls in InnerEyeInference. Firstly we need to assemble the
+    ensemble model with a call to `InnerEyeEnsembleInference.load_checkpoints_into_ensemble` and later the call to
+    `model.forward` is replaced with a call to `model.ensemble_forward`.
     """
     def __init__(self):
         super().__init__()
@@ -112,7 +132,7 @@ class InnerEyeEnsembleInference(InnerEyeInference):
         :params *args, **kwargs: Additional arguments which are passed on to the model constructor.
         """
         for checkpoint_path in checkpoint_paths:
-            self.load_checkpoint_into_ensemble(checkpoint_path, lightning_module_subtype, *args, **kwargs)
+            self.load_checkpoint_into_ensemble(checkpoint_path, lightning_module_subtype, use_gpu, *args, **kwargs)
 
     def load_checkpoint_into_ensemble(
             self, 
@@ -121,7 +141,7 @@ class InnerEyeEnsembleInference(InnerEyeInference):
             use_gpu: bool,
             *args, **kwargs) -> None:
         """
-        Load a checkpoint path as an additional member of the ensemble.
+        Load a single checkpoint path as an additional member of the ensemble.
         :param checkpoint_path: The path to the to checkpoint file to load into a new model in the ensemble.
         :param lightning_module_subtype: The type of the ensemble model to be instantiated and then load a checkpoint.
         :param use_gpu: Passed on to deep_learning_config.load_checkpoint
@@ -132,6 +152,20 @@ class InnerEyeEnsembleInference(InnerEyeInference):
         assert isinstance(new_ensemble_model, InnerEyeInference)
         new_ensemble_model.load_state_dict(checkpoint['state_dict'], strict=False)
         self.ensemble_models.append(new_ensemble_model)
+
+    def ensemble_forward(self, batch: Dict[str, torch.Tensor]) -> List[torch.Tensor]:  # type: ignore
+        """
+        InnerEyeInference uses the method `model.forward` to get the posterior from the model, but here we need to get
+        the posteriors from each model in the ensemble.
+        :param batch: The batch of test data.
+        :return: The posteriors from the test data.
+        """
+        posteriors: List[torch.Tensor] = []
+        input = batch["x"]
+        for ensemble_model in self.ensemble_models:
+            assert isinstance(ensemble_model, LightningModule)
+            posteriors.append(ensemble_model.forward(input))
+        return posteriors
 
     @staticmethod
     def aggregate_ensemble_model_outputs(model_outputs: Iterator[torch.Tensor]) -> torch.Tensor:
