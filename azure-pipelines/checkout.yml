@@ -4,10 +4,7 @@ steps:
     submodules: true
 
   - bash: |
-      if [ $(Agent.OS) = 'Windows_NT' ]
-      then subdir=Scripts
-      else subdir=bin
-      fi
+      subdir=bin
       echo "Adding this directory to PATH: $CONDA/$subdir"
       echo "##vso[task.prependpath]$CONDA/$subdir"
     displayName: Add conda to PATH
@@ -19,7 +16,6 @@ steps:
       conda list
     displayName: Print conda version and initial package list
 
-  # Linux only; not needed for Windows
   - bash: |
       sudo chown -R $USER /usr/share/miniconda
     condition: and(succeeded(), eq( variables['Agent.OS'], 'Linux' ))
