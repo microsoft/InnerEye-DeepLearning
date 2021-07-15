@@ -12,7 +12,7 @@ from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.configs.other.HelloContainer import HelloContainer, HelloRegression
 from InnerEye.ML.deep_learning_config import load_checkpoint
 from InnerEye.ML.lightning_base import LightningModule
-from InnerEye.ML.lightning_container import InnerEyeInference
+from InnerEye.ML.lightning_container import InnerEyeInference, InnerEyeEnsembleInference
 
 
 class DummyEnsembleRegressionModule(HelloRegression, InnerEyeInference):
@@ -98,7 +98,7 @@ class DummyEnsembleRegressionModule(HelloRegression, InnerEyeInference):
         target = batch["y"]
         for sibling in self.siblings:
             model_outputs.append(sibling.test_step(batch, batch_idx))
-        posterior = InnerEyeInference.aggregate_ensemble_model_outputs(iter(model_outputs))
+        posterior = InnerEyeEnsembleInference.aggregate_ensemble_model_outputs(iter(model_outputs))
         loss = torch.nn.functional.mse_loss(posterior, target)
         self.test_mse.append(loss)
         self.test_mae.update(preds=posterior, target=target)

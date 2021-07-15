@@ -500,5 +500,5 @@ class InnerEyeLightning(LightningModule):
         assert isinstance(self.trainer, Trainer)
         self.log_on_epoch(MetricType.LOSS, loss, is_training)
         if is_training:
-            learning_rate = self.trainer.lr_schedulers[0]['scheduler'].get_last_lr()[0]
+            learning_rate = self.trainer.lr_schedulers[0]['scheduler'].get_last_lr()[0]  # type: ignore
             self.log_on_epoch(MetricType.LEARNING_RATE, learning_rate, is_training)
