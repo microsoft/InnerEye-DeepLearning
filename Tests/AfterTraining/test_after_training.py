@@ -369,7 +369,6 @@ def test_training_2nodes(test_output_dirs: OutputFolderForTests) -> None:
 
 
 @pytest.mark.after_training_2node
-@pytest.mark.skip("Test times out for unknown reasons.")
 def test_recovery_on_2_nodes(test_output_dirs: OutputFolderForTests) -> None:
     args_list = ["--model", "BasicModel2EpochsMoreData",
                  "--azureml", "True",
