@@ -17,11 +17,11 @@ from azureml.train.hyperdrive.runconfig import HyperDriveConfig
 
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, RUN_RECOVERY_ID_KEY_NAME
 from InnerEye.Common import common_util, fixed_paths
-from InnerEye.Common.common_util import ModelProcessing, get_best_epoch_results_path
+from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, ModelProcessing, get_best_epoch_results_path
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.type_annotations import TupleInt3
-from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, ModelExecutionMode
+from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.configs.unit_testing.passthrough_model import PassThroughModel
 from InnerEye.ML.metrics import InferenceMetricsForSegmentation
 from InnerEye.ML.run_ml import MLRunner
@@ -29,6 +29,7 @@ from InnerEye.ML.runner import Runner
 from InnerEye.ML.utils import io_util
 from InnerEye.ML.visualizers.plot_cross_validation import RUN_RECOVERY_ID_KEY, PlotCrossValidationConfig
 from Tests.ML.configs.DummyModel import DummyModel
+from Tests.ML.runners.test_compare_against_baselines import create_dataset_df, create_metrics_df
 from Tests.ML.util import get_default_checkpoint_handler
 from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
 
@@ -235,6 +236,8 @@ def run_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
                                                         project_root=test_output_dirs.root_dir)
     checkpoint_handler.additional_training_done()
 
+    shutil.copy(src=config.local_dataset / DATASET_CSV_FILE_NAME, dst=config.outputs_folder / DATASET_CSV_FILE_NAME)
+
     mock_upload_path = test_output_dirs.root_dir / "mock_upload"
     mock_upload_path.mkdir()
 
@@ -243,7 +246,13 @@ def run_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
 
     def mock_download_file(name: str, output_file_path: str = None, _validate_checksum: bool = False) -> None:
         if output_file_path is not None:
-            shutil.copy(src=mock_upload_path / name, dst=output_file_path)
+            src = mock_upload_path / name
+            if src.name == DATASET_CSV_FILE_NAME:
+                dataset_df = create_dataset_df()
+                dataset_df.to_csv(output_file_path)
+            elif src.name == SUBJECT_METRICS_FILE_NAME:
+                metrics_df = create_metrics_df()
+                metrics_df.to_csv(output_file_path)
 
     child_runs: List[Run] = []
     for i in range(config.number_of_cross_validation_splits):
