@@ -1,0 +1,14 @@
+  - template: checkout_windows.yml
+
+  - task: CredScan@3
+    condition: and(succeeded(), eq( variables['Agent.OS'], 'Windows_NT' ))
+
+  - task: PostAnalysis@1
+    condition: and(succeeded(), eq( variables['Agent.OS'], 'Windows_NT' ))
+    displayName: 'Post Analysis'
+    inputs:
+      CredScan: true
+
+  - script: echo %NUMBER_OF_PROCESSORS%
+    condition: and(succeeded(), eq( variables['Agent.OS'], 'Windows_NT' ))
+    displayName: Print processors

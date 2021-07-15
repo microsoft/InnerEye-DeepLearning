@@ -1,0 +1,17 @@
+steps:
+  - checkout: self
+    lfs: true
+    submodules: true
+
+  - bash: |
+      subdir=Scripts
+      echo "Adding this directory to PATH: $CONDA/$subdir"
+      echo "##vso[task.prependpath]$CONDA/$subdir"
+    displayName: Add conda to PATH
+    condition: succeeded()
+
+  - bash: |
+      conda install conda=4.8.3 -y
+      conda --version
+      conda list
+    displayName: Print conda version and initial package list
