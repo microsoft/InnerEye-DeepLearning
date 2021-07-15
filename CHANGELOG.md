@@ -43,7 +43,7 @@ mounting and running matplotblib on some machines. Re-instantiated a disabled te
 
 ### Removed
 
--  ([#541](https://github.com/microsoft/InnerEye-DeepLearning/issues/541)) Removed Windows test leg from build pipeline.
+-  ([#542](https://github.com/microsoft/InnerEye-DeepLearning/pull/542)) Removed Windows test leg from build pipeline.
 -  ([#520](https://github.com/microsoft/InnerEye-DeepLearning/pull/520)) Disable glaucoma job from Azure pipeline.
 
 ### Deprecated
