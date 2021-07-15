@@ -36,16 +36,18 @@ from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.spawn_subprocess import spawn_and_monitor_subprocess
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.configs.segmentation.BasicModel2Epochs import BasicModel2Epochs
+from InnerEye.ML.configs.other.HelloContainer import HelloContainer
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, ModelCategory
 from InnerEye.ML.model_inference_config import read_model_inference_config
 from InnerEye.ML.model_testing import THUMBNAILS_FOLDER
 from InnerEye.ML.reports.notebook_report import get_html_report_name
 from InnerEye.ML.runner import main
+from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.utils.image_util import get_unit_image_header
 from InnerEye.ML.utils.io_util import zip_random_dicom_series
 from InnerEye.Scripts import submit_for_inference
-from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_nifti_shape
+from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_nifti_shape, get_default_workspace
 
 FALLBACK_SINGLE_RUN = "refs_pull_498_merge:refs_pull_498_merge_1624292750_743430ab"
 FALLBACK_ENSEMBLE_RUN = "refs_pull_498_merge:HD_4bf4efc3-182a-4596-8f93-76f128418142"
@@ -87,10 +89,10 @@ def get_most_recent_run(fallback_run_id_for_local_execution: str = FALLBACK_SING
     return get_default_azure_config().fetch_run(run_recovery_id=run_recovery_id)
 
 
-def get_most_recent_model(fallback_run_id_for_local_execution: str = FALLBACK_SINGLE_RUN) -> Model:
+def get_most_recent_model_id(fallback_run_id_for_local_execution: str = FALLBACK_SINGLE_RUN) -> str:
     """
     Gets the string name of the most recently executed AzureML run, extracts which model that run had registered,
-    and return the instantiated model object.
+    and return the model id.
     :param fallback_run_id_for_local_execution: A hardcoded AzureML run ID that is used when executing this code
     on a local box, outside of Azure build agents.
     """
@@ -101,7 +103,18 @@ def get_most_recent_model(fallback_run_id_for_local_execution: str = FALLBACK_SI
     tags = run.get_tags()
     model_id = tags.get(MODEL_ID_KEY_NAME, None)
     assert model_id, f"No model_id tag was found on run {most_recent_run}"
-    return Model(workspace=azure_config.get_workspace(), id=model_id)
+    return model_id
+
+
+def get_most_recent_model(fallback_run_id_for_local_execution: str = FALLBACK_SINGLE_RUN) -> Model:
+    """
+    Gets the string name of the most recently executed AzureML run, extracts which model that run had registered,
+    and return the instantiated model object.
+    :param fallback_run_id_for_local_execution: A hardcoded AzureML run ID that is used when executing this code
+    on a local box, outside of Azure build agents.
+    """
+    model_id = get_most_recent_model_id(fallback_run_id_for_local_execution=fallback_run_id_for_local_execution)
+    return Model(workspace=get_default_workspace(), id=model_id)
 
 
 def get_experiment_name_from_environment() -> str:
@@ -433,3 +446,44 @@ def test_download_outputs_skipped(test_output_dirs: OutputFolderForTests) -> Non
     download_run_outputs_by_prefix(prefix, test_output_dirs.root_dir, run=run)
     all_files = list(test_output_dirs.root_dir.rglob("*"))
     assert len(all_files) == 0
+
+
+@pytest.mark.after_training_hello_container
+def test_model_inference_on_single_run(test_output_dirs: OutputFolderForTests) -> None:
+    fallback_run_id_for_local_execution = FALLBACK_HELLO_CONTAINER_RUN
+
+    files_to_check = ["test_mse.txt", "test_mae.txt"]
+
+    training_run = get_most_recent_run(fallback_run_id_for_local_execution=fallback_run_id_for_local_execution)
+    all_training_files = training_run.get_file_names()
+    for file in files_to_check:
+        assert f"outputs/{file}" in all_training_files, f"{file} is missing"
+    training_folder = test_output_dirs.root_dir / "training"
+    training_folder.mkdir()
+    training_files = [training_folder / file for file in files_to_check]
+    for file, download_path in zip(files_to_check, training_files):
+        training_run.download_file(f"outputs/{file}", output_file_path=str(download_path))
+
+    container = HelloContainer()
+    container.set_output_to(test_output_dirs.root_dir)
+    container.model_id = get_most_recent_model_id(fallback_run_id_for_local_execution=fallback_run_id_for_local_execution)
+    azure_config = get_default_azure_config()
+    azure_config.train = False
+    ml_runner = MLRunner(container=container, azure_config=azure_config, project_root=test_output_dirs.root_dir)
+    ml_runner.setup()
+    ml_runner.start_logging_to_file()
+    ml_runner.run()
+
+    inference_files = [container.outputs_folder / file for file in files_to_check]
+    for inference_file in inference_files:
+        assert inference_file.exists(), f"{inference_file} is missing"
+
+    for training_file, inference_file in zip(training_files, inference_files):
+        training_lines = training_file.read_text().splitlines()
+        inference_lines = inference_file.read_text().splitlines()
+        # We expect all the files we are reading to have a single float value
+        assert len(training_lines) == 1
+        train_value = float(training_lines[0].strip())
+        assert len(inference_lines) == 1
+        inference_value = float(inference_lines[0].strip())
+        assert inference_value == pytest.approx(train_value, 1e-6)

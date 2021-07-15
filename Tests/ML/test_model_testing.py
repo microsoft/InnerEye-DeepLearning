@@ -102,7 +102,7 @@ def test_model_test(
     checkpoint_handler.additional_training_done()
     inference_results = model_testing.segmentation_model_test(config,
                                                               execution_mode=execution_mode,
-                                                              checkpoint_handler=checkpoint_handler)
+                                                              checkpoint_paths=checkpoint_handler.get_checkpoints_to_test())
     epoch_dir = config.outputs_folder / get_best_epoch_results_path(execution_mode)
     total_num_patients_column_name = f"total_{MetricsFileColumns.Patient.value}".lower()
     if not total_num_patients_column_name.endswith("s"):

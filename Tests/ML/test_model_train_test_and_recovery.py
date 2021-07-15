@@ -38,7 +38,8 @@ def test_recover_testing_from_run_recovery(mean_teacher_model: bool,
     assert len(train_results.train_results_per_epoch()) == config.num_epochs
 
     # Run inference on this
-    test_results = model_test(config=config, data_split=ModelExecutionMode.TEST, checkpoint_handler=checkpoint_handler)
+    test_results = model_test(config=config, data_split=ModelExecutionMode.TEST,
+                              checkpoint_paths=checkpoint_handler.get_checkpoints_to_test())
     assert isinstance(test_results, InferenceMetricsForClassification)
 
     # Mimic using a run recovery and see if it is the same
@@ -55,7 +56,7 @@ def test_recover_testing_from_run_recovery(mean_teacher_model: bool,
     shutil.copytree(str(config.checkpoint_folder), str(checkpoint_root))
     checkpoint_handler_run_recovery.run_recovery = RunRecovery([checkpoint_root])
     test_results_run_recovery = model_test(config_run_recovery, data_split=ModelExecutionMode.TEST,
-                                           checkpoint_handler=checkpoint_handler_run_recovery)
+                                           checkpoint_paths=checkpoint_handler_run_recovery.get_checkpoints_to_test())
     assert isinstance(test_results_run_recovery, InferenceMetricsForClassification)
     assert test_results.metrics.values()[MetricType.CROSS_ENTROPY.value] == \
            test_results_run_recovery.metrics.values()[MetricType.CROSS_ENTROPY.value]
@@ -70,13 +71,13 @@ def test_recover_testing_from_run_recovery(mean_teacher_model: bool,
     local_weights_path = test_output_dirs.root_dir / "local_weights_file.pth"
     shutil.copyfile(str(config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX),
                     local_weights_path)
-    config_local_weights.local_weights_path = local_weights_path
+    config_local_weights.local_weights_path = [local_weights_path]
 
     checkpoint_handler_local_weights = get_default_checkpoint_handler(model_config=config_local_weights,
                                                                       project_root=test_output_dirs.root_dir)
     checkpoint_handler_local_weights.download_recovery_checkpoints_or_weights()
     test_results_local_weights = model_test(config_local_weights, data_split=ModelExecutionMode.TEST,
-                                            checkpoint_handler=checkpoint_handler_local_weights)
+                                            checkpoint_paths=checkpoint_handler_local_weights.get_checkpoints_to_test())
     assert isinstance(test_results_local_weights, InferenceMetricsForClassification)
     assert test_results.metrics.values()[MetricType.CROSS_ENTROPY.value] == \
            test_results_local_weights.metrics.values()[MetricType.CROSS_ENTROPY.value]

@@ -233,7 +233,7 @@ def run_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
 
     with mock.patch("InnerEye.ML.model_testing.PARENT_RUN_CONTEXT", Mock()) as m:
         metrics = MLRunner(config).model_inference_train_and_test(
-            checkpoint_handler=checkpoint_handler,
+            checkpoint_paths=checkpoint_handler.get_checkpoints_to_test(),
             model_proc=model_proc)
 
     if model_proc == ModelProcessing.DEFAULT:
