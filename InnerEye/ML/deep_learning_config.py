@@ -34,7 +34,6 @@ VISUALIZATION_FOLDER = "visualizations"
 EXTRA_RUN_SUBFOLDER = "extra_run_id"
 
 ARGS_TXT = "args.txt"
-WEIGHTS_FILE = "weights.pth"
 
 
 @unique
@@ -217,16 +216,25 @@ class WorkflowParams(param.Parameterized):
     ensemble_inference_on_test_set: Optional[bool] = \
         param.Boolean(None,
                       doc="If set, enable/disable full image inference on test set after ensemble training.")
-    weights_url: str = param.String(doc="If provided, a url from which weights will be downloaded and used for model "
-                                        "initialization.")
-    local_weights_path: Optional[Path] = param.ClassSelector(class_=Path,
-                                                             default=None,
-                                                             allow_None=True,
-                                                             doc="The path to the weights to use for model "
-                                                                 "initialization, when training outside AzureML.")
+    weights_url: List[str] = param.List(default=[], class_=str,
+                                        doc="If provided, a set of urls from which checkpoints will be downloaded"
+                                                "and used for inference.")
+    local_weights_path: List[Path] = param.List(default=[], class_=Path,
+                                                doc="A list of checkpoints paths to use for inference, "
+                                                    "when the job is running outside Azure.")
+    model_id: str = param.String(default="",
+                                 doc="A model id string in the form 'model name:version' "
+                                     "to use a registered model for inference.")
     generate_report: bool = param.Boolean(default=True,
                                           doc="If True (default), write a modelling report in HTML format. If False,"
                                               "do not write that report.")
+    pretraining_run_recovery_id: str = param.String(default=None,
+                                                    allow_None=True,
+                                                    doc="Extra run recovery id to download checkpoints from,"
+                                                        "for custom modules (e.g. for loading pretrained weights)."
+                                                        "The downloaded RunRecovery object will be available in"
+                                                        "pretraining_run_checkpoints.")
+
     # The default multiprocessing start_method in both PyTorch and the Python standard library is "fork" for Linux and
     # "spawn" (the only available method) for Windows. There is some evidence that using "forkserver" on Linux
     # can reduce the chance of stuck jobs.
@@ -249,8 +257,13 @@ class WorkflowParams(param.Parameterized):
                                 "be relative to the repository root directory.")
 
     def validate(self) -> None:
-        if self.weights_url and self.local_weights_path:
-            raise ValueError("Cannot specify both local_weights_path and weights_url.")
+        if sum([bool(param) for param in [self.weights_url, self.local_weights_path, self.model_id]]) > 1:
+            raise ValueError("Cannot specify more than one of local_weights_path, weights_url or model_id.")
+
+        if self.model_id:
+            if len(self.model_id.split(":")) != 2:
+                raise ValueError(
+                    f"model_id should be in the form 'model_name:version', got {self.model_id}")
 
         if self.number_of_cross_validation_splits == 1:
             raise ValueError("At least two splits required to perform cross validation, but got "
@@ -695,7 +708,7 @@ class DeepLearningConfig(WorkflowParams,
         self.create_filesystem(fixed_paths.repository_root_directory())
         # Disable the PL progress bar because all InnerEye models have their own console output
         self.pl_progress_bar_refresh_rate = 0
-        self.extra_downloaded_run_id: Optional[Any] = None
+        self.pretraining_run_checkpoints: Optional[Any] = None
 
     def validate(self) -> None:
         """
