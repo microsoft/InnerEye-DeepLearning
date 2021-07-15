@@ -2,8 +2,8 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from pathlib import Path
 import shutil
+from pathlib import Path
 from typing import Callable, Dict, List, Optional, Set, Tuple
 
 import pandas as pd
@@ -28,7 +28,7 @@ from InnerEye.ML.visualizers.plot_cross_validation import COL_MODE, \
     RunResultFiles, add_comparison_data, check_result_file_counts, \
     create_results_breakdown, download_crossval_result_files, get_split_id, load_dataframes, \
     plot_cross_validation_from_files, save_outliers
-from Tests.AfterTraining.test_after_training import get_most_recent_run_id
+from Tests.AfterTraining.test_after_training import FALLBACK_ENSEMBLE_RUN, get_most_recent_run_id
 from Tests.ML.models.architectures.sequential.test_rnn_classifier import ToyMultiLabelSequenceModel, \
     _get_multi_label_sequence_dataframe
 from Tests.ML.util import assert_text_files_match, get_default_azure_config
@@ -39,16 +39,6 @@ def test_config() -> PlotCrossValidationConfig:
     return PlotCrossValidationConfig(
         run_recovery_id=get_most_recent_run_id(),
         epoch=1,
-        model_category=ModelCategory.Segmentation
-    )
-
-
-@pytest.fixture
-def test_config_comparison() -> PlotCrossValidationConfig:
-    return PlotCrossValidationConfig(
-        run_recovery_id=get_most_recent_run_id() + "_0",
-        epoch=1,
-        comparison_run_recovery_ids=[get_most_recent_run_id() + "_1"],
         model_category=ModelCategory.Segmentation
     )
 
@@ -161,6 +151,7 @@ def test_metrics_preparation_for_segmentation(drop_column: Optional[str],
             df = pd.read_csv(path)
             dropped_df = df.drop(drop_column, axis=1)
             dropped_df.to_csv(path)
+
         files = copy_run_result_files(files, full_ml_test_data_path(), test_output_dirs.root_dir, drop_csv_column)
     downloaded_metrics = load_dataframes(files, test_config)
     assert test_config.run_recovery_id
@@ -295,6 +286,7 @@ def test_check_result_file_counts() -> None:
     with pytest.raises(ValueError):
         check_result_file_counts(config_and_files3)
 
+
 def test_result_aggregation_for_classification_all_epochs(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test how metrics are aggregated for classification models, when no epoch is specified.
@@ -310,14 +302,22 @@ def test_result_aggregation_for_classification_all_epochs(test_output_dirs: Outp
                                                 expected_aggregate_metrics=expected_aggregates,
                                                 expected_epochs={1, 2, 3})
 
+
 @pytest.mark.after_training_ensemble_run
-def test_add_comparison_data(test_config_comparison: PlotCrossValidationConfig) -> None:
-    test_config_comparison.epoch = 2
-    metrics_df, root_folder = download_metrics(test_config_comparison)
+def test_add_comparison_data() -> None:
+    fallback_run = get_most_recent_run_id(fallback_run_id_for_local_execution=FALLBACK_ENSEMBLE_RUN)
+    crossval_config = PlotCrossValidationConfig(
+        run_recovery_id=fallback_run + "_0",
+        epoch=1,
+        comparison_run_recovery_ids=[fallback_run + "_1"],
+        model_category=ModelCategory.Segmentation
+    )
+    crossval_config.epoch = 2
+    metrics_df, root_folder = download_metrics(crossval_config)
     initial_metrics = pd.concat(list(metrics_df.values()))
-    all_metrics, focus_splits = add_comparison_data(test_config_comparison, initial_metrics)
-    focus_split = test_config_comparison.run_recovery_id
-    comparison_split = test_config_comparison.comparison_run_recovery_ids[0]
+    all_metrics, focus_splits = add_comparison_data(crossval_config, initial_metrics)
+    focus_split = crossval_config.run_recovery_id
+    comparison_split = crossval_config.comparison_run_recovery_ids[0]
     assert focus_splits == [focus_split]
     assert set(all_metrics.split) == {focus_split, comparison_split}
 
@@ -332,14 +332,18 @@ def test_save_outliers(test_config: PlotCrossValidationConfig,
     dataset_split_metrics = {x: _get_metrics_df(test_config.run_recovery_id, x) for x in [ModelExecutionMode.VAL]}
     outliers_paths = save_outliers(test_config, dataset_split_metrics, test_config.outputs_directory)
     filename = f"{ModelExecutionMode.VAL.value}_outliers.txt"
-    assert_text_files_match(full_file=outliers_paths[ModelExecutionMode.VAL], expected_file=full_ml_test_data_path(filename))
-    # Now test without the CSV_INSTITUTION_HEADER and CSV_SERIES_HEADER columns, which will be missing in institutions' environments
+    assert_text_files_match(full_file=outliers_paths[ModelExecutionMode.VAL],
+                            expected_file=full_ml_test_data_path(filename))
+    # Now test without the CSV_INSTITUTION_HEADER and CSV_SERIES_HEADER columns, which will be missing in
+    # institutions' environments
     dataset_split_metrics_pruned = {
-        x: _get_metrics_df(test_config.run_recovery_id, x).drop(columns=[CSV_INSTITUTION_HEADER, CSV_SERIES_HEADER], errors="ignore") 
+        x: _get_metrics_df(test_config.run_recovery_id, x).drop(columns=[CSV_INSTITUTION_HEADER, CSV_SERIES_HEADER],
+                                                                errors="ignore")
         for x in [ModelExecutionMode.VAL]}
     outliers_paths = save_outliers(test_config, dataset_split_metrics_pruned, test_config.outputs_directory)
     test_data_filename = f"{ModelExecutionMode.VAL.value}_outliers_pruned.txt"
-    assert_text_files_match(full_file=outliers_paths[ModelExecutionMode.VAL], expected_file=full_ml_test_data_path(test_data_filename))
+    assert_text_files_match(full_file=outliers_paths[ModelExecutionMode.VAL],
+                            expected_file=full_ml_test_data_path(test_data_filename))
 
 
 def test_create_summary(test_output_dirs: OutputFolderForTests) -> None:

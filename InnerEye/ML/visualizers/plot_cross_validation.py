@@ -29,7 +29,7 @@ from matplotlib import pyplot
 
 import InnerEye.Common.Statistics.mann_whitney_test as mann_whitney
 from InnerEye.Azure.azure_config import AzureConfig
-from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, download_run_output_file, \
+from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, RUN_CONTEXT, download_run_output_file, \
     fetch_child_runs, is_offline_run_context, is_parent_run
 from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.Statistics.wilcoxon_signed_rank_test import WilcoxonTestConfig, wilcoxon_signed_rank_test
@@ -217,7 +217,7 @@ class PlotCrossValidationConfig(GenericConfig):
         # Just copy the provided path in the outputs directory to the destination.
         if not destination.exists():
             destination.mkdir(parents=True)
-        if run is None or Run.get_context().id == run.id or is_parent_run(run) or is_offline_run_context(run):
+        if run is None or RUN_CONTEXT.id == run.id or is_parent_run(run) or is_offline_run_context(run):
             if run is None:
                 assert self.local_run_results is not None, "Local run results must be set in unit testing"
                 local_src = Path(self.local_run_results)
@@ -231,15 +231,11 @@ class PlotCrossValidationConfig(GenericConfig):
                 return Path(shutil.copy(local_src, destination))
             return None
         else:
-            try:
-                return download_run_output_file(
-                    blob_path=blob_path,
-                    destination=destination,
-                    run=run
-                )
-            except Exception as ex:
-                logging.warning(f"File {blob_to_download} not found in output of run {run.id}: {ex}")
-                return None
+            return download_run_output_file(
+                blob_path=blob_path,
+                destination=destination,
+                run=run
+            )
 
 
 @dataclass(frozen=True)

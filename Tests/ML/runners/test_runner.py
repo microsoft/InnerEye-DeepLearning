@@ -261,7 +261,7 @@ def run_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
             if model_proc == ModelProcessing.DEFAULT:
                 if not perform_cross_validation:
                     # If a "normal" run then default to val or test.
-                    flag = mode in (ModelExecutionMode.VAL, ModelExecutionMode.TEST)
+                    flag = mode == ModelExecutionMode.TEST
                 else:
                     # If an ensemble child then default to never.
                     flag = False
