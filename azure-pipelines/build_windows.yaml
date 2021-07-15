@@ -10,6 +10,3 @@ steps:
     inputs:
       CredScan: true
 
-  - script: echo %NUMBER_OF_PROCESSORS%
-    condition: and(succeeded(), eq( variables['Agent.OS'], 'Windows_NT' ))
-    displayName: Print processors
