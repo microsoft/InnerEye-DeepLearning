@@ -138,8 +138,8 @@ def is_classification_model(model: Any) -> bool:
     Returns True if the given object is an InnerEye classification, but not a sequence model.
     """
     return (isinstance(model, ScalarModelBase)
-            and model.is_classification_model and
-            not isinstance(model, SequenceModelBase))
+            and model.is_classification_model
+            and not isinstance(model, SequenceModelBase))
 
 
 class MLRunner:
