@@ -10,3 +10,11 @@ steps:
     inputs:
       CredScan: true
 
+  - task: ComponentGovernanceComponentDetection@0
+    condition: succeeded()
+    inputs:
+      scanType: 'Register'
+      verbosity: 'Normal'
+      alertWarningLevel: 'High'
+      failOnAlert: true
+      failOnStderr: true
