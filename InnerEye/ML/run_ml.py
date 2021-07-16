@@ -41,7 +41,7 @@ from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, DeepLearningConfig, FINAL_ENSEMBLE_MODEL_FOLDER, \
     FINAL_MODEL_FOLDER, ModelCategory, MultiprocessingStartMethod, load_checkpoint, EXTRA_RUN_SUBFOLDER
 from InnerEye.ML.lightning_base import InnerEyeContainer
-from InnerEye.ML.lightning_container import InnerEyeInference, LightningContainer
+from InnerEye.ML.lightning_container import InnerEyeInference, InnerEyeEnsembleInference, LightningContainer
 from InnerEye.ML.metrics import InferenceMetrics, InferenceMetricsForSegmentation
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
@@ -406,7 +406,7 @@ class MLRunner:
                                                        self.container.cross_validation_split_index == 0
                     if should_wait_for_other_child_runs:
                         self.wait_for_runs_to_finish()
-                        self.create_ensemble_model_and_run_inference()
+                        self.create_ensemble_model_and_run_inference_for_innereye_container()
             else:
                 # Inference for all models that are specified via LightningContainers.
                 with logging_section("Model inference"):
@@ -452,15 +452,35 @@ class MLRunner:
     def run_inference_for_lightning_models(self, checkpoint_paths: List[Path]) -> None:
         """
         Run inference on the test set for all models that are specified via a LightningContainer.
+        :param checkpoint_paths: The paths to the checkpoint that should be used for inference.
+        """
+        if not isinstance(self.container.model, InnerEyeInference) and len(checkpoint_paths) != 1:
+            raise ValueError("This method can only do ensemble inference on subclasses of InnerEyeInference. For "
+            f"other types of model it expects exactly 1 checkpoint for inference, but got {len(checkpoint_paths)}")
+
+        if isinstance(self.container.model, InnerEyeInference):
+            self.run_inference_for_innereyeinference_lightning_model(self.container.model, checkpoint_paths)
+        else:
+            self.run_inference_for_non_innereyeinference_lightning_model(self.container, checkpoint_paths)
+
+    def run_inference_for_innereyeinference_lightning_model(
+            self,
+            lightning_model: InnerEyeInference,
+            checkpoint_paths: List[Path]) -> None:
+        """
+        Run inference over the test set for an InnerEyeInference container.
+        :param lightning_model: The InnerEyeInference container to be used.
         :param checkpoint_paths: The path to the checkpoint that should be used for inference.
         """
-        if len(checkpoint_paths) != 1:
-            raise ValueError(f"This method expects exactly 1 checkpoint for inference, but got {len(checkpoint_paths)}")
-        lightning_model = self.container.model
-        # Run the customized inference code only if the the "inference" step has been overridden
-        if isinstance(lightning_model, InnerEyeInference) and \
-                type(lightning_model).inference_step != InnerEyeInference.inference_step:
-            logging.info("Running inference via the InnerEyeInference.inference_step method")
+        # Check that lightning_model.record_posteriors is an override:
+        if type(lightning_model).record_posteriors == InnerEyeInference.record_posteriors:
+            logging.warning("The InnerEyeInference's `record_posteriors` is not overridden. Skipping inference completely.")
+            return
+
+        if len(checkpoint_paths) > 1:
+            self.create_ensemble_model_and_run_inference_for_innereyeinference(lightning_model, checkpoint_paths)
+        else:
+            logging.info("Running inference via the InnerEyeInference.record_posteriors method")
             # Read the data modules before changing the working directory, in case the code relies on relative paths
             data = self.container.get_inference_data_module()
             dataloaders: List[Tuple[DataLoader, ModelExecutionMode]] = []
@@ -476,34 +496,51 @@ class MLRunner:
                 for loader, split in dataloaders:
                     logging.info(f"Starting inference on {split.value} set")
                     lightning_model.on_inference_epoch_start(dataset_split=split, is_ensemble_model=False)
-                    for batch_idx, item in enumerate(loader):
-                        model_output = lightning_model.forward(item[0])
-                        lightning_model.inference_step(item, batch_idx, model_output=model_output)
+                    for batch_idx, batch in enumerate(loader):
+                        model_output = lightning_model.forward(batch['x'])
+                        lightning_model.inference_step(batch, batch_idx, model_output=model_output)
                     lightning_model.on_inference_epoch_end()
                 lightning_model.on_inference_end()
-        elif type(lightning_model).test_step != LightningModule.test_step:
-            # Run Lightning's built-in test procedure if the `test_step` method has been overridden
-            logging.info("Running inference via the LightningModule.test_step method")
-            # Lightning does not cope with having two calls to .fit or .test in the same script. As a workaround for
-            # now, restrict number of GPUs to 1, meaning that it will not start DDP.
-            self.container.max_num_gpus = 1
-            # Without this, the trainer will think it should still operate in multi-node mode, and wrongly start
-            # searching for Horovod
-            if ENV_OMPI_COMM_WORLD_RANK in os.environ:
-                del os.environ[ENV_OMPI_COMM_WORLD_RANK]
-            # From the training setup, torch still thinks that it should run in a distributed manner,
-            # and would block on some GPU operations. Hence, clean up distributed training.
-            if torch.distributed.is_initialized():
-                torch.distributed.destroy_process_group()
-            trainer, _ = create_lightning_trainer(self.container, num_nodes=1)
-            self.container.load_model_checkpoint(checkpoint_path=checkpoint_paths[0])
-            # When training models that are not built-in InnerEye models, we have no guarantee that they write
-            # files to the right folder. Best guess is to change the current working directory to where files should go.
-            with change_working_directory(self.container.outputs_folder):
-                trainer.test(self.container.model,
-                             test_dataloaders=self.container.get_data_module().test_dataloader())
-        else:
-            logging.warning("None of the suitable test methods is overridden. Skipping inference completely.")
+
+    def run_inference_for_non_innereyeinference_lightning_model(
+            self,
+            lightning_model: LightningContainer,
+            checkpoint_paths: List[Path]) -> None:
+        """
+        Run inference over the test set for an LightningContainer. Containers that are derived from InnerEyeInference
+        should use run_inference_for_innereyeinference_lightning_model instead.
+        Note that doing inference from an ensemble model built from cross validation checkpoints is only supported for
+        LightningContainers that inherit from InnerEyeInference and so cannot be used here. 
+        :param lightning_model: The LightningContainer container to be used.
+        :param checkpoint_paths: The path to the checkpoint that should be used for inference.
+        """
+        assert not isinstance(lightning_model, InnerEyeInference), "Call run_inference_for_innereyeinference_lightning_model instead"
+        assert len(checkpoint_paths) == 1, "Doing inference from an ensemble model built from cross validation checkpoints is only supported for"
+        "LightningContainers that inherit from InnerEyeInference and so cannot be used here."
+        if type(lightning_model).test_step == LightningModule.test_step:
+            logging.warning("The LightningContainer's `inference_step` is not overridden. Skipping inference completely.")
+            return
+        # Check that lightning_model.inference_step is an override:
+        logging.info("Running inference via the LightningModule.test_step method")
+        # Lightning does not cope with having two calls to .fit or .test in the same script. As a workaround for
+        # now, restrict number of GPUs to 1, meaning that it will not start DDP.
+        self.container.max_num_gpus = 1
+        # Without this, the trainer will think it should still operate in multi-node mode, and wrongly start
+        # searching for Horovod
+        if ENV_OMPI_COMM_WORLD_RANK in os.environ:
+            del os.environ[ENV_OMPI_COMM_WORLD_RANK]
+        # From the training setup, torch still thinks that it should run in a distributed manner,
+        # and would block on some GPU operations. Hence, clean up distributed training.
+        if torch.distributed.is_initialized():
+            torch.distributed.destroy_process_group()
+        trainer, _ = create_lightning_trainer(self.container, num_nodes=1)
+        self.container.load_model_checkpoint(checkpoint_path=checkpoint_paths[0])
+        # When training models that are not built-in InnerEye models, we have no guarantee that they write
+        # files to the right folder. Best guess is to change the current working directory to where files should go.
+        with change_working_directory(self.container.outputs_folder):
+            trainer.test(
+                self.container.model,
+                test_dataloaders=self.container.get_data_module().test_dataloader())
 
     def run_inference(self, checkpoint_paths: List[Path],
                       model_proc: ModelProcessing) -> None:
@@ -826,7 +863,7 @@ class MLRunner:
         else:
             raise NotImplementedError("are_sibling_runs_finished only works for cross validation runs in AzureML.")
 
-    def create_ensemble_model_and_run_inference(self) -> None:
+    def create_ensemble_model_and_run_inference_for_innereye_container(self) -> None:
         """
         Create an ensemble model from the results of the sibling runs of the present run. The present run here will
         be cross validation child run 0.
@@ -951,3 +988,23 @@ class MLRunner:
         except Exception as ex:
             print_exception(ex, "Failed to generate reporting notebook.")
             raise
+
+    def create_ensemble_model_and_run_inference_for_innereyeinference(
+            self,
+            model: InnerEyeInference,
+            checkpoint_paths: List[Path]) -> None:
+        """
+        Create an ensemble model from a cross validation run for a model derived from InnerEyeInference and use the
+        ensemble for inference over the test set.
+        :param model: The InnerEyeInference model to use for the inference.
+        :param checkpoint_paths: The paths to the checkpoints gleaned from the cross validation runs.
+        """
+        ensemble = InnerEyeEnsembleInference()
+        ensemble.load_checkpoints_into_ensemble(checkpoint_paths, type(model))
+        test_dataloader = self.container.get_data_module().test_dataloader()
+        ensemble.on_inference_start()
+        ensemble.on_inference_start_dataset(ModelExecutionMode.TEST, is_ensemble_model=True)
+        for batch_idx, batch in enumerate(test_dataloader):
+            ensemble.record_posteriors(batch, batch_idx, None)
+        ensemble.on_inference_end_dataset()
+        ensemble.on_inference_end()
