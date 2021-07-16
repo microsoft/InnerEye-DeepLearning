@@ -12,9 +12,7 @@ from sklearn.model_selection import KFold
 
 from InnerEye.Common.fixed_paths_for_tests import tests_root_directory
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.configs.other.DummyEnsembleRegressionContainer import DummyEnsembleRegressionModule
-from InnerEye.ML.configs.other.HelloContainer import HelloContainer, HelloDataModule
 from Tests.ML.util import default_runner
 
 def test_create_ensemble_model_and_run_inference_for_innereyeinference(test_output_dirs: OutputFolderForTests) -> None:
@@ -60,34 +58,19 @@ def test_create_ensemble_model_and_run_inference_for_innereyeinference(test_outp
         test_maes.append(mae_metrics["TEST"])
         print("wait")
     # Now we can test the method on run_ml
-
-    FFFFFFFFFFFFFFFFFFFFFFFFF
-    # Load checkpoints as ensemble
-
-    ensemble = DummyEnsembleRegressionModule(outputs_folder=test_output_dirs.root_dir)
-    ensemble.load_checkpoints_as_siblings(checkpoint_paths, use_gpu=False)
-    # Get test data split
-    data_module_xval = HelloDataModule(
-        root_folder=HelloContainer().local_dataset,  # type: ignore
-        cross_validation_split_index=0,
-        number_of_cross_validation_splits=5)
-    test_dataloader = data_module_xval.test_dataloader()
-    # Run inference loop
-    ensemble.on_inference_start()
-    ensemble.on_inference_start_dataset(execution_mode=ModelExecutionMode.TEST, is_ensemble_model=True)
-    for batch_idx, batch in enumerate(test_dataloader):
-        posteriors = ensemble.forward(batch['x'])
-        ensemble.record_posteriors(batch, batch_idx, posteriors)
-    ensemble.on_inference_end_dataset()
+    ml_runner = default_runner().create_ml_runner()
+    ml_runner.create_ensemble_model_and_run_inference_for_innereyeinference(
+        DummyEnsembleRegressionModule(outputs_folder=test_output_dirs.root_dir),
+        checkpoint_paths)
     # Compare ensembke metrics with those from the cross validation runs
-    mse_metrics = _load_metrics_from_file(metrics_file=ensemble.outputs_folder / "test_mse.txt")
+    mse_metrics = _load_metrics_from_file(metrics_file=test_output_dirs.root_dir / "test_mse.txt")
     test_mse = mse_metrics["TEST"]
     for xval_run_mse in test_mses:
         assert test_mse < xval_run_mse
     # TODO: Why is the ensemble MAE worse than two of the xval run ones?
     # ensemble: 0.08132067322731018,
     # xval runs: 0.0805181935429573, 0.08127883821725845, 0.08167694509029388, 0.08316199481487274, 0.08165483176708221
-    # mae_metrics = _load_metrics_from_file(metrics_file=ensemble.outputs_folder / "test_mae.txt")
+    # mae_metrics = _load_metrics_from_file(metrics_file=test_output_dirs.root_dir / "test_mae.txt")
     # test_mae = mae_metrics["TEST"]
     # for xval_run_mae in test_maes:
     #     assert test_mae < xval_run_mae
