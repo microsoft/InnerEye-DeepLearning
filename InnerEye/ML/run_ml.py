@@ -489,17 +489,18 @@ class MLRunner:
                 if self.container.inference_on_set(ModelProcessing.DEFAULT, data_split):
                     dataloaders.append((dataloader(), data_split))
             checkpoint = load_checkpoint(checkpoint_paths[0], use_gpu=self.container.use_gpu)
+            assert isinstance(lightning_model, LightningModule)  # mypy
             lightning_model.load_state_dict(checkpoint['state_dict'])
             lightning_model.eval()
             with change_working_directory(self.container.outputs_folder):
                 lightning_model.on_inference_start()
                 for loader, split in dataloaders:
                     logging.info(f"Starting inference on {split.value} set")
-                    lightning_model.on_inference_epoch_start(dataset_split=split, is_ensemble_model=False)
+                    lightning_model.on_inference_start_dataset(execution_mode=split, is_ensemble_model=False)
                     for batch_idx, batch in enumerate(loader):
-                        model_output = lightning_model.forward(batch['x'])
-                        lightning_model.inference_step(batch, batch_idx, model_output=model_output)
-                    lightning_model.on_inference_epoch_end()
+                        posteriors = lightning_model.forward(batch['x'])
+                        lightning_model.record_posteriors(batch, batch_idx, posteriors)
+                    lightning_model.on_inference_end_dataset()
                 lightning_model.on_inference_end()
 
     def run_inference_for_non_innereyeinference_lightning_model(
@@ -1000,11 +1001,12 @@ class MLRunner:
         :param checkpoint_paths: The paths to the checkpoints gleaned from the cross validation runs.
         """
         ensemble = InnerEyeEnsembleInference()
-        ensemble.load_checkpoints_into_ensemble(checkpoint_paths, type(model))
+        ensemble.load_checkpoints_into_ensemble(checkpoint_paths, type(model), use_gpu=self.container.use_gpu)
         test_dataloader = self.container.get_data_module().test_dataloader()
         ensemble.on_inference_start()
         ensemble.on_inference_start_dataset(ModelExecutionMode.TEST, is_ensemble_model=True)
         for batch_idx, batch in enumerate(test_dataloader):
-            ensemble.record_posteriors(batch, batch_idx, None)
+            none_tensor = torch.empty((1))
+            ensemble.record_posteriors(batch, batch_idx, none_tensor)
         ensemble.on_inference_end_dataset()
         ensemble.on_inference_end()
