@@ -17,7 +17,7 @@ for the `MODEL` and one for the `ENVIRONMENT` files.
   path: `python InnerEye/Scripts/move_model.py -a download --path ./ --workspace_name "<name>" --resource_group "<name>" --subscription_id "<sub_id>" --model_id "name:version"`
 
 - Upload from
-  path: `python InnerEye/Scripts/move_model.py - upload --path ./ --workspace_name "<name>" --resource_group "<name>" --subscription_id "<sub_id>" --model_id "name:version"`
+  path: `python InnerEye/Scripts/move_model.py -a upload --path ./ --workspace_name "<name>" --resource_group "<name>" --subscription_id "<sub_id>" --model_id "name:version"`
 
 Once in place you may want to run inference on the model with partial test data, i.e. test data from patients for whom
 some of the labels are missing. Normally inference on partial test data would raise an exception. To allow inference to continue over partial test data add the flag `--allow_incomplete_labels` to your inference call, for example `python InnerEye/ML/runner.py --allow_incomplete_labels --train=False --azureml --model=<model_name> --run_recovery_id=<recovery_id>`
