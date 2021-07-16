@@ -3,22 +3,23 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
+import logging
 import pandas as pd
 import pytest
-from typing import List
+from typing import Any, List, Optional, Tuple
 from unittest import mock
 
 from InnerEye.Common import common_util
 from InnerEye.Common.common_util import BASELINE_WILCOXON_RESULTS_FILE, BEST_EPOCH_FOLDER_NAME, ENSEMBLE_SPLIT_NAME, \
-    FULL_METRICS_DATAFRAME_FILE, OTHER_RUNS_SUBDIR_NAME, SUBJECT_METRICS_FILE_NAME, ModelProcessing
+    FULL_METRICS_DATAFRAME_FILE, ModelProcessing, OTHER_RUNS_SUBDIR_NAME, SUBJECT_METRICS_FILE_NAME
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.ML.baselines_util import ComparisonBaseline, compare_scores_against_baselines, get_comparison_baselines, \
-    perform_score_comparisons
+from InnerEye.ML.baselines_util import ComparisonBaseline, INFERENCE_DISABLED_WARNING, \
+    compare_scores_against_baselines, get_comparison_baselines, perform_score_comparisons
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
-from Tests.ML.util import get_default_azure_config
 from Tests.AfterTraining.test_after_training import get_most_recent_run_id
+from Tests.ML.util import get_default_azure_config
 
 
 def create_dataset_df() -> pd.DataFrame:
@@ -109,24 +110,45 @@ def test_get_comparison_data(test_output_dirs: OutputFolderForTests) -> None:
     assert baselines[0].name == comparison_name
 
 
-@pytest.mark.parametrize('model_proc', [ModelProcessing.DEFAULT, ModelProcessing.ENSEMBLE_CREATION])
-def test_compare_scores_against_baselines_throws(model_proc: ModelProcessing,
-                                                 test_output_dirs: OutputFolderForTests) -> None:
+@pytest.mark.parametrize('model_proc_split_infer', [(ModelProcessing.DEFAULT, 0, None),
+                                                    (ModelProcessing.DEFAULT, 3, True),
+                                                    (ModelProcessing.ENSEMBLE_CREATION, 3, None)])
+def test_compare_scores_against_baselines_throws(model_proc_split_infer: Tuple[ModelProcessing, int, Optional[bool]],
+                                                 test_output_dirs: OutputFolderForTests,
+                                                 caplog: Any) -> None:
     """
     Test that exceptions are raised if the files necessary for baseline comparison are missing,
     then test that when all required files are present that baseline comparison files are written.
 
     :param model_proc: Model processing to test.
     :param test_output_dirs: Test output directories.
+    :param caplog: Pytest capture logger.
     :return: None.
     """
+    (model_proc, number_of_cross_validation_splits, inference_on_test_set) = model_proc_split_infer
     config = SegmentationModelBase(should_validate=False,
                                    comparison_blob_storage_paths=[
                                        ('Single', 'dummy_blob_single/outputs/epoch_120/Test'),
-                                       ('5fold', 'dummy_blob_ensemble/outputs/epoch_120/Test')])
+                                       ('5fold', 'dummy_blob_ensemble/outputs/epoch_120/Test')],
+                                   number_of_cross_validation_splits=number_of_cross_validation_splits)
     config.set_output_to(test_output_dirs.root_dir)
 
     azure_config = get_default_azure_config()
+
+    # Disable inference
+    config.inference_on_test_set = False
+    config.ensemble_inference_on_test_set = False
+
+    with caplog.at_level(logging.INFO):
+        # With no inference output, test that a warning is written to logging
+        compare_scores_against_baselines(
+            model_config=config,
+            azure_config=azure_config, model_proc=model_proc)
+        assert INFERENCE_DISABLED_WARNING in caplog.text
+
+    # Reset inference
+    config.inference_on_test_set = inference_on_test_set
+    config.ensemble_inference_on_test_set = None
 
     # If the BEST_EPOCH_FOLDER_NAME folder is missing, expect an exception to be raised.
     with pytest.raises(FileNotFoundError) as ex:

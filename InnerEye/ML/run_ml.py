@@ -929,7 +929,7 @@ class MLRunner:
 
             reports_dir = output_dir / reports_folder
             if not reports_dir.exists():
-                reports_dir.mkdir(exist_ok=False)
+                reports_dir.mkdir(parents=True, exist_ok=False)
 
             if config.model_category == ModelCategory.Segmentation:
                 generate_segmentation_notebook(

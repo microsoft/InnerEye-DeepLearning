@@ -773,11 +773,14 @@ def check_result_file_counts(config_and_files: OfflineCrossvalConfigAndFiles, is
     n_splits = config_and_files.config.number_of_cross_validation_splits
     failing_modes = []
     for mode, files in result_files_by_mode.items():
-        # By default inference is not run on the training / val set for ensemble models but for test we might have the
-        # result on the test set as well for ensemble.
-        if len(files) != n_splits and not (
-                is_ensemble_run and mode == ModelExecutionMode.TEST and len(files) == (n_splits + 1)):
-            failing_modes.append(mode)
+        if not is_ensemble_run:
+            if len(files) not in (0, n_splits):
+                # For non-ensemble runs there should be either 0 or n_splits results
+                failing_modes.append(mode)
+        else:
+            # For ensemble models there could be results on ensemble children and/or ensemble.
+            if len(files) not in (0, 1, n_splits, n_splits + 1):
+                failing_modes.append(mode)
     if not failing_modes:
         return
     logging.warning(f"The expected number of runs to evaluate was {n_splits}.")
@@ -803,6 +806,9 @@ def plot_cross_validation_from_files(config_and_files: OfflineCrossvalConfigAndF
     result_files = config_and_files.files
     metrics_dfs = load_dataframes(result_files, config)
     full_csv_file = root_folder / FULL_METRICS_DATAFRAME_FILE
+    if len(metrics_dfs.values()) == 0:
+        logging.info("Insufficient inference results to plot cross validation")
+        return
     initial_metrics = pd.concat(list(metrics_dfs.values()))
     if is_segmentation_run:
         if config.create_plots:
