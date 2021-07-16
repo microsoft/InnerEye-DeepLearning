@@ -300,7 +300,7 @@ def run_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
 
     with mock.patch("InnerEye.ML.model_testing.PARENT_RUN_CONTEXT", run):
         metrics = runner.model_inference_train_and_test(
-            checkpoint_handler=checkpoint_handler.get_checkpoints_to_test(),
+            checkpoint_paths=checkpoint_handler.get_checkpoints_to_test(),
             model_proc=model_proc)
 
     if model_proc == ModelProcessing.ENSEMBLE_CREATION:
