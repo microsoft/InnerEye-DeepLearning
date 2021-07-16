@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import abc
+import copy
 from typing import Any, Dict, Iterator, List, Optional, Tuple
 from pathlib import Path
 
@@ -51,14 +52,12 @@ class InnerEyeInference(abc.ABC):
         """
         pass
 
-    def on_inference_start_dataset(self, execution_mode: ModelExecutionMode, is_ensemble_model: bool) -> None:
+    def on_inference_start_dataset(self, execution_mode: ModelExecutionMode) -> None:
         """
         Runs initialization for inference, when starting inference on a new dataset split (train/val/test).
         Depending on the settings, this can be called anywhere between 0 (no inference at all) to 3 times (inference
         on all of train/val/test split).
         :param execution_mode: Indicates whether the item comes from the training, validation or test set.
-        :param is_ensemble_model: If False, the model_outputs come from an individual model. If True, the model
-        outputs come from multiple models.
         """
         pass
 
@@ -67,6 +66,7 @@ class InnerEyeInference(abc.ABC):
         This hook is called when the model has finished making a prediction. It can write the results to a file,
         or compute metrics and store them.
         :param batch: The batch of data for which the model made a prediction.
+        :param batch_idx: The index of the batch.
         :param posteriors: The posteriors output by the model.
         """
         # We don't want abstract methods here, it avoids class creation for unit tests, and we also want this
@@ -91,115 +91,117 @@ class InnerEyeInference(abc.ABC):
 
 class InnerEyeEnsembleInference(InnerEyeInference):
     """
-    InnerEyeInference defines the methods that need to be present for doing inference on a trained lightning model. This
-    class inherits from InnerEyeInference and provides help for doing inference on ensemble models, built from a list of
-    checkpoint files, perhaps those downloaded from cross validation runs.
+    InnerEyeEnsembleInference inherits from InnerEyeInference to provide help for buiding ensemble models from cross
+    validation runs of LightningModules, and doing inference on the ensemble. Subclasses should also inherit
+    LightningModule.
 
-    Ensemble inference code should call the methods in this order:
+    To set up an ensemble and then do inference, call 
+        model.load_checkpoints_into_ensemble(checkpoints, use_gpu)
+        model.on_ensemble_inference_start()
+        for dataset_split in [Train, Val, Test]
+            model.on_ensemble_inference_start_dataset(dataset_split, is_ensemble_model=False)
+            for batch_idx, batch in enumerate(dataloader[dataset_split])):
+                posteriors = model.ensemble_forward(batch)
+                model.record_ensemble_posteriors(batch, batch_idx, posteriors)
+            model.on_ensemble_inference_end_dataset()
+        model.on_ensemble_inference_end()
 
-    model.load_checkpoints_into_ensemble(checkpoints, lightning_module_subtype, use_gpu, *args, **kwargs)
-    model.on_inference_start()
-    for dataset_split in [Train, Val, Test]
-        model.on_inference_start_dataset(dataset_split, is_ensemble_model=False)
-        for batch_idx, batch in enumerate(dataloader[dataset_split])):
-            model.record_posteriors(batch, batch_idx, posteriors)
-        model.on_inference_end_dataset()
-    model.on_inference_end()
-
-    Note the two places that this differs from the method calls suggested in InnerEyeInference. Firstly, we need to
-    assemble the ensemble model with a call to `InnerEyeEnsembleInference.load_checkpoints_into_ensemble` and later the
-    call to `model.forward` is dropped and the posteriors from the ensembled are gleaned in `model.record_posteriors`.
-
-    For the InnerEyeInference methods on_inference_start, on_inference_start_dataset, and record_posteriors we provide
-    overrides which do some of the ensemble plumbing, but enemble model classes will need to override these (and call
-    them via `super()`) to do model specific metric saving etc.
+    We have not duplicated the method documentation from InnerEyeInference, where you can find further explantaion of
+    the role of each overridden method.
     """
     def __init__(self) -> None:
         super().__init__()
-        self.ensemble_models: List[InnerEyeInference] = []
+        self.ensemble_models: List[InnerEyeInference] = [self]
 
     def load_checkpoints_into_ensemble(  # type: ignore
             self,
             checkpoint_paths: List[Path],
-            lightning_module_subtype: Any,
-            use_gpu: bool,
-            *args, **kwargs) -> None:
+            use_gpu: bool) -> None:
         """
-        Convenience method to load each checkpoint path in a list as an additional member of the ensemble.
-        :param checkpoint_paths: A list of paths to checkpoints to load into new models in the ensemble.
-        :param lightning_module_subtype: The type of the ensemble models to be instantiated and then load a checkpoint.
-        # TODO: Should these be tuples of paths and types? I.e. can the ensemble be made from heterogeneous model types
-        (all derived from InnerEyeInference)?
-        :param use_gpu: Passed on to deep_learning_config.load_checkpoint
-        :params *args, **kwargs: Additional arguments which are passed on to the model constructor.
+        Convenience method to load each checkpoint path in a list of checkpoint paths as an additional member of the
+        ensemble.
+        :param checkpoint_paths: A list of paths to checkpoints for loading into new models in the ensemble.
+        :param use_gpu: Passed on to deep_learning_config.load_checkpoint.
         """
-        for checkpoint_path in checkpoint_paths:
-            self.load_checkpoint_into_ensemble(checkpoint_path, lightning_module_subtype, use_gpu, *args, **kwargs)
+        checkpoint = load_checkpoint(checkpoint_paths[0], use_gpu)
+        assert isinstance(self, LightningModule)  # mypy
+        self.load_state_dict(checkpoint['state_dict'], strict=False)
+        for checkpoint_path in checkpoint_paths[1:]:
+            self._load_checkpoint_into_ensemble(checkpoint_path, use_gpu)
 
-    def load_checkpoint_into_ensemble(  # type: ignore
+    def _load_checkpoint_into_ensemble(  # type: ignore
             self, 
             checkpoint_path: Path, 
-            lightning_module_subtype: Any,
-            use_gpu: bool,
-            *args, **kwargs) -> None:
+            use_gpu: bool) -> None:
         """
         Load a single checkpoint path as an additional member of the ensemble.
         :param checkpoint_path: The path to the to checkpoint file to load into a new model in the ensemble.
-        :param lightning_module_subtype: The type of the ensemble model to be instantiated and then load a checkpoint.
-        :param use_gpu: Passed on to deep_learning_config.load_checkpoint
-        :params *args, **kwargs: Additional arguments which are passed on to the model constructor.
+        :param use_gpu: Passed on to deep_learning_config.load_checkpoint.
         """
         checkpoint = load_checkpoint(checkpoint_path, use_gpu)
-        new_model = lightning_module_subtype(*args, **kwargs)
-        assert isinstance(new_model, LightningModule)  # MyPy has no `Intersection` for multiple inheritance
+        new_model = self.deepcopy()
+        assert isinstance(new_model, LightningModule)  # mypy
         new_model.load_state_dict(checkpoint['state_dict'], strict=False)
-        assert isinstance(new_model, InnerEyeInference)  # MyPy has no `Intersection` for multiple inheritance
+        assert isinstance(new_model, InnerEyeInference)  # mypy
         self.ensemble_models.append(new_model)
 
-    # region InnerEyeInference Overrides
-    def on_inference_start(self) -> None:
+    def on_ensemble_inference_start(self) -> None:
         """
-        Runs initialization for everything that inference might require. This can initialize
-        output files, set up metric computation, etc. This is run only once.
+        Set each model in the enseble into evaluation mode.
         """
         for model in self.ensemble_models:
-            assert isinstance(model, LightningModule)  # MyPy has no `Intersection` for multiple inheritance
+            assert isinstance(model, LightningModule)  # mypy
             model.eval()
 
-    def on_inference_start_dataset(self, execution_mode: ModelExecutionMode, is_ensemble_model: bool) -> None:
+    def on_ensembe_inference_start_dataset(self, execution_mode: ModelExecutionMode) -> None:
         """
-        Runs initialization for inference, when starting inference on a new dataset split (train/val/test).
-        Depending on the settings, this can be called anywhere between 0 (no inference at all) to 3 times (inference
-        on all of train/val/test split).
+        Runs initialization for ensemble inference.
         :param execution_mode: Passed on to InnerEyeInference model in the ensemble.
-        :param is_ensemble_model: Passed on to InnerEyeInference model in the ensemble.
         """
         for model in self.ensemble_models:
-            model.on_inference_start_dataset(execution_mode, is_ensemble_model)
+            model.on_inference_start_dataset(execution_mode)
 
-    def record_posteriors(self, batch: Dict[str, torch.Tensor], batch_idx: int, posteriors: torch.Tensor) -> None:
+    def ensemble_forward(self, batch_x: torch.Tensor) -> torch.Tensor:
+        """
+        :param batch_x: The batch of data for which the model made a prediction.
+        :returns: The aggregated ensemble outputs.
+        """
+        model_outputs: List[torch.Tensor] = []
+        for model in self.ensemble_models:
+            assert isinstance(model, LightningModule)  # mypy
+            model_outputs.append(model.forward(batch_x))
+        posterior = InnerEyeEnsembleInference.aggregate_ensemble_model_outputs(iter(model_outputs))
+        return posterior
+
+    def record_ensemble_posteriors(self, batch_y: torch.Tensor, batch_idx: int, posterior: torch.Tensor) -> None:
         """
         In our base class, InnerEyeInference, this hook is called when the model has finished making a prediction, and
         it can write the results to a file, or compute metrics and store them. Here we need to call the models in the
         ensemble as part of this method, so there is no `posteriors = model.forward(batch)` step before calling this
         method.
-        :param batch: The batch of data for which the model made a prediction.
-        :param batch_idx: Ignored, but needed to override InnerEyeInference correctly.
-        :param posteriors: Ignored, but needed to override InnerEyeInference correctly.
+        :param batch_y: The batch of data for which the model made a prediction.
+        :param batch_idx: The index of the batch
+        :param posteriors: The posteriors, typically from ensemble_forward.
         """
-        model_outputs: List[torch.Tensor] = []
-        input = batch["x"]
-        for model in self.ensemble_models:
-            assert isinstance(model, LightningModule)  # MyPy has no `Intersection` for multiple inheritance
-            model_outputs.append(model.forward(input))
-        posterior = InnerEyeEnsembleInference.aggregate_ensemble_model_outputs(iter(model_outputs))  # noqa: F841
         # Sub-classes should decide what metrics they wish to store, here are two examples:
         #
         # self.test_mse.append(torch.nn.functional.mse_loss(posterior, batch["y"]))
         # self.test_mae.update(preds=posterior, target=batch["y"])
         #
         # (where `self.test_mse: List[torch.Tensor]` and `self.test_mae: MeanAbsoluteError`).
-    # endregion
+        pass
+
+    def on_ensemble_inference_end_dataset(self) -> None:
+        """
+        Run after the inference run over a dataset
+        """
+        pass
+
+    def on_ensemble_inference_end(self) -> None:
+        """
+        Run after all the dataset's inference runs. Override to save metrics to disk and generate reports.
+        """
+        pass
 
     @staticmethod
     def aggregate_ensemble_model_outputs(model_outputs: Iterator[torch.Tensor]) -> torch.Tensor:
