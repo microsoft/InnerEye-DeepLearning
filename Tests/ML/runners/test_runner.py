@@ -23,6 +23,7 @@ from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.configs.unit_testing.passthrough_model import PassThroughModel
+from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.metrics import InferenceMetricsForSegmentation
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.runner import Runner
@@ -102,6 +103,57 @@ def create_train_and_test_data_small_dataset(image_size: TupleInt3,
     target_image_dir.mkdir()
     create_train_and_test_data_small(image_size, source_image_dir, target_image_dir)
     return target_dir
+
+
+def create_mock_run(mock_upload_path: Path, config: DeepLearningConfig) -> Run:
+    """
+    Create a mock AzureML Run object.
+
+    :param mock_upload_path: Path to folder to store uploaded folders.
+    :param config: Deep learning config.
+    :return: Mock Run.
+    """
+
+    def mock_upload_folder(name: str, path: str, datastore_name: str = None) -> None:
+        """
+        Mock AzureML function Run.upload_folder.
+        https://docs.microsoft.com/en-us/python/api/azureml-core/azureml.core.run(class)?view=azure-ml-py#upload-folder-name--path--datastore-name-none-
+        """
+        shutil.copytree(src=path, dst=mock_upload_path / name)
+
+    def mock_download_file(name: str, output_file_path: str = None, _validate_checksum: bool = False) -> None:
+        """
+        Mock AzureML function Run.download_file.
+        https://docs.microsoft.com/en-us/python/api/azureml-core/azureml.core.run(class)?view=azure-ml-py#download-file-name--output-file-path-none---validate-checksum-false-
+        """
+        if output_file_path is not None:
+            src = mock_upload_path / name
+            if src.name == DATASET_CSV_FILE_NAME:
+                dataset_df = create_dataset_df()
+                dataset_df.to_csv(output_file_path)
+            elif src.name == SUBJECT_METRICS_FILE_NAME:
+                metrics_df = create_metrics_df()
+                metrics_df.to_csv(output_file_path)
+
+    child_runs: List[Run] = []
+    for i in range(config.number_of_cross_validation_splits):
+        child_run = Mock(name=f'mock_child_run{i}')
+        child_run.__class__ = Run
+        child_run.download_file = Mock(name='mock_download_file', side_effect=mock_download_file)
+        child_run.id = f'child_id:{i}'
+        child_run.get_tags = lambda: {CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY: i, RUN_RECOVERY_ID_KEY: 'rec_id'}
+        child_runs.append(child_run)
+
+    run = Mock(name='mock_run')
+    run.__class__ = Run
+    run.download_file = Mock(name='mock_download_file', side_effect=mock_download_file)
+    run.get_children.return_value = child_runs
+    run.get_tags = lambda: {RUN_RECOVERY_ID_KEY: 'rec_id'}
+    run.id = 'run_id:1'
+    run.tags = {RUN_RECOVERY_ID_KEY_NAME: 'id'}
+    run.upload_folder = Mock(name='mock_upload_folder', side_effect=mock_upload_folder)
+
+    return run
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
@@ -236,52 +288,26 @@ def run_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
                                                         project_root=test_output_dirs.root_dir)
     checkpoint_handler.additional_training_done()
 
-    shutil.copy(src=config.local_dataset / DATASET_CSV_FILE_NAME, dst=config.outputs_folder / DATASET_CSV_FILE_NAME)
-
     mock_upload_path = test_output_dirs.root_dir / "mock_upload"
     mock_upload_path.mkdir()
 
-    def mock_upload_folder(name: str, path: str, datastore_name: str = None) -> None:
-        shutil.copytree(src=path, dst=mock_upload_path / name)
-
-    def mock_download_file(name: str, output_file_path: str = None, _validate_checksum: bool = False) -> None:
-        if output_file_path is not None:
-            src = mock_upload_path / name
-            if src.name == DATASET_CSV_FILE_NAME:
-                dataset_df = create_dataset_df()
-                dataset_df.to_csv(output_file_path)
-            elif src.name == SUBJECT_METRICS_FILE_NAME:
-                metrics_df = create_metrics_df()
-                metrics_df.to_csv(output_file_path)
-
-    child_runs: List[Run] = []
-    for i in range(config.number_of_cross_validation_splits):
-        child_run = Mock(name=f'mock_child_run{i}')
-        child_run.__class__ = Run
-        child_run.download_file = Mock(name='mock_download_file', side_effect=mock_download_file)
-        child_run.id = f'child_id:{i}'
-        child_run.get_tags = lambda: {CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY: i, RUN_RECOVERY_ID_KEY: 'rec_id'}
-        child_runs.append(child_run)
-
-    run = Mock(name='mock_run')
-    run.__class__ = Run
-    run.download_file = Mock(name='mock_download_file', side_effect=mock_download_file)
-    run.get_children.return_value = child_runs
-    run.get_tags = lambda: {RUN_RECOVERY_ID_KEY: 'rec_id'}
-    run.id = 'run_id:1'
-    run.tags = {RUN_RECOVERY_ID_KEY_NAME: 'id'}
-    run.upload_folder = Mock(name='mock_upload_folder', side_effect=mock_upload_folder)
+    run = create_mock_run(mock_upload_path, config)
 
     azure_config = Mock(name='mock_azure_config')
     azure_config.fetch_run.return_value = run
 
     runner = MLRunner(model_config=config, azure_config=azure_config)
+
     with mock.patch("InnerEye.ML.model_testing.PARENT_RUN_CONTEXT", run):
         metrics = runner.model_inference_train_and_test(
             checkpoint_handler=checkpoint_handler,
             model_proc=model_proc)
 
     if model_proc == ModelProcessing.ENSEMBLE_CREATION:
+        # Create a fake ensemble dataset.csv
+        dataset_df = create_dataset_df()
+        dataset_df.to_csv(config.outputs_folder / DATASET_CSV_FILE_NAME)
+
         with mock.patch.object(PlotCrossValidationConfig, 'azure_config', return_value=azure_config):
             with mock.patch("InnerEye.Azure.azure_util.PARENT_RUN_CONTEXT", run):
                 with mock.patch("InnerEye.ML.run_ml.PARENT_RUN_CONTEXT", run):
@@ -334,6 +360,10 @@ def run_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
             run.upload_folder.assert_any_call(name=str(expected_name), path=str(results_folder))
     if len(error):
         raise ValueError(error)
+
+    if model_proc == ModelProcessing.ENSEMBLE_CREATION:
+        # The report should have been mock uploaded
+        expected_upload_folder_count = expected_upload_folder_count + 1
 
     assert run.upload_folder.call_count == expected_upload_folder_count
 
