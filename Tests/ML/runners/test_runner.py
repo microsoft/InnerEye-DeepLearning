@@ -3,28 +3,34 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
+import shutil
 import time
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 from unittest import mock
 from unittest.mock import Mock
 
 import numpy as np
 import pytest
+from azureml.core.run import Run
 from azureml.train.hyperdrive.runconfig import HyperDriveConfig
 
+from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, RUN_RECOVERY_ID_KEY_NAME
 from InnerEye.Common import common_util, fixed_paths
-from InnerEye.Common.common_util import ModelProcessing, get_best_epoch_results_path
+from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, ModelProcessing, get_best_epoch_results_path
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.type_annotations import TupleInt3
-from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, ModelExecutionMode
+from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.configs.unit_testing.passthrough_model import PassThroughModel
+from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.metrics import InferenceMetricsForSegmentation
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.runner import Runner
 from InnerEye.ML.utils import io_util
+from InnerEye.ML.visualizers.plot_cross_validation import RUN_RECOVERY_ID_KEY, PlotCrossValidationConfig
 from Tests.ML.configs.DummyModel import DummyModel
+from Tests.ML.runners.test_compare_against_baselines import create_dataset_df, create_metrics_df
 from Tests.ML.util import get_default_checkpoint_handler
 from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
 
@@ -97,6 +103,57 @@ def create_train_and_test_data_small_dataset(image_size: TupleInt3,
     target_image_dir.mkdir()
     create_train_and_test_data_small(image_size, source_image_dir, target_image_dir)
     return target_dir
+
+
+def create_mock_run(mock_upload_path: Path, config: DeepLearningConfig) -> Run:
+    """
+    Create a mock AzureML Run object.
+
+    :param mock_upload_path: Path to folder to store uploaded folders.
+    :param config: Deep learning config.
+    :return: Mock Run.
+    """
+
+    def mock_upload_folder(name: str, path: str, datastore_name: str = None) -> None:
+        """
+        Mock AzureML function Run.upload_folder.
+        https://docs.microsoft.com/en-us/python/api/azureml-core/azureml.core.run(class)?view=azure-ml-py#upload-folder-name--path--datastore-name-none-
+        """
+        shutil.copytree(src=path, dst=mock_upload_path / name)
+
+    def mock_download_file(name: str, output_file_path: str = None, _validate_checksum: bool = False) -> None:
+        """
+        Mock AzureML function Run.download_file.
+        https://docs.microsoft.com/en-us/python/api/azureml-core/azureml.core.run(class)?view=azure-ml-py#download-file-name--output-file-path-none---validate-checksum-false-
+        """
+        if output_file_path is not None:
+            src = mock_upload_path / name
+            if src.name == DATASET_CSV_FILE_NAME:
+                dataset_df = create_dataset_df()
+                dataset_df.to_csv(output_file_path)
+            elif src.name == SUBJECT_METRICS_FILE_NAME:
+                metrics_df = create_metrics_df()
+                metrics_df.to_csv(output_file_path)
+
+    child_runs: List[Run] = []
+    for i in range(config.number_of_cross_validation_splits):
+        child_run = Mock(name=f'mock_child_run{i}')
+        child_run.__class__ = Run
+        child_run.download_file = Mock(name='mock_download_file', side_effect=mock_download_file)
+        child_run.id = f'child_id:{i}'
+        child_run.get_tags = lambda: {CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY: i, RUN_RECOVERY_ID_KEY: 'rec_id'}
+        child_runs.append(child_run)
+
+    run = Mock(name='mock_run')
+    run.__class__ = Run
+    run.download_file = Mock(name='mock_download_file', side_effect=mock_download_file)
+    run.get_children.return_value = child_runs
+    run.get_tags = lambda: {RUN_RECOVERY_ID_KEY: 'rec_id'}
+    run.id = 'run_id:1'
+    run.tags = {RUN_RECOVERY_ID_KEY_NAME: 'id'}
+    run.upload_folder = Mock(name='mock_upload_folder', side_effect=mock_upload_folder)
+
+    return run
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
@@ -231,10 +288,31 @@ def run_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
                                                         project_root=test_output_dirs.root_dir)
     checkpoint_handler.additional_training_done()
 
-    with mock.patch("InnerEye.ML.model_testing.PARENT_RUN_CONTEXT", Mock()) as m:
-        metrics = MLRunner(config).model_inference_train_and_test(
-            checkpoint_handler=checkpoint_handler,
+    mock_upload_path = test_output_dirs.root_dir / "mock_upload"
+    mock_upload_path.mkdir()
+
+    run = create_mock_run(mock_upload_path, config)
+
+    azure_config = Mock(name='mock_azure_config')
+    azure_config.fetch_run.return_value = run
+
+    runner = MLRunner(model_config=config, azure_config=azure_config)
+
+    with mock.patch("InnerEye.ML.model_testing.PARENT_RUN_CONTEXT", run):
+        metrics = runner.model_inference_train_and_test(
+            checkpoint_paths=checkpoint_handler.get_checkpoints_to_test(),
             model_proc=model_proc)
+
+    if model_proc == ModelProcessing.ENSEMBLE_CREATION:
+        # Create a fake ensemble dataset.csv
+        dataset_df = create_dataset_df()
+        dataset_df.to_csv(config.outputs_folder / DATASET_CSV_FILE_NAME)
+
+        with mock.patch.object(PlotCrossValidationConfig, 'azure_config', return_value=azure_config):
+            with mock.patch("InnerEye.Azure.azure_util.PARENT_RUN_CONTEXT", run):
+                with mock.patch("InnerEye.ML.run_ml.PARENT_RUN_CONTEXT", run):
+                    runner.plot_cross_validation_and_upload_results()
+                    runner.generate_report(ModelProcessing.ENSEMBLE_CREATION)
 
     if model_proc == ModelProcessing.DEFAULT:
         named_metrics = {
@@ -261,7 +339,7 @@ def run_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
             if model_proc == ModelProcessing.DEFAULT:
                 if not perform_cross_validation:
                     # If a "normal" run then default to val or test.
-                    flag = mode in (ModelExecutionMode.VAL, ModelExecutionMode.TEST)
+                    flag = mode == ModelExecutionMode.TEST
                 else:
                     # If an ensemble child then default to never.
                     flag = False
@@ -279,11 +357,15 @@ def run_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
         if flag and model_proc == ModelProcessing.ENSEMBLE_CREATION:
             expected_upload_folder_count = expected_upload_folder_count + 1
             expected_name = get_best_epoch_results_path(mode, ModelProcessing.DEFAULT)
-            m.upload_folder.assert_any_call(name=str(expected_name), path=str(results_folder))
+            run.upload_folder.assert_any_call(name=str(expected_name), path=str(results_folder))
     if len(error):
         raise ValueError(error)
 
-    assert m.upload_folder.call_count == expected_upload_folder_count
+    if model_proc == ModelProcessing.ENSEMBLE_CREATION:
+        # The report should have been mock uploaded
+        expected_upload_folder_count = expected_upload_folder_count + 1
+
+    assert run.upload_folder.call_count == expected_upload_folder_count
 
 
 def test_logging_to_file(test_output_dirs: OutputFolderForTests) -> None:

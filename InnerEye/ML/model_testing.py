@@ -36,7 +36,6 @@ from InnerEye.ML.reports.segmentation_report import boxplot_per_structure
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import io_util, ml_util
-from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
 from InnerEye.ML.utils.image_util import binaries_from_multi_label_array
 from InnerEye.ML.utils.io_util import ImageHeader, MedicalImageFileType, load_nifti_image, save_lines_to_file
 from InnerEye.ML.utils.metrics_util import MetricsPerPatientWriter
@@ -48,7 +47,7 @@ MODEL_OUTPUT_CSV = "model_outputs.csv"
 
 def model_test(config: ModelConfigBase,
                data_split: ModelExecutionMode,
-               checkpoint_handler: CheckpointHandler,
+               checkpoint_paths: List[Path],
                model_proc: ModelProcessing = ModelProcessing.DEFAULT) -> Optional[InferenceMetrics]:
     """
     Runs model inference on segmentation or classification models, using a given dataset (that could be training,
@@ -56,7 +55,7 @@ def model_test(config: ModelConfigBase,
     differ for model categories (classification, segmentation).
     :param config: The configuration of the model
     :param data_split: Indicates which of the 3 sets (training, test, or validation) is being processed.
-    :param checkpoint_handler: Checkpoint handler object to find checkpoint paths for model initialization
+    :param checkpoint_paths: Checkpoint paths to initialize model.
     :param model_proc: whether we are testing an ensemble or single model; this affects where results are written.
     :return: The metrics that the model achieved on the given data set, or None if the data set is empty.
     """
@@ -68,17 +67,19 @@ def model_test(config: ModelConfigBase,
                         "and additional data loaders are likely to block.")
         return None
     with logging_section(f"Running {model_proc.value} model on {data_split.name.lower()} set"):
+        if not checkpoint_paths:
+            raise ValueError("There were no checkpoints available for model testing.")
         if isinstance(config, SegmentationModelBase):
-            return segmentation_model_test(config, data_split, checkpoint_handler, model_proc)
+            return segmentation_model_test(config, data_split, checkpoint_paths, model_proc)
         if isinstance(config, ScalarModelBase):
-            return classification_model_test(config, data_split, checkpoint_handler, model_proc,
+            return classification_model_test(config, data_split, checkpoint_paths, model_proc,
                                              config.cross_validation_split_index)
     raise ValueError(f"There is no testing code for models of type {type(config)}")
 
 
 def segmentation_model_test(config: SegmentationModelBase,
                             execution_mode: ModelExecutionMode,
-                            checkpoint_handler: CheckpointHandler,
+                            checkpoint_paths: List[Path],
                             model_proc: ModelProcessing = ModelProcessing.DEFAULT) -> InferenceMetricsForSegmentation:
     """
     The main testing loop for segmentation models.
@@ -90,10 +91,6 @@ def segmentation_model_test(config: SegmentationModelBase,
     :param patient_id: String which contains subject identifier.
     :return: InferenceMetric object that contains metrics related for all of the checkpoint epochs.
     """
-    checkpoints_to_test = checkpoint_handler.get_checkpoints_to_test()
-
-    if not checkpoints_to_test:
-        raise ValueError("There were no checkpoints available for model testing.")
 
     epoch_results_folder = config.outputs_folder / get_best_epoch_results_path(execution_mode, model_proc)
     # save the datasets.csv used
@@ -101,7 +98,7 @@ def segmentation_model_test(config: SegmentationModelBase,
     epoch_and_split = f"{execution_mode.value} set"
     epoch_dice_per_image = segmentation_model_test_epoch(config=copy.deepcopy(config),
                                                          execution_mode=execution_mode,
-                                                         checkpoint_paths=checkpoints_to_test,
+                                                         checkpoint_paths=checkpoint_paths,
                                                          results_folder=epoch_results_folder,
                                                          epoch_and_split=epoch_and_split)
     if epoch_dice_per_image is None:
@@ -412,7 +409,7 @@ def create_metrics_dict_for_scalar_models(config: ScalarModelBase) -> \
 
 def classification_model_test(config: ScalarModelBase,
                               data_split: ModelExecutionMode,
-                              checkpoint_handler: CheckpointHandler,
+                              checkpoint_paths: List[Path],
                               model_proc: ModelProcessing,
                               cross_val_split_index: int) -> InferenceMetricsForClassification:
     """
@@ -421,15 +418,11 @@ def classification_model_test(config: ScalarModelBase,
     :param config: The model configuration.
     :param data_split: The name of the folder to store the results inside each epoch folder in the outputs_dir,
                        used mainly in model evaluation using different dataset splits.
-    :param checkpoint_handler: Checkpoint handler object to find checkpoint paths for model initialization
+    :param checkpoint_paths: Checkpoint paths to initialize model
     :param model_proc: whether we are testing an ensemble or single model
     :return: InferenceMetricsForClassification object that contains metrics related for all of the checkpoint epochs.
     """
     posthoc_label_transform = config.get_posthoc_label_transform()
-
-    checkpoint_paths = checkpoint_handler.get_checkpoints_to_test()
-    if not checkpoint_paths:
-        raise ValueError("There were no checkpoints available for model testing.")
 
     pipeline = create_inference_pipeline(config=config,
                                          checkpoint_paths=checkpoint_paths)

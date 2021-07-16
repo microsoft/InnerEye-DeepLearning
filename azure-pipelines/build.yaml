@@ -1,19 +1,6 @@
 steps:
   - template: checkout.yml
 
-  - task: CredScan@3
-    condition: and(succeeded(), eq( variables['Agent.OS'], 'Windows_NT' ))
-
-  - task: PostAnalysis@1
-    condition: and(succeeded(), eq( variables['Agent.OS'], 'Windows_NT' ))
-    displayName: 'Post Analysis'
-    inputs:
-      CredScan: true
-
-  - script: echo %NUMBER_OF_PROCESSORS%
-    condition: and(succeeded(), eq( variables['Agent.OS'], 'Windows_NT' ))
-    displayName: Print processors
-
   - bash: |
       conda env create --file environment.yml --name InnerEye --quiet
       source activate InnerEye
@@ -49,7 +36,7 @@ steps:
   # hence don't set PYTHONPATH
   - bash: |
       source activate InnerEye
-      pytest ./Tests/ -m "not (gpu or azureml or after_training_single_run or after_training_ensemble_run or inference or after_training_2node or after_training_glaucoma_cv_run)" --doctest-modules --junitxml=junit/test-results.xml --cov=. --cov-config=.coveragerc --cov-report=xml -n 2 --dist=loadscope --verbose
+      pytest ./Tests/ -m "not (gpu or azureml or after_training_single_run or after_training_ensemble_run or inference or after_training_2node or after_training_glaucoma_cv_run or after_training_hello_container)" --doctest-modules --junitxml=junit/test-results.xml --cov=. --cov-config=.coveragerc --cov-report=xml -n 2 --dist=loadscope --verbose
     env:
       APPLICATION_KEY: $(InnerEyeDeepLearningServicePrincipalKey)
       DATASETS_ACCOUNT_KEY: $(InnerEyePublicDatasetsStorageKey)

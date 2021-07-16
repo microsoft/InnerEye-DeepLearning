@@ -365,7 +365,10 @@ def download_run_output_file(blob_path: Path,
     blobs_prefix = str((fixed_paths.DEFAULT_AML_UPLOAD_DIR / blob_path).as_posix())
     destination = destination / blob_path.name
     logging.info(f"Downloading single file from run {run.id}: {blobs_prefix} -> {str(destination)}")
-    MlflowClient().download_artifacts(run.info.run_id, blobs_prefix, str(destination))
+    try:
+        MlflowClient().download_artifacts(run.info.run_id, blobs_prefix, str(destination))
+    except Exception as ex:
+        raise ValueError(f"Unable to download file '{blobs_prefix}' from run {run.id}") from ex    
     return destination
 
 
