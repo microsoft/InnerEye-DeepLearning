@@ -430,7 +430,7 @@ def get_comparison_baseline_paths(outputs_folder: Path,
                                   blob_path: Path, run: Run,
                                   dataset_csv_file_name: str) -> \
         Tuple[Optional[Path], Optional[Path]]:
-    run_rec_id = run.id
+    run_rec_id = run.info.run_id
     # We usually find dataset.csv in the same directory as metrics.csv, but we sometimes
     # have to look higher up.
     comparison_dataset_path: Optional[Path] = None

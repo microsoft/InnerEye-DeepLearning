@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
+from mlflow.tracking.client import MlflowClient
 import pandas as pd
 from azureml.core import Run
 
@@ -230,7 +231,10 @@ def compare_folder_contents(expected_folder: Path,
     if run and is_offline_run_context(run):
         logging.warning("Skipping file comparison because the given run context is an AzureML offline run.")
         return []
-    files_in_run: List[str] = run.get_file_names() if run else []
+    
+    mflow_client = MlflowClient()
+    # files_in_run: List[str] = run.get_file_names() if run else []
+    files_in_run: List[str] = mflow_client.list_artifacts(run.info.run_id) if run else []
     temp_folder = Path(tempfile.mkdtemp()) if run else None
     for file in expected_folder.rglob("*"):
         # rglob also returns folders, skip those
@@ -243,7 +247,8 @@ def compare_folder_contents(expected_folder: Path,
         elif temp_folder is not None and run is not None:
             actual_file = temp_folder / file_relative
             if file_relative in files_in_run:
-                run.download_file(name=str(file_relative), output_file_path=str(actual_file))
+                if not file_relative.is_dir:
+                    run.download_file(name=str(file_relative.path), output_file_path=str(actual_file))
         else:
             raise ValueError("One of the two arguments run, actual_folder must be provided.")
         message = compare_files(expected=file, actual=actual_file) if actual_file.exists() else MISSING_FILE
