@@ -7,6 +7,8 @@ import sys
 import warnings
 from pathlib import Path
 
+import matplotlib
+
 # Suppress all errors here because the imports after code cause loads of warnings. We can't specifically suppress
 # individual warnings only.
 # flake8: noqa
@@ -68,11 +70,12 @@ def initialize_rpdb() -> None:
                  f"kill -TRAP <process_id>; nc 127.0.0.1 {rpdb_port}")
 
 
-def suppress_logging_noise() -> None:
+def package_setup_and_hacks() -> None:
     """
-    Reduce the logging level for some of the used libraries, which are particularly talkative in DEBUG mode.
-    Usually when running in DEBUG mode, we want diagnostics about the model building itself, but not for the
-    underlying libraries.
+    Set up the Python packages where needed. In particular, reduce the logging level for some of the used
+    libraries, which are particularly talkative in DEBUG mode. Usually when running in DEBUG mode, we want
+    diagnostics about the model building itself, but not for the underlying libraries.
+    It also adds workarounds for known issues in some packages.
     """
     # Numba code generation is extremely talkative in DEBUG mode, disable that.
     logging.getLogger('numba').setLevel(logging.WARNING)
@@ -89,6 +92,10 @@ def suppress_logging_noise() -> None:
     # This is working around a spurious error message thrown by MKL, see
     # https://github.com/pytorch/pytorch/issues/37377
     os.environ['MKL_THREADING_LAYER'] = 'GNU'
+    # Workaround for issues with matplotlib on some X servers, see
+    # https://stackoverflow.com/questions/45993879/matplot-lib-fatal-io-error-25-inappropriate-ioctl-for-device-on-x
+    # -server-loc
+    matplotlib.use('Agg')
 
 
 class Runner:
@@ -279,7 +286,7 @@ class Runner:
         # build itself, but not the tons of debug information that AzureML submissions create.
         # Suppress the logging from all processes but the one for GPU 0 on each node, to make log files more readable
         logging_to_stdout(self.azure_config.log_level if is_local_rank_zero() else "ERROR")
-        suppress_logging_noise()
+        package_setup_and_hacks()
         if is_global_rank_zero():
             self.print_git_tags()
         # For the PR build in AzureML, we can either pytest, or the training of the simple PR model. Running both

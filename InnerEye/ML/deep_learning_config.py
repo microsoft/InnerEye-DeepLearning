@@ -5,12 +5,13 @@
 from __future__ import annotations
 
 import logging
-import param
 from enum import Enum, unique
-from pandas import DataFrame
-from param import Parameterized
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+import param
+from pandas import DataFrame
+from param import Parameterized
 
 from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common import fixed_paths
@@ -33,7 +34,6 @@ VISUALIZATION_FOLDER = "visualizations"
 EXTRA_RUN_SUBFOLDER = "extra_run_id"
 
 ARGS_TXT = "args.txt"
-WEIGHTS_FILE = "weights.pth"
 
 
 @unique
@@ -216,16 +216,25 @@ class WorkflowParams(param.Parameterized):
     ensemble_inference_on_test_set: Optional[bool] = \
         param.Boolean(None,
                       doc="If set, enable/disable full image inference on test set after ensemble training.")
-    weights_url: str = param.String(doc="If provided, a url from which weights will be downloaded and used for model "
-                                        "initialization.")
-    local_weights_path: Optional[Path] = param.ClassSelector(class_=Path,
-                                                             default=None,
-                                                             allow_None=True,
-                                                             doc="The path to the weights to use for model "
-                                                                 "initialization, when training outside AzureML.")
+    weights_url: List[str] = param.List(default=[], class_=str,
+                                        doc="If provided, a set of urls from which checkpoints will be downloaded"
+                                                "and used for inference.")
+    local_weights_path: List[Path] = param.List(default=[], class_=Path,
+                                                doc="A list of checkpoints paths to use for inference, "
+                                                    "when the job is running outside Azure.")
+    model_id: str = param.String(default="",
+                                 doc="A model id string in the form 'model name:version' "
+                                     "to use a registered model for inference.")
     generate_report: bool = param.Boolean(default=True,
                                           doc="If True (default), write a modelling report in HTML format. If False,"
                                               "do not write that report.")
+    pretraining_run_recovery_id: str = param.String(default=None,
+                                                    allow_None=True,
+                                                    doc="Extra run recovery id to download checkpoints from,"
+                                                        "for custom modules (e.g. for loading pretrained weights)."
+                                                        "The downloaded RunRecovery object will be available in"
+                                                        "pretraining_run_checkpoints.")
+
     # The default multiprocessing start_method in both PyTorch and the Python standard library is "fork" for Linux and
     # "spawn" (the only available method) for Windows. There is some evidence that using "forkserver" on Linux
     # can reduce the chance of stuck jobs.
@@ -248,8 +257,13 @@ class WorkflowParams(param.Parameterized):
                                 "be relative to the repository root directory.")
 
     def validate(self) -> None:
-        if self.weights_url and self.local_weights_path:
-            raise ValueError("Cannot specify both local_weights_path and weights_url.")
+        if sum([bool(param) for param in [self.weights_url, self.local_weights_path, self.model_id]]) > 1:
+            raise ValueError("Cannot specify more than one of local_weights_path, weights_url or model_id.")
+
+        if self.model_id:
+            if len(self.model_id.split(":")) != 2:
+                raise ValueError(
+                    f"model_id should be in the form 'model_name:version', got {self.model_id}")
 
         if self.number_of_cross_validation_splits == 1:
             raise ValueError("At least two splits required to perform cross validation, but got "
@@ -263,49 +277,16 @@ class WorkflowParams(param.Parameterized):
                              f"found number_of_cross_validation_splits = {self.number_of_cross_validation_splits} "
                              f"and cross_validation_split_index={self.cross_validation_split_index}")
 
-    """
-    Defaults for when to run inference in the absence of any command line switches.
-    This depends on ModelProcessing, perform_cross_validation, and ModelExecutionMode.
-    If the current combination of these three parameters is not in this data structure,
-    then default to False.
-    """
-    INFERENCE_DEFAULTS: Dict[ModelProcessing, Dict[bool, Dict[ModelExecutionMode, bool]]] = {
-        ModelProcessing.DEFAULT: {
-            False: {
-                ModelExecutionMode.TRAIN: False,
-                ModelExecutionMode.TEST: True,
-                ModelExecutionMode.VAL: True
-            }
-        },
-        ModelProcessing.ENSEMBLE_CREATION: {
-            True: {
-                ModelExecutionMode.TRAIN: False,
-                ModelExecutionMode.TEST: True,
-                ModelExecutionMode.VAL: False
-            }
-        }
-    }
-
-    def inference_defaults(self, model_proc: ModelProcessing, data_split: ModelExecutionMode) -> bool:
+    def is_inference_required(self,
+                              model_proc: ModelProcessing,
+                              data_split: ModelExecutionMode) -> bool:
         """
-        Returns True if inference is required by default for this model_proc and data_split.
-
+        Returns True if inference is required for this model_proc (single or ensemble) and data_split (Train/Val/Test).
         :param model_proc: Whether we are testing an ensemble or single model.
         :param data_split: Indicates which of the 3 sets (training, test, or validation) is being processed.
-        :return: True if inference required by default.
+        :return: True if inference required.
         """
-        try:
-            return WorkflowParams.INFERENCE_DEFAULTS[model_proc][self.perform_cross_validation][data_split]
-        except KeyError:
-            return False
-
-    def inference_options(self) -> Dict[ModelProcessing, Dict[ModelExecutionMode, Optional[bool]]]:
-        """
-        Return a mapping from ModelProcesing and ModelExecutionMode to command line switch.
-
-        :return: Command line switch for each combination of ModelProcessing and ModelExecutionMode.
-        """
-        return {
+        settings = {
             ModelProcessing.DEFAULT: {
                 ModelExecutionMode.TRAIN: self.inference_on_train_set,
                 ModelExecutionMode.TEST: self.inference_on_test_set,
@@ -317,20 +298,34 @@ class WorkflowParams(param.Parameterized):
                 ModelExecutionMode.VAL: self.ensemble_inference_on_val_set,
             }
         }
-
-    def inference_on_set(self, model_proc: ModelProcessing, data_split: ModelExecutionMode) -> bool:
-        """
-        Returns True if inference is required for this model_proc and data_split.
-
-        :param model_proc: Whether we are testing an ensemble or single model.
-        :param data_split: Indicates which of the 3 sets (training, test, or validation) is being processed.
-        :return: True if inference required.
-        """
-        inference_option = self.inference_options()[model_proc][data_split]
+        inference_option = settings[model_proc][data_split]
         if inference_option is not None:
             return inference_option
 
-        return self.inference_defaults(model_proc, data_split)
+        # Defaults for when to run inference in the absence of any command line switches.
+        # This depends on ModelProcessing, perform_cross_validation, and ModelExecutionMode.
+        # If the current combination of these three parameters is not in this data structure,
+        # then default to False.
+        defaults: Dict[ModelProcessing, Dict[bool, Dict[ModelExecutionMode, bool]]] = {
+            ModelProcessing.DEFAULT: {
+                False: {
+                    ModelExecutionMode.TRAIN: False,
+                    ModelExecutionMode.VAL: False,
+                    ModelExecutionMode.TEST: True,
+                }
+            },
+            ModelProcessing.ENSEMBLE_CREATION: {
+                True: {
+                    ModelExecutionMode.TRAIN: False,
+                    ModelExecutionMode.VAL: False,
+                    ModelExecutionMode.TEST: True,
+                }
+            }
+        }
+        try:
+            return defaults[model_proc][self.perform_cross_validation][data_split]
+        except KeyError:
+            return False
 
     @property
     def is_offline_run(self) -> bool:
@@ -713,7 +708,7 @@ class DeepLearningConfig(WorkflowParams,
         self.create_filesystem(fixed_paths.repository_root_directory())
         # Disable the PL progress bar because all InnerEye models have their own console output
         self.pl_progress_bar_refresh_rate = 0
-        self.extra_downloaded_run_id: Optional[Any] = None
+        self.pretraining_run_checkpoints: Optional[Any] = None
 
     def validate(self) -> None:
         """

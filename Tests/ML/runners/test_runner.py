@@ -300,7 +300,7 @@ def run_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
 
     with mock.patch("InnerEye.ML.model_testing.PARENT_RUN_CONTEXT", run):
         metrics = runner.model_inference_train_and_test(
-            checkpoint_handler=checkpoint_handler,
+            checkpoint_handler=checkpoint_handler.get_checkpoints_to_test(),
             model_proc=model_proc)
 
     if model_proc == ModelProcessing.ENSEMBLE_CREATION:
@@ -339,7 +339,7 @@ def run_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
             if model_proc == ModelProcessing.DEFAULT:
                 if not perform_cross_validation:
                     # If a "normal" run then default to val or test.
-                    flag = mode in (ModelExecutionMode.VAL, ModelExecutionMode.TEST)
+                    flag = mode == ModelExecutionMode.TEST
                 else:
                     # If an ensemble child then default to never.
                     flag = False

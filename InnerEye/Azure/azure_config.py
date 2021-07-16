@@ -77,14 +77,9 @@ class AzureConfig(GenericConfig):
     pytest_mark: str = param.String(doc="If provided, run pytest instead of model training. pytest will only "
                                         "run the tests that have the mark given in this argument "
                                         "('--pytest_mark gpu' will run all tests marked with 'pytest.mark.gpu')")
-    run_recovery_id: str = param.String(doc="A run recovery id string in the form 'experiment name:run id'"
-                                            " to use for inference or recovering a model training run.")
-    pretraining_run_recovery_id: str = param.String(default=None,
-                                                    allow_None=True,
-                                                    doc="Extra run recovery id to download checkpoints from,"
-                                                        "for custom modules (e.g. for loading pretrained weights)."
-                                                        "Warning: this argument will be ignored for InnerEyeContainer"
-                                                        "models.")
+    run_recovery_id: str = param.String(doc="A run recovery id string in the form 'experiment name:run id' "
+                                            "to use for inference, recovering a model training run or to register "
+                                            "a model.")
     experiment_name: str = param.String(doc="If provided, use this string as the name of the AzureML experiment. "
                                             "If not provided, create the experiment off the git branch name.")
     build_number: int = param.Integer(0, doc="The numeric ID of the Azure pipeline that triggered this training run.")
@@ -229,9 +224,8 @@ class AzureConfig(GenericConfig):
         application_key = secrets_handler.get_secret_from_environment(fixed_paths.SERVICE_PRINCIPAL_KEY,
                                                                       allow_missing=True)
         if not application_key:
-            logging.warning("Unable to retrieve the key for the Service Principal authentication "
-                            f"(expected in environment variable '{fixed_paths.SERVICE_PRINCIPAL_KEY}' or YAML). "
-                            f"Switching to interactive login.")
+            logging.info("Using interactive login to Azure. To use Service Principal authentication, "
+                         f"supply the password in in environment variable '{fixed_paths.SERVICE_PRINCIPAL_KEY}'.")
             return InteractiveLoginAuthentication()
 
         return ServicePrincipalAuthentication(
