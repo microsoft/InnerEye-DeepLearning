@@ -364,11 +364,11 @@ def download_run_output_file(blob_path: Path,
     """
     blobs_prefix = str((fixed_paths.DEFAULT_AML_UPLOAD_DIR / blob_path).as_posix())
     destination = destination / blob_path.name
-    logging.info(f"Downloading single file from run {run.id}: {blobs_prefix} -> {str(destination)}")
+    logging.info(f"Downloading single file from run {run.info.run_id}: {blobs_prefix} -> {str(destination)}")
     try:
         MlflowClient().download_artifacts(run.info.run_id, blobs_prefix, str(destination))
     except Exception as ex:
-        raise ValueError(f"Unable to download file '{blobs_prefix}' from run {run.id}") from ex    
+        raise ValueError(f"Unable to download file '{blobs_prefix}' from run {run.info.run_id}") from ex    
     return destination
 
 
@@ -385,7 +385,7 @@ def download_run_outputs_by_prefix(blobs_prefix: Path,
     :param destination: Local path to save the downloaded blobs to.
     """
     prefix_str = str((fixed_paths.DEFAULT_AML_UPLOAD_DIR / blobs_prefix).as_posix())
-    logging.info(f"Downloading multiple files from run {run.id}: {prefix_str} -> {str(destination)}")
+    logging.info(f"Downloading multiple files from run {run.info.run_id}: {prefix_str} -> {str(destination)}")
     # There is a download_files function, but that can time out when downloading several large checkpoints file
     # (120sec timeout for all files). For that reason, we download each file independently.
     # TODO antonsc: How does get_file_names work with MLFlow?

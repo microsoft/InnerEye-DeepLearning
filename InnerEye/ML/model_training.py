@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 from time import sleep
 from typing import Any, Dict, Optional, Tuple, TypeVar
+from mlflow.tracking.client import MlflowClient
 
 import numpy as np
 from pytorch_lightning import LightningModule, Trainer, seed_everything
@@ -67,7 +68,8 @@ def upload_output_file_as_temp(file_path: Path, outputs_folder: Path) -> None:
     :param outputs_folder: The root folder that contains all training outputs.
     """
     upload_name = TEMP_PREFIX + str(file_path.relative_to(outputs_folder))
-    RUN_CONTEXT.upload_file(upload_name, path_or_stream=str(file_path))
+    # RUN_CONTEXT.upload_file(upload_name, path_or_stream=str(file_path))
+    MlflowClient().log_artifact(RUN_CONTEXT.info.run_id, str(file_path), upload_name)
 
 
 def write_args_file(config: Any, outputs_folder: Path) -> None:
