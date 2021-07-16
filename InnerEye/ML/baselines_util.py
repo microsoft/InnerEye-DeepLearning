@@ -73,7 +73,7 @@ def compare_scores_against_baselines(model_config: SegmentationModelBase, azure_
         return
     outputs_path = model_config.outputs_folder / get_best_epoch_results_path(ModelExecutionMode.TEST, model_proc)
     if not outputs_path.is_dir():
-        if not model_config.inference_on_set(model_proc, ModelExecutionMode.TEST):
+        if not model_config.is_inference_required(model_proc, ModelExecutionMode.TEST):
             logging.info(INFERENCE_DISABLED_WARNING)
             return
         raise FileNotFoundError(
