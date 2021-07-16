@@ -14,7 +14,7 @@ from InnerEye.ML.deep_learning_config import load_checkpoint
 from InnerEye.ML.lightning_base import LightningModule
 from InnerEye.ML.lightning_container import InnerEyeInference, InnerEyeEnsembleInference
 
-
+# region First child owns ensemble
 class DummyEnsembleRegressionModule(HelloRegression, InnerEyeInference):
     """
     A simple 1-dim regression model intended to be trained across cross validation splits and then evaluated on test
@@ -139,3 +139,43 @@ class DummyEnsembleRegressionContainer(HelloContainer):
 
     def create_model(self) -> LightningModule:
         return DummyEnsembleRegressionModule(outputs_folder=self.outputs_folder)
+# endregion
+
+# region Instance of InnerEyeEnsembleInference owns ensemble
+class DummyRegressionEnsembleInference(InnerEyeEnsembleInference):
+    """
+    Gathers HelloRegression models into an ensemble for inference.
+    """
+    def __init__(self, outputs_folder: Path) -> None:
+        super().__init__(outputs_folder)
+        self.test_mse: List[torch.Tensor] = []
+        self.test_mae = MeanAbsoluteError()
+        self.execution_mode: Optional[ModelExecutionMode] = None
+
+    def on_inference_start(self) -> None:
+        super().on_inference_start()
+        self.execution_mode = None
+
+    def on_inference_start_dataset(self, execution_mode: ModelExecutionMode, is_ensemble_model: bool) -> None:
+        super().on_inference_start_dataset(execution_mode, is_ensemble_model)
+        self.test_mse = []
+        self.test_mae.reset()
+        self.execution_mode = execution_mode
+
+    def record_posteriors(self, batch: Dict[str, torch.Tensor], batch_idx: int, posteriors: torch.Tensor) -> None:
+        model_outputs: List[torch.Tensor] = []
+        input = batch["x"]
+        for model in self.ensemble_models:
+            assert isinstance(model, LightningModule)  # MyPy has no `Intersection` for multiple inheritance
+            model_outputs.append(model.forward(input))
+        posterior = InnerEyeEnsembleInference.aggregate_ensemble_model_outputs(iter(model_outputs))  # noqa: F841
+        self.test_mse.append(torch.nn.functional.mse_loss(posterior, batch["y"]))
+        self.test_mae.update(preds=posterior, target=batch["y"])
+
+    def on_inference_end_dataset(self) -> None:
+        average_mse = torch.mean(torch.stack(self.test_mse))
+        with (self.outputs_folder / "test_mse.txt").open("a",) as test_mse_file:
+            test_mse_file.write(f"{str(self.execution_mode.name)}: {str(average_mse.item())}\n")  # type: ignore
+        with (self.outputs_folder / "test_mae.txt").open("a") as test_mae_file:
+            test_mae_file.write(f"{str(self.execution_mode.name)}: {str(self.test_mae.compute().item())}\n")  # type: ignore
+# endregion

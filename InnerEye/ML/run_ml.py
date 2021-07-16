@@ -505,7 +505,7 @@ class MLRunner:
 
     def run_inference_for_non_innereyeinference_lightning_model(
             self,
-            lightning_model: LightningContainer,
+            lightning_container: LightningContainer,
             checkpoint_paths: List[Path]) -> None:
         """
         Run inference over the test set for an LightningContainer. Containers that are derived from InnerEyeInference
@@ -515,6 +515,7 @@ class MLRunner:
         :param lightning_model: The LightningContainer container to be used.
         :param checkpoint_paths: The path to the checkpoint that should be used for inference.
         """
+        lightning_model = lightning_container.get_data_module()
         assert not isinstance(lightning_model, InnerEyeInference), "Call run_inference_for_innereyeinference_lightning_model instead"
         assert len(checkpoint_paths) == 1, "Doing inference from an ensemble model built from cross validation checkpoints is only supported for"
         "LightningContainers that inherit from InnerEyeInference and so cannot be used here."
@@ -993,15 +994,21 @@ class MLRunner:
     def create_ensemble_model_and_run_inference_for_innereyeinference(
             self,
             model: InnerEyeInference,
-            checkpoint_paths: List[Path]) -> None:
+            checkpoint_paths: List[Path],
+            *args, **kwargs) -> None:
         """
         Create an ensemble model from a cross validation run for a model derived from InnerEyeInference and use the
         ensemble for inference over the test set.
         :param model: The InnerEyeInference model to use for the inference.
         :param checkpoint_paths: The paths to the checkpoints gleaned from the cross validation runs.
+        :params *args, **kwargs: Additional arguments to be are passed on to the models' constructor.
         """
         ensemble = InnerEyeEnsembleInference()
-        ensemble.load_checkpoints_into_ensemble(checkpoint_paths, type(model), use_gpu=self.container.use_gpu)
+        ensemble.load_checkpoints_into_ensemble(
+            checkpoint_paths,
+            type(model),
+            use_gpu=self.container.use_gpu,
+            *args, **kwargs)
         test_dataloader = self.container.get_data_module().test_dataloader()
         ensemble.on_inference_start()
         ensemble.on_inference_start_dataset(ModelExecutionMode.TEST, is_ensemble_model=True)

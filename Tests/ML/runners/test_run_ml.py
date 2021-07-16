@@ -12,7 +12,10 @@ from sklearn.model_selection import KFold
 
 from InnerEye.Common.fixed_paths_for_tests import tests_root_directory
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.ML.configs.other.DummyEnsembleRegressionContainer import DummyEnsembleRegressionModule
+from InnerEye.ML.configs.other.HelloContainer import HelloContainer, HelloRegression
+from InnerEye.ML.run_ml import MLRunner
+from InnerEye.ML.configs.other.DummyEnsembleRegressionContainer import (DummyEnsembleRegressionContainer,
+    DummyEnsembleRegressionModule)
 from Tests.ML.util import default_runner
 
 def test_create_ensemble_model_and_run_inference_for_innereyeinference(test_output_dirs: OutputFolderForTests) -> None:
@@ -39,7 +42,7 @@ def test_create_ensemble_model_and_run_inference_for_innereyeinference(test_outp
         runner = default_runner()
         local_dataset = test_output_dirs.root_dir / "dataset" / str(cross_validation_split_index)
         local_dataset.mkdir()
-        args = ["", "--model=DummyEnsembleRegressionContainer", "--model_configs_namespace=Tests.ML.configs",
+        args = ["", "--model=HelloContainer", "--model_configs_namespace=Tests.ML.configs",
             f"--output_to={test_output_dirs.root_dir}", f"--local_dataset={local_dataset}",
             "--number_of_cross_validation_splits=0"]
         train_indexes, val_indexes = list(k_fold.split(raw_data_remaining))[cross_validation_split_index]
@@ -58,10 +61,11 @@ def test_create_ensemble_model_and_run_inference_for_innereyeinference(test_outp
         test_maes.append(mae_metrics["TEST"])
         print("wait")
     # Now we can test the method on run_ml
-    ml_runner = default_runner().create_ml_runner()
+    ml_runner = MLRunner(container=DummyEnsembleRegressionContainer())
     ml_runner.create_ensemble_model_and_run_inference_for_innereyeinference(
         DummyEnsembleRegressionModule(outputs_folder=test_output_dirs.root_dir),
-        checkpoint_paths)
+        checkpoint_paths,
+        outputs_folder=test_output_dirs.root_dir)
     # Compare ensembke metrics with those from the cross validation runs
     mse_metrics = _load_metrics_from_file(metrics_file=test_output_dirs.root_dir / "test_mse.txt")
     test_mse = mse_metrics["TEST"]
