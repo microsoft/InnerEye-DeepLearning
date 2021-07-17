@@ -284,14 +284,12 @@ class HelloEnsembleInference(InnerEyeEnsembleInference):
     Ensemble collection intended to run inference over a collection of HelloRegression models hydrated from the 
     checkpoints of a HelloContainer cross validation training run.
     """
-    def __init__(self, outputs_folder: Path) -> None:
-        super().__init__()
-        self.outputs_folder = outputs_folder
+    def __init__(self, outputs_folder: Optional[Path] = None) -> None:
+        super().__init__(outputs_folder)
         self.test_mse: List[torch.Tensor] = []
         self.test_mae = MeanAbsoluteError()
         self.execution_mode: Optional[ModelExecutionMode] = None
 
-    # region InnerEyeEnsembleInference Overrides
     def on_ensemble_inference_start(self) -> None:
         """
         Initialize before any inference.
@@ -325,4 +323,3 @@ class HelloEnsembleInference(InnerEyeEnsembleInference):
             test_mse_file.write(f"{str(self.execution_mode.name)}: {str(average_mse.item())}\n")  # type: ignore
         with (self.outputs_folder / "test_mae.txt").open("a") as test_mae_file:
             test_mae_file.write(f"{str(self.execution_mode.name)}: {str(self.test_mae.compute().item())}\n")  # type: ignore
-    # endregion

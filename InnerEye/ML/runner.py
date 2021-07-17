@@ -152,6 +152,13 @@ class Runner:
         # of type DeepLearningConfig, or a LightningContainer.
         config_or_container = model_config_loader.create_model_config_from_name(model_name=azure_config.model)
 
+        # If an ensemble model is specified for gathering lightning model cross validation checkpoints into an ensemble,
+        # then we need to create it now while we have our model_config_loaded.
+        if self.innereye_config.ensemble_model_name:
+            self.innereye_config.ensemble_model = model_config_loader.create_model_config_from_name(
+                model_name=self.innereye_config.ensemble_model_name)
+            self.innereye_config.ensemble_model.outputs_folder = self.innereye_config.outputs_folder
+        
         def parse_overrides_and_apply(c: object, previous_parser_result: ParserResult) -> ParserResult:
             assert isinstance(c, GenericConfig)
             parser = type(c).create_argparser()

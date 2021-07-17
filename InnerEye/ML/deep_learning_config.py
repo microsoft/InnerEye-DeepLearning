@@ -21,6 +21,7 @@ from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.Common.type_annotations import PathOrString, TupleFloat2
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, create_unique_timestamp_id, \
     get_best_checkpoint_path, get_recovery_checkpoint_path
+from InnerEye.ML.lightning_container import InnerEyeEnsembleInference
 
 # A folder inside of the outputs folder that will contain all information for running the model in inference mode
 
@@ -198,6 +199,14 @@ class WorkflowParams(param.Parameterized):
     cross_validation_split_index: int = param.Integer(DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, bounds=(-1, None),
                                                       doc="The index of the cross validation fold this model is "
                                                           "associated with when performing k-fold cross validation")
+    ensemble_model_name: str = param.String(
+        doc=("The class name of the ensemble model to build from the cross validation checkpoints."))
+    ensemble_model: Optional[InnerEyeEnsembleInference] = param.ClassSelector(
+        default=None,
+        class_=InnerEyeEnsembleInference,
+        instantiate=False,
+        doc="An ensemble model to collect the cross validation checkpoints for inference. Instantiated in runner \
+            parse_and_load_model.")
     inference_on_train_set: Optional[bool] = \
         param.Boolean(None,
                       doc="If set, enable/disable full image inference on training set after training.")
@@ -276,6 +285,11 @@ class WorkflowParams(param.Parameterized):
             raise ValueError(f"Cross validation split index must be -1 for a non cross validation run, "
                              f"found number_of_cross_validation_splits = {self.number_of_cross_validation_splits} "
                              f"and cross_validation_split_index={self.cross_validation_split_index}")
+
+        if self.number_of_cross_validation_splits <= 1 and self.ensemble_model:
+            raise ValueError(f"With {self.number_of_cross_validation_splits} specified, cross validation will not ",
+                "happen. Therefore specifying the ensemble model will have no effect, there will be no cross ",
+                "validation checkpoints from which to build an ensemble model.")
 
     def is_inference_required(self,
                               model_proc: ModelProcessing,

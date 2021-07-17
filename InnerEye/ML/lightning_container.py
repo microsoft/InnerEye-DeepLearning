@@ -108,13 +108,16 @@ class InnerEyeEnsembleInference():
     We have not duplicated the method documentation from InnerEyeInference, where you can find further explantaion of
     the role of each method.
     """
-    def __init__(self) -> None:
+    def __init__(self, outputs_folder: Optional[Path] = None) -> None:
         """
         Sets up the list of models that forms the ensemble. These models should inherit from both InnerEyeEinference and
         LightiningModule, but since mypy does not have support for specifying interesection types we specify just one,
         InnerEyeInference, here and assert the other when needed.
+        :param outputs_folder: The root directory where we store metric files and reports. This is marked optional so
+        that subclasses may be instantiated without constructor arguments.
         """
-        self.ensemble_models: List[InnerEyeInference] = [self]
+        self.outputs_folder = outputs_folder
+        self.ensemble_models: List[LightningModule] = [self]
 
     def load_checkpoints_into_ensemble(  # type: ignore
             self,

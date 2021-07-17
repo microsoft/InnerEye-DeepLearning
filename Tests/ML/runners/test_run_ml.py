@@ -13,7 +13,7 @@ from sklearn.model_selection import KFold
 from InnerEye.Common.fixed_paths_for_tests import tests_root_directory
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.run_ml import MLRunner
-from InnerEye.ML.configs.other.HelloContainer import HelloContainer, HelloRegression
+from InnerEye.ML.configs.other.HelloContainer import HelloContainer, HelloEnsembleInference, HelloRegression
 from Tests.ML.util import default_runner
 
 def test_create_ensemble_model_and_run_inference_for_innereyeinference(test_output_dirs: OutputFolderForTests) -> None:
@@ -60,7 +60,8 @@ def test_create_ensemble_model_and_run_inference_for_innereyeinference(test_outp
         test_maes.append(mae_metrics["TEST"])
     # Now we can test the method on run_ml
     ml_runner = MLRunner(container=HelloContainer())
-    ml_runner.create_ensemble_model_and_run_inference_for_innereyeinference(
+    ml_runner.innereye_config.ensemble_model = HelloEnsembleInference(outputs_folder=test_output_dirs.root_dir)
+    ml_runner.create_ensemble_model_and_run_inference_from_lightningmodule_checkpoints(
         HelloRegression(outputs_folder=test_output_dirs.root_dir),
         checkpoint_paths,
         outputs_folder=test_output_dirs.root_dir)
