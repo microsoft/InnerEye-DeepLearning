@@ -3,7 +3,6 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import abc
-import copy
 from typing import Any, Dict, Iterator, List, Optional, Tuple
 from pathlib import Path
 
@@ -183,7 +182,7 @@ class InnerEyeEnsembleInference():
 
         self.test_mse.append(torch.nn.functional.mse_loss(posterior, batch["y"]))
         self.test_mae.update(preds=posterior, target=batch["y"])
-        
+
         (where `self.test_mse: List[torch.Tensor]` and `self.test_mae: MeanAbsoluteError` would be initialised in the
         constructor).
 
