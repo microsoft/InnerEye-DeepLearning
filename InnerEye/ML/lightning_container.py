@@ -109,6 +109,11 @@ class InnerEyeEnsembleInference():
     the role of each method.
     """
     def __init__(self) -> None:
+        """
+        Sets up the list of models that forms the ensemble. These models should inherit from both InnerEyeEinference and
+        LightiningModule, but since mypy does not have support for specifying interesection types we specify just one,
+        InnerEyeInference, here and assert the other when needed.
+        """
         self.ensemble_models: List[InnerEyeInference] = [self]
 
     def load_checkpoints_into_ensemble(  # type: ignore
@@ -116,8 +121,8 @@ class InnerEyeEnsembleInference():
             checkpoint_paths: List[Path],
             use_gpu: bool) -> None:
         """
-        Convenience method to load each checkpoint path in a list of checkpoint paths as an additional member of the
-        ensemble.
+        Convenience method takes each checkpoint path from a list of checkpoint paths and adds it as an additional
+        member of the ensemble.
         :param checkpoint_paths: A list of paths to checkpoints for loading into new models in the ensemble.
         :param use_gpu: Passed on eventaully to deep_learning_config.load_checkpoint.
         """
@@ -158,6 +163,8 @@ class InnerEyeEnsembleInference():
 
     def ensemble_forward(self, batch_x: torch.Tensor) -> torch.Tensor:
         """
+        Aggregate the posteriors from each model in the ensemble using our static method
+        `aggregate_ensemble_model_outputs`
         :param batch_x: The batch of data for which the model made a prediction.
         :returns: The aggregated ensemble outputs.
         """
@@ -170,39 +177,40 @@ class InnerEyeEnsembleInference():
 
     def record_ensemble_posteriors(self, batch_y: torch.Tensor, batch_idx: int, posterior: torch.Tensor) -> None:
         """
-        In our base class, InnerEyeInference, this hook is called when the model has finished making a prediction, and
-        it can write the results to a file, or compute metrics and store them. Here we need to call the models in the
-        ensemble as part of this method, so there is no `posteriors = model.forward(batch)` step before calling this
-        method.
+        This hook is called when the model has finished making a prediction, and can write the results to a file,  or
+        compute metrics and store them. In this base class we cannot know which metrics are needed so you will need to
+        override this method. Here are two ideas:
+
+        self.test_mse.append(torch.nn.functional.mse_loss(posterior, batch["y"]))
+        self.test_mae.update(preds=posterior, target=batch["y"])
+        
+        (where `self.test_mse: List[torch.Tensor]` and `self.test_mae: MeanAbsoluteError` would be initialised in the
+        constructor).
+
         :param batch_y: The batch of data for which the model made a prediction.
         :param batch_idx: The index of the batch
         :param posteriors: The posteriors, typically from ensemble_forward.
         """
-        # Sub-classes should decide what metrics they wish to store, here are two examples:
-        #
-        # self.test_mse.append(torch.nn.functional.mse_loss(posterior, batch["y"]))
-        # self.test_mae.update(preds=posterior, target=batch["y"])
-        #
-        # (where `self.test_mse: List[torch.Tensor]` and `self.test_mae: MeanAbsoluteError`).
         pass
 
     def on_ensemble_inference_end_dataset(self) -> None:
         """
-        Run after the inference run over a dataset
+        Run after the inference run over a test/val/train dataset
         """
         pass
 
     def on_ensemble_inference_end(self) -> None:
         """
-        Run after all the dataset's inference runs. Override to save metrics to disk and generate reports.
+        Run after all the test/val/train datasets' inference runs. Override to save metrics to disk and generate reports.
         """
         pass
 
     @staticmethod
     def aggregate_ensemble_model_outputs(model_outputs: Iterator[torch.Tensor]) -> torch.Tensor:
         """
-        Aggregates the outputs of multiple models when using an ensemble model. In the default implementation,
-        this averages the tensors coming from all the models.
+        Aggregates the outputs of multiple models when using an ensemble model. In the default implementation, this
+        example averages the tensors coming from all of the models in the ensemble. Override this static method if you
+        need a different aggregation from the mean we use here.
         :param model_outputs: An iterator over the model outputs for all ensemble members.
         :return: The aggregate model outputs.
         """
