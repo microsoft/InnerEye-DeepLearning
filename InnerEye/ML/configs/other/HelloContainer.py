@@ -15,7 +15,8 @@ from torch.utils.data import DataLoader, Dataset
 from sklearn.model_selection import KFold
 
 from InnerEye.Common import fixed_paths
-from InnerEye.ML.lightning_container import LightningContainer
+from InnerEye.ML.common import ModelExecutionMode
+from InnerEye.ML.lightning_container import InnerEyeEnsembleInference, LightningContainer
 
 
 class HelloDataset(Dataset):
@@ -276,3 +277,52 @@ class HelloContainer(LightningContainer):
         report = f"Performance on test set: MSE = {test_mse}, MAE = {test_mae}"
         print(report)
         Path("report.txt").write_text(report)
+
+
+class HelloEnsembleInference(InnerEyeEnsembleInference):
+    """
+    Ensemble collection intended to run inference over a collection of HelloRegression models hydrated from the 
+    checkpoints of a HelloContainer cross validation training run.
+    """
+    def __init__(self, outputs_folder: Path) -> None:
+        super().__init__()
+        self.outputs_folder = outputs_folder
+        self.test_mse: List[torch.Tensor] = []
+        self.test_mae = MeanAbsoluteError()
+        self.execution_mode: Optional[ModelExecutionMode] = None
+
+    # region InnerEyeEnsembleInference Overrides
+    def on_ensemble_inference_start(self) -> None:
+        """
+        Initialize before any inference.
+        """
+        super().on_ensemble_inference_start()
+        self.execution_mode = None
+
+    def on_ensemble_inference_start_dataset(self, execution_mode: ModelExecutionMode) -> None:
+        """
+        Runs initialization for inference, when starting inference on a new dataset split (train/val/test).
+        :param execution_mode: Indicates whether the item comes from the training, validation or test set.
+        """
+        super().on_ensemble_inference_start_dataset(execution_mode)
+        self.test_mse = []
+        self.test_mae.reset()
+        self.execution_mode = execution_mode
+
+    def record_ensemble_posterior(self, batch_y: torch.Tensor, batch_idx: int, posterior: torch.Tensor) -> None:
+        """
+        Called when the model has finished making a prediction to compute metrics and store them.
+        """
+        self.test_mse.append(torch.nn.functional.mse_loss(posterior, batch_y))
+        self.test_mae.update(preds=posterior, target=batch_y)
+
+    def on_inference_end_dataset(self) -> None:
+        """
+        Append the metrics from this dataset's inference run to the metrics' files.
+        """
+        average_mse = torch.mean(torch.stack(self.test_mse))
+        with (self.outputs_folder / "test_mse.txt").open("a",) as test_mse_file:
+            test_mse_file.write(f"{str(self.execution_mode.name)}: {str(average_mse.item())}\n")  # type: ignore
+        with (self.outputs_folder / "test_mae.txt").open("a") as test_mae_file:
+            test_mae_file.write(f"{str(self.execution_mode.name)}: {str(self.test_mae.compute().item())}\n")  # type: ignore
+    # endregion
