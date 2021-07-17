@@ -11,13 +11,13 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import pandas as pd
-from pytorch_lightning.core.datamodule import LightningDataModule
 import stopit
 import torch.multiprocessing
 from azureml._restclient.constants import RunStatus
 from azureml.core import Model, Run, model
 from azureml.data import FileDataset
 from pytorch_lightning import LightningModule, seed_everything
+from pytorch_lightning.core.datamodule import LightningDataModule
 from torch.utils.data import DataLoader
 
 from InnerEye.Azure import azure_util
@@ -132,6 +132,15 @@ def log_metrics(metrics: Dict[ModelExecutionMode, InferenceMetrics],
     for split in metrics.values():
         if isinstance(split, InferenceMetricsForSegmentation):
             split.log_metrics(run_context)
+
+
+def is_classification_model(model: Any) -> bool:
+    """
+    Returns True if the given object is an InnerEye classification, but not a sequence model.
+    """
+    return (isinstance(model, ScalarModelBase)
+            and model.is_classification_model
+            and not isinstance(model, SequenceModelBase))
 
 
 class MLRunner:
@@ -486,7 +495,7 @@ class MLRunner:
             dataloaders: List[Tuple[DataLoader, ModelExecutionMode]] = []
             data_dataloaders = MLRunner.lightning_data_module_dataloaders(data)
             for data_split, dataloader in data_dataloaders.items():
-                if self.container.inference_on_set(ModelProcessing.DEFAULT, data_split):
+                if self.container.is_inference_required(ModelProcessing.DEFAULT, data_split):
                     dataloaders.append((dataloader(), data_split))
             checkpoint = load_checkpoint(checkpoint_paths[0], use_gpu=self.container.use_gpu)
             assert isinstance(lightning_model, LightningModule)  # mypy
@@ -820,7 +829,7 @@ class MLRunner:
         config = self.innereye_config
 
         for data_split in ModelExecutionMode:
-            if self.container.inference_on_set(model_proc, data_split):
+            if self.container.is_inference_required(model_proc, data_split):
                 opt_metrics = model_test(config, data_split=data_split, checkpoint_paths=checkpoint_paths,
                                          model_proc=model_proc)
                 if opt_metrics is not None:
@@ -919,10 +928,11 @@ class MLRunner:
         plot_crossval_config.outputs_directory = self.innereye_config.outputs_folder
         plot_crossval_config.azure_config = self.azure_config
         cross_val_results_root = plot_cross_validation(plot_crossval_config)
-        if isinstance(self.model_config, ScalarModelBase) and not isinstance(self.model_config, SequenceModelBase):
+        if is_classification_model(self.model_config):
             crossval_report_name = f"{ModelCategory.Classification.value}_crossval"
             notebook_path = cross_val_results_root / get_ipynb_report_name(crossval_report_name)
             full_metrics_csv = cross_val_results_root / FULL_METRICS_DATAFRAME_FILE
+            assert isinstance(self.model_config, ScalarModelBase)
             generate_classification_crossval_notebook(notebook_path, self.model_config, full_metrics_csv)
         if self.post_cross_validation_hook:
             self.post_cross_validation_hook(self.innereye_config, cross_val_results_root)
@@ -958,7 +968,7 @@ class MLRunner:
 
             reports_dir = output_dir / reports_folder
             if not reports_dir.exists():
-                reports_dir.mkdir(exist_ok=False)
+                reports_dir.mkdir(parents=True, exist_ok=False)
 
             if config.model_category == ModelCategory.Segmentation:
                 generate_segmentation_notebook(

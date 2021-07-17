@@ -21,8 +21,10 @@ jobs that run in AzureML.
 - ([#509](https://github.com/microsoft/InnerEye-DeepLearning/pull/509)) Run inference on registered models (single and
   ensemble) using the parameter `model_id`.
 ### Changed
-- ([#531])(https://github.com/microsoft/InnerEye-DeepLearning/pull/531)) Updated PL to 1.3.8, torchmetrics and pl-bolts and changed relevant metrics and SSL code API.
+- ([#531](https://github.com/microsoft/InnerEye-DeepLearning/pull/531)) Updated PL to 1.3.8, torchmetrics and pl-bolts and changed relevant metrics and SSL code API.
 - ([#533](https://github.com/microsoft/InnerEye-DeepLearning/pull/533)) Better defaults for inference on ensemble children.
+- ([#536](https://github.com/microsoft/InnerEye-DeepLearning/pull/536)) Inference will not run on the validation set by default, this can be turned on
+via the `--inference_on_val_set` flag.
 - ([#502](https://github.com/microsoft/InnerEye-DeepLearning/pull/502)) Renamed command line option 'perform_training_set_inference' to 'inference_on_train_set'. Replaced command line option 'perform_validation_and_test_set_inference' with the pair of options 'inference_on_val_set' and 'inference_on_test_set'.
 - ([#496](https://github.com/microsoft/InnerEye-DeepLearning/pull/496)) All plots are now saved as PNG, rather than JPG.
 - ([#497](https://github.com/microsoft/InnerEye-DeepLearning/pull/497)) Reducing the size of the code snapshot that
@@ -31,6 +33,7 @@ gets uploaded to AzureML, by skipping all test folders.
   renamed to `pretraining_run_checkpoints`.
 
 ### Fixed
+- ([#537](https://github.com/microsoft/InnerEye-DeepLearning/pull/537)) Print warning if inference is disabled but comparison requested.
 - ([#525](https://github.com/microsoft/InnerEye-DeepLearning/pull/525)) Enable --store_dataset_sample
 - ([#495](https://github.com/microsoft/InnerEye-DeepLearning/pull/495)) Fix model comparison.
 - ([#482](https://github.com/microsoft/InnerEye-DeepLearning/pull/482)) Check bool parameter is either true or false.
@@ -49,7 +52,6 @@ in inference-only runs when using lightning containers.
 ### Removed
 
 - ([#542](https://github.com/microsoft/InnerEye-DeepLearning/pull/542)) Removed Windows test leg from build pipeline.
-- ([#520](https://github.com/microsoft/InnerEye-DeepLearning/pull/520)) Disable glaucoma job from Azure pipeline.
 - ([#509](https://github.com/microsoft/InnerEye-DeepLearning/pull/509)) Parameters `local_weights_path` and
   `weights_url` can no longer be used to initialize a training run, only inference runs.
 
