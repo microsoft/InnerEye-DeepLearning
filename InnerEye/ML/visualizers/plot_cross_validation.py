@@ -449,8 +449,8 @@ def crossval_config_from_model_config(train_config: DeepLearningConfig) -> PlotC
 
 def get_config_and_results_for_offline_runs(train_config: DeepLearningConfig) -> OfflineCrossvalConfigAndFiles:
     """
-    Creates a configuration for crossvalidation analysis for the given model training configuration, and gets
-    the input files required for crossvalidation analysis.
+    Creates a configuration for cross validation analysis for the given model training configuration, and gets
+    the input files required for cross validation analysis.
     :param train_config: The model configuration to work with.
     """
     plot_crossval_config = crossval_config_from_model_config(train_config)
