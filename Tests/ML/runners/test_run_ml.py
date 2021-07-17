@@ -13,8 +13,7 @@ from sklearn.model_selection import KFold
 from InnerEye.Common.fixed_paths_for_tests import tests_root_directory
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.run_ml import MLRunner
-from InnerEye.ML.configs.other.DummyEnsembleRegressionContainer import (DummyEnsembleRegressionContainer,
-    DummyEnsembleRegressionModule)
+from InnerEye.ML.configs.other.HelloContainer import HelloContainer, HelloRegression
 from Tests.ML.util import default_runner
 
 def test_create_ensemble_model_and_run_inference_for_innereyeinference(test_output_dirs: OutputFolderForTests) -> None:
@@ -60,9 +59,9 @@ def test_create_ensemble_model_and_run_inference_for_innereyeinference(test_outp
         mae_metrics = _load_metrics_from_file(metrics_file=loaded_config.file_system_config.run_folder / "test_mae.txt")  # type: ignore
         test_maes.append(mae_metrics["TEST"])
     # Now we can test the method on run_ml
-    ml_runner = MLRunner(container=DummyEnsembleRegressionContainer())
+    ml_runner = MLRunner(container=HelloContainer())
     ml_runner.create_ensemble_model_and_run_inference_for_innereyeinference(
-        DummyEnsembleRegressionModule(outputs_folder=test_output_dirs.root_dir),
+        HelloRegression(outputs_folder=test_output_dirs.root_dir),
         checkpoint_paths,
         outputs_folder=test_output_dirs.root_dir)
     # Compare ensembke metrics with those from the cross validation runs
