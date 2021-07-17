@@ -89,11 +89,10 @@ class InnerEyeInference(abc.ABC):
         pass
 
 
-class InnerEyeEnsembleInference(InnerEyeInference):
+class InnerEyeEnsembleInference():
     """
-    InnerEyeEnsembleInference inherits from InnerEyeInference to provide help for buiding ensemble models from cross
-    validation runs of LightningModules, and doing inference on the ensemble. Subclasses should also inherit
-    LightningModule.
+    InnerEyeEnsembleInference provides help for buiding ensemble models from cross validation runs of LightningModules,
+    and doing inference on the ensemble. 
 
     To set up an ensemble and then do inference, call 
         model.load_checkpoints_into_ensemble(checkpoints, use_gpu)
@@ -107,10 +106,9 @@ class InnerEyeEnsembleInference(InnerEyeInference):
         model.on_ensemble_inference_end()
 
     We have not duplicated the method documentation from InnerEyeInference, where you can find further explantaion of
-    the role of each overridden method.
+    the role of each method.
     """
     def __init__(self) -> None:
-        super().__init__()
         self.ensemble_models: List[InnerEyeInference] = [self]
 
     def load_checkpoints_into_ensemble(  # type: ignore
@@ -121,12 +119,9 @@ class InnerEyeEnsembleInference(InnerEyeInference):
         Convenience method to load each checkpoint path in a list of checkpoint paths as an additional member of the
         ensemble.
         :param checkpoint_paths: A list of paths to checkpoints for loading into new models in the ensemble.
-        :param use_gpu: Passed on to deep_learning_config.load_checkpoint.
+        :param use_gpu: Passed on eventaully to deep_learning_config.load_checkpoint.
         """
-        checkpoint = load_checkpoint(checkpoint_paths[0], use_gpu)
-        assert isinstance(self, LightningModule)  # mypy
-        self.load_state_dict(checkpoint['state_dict'], strict=False)
-        for checkpoint_path in checkpoint_paths[1:]:
+        for checkpoint_path in checkpoint_paths:
             self._load_checkpoint_into_ensemble(checkpoint_path, use_gpu)
 
     def _load_checkpoint_into_ensemble(  # type: ignore
