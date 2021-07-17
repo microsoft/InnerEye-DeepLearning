@@ -12,7 +12,6 @@ from sklearn.model_selection import KFold
 
 from InnerEye.Common.fixed_paths_for_tests import tests_root_directory
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.ML.configs.other.HelloContainer import HelloContainer, HelloRegression
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.configs.other.DummyEnsembleRegressionContainer import (DummyEnsembleRegressionContainer,
     DummyEnsembleRegressionModule)
@@ -29,8 +28,8 @@ def test_create_ensemble_model_and_run_inference_for_innereyeinference(test_outp
     test_mses: List[float] = []
     test_maes: List[float] = []
     np.random.seed(42)
-    # Since cross validation for Lightning models will not run locally in our infrastructure, we need to set up the data
-    # manually for each of the cross validation child runs and run them ourselves, collating their checkpoints
+    # Since cross validation for Lightning models will not run locally in our infrastructure, we need to set the data up
+    # manually for each of the cross validation child runs, and run them manually, collating their checkpoints.
     raw_data = np.loadtxt(
         tests_root_directory().parent / "InnerEye" / "ML" / "configs" / "other" / "hellocontainer.csv",
         delimiter=",")
@@ -51,6 +50,7 @@ def test_create_ensemble_model_and_run_inference_for_innereyeinference(test_outp
         # Now we can save the dataset, ordered so that the new model will pick up the correct fold by default:
         fold_data = np.concatenate((train_data, val_data, test_data), axis=0)
         np.savetxt(local_dataset / "hellocontainer.csv", fold_data, delimiter=",")
+        # Using runner we can now train the cross validation split model and save out its best checkpoint
         with mock.patch("sys.argv", args):
             loaded_config, _ = runner.run()
         checkpoint_path = loaded_config.file_system_config.run_folder / "checkpoints" / "best_checkpoint.ckpt"  # type: ignore
@@ -59,7 +59,6 @@ def test_create_ensemble_model_and_run_inference_for_innereyeinference(test_outp
         test_mses.append(mse_metrics["TEST"])
         mae_metrics = _load_metrics_from_file(metrics_file=loaded_config.file_system_config.run_folder / "test_mae.txt")  # type: ignore
         test_maes.append(mae_metrics["TEST"])
-        print("wait")
     # Now we can test the method on run_ml
     ml_runner = MLRunner(container=DummyEnsembleRegressionContainer())
     ml_runner.create_ensemble_model_and_run_inference_for_innereyeinference(
