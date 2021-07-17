@@ -50,11 +50,11 @@ from InnerEye.ML.visualizers.plot_cross_validation import PlotCrossValidationCon
 from InnerEye.Scripts import submit_for_inference
 from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_nifti_shape, get_default_workspace
 
-FALLBACK_SINGLE_RUN = "refs_pull_498_merge:refs_pull_498_merge_1624292750_743430ab"
-FALLBACK_ENSEMBLE_RUN = "refs_pull_498_merge:HD_4bf4efc3-182a-4596-8f93-76f128418142"
-FALLBACK_2NODE_RUN = "refs_pull_498_merge:refs_pull_498_merge_1624292776_52b2f7e1"
-FALLBACK_CV_GLAUCOMA = "refs_pull_498_merge:HD_cefb6e59-3929-43aa-8fc8-821b9a062219"
-FALLBACK_HELLO_CONTAINER_RUN = "refs_pull_498_merge:refs_pull_498_merge_1624292748_45756bf8"
+FALLBACK_SINGLE_RUN = "refs_pull_545_merge:refs_pull_545_merge_1626538212_d2b07afd"
+FALLBACK_ENSEMBLE_RUN = "refs_pull_545_merge:HD_caea82ae-9603-48ba-8280-7d2bc6272411"
+FALLBACK_2NODE_RUN = "refs_pull_545_merge:refs_pull_545_merge_1626538178_9f3023b2"
+FALLBACK_CV_GLAUCOMA = "refs_pull_545_merge:HD_72ecc647-07c3-4353-a538-620346114ebd"
+FALLBACK_HELLO_CONTAINER_RUN = "refs_pull_545_merge:refs_pull_545_merge_1626538216_3eb92f09"
 
 
 def get_most_recent_run_id(fallback_run_id_for_local_execution: str = FALLBACK_SINGLE_RUN) -> str:
@@ -274,8 +274,8 @@ def test_expected_cv_files_segmentation() -> None:
     assert run is not None
     available_files = run.get_file_names()
     for split in ["0", "1"]:
-        for mode in [ModelExecutionMode.TEST, ModelExecutionMode.VAL]:
-            assert _check_presence_cross_val_metrics_file(split, mode, available_files)
+        assert _check_presence_cross_val_metrics_file(split, ModelExecutionMode.TEST, available_files)
+        assert not _check_presence_cross_val_metrics_file(split, ModelExecutionMode.VAL, available_files)
     # For ensemble we should have the test metrics only
     assert _check_presence_cross_val_metrics_file(ENSEMBLE_SPLIT_NAME, ModelExecutionMode.TEST, available_files)
     assert not _check_presence_cross_val_metrics_file(ENSEMBLE_SPLIT_NAME, ModelExecutionMode.VAL, available_files)
