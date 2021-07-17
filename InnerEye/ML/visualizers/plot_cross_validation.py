@@ -131,6 +131,12 @@ class PlotCrossValidationConfig(GenericConfig):
                                                                "cross-validation run")
     create_plots: bool = param.Boolean(default=True, doc="Whether to create plots; if False, just find outliers "
                                                          "and do statistical tests")
+    has_validation_set_results: bool = param.Boolean(default=True,
+                                                     doc="Indicates whether the child runs have generated metrics "
+                                                         "for the validation set or not.")
+    has_test_set_results: bool = param.Boolean(default=True,
+                                               doc="Indicates whether the child runs have generated metrics "
+                                                   "for the test set or not.")
 
     def __init__(self, **params: Any):
         # Mapping from run IDs to short names used in graphs
@@ -163,10 +169,18 @@ class PlotCrossValidationConfig(GenericConfig):
         return self.short_names[run_id]
 
     def execution_modes_to_download(self) -> List[ModelExecutionMode]:
+        """
+        Returns the dataset splits (Train/Val/Test) for which results should be downloaded from the
+        cross validation child runs.
+        """
         if self.model_category.is_scalar:
             return [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL, ModelExecutionMode.TEST]
         else:
-            return [ModelExecutionMode.VAL, ModelExecutionMode.TEST]
+            modes: List[ModelExecutionMode] = []
+            if self.has_validation_set_results:
+                modes.append(ModelExecutionMode.VAL)
+            if self.has_test_set_results:
+                modes.append(ModelExecutionMode.TEST)
 
     @property
     def azure_config(self) -> AzureConfig:
@@ -436,7 +450,11 @@ def crossval_config_from_model_config(train_config: DeepLearningConfig) -> PlotC
         model_category=train_config.model_category,
         epoch=epoch,
         should_validate=False,
-        number_of_cross_validation_splits=train_config.number_of_cross_validation_splits)
+        number_of_cross_validation_splits=train_config.number_of_cross_validation_splits,
+        has_validation_set_results=train_config.is_inference_required(model_proc=ModelProcessing.DEFAULT,
+                                                                      data_split=ModelExecutionMode.VAL),
+        has_test_set_results=train_config.is_inference_required(model_proc=ModelProcessing.DEFAULT,
+                                                                data_split=ModelExecutionMode.TEST))
 
 
 def get_config_and_results_for_offline_runs(train_config: DeepLearningConfig) -> OfflineCrossvalConfigAndFiles:
@@ -674,7 +692,8 @@ def save_outliers(config: PlotCrossValidationConfig,
 
                     f.write(f"\n\n=== METRIC: {metric_type} ===\n\n")
                     if len(outliers) > 0:
-                        # If running inside institution there may be no CSV_SERIES_HEADER or CSV_INSTITUTION_HEADER columns
+                        # If running inside institution there may be no CSV_SERIES_HEADER or CSV_INSTITUTION_HEADER
+                        # columns
                         groupby_columns = [MetricsFileColumns.Patient.value, MetricsFileColumns.Structure.value]
                         if CSV_SERIES_HEADER in outliers.columns:
                             groupby_columns.append(CSV_SERIES_HEADER)

@@ -1,9 +1,0 @@
-
-
-=== METRIC: Dice ===
-
-No outliers found
-
-=== METRIC: HausdorffDistance_mm ===
-
-No outliers found
