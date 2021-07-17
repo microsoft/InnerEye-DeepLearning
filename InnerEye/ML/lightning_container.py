@@ -157,13 +157,12 @@ class InnerEyeEnsembleInference():
             assert isinstance(model, LightningModule)  # mypy
             model.eval()
 
-    def on_ensembe_inference_start_dataset(self, execution_mode: ModelExecutionMode) -> None:
+    def on_ensemble_inference_start_dataset(self, execution_mode: ModelExecutionMode) -> None:
         """
-        Runs initialization for ensemble inference.
+        Runs initialization for inference, when starting inference on a new dataset split (train/val/test).
         :param execution_mode: Passed on to InnerEyeInference model in the ensemble.
         """
-        for model in self.ensemble_models:
-            model.on_inference_start_dataset(execution_mode)
+        pass
 
     def ensemble_forward(self, batch_x: torch.Tensor) -> torch.Tensor:
         """
