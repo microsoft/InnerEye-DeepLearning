@@ -181,6 +181,7 @@ class PlotCrossValidationConfig(GenericConfig):
                 modes.append(ModelExecutionMode.VAL)
             if self.has_test_set_results:
                 modes.append(ModelExecutionMode.TEST)
+            return modes
 
     @property
     def azure_config(self) -> AzureConfig:
