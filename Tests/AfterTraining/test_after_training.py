@@ -35,20 +35,20 @@ from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.spawn_subprocess import spawn_and_monitor_subprocess
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
-from InnerEye.ML.configs.segmentation.BasicModel2Epochs import BasicModel2Epochs
 from InnerEye.ML.configs.other.HelloContainer import HelloContainer
+from InnerEye.ML.configs.segmentation.BasicModel2Epochs import BasicModel2Epochs
 from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, ModelCategory
 from InnerEye.ML.model_inference_config import read_model_inference_config
 from InnerEye.ML.model_testing import THUMBNAILS_FOLDER
 from InnerEye.ML.reports.notebook_report import get_html_report_name
-from InnerEye.ML.runner import main
 from InnerEye.ML.run_ml import MLRunner
+from InnerEye.ML.runner import main
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.utils.image_util import get_unit_image_header
 from InnerEye.ML.utils.io_util import zip_random_dicom_series
 from InnerEye.ML.visualizers.plot_cross_validation import PlotCrossValidationConfig
 from InnerEye.Scripts import submit_for_inference
-from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_nifti_shape, get_default_workspace
+from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_default_workspace, get_nifti_shape
 
 FALLBACK_SINGLE_RUN = "refs_pull_545_merge:refs_pull_545_merge_1626538212_d2b07afd"
 FALLBACK_ENSEMBLE_RUN = "refs_pull_545_merge:HD_caea82ae-9603-48ba-8280-7d2bc6272411"
@@ -463,9 +463,10 @@ def test_download_non_existing_file(test_output_dirs: OutputFolderForTests) -> N
 
 
 @pytest.mark.after_training_single_run
-def test_download_non_existent_file(test_output_dirs: OutputFolderForTests) -> None:
+def test_download_non_existing_file_in_crossval(test_output_dirs: OutputFolderForTests) -> None:
     """
-    Trying to download a non-existing file when doing cross validation should raise an exception.
+    Downloading a non-existing file when trying to load cross validation results
+    should not raise an exception.
     """
     run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_SINGLE_RUN)
     config = PlotCrossValidationConfig(run_recovery_id=None,
@@ -474,21 +475,19 @@ def test_download_non_existent_file(test_output_dirs: OutputFolderForTests) -> N
                                        should_validate=False)
     config.outputs_directory = test_output_dirs.root_dir
     does_not_exist = "does_not_exist.txt"
-    with pytest.raises(ValueError) as ex:
-        config.download_or_get_local_file(run,
-                                          blob_to_download=does_not_exist,
-                                          destination=test_output_dirs.root_dir)
-    assert does_not_exist in str(ex)
-    assert "Unable to download file" in str(ex)
+    result = config.download_or_get_local_file(run,
+                                               blob_to_download=does_not_exist,
+                                               destination=test_output_dirs.root_dir)
+    assert result is None
 
 
 @pytest.mark.after_training_hello_container
 def test_model_inference_on_single_run(test_output_dirs: OutputFolderForTests) -> None:
-    fallback_run_id_for_local_execution = FALLBACK_HELLO_CONTAINER_RUN
+    falllback_run_id = FALLBACK_HELLO_CONTAINER_RUN
 
     files_to_check = ["test_mse.txt", "test_mae.txt"]
 
-    training_run = get_most_recent_run(fallback_run_id_for_local_execution=fallback_run_id_for_local_execution)
+    training_run = get_most_recent_run(fallback_run_id_for_local_execution=falllback_run_id)
     all_training_files = training_run.get_file_names()
     for file in files_to_check:
         assert f"outputs/{file}" in all_training_files, f"{file} is missing"
@@ -500,7 +499,7 @@ def test_model_inference_on_single_run(test_output_dirs: OutputFolderForTests) -
 
     container = HelloContainer()
     container.set_output_to(test_output_dirs.root_dir)
-    container.model_id = get_most_recent_model_id(fallback_run_id_for_local_execution=fallback_run_id_for_local_execution)
+    container.model_id = get_most_recent_model_id(fallback_run_id_for_local_execution=falllback_run_id)
     azure_config = get_default_azure_config()
     azure_config.train = False
     ml_runner = MLRunner(container=container, azure_config=azure_config, project_root=test_output_dirs.root_dir)

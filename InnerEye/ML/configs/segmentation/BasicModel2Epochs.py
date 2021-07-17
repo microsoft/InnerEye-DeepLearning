@@ -67,7 +67,7 @@ class BasicModel2Epochs(SegmentationModelBase):
         )
 
 
-class BasicModelForEnsembleTest(SegmentationModelBase):
+class BasicModelForEnsembleTest(BasicModel2Epochs):
     """
     A copy of the basic model for PR builds, to use for running in a cross validation job.
     """
