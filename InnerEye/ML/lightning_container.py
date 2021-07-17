@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import abc
+from copy import deepcopy
 from typing import Any, Dict, Iterator, List, Optional, Tuple
 from pathlib import Path
 
@@ -99,8 +100,8 @@ class InnerEyeEnsembleInference():
         for dataset_split in [Train, Val, Test]
             model.on_ensemble_inference_start_dataset(dataset_split, is_ensemble_model=False)
             for batch_idx, batch in enumerate(dataloader[dataset_split])):
-                posteriors = model.ensemble_forward(batch)
-                model.record_ensemble_posteriors(batch, batch_idx, posteriors)
+                posterior = model.ensemble_forward(batch)
+                model.record_ensemble_posterior(batch, batch_idx, posterior)
             model.on_ensemble_inference_end_dataset()
         model.on_ensemble_inference_end()
 
@@ -117,28 +118,32 @@ class InnerEyeEnsembleInference():
 
     def load_checkpoints_into_ensemble(  # type: ignore
             self,
+            exemplar: LightningModule,
             checkpoint_paths: List[Path],
             use_gpu: bool) -> None:
         """
         Convenience method takes each checkpoint path from a list of checkpoint paths and adds it as an additional
         member of the ensemble.
+        :param exemplar: Each model in the ensemble will be based on a copy of this exemplar.
         :param checkpoint_paths: A list of paths to checkpoints for loading into new models in the ensemble.
         :param use_gpu: Passed on eventaully to deep_learning_config.load_checkpoint.
         """
         for checkpoint_path in checkpoint_paths:
-            self._load_checkpoint_into_ensemble(checkpoint_path, use_gpu)
+            self._load_checkpoint_into_ensemble(exemplar, checkpoint_path, use_gpu)
 
     def _load_checkpoint_into_ensemble(  # type: ignore
-            self, 
+            self,
+            exemplar: LightningModule,
             checkpoint_path: Path, 
             use_gpu: bool) -> None:
         """
         Load a single checkpoint path as an additional member of the ensemble.
+        :param exemplar: Each model in the ensemble will be based on a copy of this exemplar.
         :param checkpoint_path: The path to the to checkpoint file to load into a new model in the ensemble.
         :param use_gpu: Passed on to deep_learning_config.load_checkpoint.
         """
         checkpoint = load_checkpoint(checkpoint_path, use_gpu)
-        new_model = self.deepcopy()
+        new_model = deepcopy(exemplar)
         assert isinstance(new_model, LightningModule)  # mypy
         new_model.load_state_dict(checkpoint['state_dict'], strict=False)
         assert isinstance(new_model, InnerEyeInference)  # mypy
@@ -174,7 +179,7 @@ class InnerEyeEnsembleInference():
         posterior = InnerEyeEnsembleInference.aggregate_ensemble_model_outputs(iter(model_outputs))
         return posterior
 
-    def record_ensemble_posteriors(self, batch_y: torch.Tensor, batch_idx: int, posterior: torch.Tensor) -> None:
+    def record_ensemble_posterior(self, batch_y: torch.Tensor, batch_idx: int, posterior: torch.Tensor) -> None:
         """
         This hook is called when the model has finished making a prediction, and can write the results to a file,  or
         compute metrics and store them. In this base class we cannot know which metrics are needed so you will need to
@@ -188,7 +193,7 @@ class InnerEyeEnsembleInference():
 
         :param batch_y: The batch of data for which the model made a prediction.
         :param batch_idx: The index of the batch
-        :param posteriors: The posteriors, typically from ensemble_forward.
+        :param posterior: The posterior, typically from ensemble_forward.
         """
         pass
 

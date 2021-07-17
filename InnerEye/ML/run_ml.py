@@ -1001,29 +1001,29 @@ class MLRunner:
             print_exception(ex, "Failed to generate reporting notebook.")
             raise
 
-    def create_ensemble_model_and_run_inference_for_innereyeinference(
+    def create_ensemble_model_and_run_inference_from_lightningmodule_checkpoints(
             self,
-            model: InnerEyeInference,
+            model: LightningModule,
             checkpoint_paths: List[Path],
             *args, **kwargs) -> None:
         """
-        Create an ensemble model from a cross validation run for a model derived from InnerEyeInference and use the
-        ensemble for inference over the test set.
-        :param model: The InnerEyeInference model to use for the inference.
+        Create an ensemble model from the checkpoints saved from the cross validation runs of a model derived from
+        LightningModule, and then use the ensemble for inference over the test set.
+        :param model: The LightningModule model to use as the template for the models in the ensemble.
         :param checkpoint_paths: The paths to the checkpoints gleaned from the cross validation runs.
-        :params *args, **kwargs: Additional arguments to be are passed on to the models' constructor.
+        :params *args, **kwargs: Additional arguments to be are passed on to the model's constructor.
         """
         ensemble = InnerEyeEnsembleInference()
         ensemble.load_checkpoints_into_ensemble(
-            checkpoint_paths,
-            type(model),
+            exemplar=model,
+            checkpoint_paths=checkpoint_paths,
             use_gpu=self.container.use_gpu,
             *args, **kwargs)
         test_dataloader = self.container.get_data_module().test_dataloader()
-        ensemble.on_inference_start()
-        ensemble.on_inference_start_dataset(ModelExecutionMode.TEST, is_ensemble_model=True)
+        ensemble.on_ensemble_inference_start()
+        ensemble.on_ensemble_inference_start_dataset(ModelExecutionMode.TEST)
         for batch_idx, batch in enumerate(test_dataloader):
-            none_tensor = torch.empty((1))
-            ensemble.record_posteriors(batch, batch_idx, none_tensor)
-        ensemble.on_inference_end_dataset()
-        ensemble.on_inference_end()
+            posterior = ensemble.ensemble_forward(batch['x'])
+            ensemble.record_ensemble_posterior(batch['y'], batch_idx, posterior)
+        ensemble.on_ensemble_inference_end_dataset()
+        ensemble.on_ensemble_inference_end()
