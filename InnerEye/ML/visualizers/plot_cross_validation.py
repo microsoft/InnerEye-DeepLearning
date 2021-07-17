@@ -131,12 +131,6 @@ class PlotCrossValidationConfig(GenericConfig):
                                                                "cross-validation run")
     create_plots: bool = param.Boolean(default=True, doc="Whether to create plots; if False, just find outliers "
                                                          "and do statistical tests")
-    has_validation_set_results: bool = param.Boolean(default=True,
-                                                     doc="Indicates whether the child runs have generated metrics "
-                                                         "for the validation set or not.")
-    has_test_set_results: bool = param.Boolean(default=True,
-                                               doc="Indicates whether the child runs have generated metrics "
-                                                   "for the test set or not.")
 
     def __init__(self, **params: Any):
         # Mapping from run IDs to short names used in graphs
@@ -176,12 +170,7 @@ class PlotCrossValidationConfig(GenericConfig):
         if self.model_category.is_scalar:
             return [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL, ModelExecutionMode.TEST]
         else:
-            modes: List[ModelExecutionMode] = []
-            if self.has_validation_set_results:
-                modes.append(ModelExecutionMode.VAL)
-            if self.has_test_set_results:
-                modes.append(ModelExecutionMode.TEST)
-            return modes
+            return [ModelExecutionMode.VAL, ModelExecutionMode.TEST]
 
     @property
     def azure_config(self) -> AzureConfig:
@@ -205,7 +194,8 @@ class PlotCrossValidationConfig(GenericConfig):
                                    local_src_subdir: Optional[Path] = None) -> Optional[Path]:
         """
         Downloads a file from the results folder of an AzureML run, or copies it from a local results folder.
-        Returns the path to the downloaded file if it exists, or None if the file was not found.
+        Returns the path to the downloaded file if it exists, or None if the file was not found, or could for other
+        reasons not be downloaded.
         If the blobs_path contains folders, the same folder structure will be created inside the destination folder.
         For example, downloading "foo.txt" to "/c/temp" will create "/c/temp/foo.txt". Downloading "foo/bar.txt"
         to "/c/temp" will create "/c/temp/foo/bar.txt"
@@ -246,11 +236,14 @@ class PlotCrossValidationConfig(GenericConfig):
                 return Path(shutil.copy(local_src, destination))
             return None
         else:
-            return download_run_output_file(
-                blob_path=blob_path,
-                destination=destination,
-                run=run
-            )
+            try:
+                return download_run_output_file(
+                    blob_path=blob_path,
+                    destination=destination,
+                    run=run
+                )
+            except Exception:
+                return None
 
 
 @dataclass(frozen=True)
@@ -451,11 +444,7 @@ def crossval_config_from_model_config(train_config: DeepLearningConfig) -> PlotC
         model_category=train_config.model_category,
         epoch=epoch,
         should_validate=False,
-        number_of_cross_validation_splits=train_config.number_of_cross_validation_splits,
-        has_validation_set_results=train_config.is_inference_required(model_proc=ModelProcessing.DEFAULT,
-                                                                      data_split=ModelExecutionMode.VAL),
-        has_test_set_results=train_config.is_inference_required(model_proc=ModelProcessing.DEFAULT,
-                                                                data_split=ModelExecutionMode.TEST))
+        number_of_cross_validation_splits=train_config.number_of_cross_validation_splits)
 
 
 def get_config_and_results_for_offline_runs(train_config: DeepLearningConfig) -> OfflineCrossvalConfigAndFiles:
