@@ -62,9 +62,8 @@ def test_create_ensemble_model_and_run_inference_for_innereyeinference(test_outp
     ml_runner = MLRunner(container=HelloContainer())
     ml_runner.innereye_config.ensemble_model = HelloEnsembleInference(outputs_folder=test_output_dirs.root_dir)
     ml_runner.create_ensemble_model_and_run_inference_from_lightningmodule_checkpoints(
-        HelloRegression(outputs_folder=test_output_dirs.root_dir),
-        checkpoint_paths,
-        outputs_folder=test_output_dirs.root_dir)
+        HelloRegression(),
+        checkpoint_paths)
     # Compare ensembke metrics with those from the cross validation runs
     mse_metrics = _load_metrics_from_file(metrics_file=test_output_dirs.root_dir / "test_mse.txt")
     test_mse = mse_metrics["TEST"]

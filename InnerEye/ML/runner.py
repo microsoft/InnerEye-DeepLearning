@@ -126,6 +126,7 @@ class Runner:
         self.model_config: Optional[DeepLearningConfig] = None
         self.azure_config: AzureConfig = AzureConfig()
         self.lightning_container: LightningContainer = None  # type: ignore
+        self.model_config_loader: Optional[ModelConfigLoader] = None
 
     def parse_and_load_model(self) -> ParserResult:
         """
@@ -147,17 +148,10 @@ class Runner:
         self.model_config = None
         if not azure_config.model:
             raise ValueError("Parameter 'model' needs to be set to tell InnerEye which model to run.")
-        model_config_loader: ModelConfigLoader = ModelConfigLoader(**parser_result.args)
+        self.model_config_loader = ModelConfigLoader(**parser_result.args)
         # Create the model as per the "model" commandline option. This can return either a built-in config
         # of type DeepLearningConfig, or a LightningContainer.
-        config_or_container = model_config_loader.create_model_config_from_name(model_name=azure_config.model)
-
-        # If an ensemble model is specified for gathering lightning model cross validation checkpoints into an ensemble,
-        # then we need to create it now while we have our model_config_loaded.
-        if self.innereye_config.ensemble_model_name:
-            self.innereye_config.ensemble_model = model_config_loader.create_model_config_from_name(
-                model_name=self.innereye_config.ensemble_model_name)
-            self.innereye_config.ensemble_model.outputs_folder = self.innereye_config.outputs_folder
+        config_or_container = self.model_config_loader.create_model_config_from_name(model_name=azure_config.model)
         
         def parse_overrides_and_apply(c: object, previous_parser_result: ParserResult) -> ParserResult:
             assert isinstance(c, GenericConfig)
@@ -329,7 +323,8 @@ class Runner:
             azure_config=self.azure_config,
             project_root=self.project_root,
             post_cross_validation_hook=self.post_cross_validation_hook,
-            model_deployment_hook=self.model_deployment_hook)
+            model_deployment_hook=self.model_deployment_hook,
+            model_config_loader=self.model_config_loader)
 
 
 def default_post_cross_validation_hook(config: ModelConfigBase, root_folder: Path) -> None:

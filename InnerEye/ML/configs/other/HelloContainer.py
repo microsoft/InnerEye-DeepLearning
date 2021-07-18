@@ -251,7 +251,8 @@ class HelloContainer(LightningContainer):
     # This method must be overridden by any subclass of LightningContainer. It returns the model that you wish to
     # train, as a LightningModule
     def create_model(self) -> LightningModule:
-        return HelloRegression()
+        self._model = HelloRegression()  # TODO: why does LightningContainer need all three, _model, model, and create_model?
+        return self._model
 
     # This method must be overridden by any subclass of LightningContainer. It returns a data module, which
     # in turn contains 3 data loaders for training, validation, and test set. 
@@ -318,8 +319,9 @@ class HelloEnsembleInference(InnerEyeEnsembleInference):
         """
         Append the metrics from this dataset's inference run to the metrics' files.
         """
-        average_mse = torch.mean(torch.stack(self.test_mse))
-        with (self.outputs_folder / "test_mse.txt").open("a",) as test_mse_file:
-            test_mse_file.write(f"{str(self.execution_mode.name)}: {str(average_mse.item())}\n")  # type: ignore
-        with (self.outputs_folder / "test_mae.txt").open("a") as test_mae_file:
-            test_mae_file.write(f"{str(self.execution_mode.name)}: {str(self.test_mae.compute().item())}\n")  # type: ignore
+        if self.outputs_folder:
+            average_mse = torch.mean(torch.stack(self.test_mse))
+            with (self.outputs_folder / "test_mse.txt").open("a") as test_mse_file:
+                test_mse_file.write(f"{str(self.execution_mode.name)}: {str(average_mse.item())}\n")  # type: ignore
+            with (self.outputs_folder / "test_mae.txt").open("a") as test_mae_file:
+                test_mae_file.write(f"{str(self.execution_mode.name)}: {str(self.test_mae.compute().item())}\n")  # type: ignore

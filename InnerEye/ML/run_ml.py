@@ -467,7 +467,7 @@ class MLRunner:
         :param checkpoint_paths: The paths to the checkpoint that should be used for inference.
         """
 
-        if len(checkpoint_paths > 1):
+        if len(checkpoint_paths) > 1:
             self.create_ensemble_model_and_run_inference_from_lightningmodule_checkpoints(
                 self.container.model,
                 checkpoint_paths)
@@ -505,7 +505,7 @@ class MLRunner:
             lightning_model.on_inference_start()
             for loader, split in dataloaders:
                 logging.info(f"Starting inference on {split.value} set")
-                lightning_model.on_inference_start_dataset(execution_mode=split, is_ensemble_model=False)
+                lightning_model.on_inference_start_dataset(execution_mode=split)
                 for batch_idx, batch in enumerate(loader):
                     posteriors = lightning_model.forward(batch['x'])
                     lightning_model.record_posteriors(batch, batch_idx, posteriors)
@@ -524,7 +524,7 @@ class MLRunner:
         :param lightning_model: The LightningContainer container to be used.
         :param checkpoint_paths: The path to the checkpoint that should be used for inference.
         """
-        lightning_model = lightning_container.get_data_module()
+        lightning_model = lightning_container.create_model()
         assert not isinstance(lightning_model, InnerEyeInference), "Call run_inference_for_innereyeinference_lightning_model instead"
         if type(lightning_model).test_step == LightningModule.test_step:
             logging.warning("The LightningContainer's `inference_step` is not overridden. Skipping inference completely.")
@@ -1000,17 +1000,15 @@ class MLRunner:
             print_exception(ex, "Failed to generate reporting notebook.")
             raise
 
-    def create_ensemble_model_and_run_inference_from_lightningmodule_checkpoints(
+    def create_ensemble_model_and_run_inference_from_lightningmodule_checkpoints(  # type: ignore
             self,
             model: LightningModule,
-            checkpoint_paths: List[Path],
-            *args, **kwargs) -> None:
+            checkpoint_paths: List[Path]) -> None:
         """
         Create an ensemble model from the checkpoints saved from the cross validation runs of a model derived from
         LightningModule, and then use the ensemble for inference over the test set.
         :param model: The LightningModule model to use as the template for the models in the ensemble.
         :param checkpoint_paths: The paths to the checkpoints gleaned from the cross validation runs.
-        :params *args, **kwargs: Additional arguments to be are passed on to the model's constructor.
         """
         if self.innereye_config.ensemble_model:
             ensemble = self.innereye_config.ensemble_model
@@ -1024,8 +1022,7 @@ class MLRunner:
         ensemble.load_checkpoints_into_ensemble(
             exemplar=model,
             checkpoint_paths=checkpoint_paths,
-            use_gpu=self.container.use_gpu,
-            *args, **kwargs)
+            use_gpu=self.container.use_gpu)
         test_dataloader = self.container.get_data_module().test_dataloader()
         ensemble.on_ensemble_inference_start()
         ensemble.on_ensemble_inference_start_dataset(ModelExecutionMode.TEST)

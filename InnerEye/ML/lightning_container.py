@@ -117,7 +117,7 @@ class InnerEyeEnsembleInference():
         that subclasses may be instantiated without constructor arguments.
         """
         self.outputs_folder = outputs_folder
-        self.ensemble_models: List[LightningModule] = [self]
+        self.ensemble_models: List[LightningModule] = []
 
     def load_checkpoints_into_ensemble(  # type: ignore
             self,
