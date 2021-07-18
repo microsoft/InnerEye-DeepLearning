@@ -56,6 +56,7 @@ from InnerEye.ML.reports.notebook_report import (generate_classification_crossva
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
+from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.utils.run_recovery import RunRecovery
 from InnerEye.ML.visualizers import activation_maps
 from InnerEye.ML.visualizers.plot_cross_validation import (get_config_and_results_for_offline_runs,
@@ -155,6 +156,7 @@ class MLRunner:
                  project_root: Optional[Path] = None,
                  post_cross_validation_hook: Optional[PostCrossValidationHookSignature] = None,
                  model_deployment_hook: Optional[ModelDeploymentHookSignature] = None,
+                 model_config_loader: Optional[ModelConfigLoader] = None,
                  output_subfolder: str = "") -> None:
         """
         Driver class to run a ML experiment. Note that the project root argument MUST be supplied when using InnerEye
@@ -187,6 +189,7 @@ class MLRunner:
         self.model_deployment_hook = model_deployment_hook
         self.output_subfolder = output_subfolder
         self._has_setup_run = False
+        self.model_config_loader = model_config_loader
 
     def setup(self, use_mount_or_download_dataset: bool = True) -> None:
         """
@@ -252,6 +255,13 @@ class MLRunner:
         self.container.setup()
         self.container.create_lightning_module_and_store()
         self._has_setup_run = True
+
+        # If an ensemble model is specified for gathering lightning model cross validation checkpoints into an ensemble,
+        # then we need to create it now while we have our model_config_loaded.
+        if self.innereye_config.ensemble_model_name and self.model_config_loader:
+            self.innereye_config.ensemble_model = self.model_config_loader.create_model_config_from_name(
+                model_name=self.innereye_config.ensemble_model_name)
+            self.innereye_config.ensemble_model.file_system_config.outputs_folder = self.innereye_config.outputs_folder
 
     @property
     def is_offline_run(self) -> bool:
