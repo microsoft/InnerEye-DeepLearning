@@ -190,6 +190,7 @@ class MLRunner:
         self.output_subfolder = output_subfolder
         self._has_setup_run = False
         self.model_config_loader = model_config_loader
+        self.ensemble_model: Optional[InnerEyeEnsembleInference] = None
 
     def setup(self, use_mount_or_download_dataset: bool = True) -> None:
         """
@@ -259,9 +260,9 @@ class MLRunner:
         # If an ensemble model is specified for gathering lightning model cross validation checkpoints into an ensemble,
         # then we need to create it now while we have our model_config_loaded.
         if self.innereye_config.ensemble_model_name and self.model_config_loader:
-            self.innereye_config.ensemble_model = self.model_config_loader.create_model_config_from_name(
+            self.ensemble_model = self.model_config_loader.create_model_config_from_name(
                 model_name=self.innereye_config.ensemble_model_name)
-            self.innereye_config.ensemble_model.file_system_config.outputs_folder = self.innereye_config.outputs_folder
+            self.ensemble_model.file_system_config.outputs_folder = self.innereye_config.outputs_folder
 
     @property
     def is_offline_run(self) -> bool:
