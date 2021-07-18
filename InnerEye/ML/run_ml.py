@@ -259,10 +259,10 @@ class MLRunner:
 
         # If an ensemble model is specified for gathering lightning model cross validation checkpoints into an ensemble,
         # then we need to create it now while we have our model_config_loaded.
-        if self.innereye_config.ensemble_model_name and self.model_config_loader:
+        if self.container and self.container.ensemble_model_name:
             self.ensemble_model = self.model_config_loader.create_model_config_from_name(
-                model_name=self.innereye_config.ensemble_model_name)
-            self.ensemble_model.file_system_config.outputs_folder = self.innereye_config.outputs_folder
+                model_name=self.container.ensemble_model_name)
+            self.ensemble_model.file_system_config.outputs_folder = self.container.outputs_folder
 
     @property
     def is_offline_run(self) -> bool:
@@ -1021,8 +1021,8 @@ class MLRunner:
         :param model: The LightningModule model to use as the template for the models in the ensemble.
         :param checkpoint_paths: The paths to the checkpoints gleaned from the cross validation runs.
         """
-        if self.innereye_config.ensemble_model:
-            ensemble = self.innereye_config.ensemble_model
+        if self.ensemble_model:
+            ensemble = self.ensemble_model
         elif isinstance(model, InnerEyeEnsembleInference):
             ensemble = model
         else:

@@ -199,7 +199,7 @@ class WorkflowParams(param.Parameterized):
                                                       doc="The index of the cross validation fold this model is "
                                                           "associated with when performing k-fold cross validation")
     ensemble_model_name: str = param.String(
-        doc=("The class name of the ensemble model to build from the cross validation checkpoints."))
+        doc=("The class name of the ensemble model to build from the cross validation checkpoints of a Lightning model."))
     inference_on_train_set: Optional[bool] = \
         param.Boolean(None,
                       doc="If set, enable/disable full image inference on training set after training.")

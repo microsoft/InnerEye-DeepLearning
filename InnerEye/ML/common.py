@@ -129,20 +129,28 @@ def find_recovery_checkpoint_and_epoch(path: Path) -> Optional[PathAndEpoch]:
 
 def create_best_checkpoint(path: Path) -> Path:
     """
-    Creates the best checkpoint file. "Best" is at the moment defined as being the last checkpoint, but could be
-    based on some defined policy.
+    Creates the best checkpoint file. "Best" is at the moment defined as being the checkpoint whose name matches
+    LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX or the only available checkpoint, but it could be based on some defined
+    policy.
     The best checkpoint will be renamed to `best_checkpoint.ckpt`.
     :param path: The folder that contains all checkpoint files.
     """
-    logging.debug(f"Files in checkpoint folder: {' '.join(p.name for p in path.glob('*'))}")
-    last_ckpt = path / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
-    all_files = f"Existing files: {' '.join(p.name for p in path.glob('*'))}"
-    if not last_ckpt.is_file():
-        raise FileNotFoundError(f"Checkpoint file {LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX} not found. {all_files}")
-    logging.info(f"Using {LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX} as the best checkpoint: Renaming to "
-                 f"{BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX}")
+    candidate_checkpoint: Optional[Path] = None
+    checkpoint_files = list(path.glob('*.ckpt'))
+    if (path / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX) in checkpoint_files:
+        candidate_checkpoint = path / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+    elif len(checkpoint_files) == 1:
+        candidate_checkpoint = checkpoint_files[0]
+    else:
+        raise FileNotFoundError(
+            f"Checkpoint file {LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX} not found in ",
+            f"{str(' '.join(p.name for p in checkpoint_files))}, and there were ",
+            f"{len(checkpoint_files)} so the policy of falling back to the only checkpoint could not work.")
+    assert candidate_checkpoint  # mypy
+    logging.info(
+        f"Using {candidate_checkpoint.name} as best checkpoint. Renaming it to {BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX}")
     best = path / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
-    last_ckpt.rename(best)
+    candidate_checkpoint.rename(best)
     return best
 
 

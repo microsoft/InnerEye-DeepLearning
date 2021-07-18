@@ -40,8 +40,12 @@ def test_create_ensemble_model_and_run_inference_for_innereyeinference(test_outp
         runner = default_runner()
         local_dataset = test_output_dirs.root_dir / "dataset" / str(cross_validation_split_index)
         local_dataset.mkdir()
-        args = ["", "--model=HelloContainer", "--model_configs_namespace=Tests.ML.configs",
-            f"--output_to={test_output_dirs.root_dir}", f"--local_dataset={local_dataset}",
+        args = [
+            "",
+            "--model=HelloContainer",
+            "--model_configs_namespace=Tests.ML.configs",
+            f"--output_to={test_output_dirs.root_dir}",
+            f"--local_dataset={local_dataset}",
             "--number_of_cross_validation_splits=0"]
         train_indexes, val_indexes = list(k_fold.split(raw_data_remaining))[cross_validation_split_index]
         train_data = raw_data_remaining[train_indexes]
@@ -60,7 +64,7 @@ def test_create_ensemble_model_and_run_inference_for_innereyeinference(test_outp
         test_maes.append(mae_metrics["TEST"])
     # Now we can test the method on run_ml
     ml_runner = MLRunner(container=HelloContainer())
-    ml_runner.innereye_config.ensemble_model = HelloEnsembleInference(outputs_folder=test_output_dirs.root_dir)
+    ml_runner.ensemble_model = HelloEnsembleInference(outputs_folder=test_output_dirs.root_dir)
     ml_runner.create_ensemble_model_and_run_inference_from_lightningmodule_checkpoints(
         HelloRegression(),
         checkpoint_paths)
@@ -81,14 +85,18 @@ def _load_metrics_from_file(metrics_file: Path) -> Dict[str, float]:
     """
     Load the metrics for each execution mode present in the file saved during inference.
     :param metrics_file_path: The path to the metrics file saved during inference.
-    :returns: MAp between the execution mode string and the metric's values found in the file.
+    :returns: Map between the execution mode string and the metric's values found in the file.
     """
     text = metrics_file.read_text()
     metrics: Dict[str, float] = {}
     for line in text.split('\n'):
         if line:
             splits = line.split(": ")
-            execution_mode_string = splits[0]
-            metrics_value = float(splits[1])
-            metrics[execution_mode_string] = metrics_value
+            if len(splits) == 1:
+                metrics_value = float(splits[0])
+                metrics["TEST"] = metrics_value
+            elif len(splits) > 1:
+                execution_mode_string = splits[0]
+                metrics_value = float(splits[1])
+                metrics[execution_mode_string] = metrics_value
     return metrics
