@@ -19,8 +19,8 @@ from InnerEye.Common.common_util import ModelProcessing, is_windows
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.Common.type_annotations import PathOrString, TupleFloat2
-from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, create_unique_timestamp_id, \
-    get_best_checkpoint_path, get_recovery_checkpoint_path
+from InnerEye.ML.common import (DATASET_CSV_FILE_NAME, ModelExecutionMode, create_unique_timestamp_id,
+                                get_best_checkpoint_path, get_recovery_checkpoint_path)
 from InnerEye.ML.lightning_container import InnerEyeEnsembleInference
 
 # A folder inside of the outputs folder that will contain all information for running the model in inference mode

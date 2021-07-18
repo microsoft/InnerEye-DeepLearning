@@ -4,24 +4,23 @@
 #  ------------------------------------------------------------------------------------------
 import abc
 from copy import deepcopy
-from typing import Any, Dict, Iterator, List, Optional, Tuple
 from pathlib import Path
+from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 import param
 import torch
+from azureml.core import ScriptRunConfig
+from azureml.train.hyperdrive import GridParameterSampling, HyperDriveConfig, PrimaryMetricGoal, choice
 from pytorch_lightning import LightningDataModule, LightningModule
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
-from azureml.core import ScriptRunConfig
-from azureml.train.hyperdrive import GridParameterSampling, HyperDriveConfig, PrimaryMetricGoal, choice
 
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY
 from InnerEye.Common.generic_parsing import GenericConfig, create_from_matching_params
 from InnerEye.Common.metrics_constants import TrackedMetrics
-from InnerEye.ML.deep_learning_config import load_checkpoint
 from InnerEye.ML.common import ModelExecutionMode
-from InnerEye.ML.deep_learning_config import DatasetParams, OptimizerParams, OutputParams, TrainerParams, \
-    WorkflowParams
+from InnerEye.ML.deep_learning_config import (DatasetParams, OptimizerParams, OutputParams, TrainerParams,
+                                              WorkflowParams, load_checkpoint)
 from InnerEye.ML.utils import model_util
 from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
 from InnerEye.ML.utils.run_recovery import RunRecovery
