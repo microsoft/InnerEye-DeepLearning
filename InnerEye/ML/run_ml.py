@@ -259,7 +259,7 @@ class MLRunner:
 
         # If an ensemble model is specified for gathering lightning model cross validation checkpoints into an ensemble,
         # then we need to create it now while we have our model_config_loaded.
-        if self.container and self.container.ensemble_model_name:
+        if self.container and self.container.ensemble_model_name and self.model_config_loader:
             self.ensemble_model = self.model_config_loader.create_model_config_from_name(
                 model_name=self.container.ensemble_model_name)
             self.ensemble_model.file_system_config.outputs_folder = self.container.outputs_folder

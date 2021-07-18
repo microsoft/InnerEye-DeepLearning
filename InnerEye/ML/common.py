@@ -132,7 +132,7 @@ def create_best_checkpoint(path: Path) -> Path:
     Creates the best checkpoint file. "Best" is at the moment defined as being the checkpoint whose name matches
     LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX or the only available checkpoint, but it could be based on some defined
     policy.
-    The best checkpoint will be renamed to `best_checkpoint.ckpt`.
+    The best checkpoint will be renamed to BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX.
     :param path: The folder that contains all checkpoint files.
     """
     candidate_checkpoint: Optional[Path] = None

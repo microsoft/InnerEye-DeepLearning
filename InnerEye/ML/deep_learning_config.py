@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional
 
 import param
 from pandas import DataFrame
-from param import DateRange, Parameterized
+from param import Parameterized
 
 from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common import fixed_paths

@@ -148,7 +148,6 @@ class InnerEyeEnsembleInference():
         new_model = deepcopy(exemplar)
         assert isinstance(new_model, LightningModule)  # mypy
         new_model.load_state_dict(checkpoint['state_dict'], strict=False)
-        assert isinstance(new_model, InnerEyeInference)  # mypy
         self.ensemble_models.append(new_model)
 
     def on_ensemble_inference_start(self) -> None:

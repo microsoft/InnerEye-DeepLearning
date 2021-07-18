@@ -315,7 +315,7 @@ class HelloEnsembleInference(InnerEyeEnsembleInference):
         self.test_mse.append(torch.nn.functional.mse_loss(posterior, batch_y))
         self.test_mae.update(preds=posterior, target=batch_y)
 
-    def on_inference_end_dataset(self) -> None:
+    def on_ensemble_inference_end_dataset(self) -> None:
         """
         Append the metrics from this dataset's inference run to the metrics' files.
         """

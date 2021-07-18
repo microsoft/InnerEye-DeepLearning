@@ -12,9 +12,11 @@ from sklearn.model_selection import KFold
 
 from InnerEye.Common.fixed_paths_for_tests import tests_root_directory
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.ML.run_ml import MLRunner
+from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
 from InnerEye.ML.configs.other.HelloContainer import HelloContainer, HelloEnsembleInference, HelloRegression
+from InnerEye.ML.run_ml import MLRunner
 from Tests.ML.util import default_runner
+
 
 def test_create_ensemble_model_and_run_inference_for_innereyeinference(test_output_dirs: OutputFolderForTests) -> None:
     """
@@ -56,7 +58,7 @@ def test_create_ensemble_model_and_run_inference_for_innereyeinference(test_outp
         # Using runner we can now train the cross validation split model and save out its best checkpoint
         with mock.patch("sys.argv", args):
             loaded_config, _ = runner.run()
-        checkpoint_path = loaded_config.file_system_config.run_folder / "checkpoints" / "best_checkpoint.ckpt"  # type: ignore
+        checkpoint_path = loaded_config.file_system_config.run_folder / "checkpoints" / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX  # type: ignore
         checkpoint_paths.append(checkpoint_path)
         mse_metrics = _load_metrics_from_file(metrics_file=loaded_config.file_system_config.run_folder / "test_mse.txt")  # type: ignore
         test_mses.append(mse_metrics["TEST"])
@@ -68,7 +70,7 @@ def test_create_ensemble_model_and_run_inference_for_innereyeinference(test_outp
     ml_runner.create_ensemble_model_and_run_inference_from_lightningmodule_checkpoints(
         HelloRegression(),
         checkpoint_paths)
-    # Compare ensembke metrics with those from the cross validation runs
+    # Compare ensemble metrics with those from the cross validation runs
     mse_metrics = _load_metrics_from_file(metrics_file=test_output_dirs.root_dir / "test_mse.txt")
     test_mse = mse_metrics["TEST"]
     for xval_run_mse in test_mses:
@@ -92,6 +94,8 @@ def _load_metrics_from_file(metrics_file: Path) -> Dict[str, float]:
     for line in text.split('\n'):
         if line:
             splits = line.split(": ")
+            # There are two types of metric files we need to parse. HelloRegression.on_test_epoch_end just saves the test metric as a float, while
+            # HelloEnsembleInference.on_ensemble_inference_end_dataset prefixes each metric saved with the execution mode name.
             if len(splits) == 1:
                 metrics_value = float(splits[0])
                 metrics["TEST"] = metrics_value
