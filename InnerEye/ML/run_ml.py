@@ -896,7 +896,7 @@ class MLRunner:
         """
         if (not self.is_offline_run) \
                 and (azure_util.is_cross_validation_child_run(RUN_CONTEXT)):
-            n_splits = self.innereye_config.number_of_cross_validation_splits
+            n_splits = self.container.number_of_cross_validation_splits
             child_runs = azure_util.fetch_child_runs(PARENT_RUN_CONTEXT,
                                                      expected_number_cross_validation_splits=n_splits)
             pending_runs = [x.id for x in child_runs
