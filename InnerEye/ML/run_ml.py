@@ -261,6 +261,7 @@ class MLRunner:
         # then we need to create it now while we have our model_config_loaded.
         if self.container and self.container.ensemble_model_name and self.model_config_loader:
             self.ensemble_model = self.model_config_loader.create_model_config_from_name(model_name=self.container.ensemble_model_name)
+            assert isinstance(self.ensemble_model, InnerEyeEnsembleInference)
             self.ensemble_model.outputs_folder = self.container.outputs_folder
 
     @property
@@ -372,6 +373,7 @@ class MLRunner:
         this function is recursively called for each cross validation split.
         """
         self.setup()
+
         if self.is_offline_cross_val_parent_run():
             if self.innereye_config.is_segmentation_model:
                 raise NotImplementedError("Offline cross validation is only supported for classification models.")
@@ -421,14 +423,11 @@ class MLRunner:
                 if self.container.generate_report:
                     self.generate_report(ModelProcessing.DEFAULT)
 
-                # If this is an cross validation run, and the present run is child run 0, then wait for the sibling
-                # runs, build the ensemble model, and write a report for that.
-                if self.container.perform_cross_validation:
-                    should_wait_for_other_child_runs = (not self.is_offline_run) and \
-                                                       self.container.cross_validation_split_index == 0
-                    if should_wait_for_other_child_runs:
-                        self.wait_for_runs_to_finish()
-                        self.create_ensemble_model_and_run_inference_for_innereye_container()
+                # If this is a cross validation run, and the present run is child run 0, then wait for the sibling runs,
+                # build the ensemble model, and write a report for that.
+                sibling_runs_checkpoint_handler = self.wait_and_collect_sibling_runs_if_required()
+                if sibling_runs_checkpoint_handler:
+                    self.create_ensemble_model_and_run_inference_for_innereye_container(sibling_runs_checkpoint_handler)                        
             else:
                 # Inference for all models that are specified via LightningContainers.
                 with logging_section("Model inference"):
@@ -437,6 +436,14 @@ class MLRunner:
                 # manually
                 with change_working_directory(self.container.outputs_folder):
                     self.container.create_report()
+
+                # As above for InnerEyeContainers, if this is a cross validation run, and the present run is child run
+                # 0, then wait for the sibling runs, build the ensemble model, and write a report for that.
+                sibling_runs_checkpoint_handler = self.wait_and_collect_sibling_runs_if_required()
+                if sibling_runs_checkpoint_handler:
+                    self.create_ensemble_model_and_run_inference_from_lightningmodule_checkpoints(
+                        self.container.model,
+                        sibling_runs_checkpoint_handler.get_best_checkpoints())
 
         if self.container.regression_test_folder:
             # Comparison with stored results for cross-validation runs only operates on child run 0. This run
@@ -448,6 +455,27 @@ class MLRunner:
                                                 actual=self.container.outputs_folder)
             else:
                 logging.info("Skipping because this is not cross-validation child run 0.")
+
+    def wait_and_collect_sibling_runs_if_required(self) -> Optional[CheckpointHandler]:
+        """
+        If this is a hyperdrive cross validation run, and the present run is child run 0, then wait for the sibling runs
+        to finish and then get the best checkpoint from each.
+        :returns: The checkpoint handler containing the downloaded sibling checkpoints from all the runs in the cross
+        validation.
+        """
+        assert PARENT_RUN_CONTEXT, "This function should only be called in a Hyperdrive run"
+        sibling_checkpoints_handler: Optional[CheckpointHandler] = None
+        if all([self.container.perform_cross_validation, not self.is_offline_run,
+                self.container.cross_validation_split_index == 0]):
+            self.wait_for_runs_to_finish()          
+            with logging_section("Downloading checkpoints from sibling runs"):
+                sibling_checkpoints_handler = CheckpointHandler(
+                    container=self.container,
+                    azure_config=self.azure_config,
+                    project_root=self.project_root,
+                    run_context=PARENT_RUN_CONTEXT)
+                sibling_checkpoints_handler.download_checkpoints_from_hyperdrive_child_runs(PARENT_RUN_CONTEXT)
+        return sibling_checkpoints_handler
 
     def is_normal_run_or_crossval_child_0(self) -> bool:
         """
@@ -476,11 +504,10 @@ class MLRunner:
         Run inference on the test set for all models that are specified via a LightningContainer.
         :param checkpoint_paths: The paths to the checkpoint that should be used for inference.
         """
-
         if len(checkpoint_paths) > 1:
-            self.create_ensemble_model_and_run_inference_from_lightningmodule_checkpoints(
-                self.container.model,
-                checkpoint_paths)
+            # Building an ensemble from multiple checkpoints is handled later in the run, in run's call to 
+            # create_ensemble_model_and_run_inference_from_lightningmodule_checkpoints.
+            raise ValueError("Building an ensemble from multiple checkpoints is handled later in the run")
         elif isinstance(self.container.model, InnerEyeInference):
             self.run_inference_for_innereyeinference_lightning_model(self.container.model, checkpoint_paths[0])
         else:
@@ -700,7 +727,7 @@ class MLRunner:
             # model produced or downloaded for recovery, bloating the final model file.
             self.copy_child_paths_to_folder(final_model_folder, checkpoint_paths)
             # If the present run is a child run of a Hyperdrive parent run, and we are building an ensemble model,
-            # register it the model on the parent run.
+            # register the model on the parent run.
             if PARENT_RUN_CONTEXT and model_proc == ModelProcessing.ENSEMBLE_CREATION:
                 run_to_register_on = PARENT_RUN_CONTEXT
                 logging.info(f"Registering the model on the parent run {run_to_register_on.id}")
@@ -882,18 +909,14 @@ class MLRunner:
         else:
             raise NotImplementedError("are_sibling_runs_finished only works for cross validation runs in AzureML.")
 
-    def create_ensemble_model_and_run_inference_for_innereye_container(self) -> None:
+    def create_ensemble_model_and_run_inference_for_innereye_container(self, checkpoint_handler: CheckpointHandler) -> None:
         """
         Create an ensemble model from the results of the sibling runs of the present run. The present run here will
         be cross validation child run 0.
+        :param checkpoint_handler: The checkpoint handler containing the checkpoints downloaded from the constiuent runs
+        which will form the ensemble.
         """
         assert PARENT_RUN_CONTEXT, "This function should only be called in a Hyperdrive run"
-        with logging_section("Downloading checkpoints from sibling runs"):
-            checkpoint_handler = CheckpointHandler(container=self.container,
-                                                   azure_config=self.azure_config,
-                                                   project_root=self.project_root,
-                                                   run_context=PARENT_RUN_CONTEXT)
-            checkpoint_handler.download_checkpoints_from_hyperdrive_child_runs(PARENT_RUN_CONTEXT)
 
         # Register the model, and then run inference as required. No models should be registered when running outside
         # AzureML.
@@ -1020,6 +1043,15 @@ class MLRunner:
         :param model: The LightningModule model to use as the template for the models in the ensemble.
         :param checkpoint_paths: The paths to the checkpoints gleaned from the cross validation runs.
         """
+        # Register the model, and then run inference as required. No models should be registered when running outside
+        # AzureML.
+        if not self.is_offline_run:
+            if self.should_register_model():
+                self.register_model(checkpoint_paths, ModelProcessing.ENSEMBLE_CREATION)
+
+        if self.azure_config.only_register_model:
+            return
+
         if self.ensemble_model:
             ensemble = self.ensemble_model
         elif isinstance(model, InnerEyeEnsembleInference):
@@ -1029,10 +1061,12 @@ class MLRunner:
                 "To build an ensemble model out of the checkpoints from a Lightning model's cross validation run we ",
                 "need an instance of a subclass of InnerEyeEnsembleInference. This can be specified via the  ",
                 "ensemble_model_name flag, or passed in to this method as the model parameter. We found neither.")
+
         ensemble.load_checkpoints_into_ensemble(
             exemplar=model,
             checkpoint_paths=checkpoint_paths,
             use_gpu=self.container.use_gpu)
+
         test_dataloader = self.container.get_data_module().test_dataloader()
         ensemble.on_ensemble_inference_start()
         ensemble.on_ensemble_inference_start_dataset(ModelExecutionMode.TEST)
