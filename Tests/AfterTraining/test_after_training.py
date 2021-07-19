@@ -172,7 +172,6 @@ def test_registered_model_file_structure_and_instantiate(test_output_dirs: Outpu
     model_name = tags["model_name"]
     assert model_inference_config.model_name == model_name
     assert model_inference_config.model_configs_namespace.startswith("InnerEye.ML.configs.")
-    assert model_inference_config.model_configs_namespace.endswith(model_name)
     loader = ModelConfigLoader(model_configs_namespace=model_inference_config.model_configs_namespace)
     model_config = loader.create_model_config_from_name(model_name=model_inference_config.model_name)
     assert type(model_config).__name__ == model_inference_config.model_name
