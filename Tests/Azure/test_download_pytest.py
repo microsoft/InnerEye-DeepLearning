@@ -6,7 +6,10 @@ from pathlib import Path
 from typing import Optional
 
 import pytest
-from azureml.core import Experiment
+import mlflow
+import os
+from mlflow.tracking.client import MlflowClient
+from azureml.core import Experiment, run
 
 from InnerEye.Azure.azure_util import to_azure_friendly_string
 from InnerEye.Azure.run_pytest import download_pytest_result
@@ -23,13 +26,21 @@ def test_download_pytest_file(test_output_dirs: OutputFolderForTests) -> None:
         experiment = Experiment(workspace, name=to_azure_friendly_string(branch))
         runs = [run for run in experiment.get_runs() if run.number == number]
         if len(runs) != 1:
+            print("Found runs : " + str(len(runs)))
             raise ValueError(f"Expected to get exactly 1 run in experiment {experiment.name}")
-        return download_pytest_result(runs[0], output_dir)
+        
+        mlflow.set_tracking_uri(workspace.get_mlflow_tracking_uri())
+        mlflow.set_experiment(experiment.name)
+        # return download_pytest_result(runs[0], output_dir)
+        if not os.path.exists(output_dir):
+            os.mkdir(output_dir)
+        return download_pytest_result(MlflowClient().get_run(runs[0].id), output_dir)
 
     # PR 49 is a recent successful build that generated a pytest file.
     # Run 6 in that experiment was canceled did not yet write the pytest file:
     with pytest.raises(ValueError) as ex:
         get_run_and_download_pytest("refs/pull/219/merge", 6)
+    print(str(ex))
     assert "No pytest result file" in str(ex)
     downloaded = get_run_and_download_pytest("refs/pull/219/merge", 7)
     assert downloaded is not None

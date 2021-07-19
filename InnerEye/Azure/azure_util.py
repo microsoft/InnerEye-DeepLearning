@@ -363,7 +363,7 @@ def download_run_output_file(blob_path: Path,
     :return: Destination path to the downloaded file(s)
     """
     blobs_prefix = str((fixed_paths.DEFAULT_AML_UPLOAD_DIR / blob_path).as_posix())
-    destination = destination / blob_path.name
+    # destination = destination / blob_path.name
     logging.info(f"Downloading single file from run {run.info.run_id}: {blobs_prefix} -> {str(destination)}")
     try:
         MlflowClient().download_artifacts(run.info.run_id, blobs_prefix, str(destination))

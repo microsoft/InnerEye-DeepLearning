@@ -54,4 +54,4 @@ def download_pytest_result(run: Run, destination_folder: Path = Path.cwd()) -> P
             destination=destination_folder,
             run=run)
     except:
-        raise ValueError(f"No pytest result file {PYTEST_RESULTS_FILE} was found for run {run.id}")
+        raise ValueError(f"No pytest result file {PYTEST_RESULTS_FILE} was found for run {run.info.run_id}")
