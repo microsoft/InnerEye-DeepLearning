@@ -439,11 +439,13 @@ class MLRunner:
 
                 # As above for InnerEyeContainers, if this is a cross validation run, and the present run is child run
                 # 0, then wait for the sibling runs, build the ensemble model, and write a report for that.
-                sibling_runs_checkpoint_handler = self.wait_and_collect_sibling_runs_if_required()
-                if sibling_runs_checkpoint_handler:
-                    self.create_ensemble_model_and_run_inference_from_lightningmodule_checkpoints(
-                        self.container.model,
-                        sibling_runs_checkpoint_handler.get_best_checkpoints())
+                if not self.is_offline_run and PARENT_RUN_CONTEXT is not None:
+                    sibling_runs_checkpoint_handler = self.wait_and_collect_sibling_runs_if_required()
+                    logging.info("DEBUGGING: about to create_ensemble_model_and_run_inference_from_lightningmodule_checkpoints")
+                    if sibling_runs_checkpoint_handler:
+                        self.create_ensemble_model_and_run_inference_from_lightningmodule_checkpoints(
+                            self.container.model,
+                            sibling_runs_checkpoint_handler.get_best_checkpoints())
 
         if self.container.regression_test_folder:
             # Comparison with stored results for cross-validation runs only operates on child run 0. This run
