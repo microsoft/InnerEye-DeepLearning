@@ -44,8 +44,8 @@ class BasicModel2Epochs(SegmentationModelBase):
             use_mixed_precision=True,
             azure_dataset_id=AZURE_DATASET_ID,
             comparison_blob_storage_paths=comparison_blob_storage_paths,
-            inference_on_test_set=True,
             inference_on_val_set=True,
+            inference_on_test_set=True,
             dataset_mountpoint="/tmp/innereye",
             # Use an LR scheduler with a pronounced and clearly visible decay, to be able to easily see if that
             # is applied correctly in run recovery.
@@ -65,3 +65,14 @@ class BasicModel2Epochs(SegmentationModelBase):
             test_ids=['5'],
             val_ids=['2']
         )
+
+
+class BasicModelForEnsembleTest(BasicModel2Epochs):
+    """
+    A copy of the basic model for PR builds, to use for running in a cross validation job.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        # Skip inference on the validation set, to test if missing files are handled correctly
+        self.inference_on_val_set = None

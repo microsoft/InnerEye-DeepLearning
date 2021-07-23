@@ -163,6 +163,10 @@ class PlotCrossValidationConfig(GenericConfig):
         return self.short_names[run_id]
 
     def execution_modes_to_download(self) -> List[ModelExecutionMode]:
+        """
+        Returns the dataset splits (Train/Val/Test) for which results should be downloaded from the
+        cross validation child runs.
+        """
         if self.model_category.is_scalar:
             return [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL, ModelExecutionMode.TEST]
         else:
@@ -190,7 +194,8 @@ class PlotCrossValidationConfig(GenericConfig):
                                    local_src_subdir: Optional[Path] = None) -> Optional[Path]:
         """
         Downloads a file from the results folder of an AzureML run, or copies it from a local results folder.
-        Returns the path to the downloaded file if it exists, or None if the file was not found.
+        Returns the path to the downloaded file if it exists, or None if the file was not found, or could for other
+        reasons not be downloaded.
         If the blobs_path contains folders, the same folder structure will be created inside the destination folder.
         For example, downloading "foo.txt" to "/c/temp" will create "/c/temp/foo.txt". Downloading "foo/bar.txt"
         to "/c/temp" will create "/c/temp/foo/bar.txt"
@@ -231,11 +236,14 @@ class PlotCrossValidationConfig(GenericConfig):
                 return Path(shutil.copy(local_src, destination))
             return None
         else:
-            return download_run_output_file(
-                blob_path=blob_path,
-                destination=destination,
-                run=run
-            )
+            try:
+                return download_run_output_file(
+                    blob_path=blob_path,
+                    destination=destination,
+                    run=run
+                )
+            except Exception:
+                return None
 
 
 @dataclass(frozen=True)
@@ -441,8 +449,8 @@ def crossval_config_from_model_config(train_config: DeepLearningConfig) -> PlotC
 
 def get_config_and_results_for_offline_runs(train_config: DeepLearningConfig) -> OfflineCrossvalConfigAndFiles:
     """
-    Creates a configuration for crossvalidation analysis for the given model training configuration, and gets
-    the input files required for crossvalidation analysis.
+    Creates a configuration for cross validation analysis for the given model training configuration, and gets
+    the input files required for cross validation analysis.
     :param train_config: The model configuration to work with.
     """
     plot_crossval_config = crossval_config_from_model_config(train_config)
@@ -674,7 +682,8 @@ def save_outliers(config: PlotCrossValidationConfig,
 
                     f.write(f"\n\n=== METRIC: {metric_type} ===\n\n")
                     if len(outliers) > 0:
-                        # If running inside institution there may be no CSV_SERIES_HEADER or CSV_INSTITUTION_HEADER columns
+                        # If running inside institution there may be no CSV_SERIES_HEADER or CSV_INSTITUTION_HEADER
+                        # columns
                         groupby_columns = [MetricsFileColumns.Patient.value, MetricsFileColumns.Structure.value]
                         if CSV_SERIES_HEADER in outliers.columns:
                             groupby_columns.append(CSV_SERIES_HEADER)
