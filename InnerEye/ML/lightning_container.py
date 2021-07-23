@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import abc
+import logging
 from copy import deepcopy
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Tuple
@@ -145,7 +146,10 @@ class InnerEyeEnsembleInference():
         :param use_gpu: Passed on to deep_learning_config.load_checkpoint.
         """
         checkpoint = load_checkpoint(checkpoint_path, use_gpu)
-        new_model = deepcopy(exemplar)
+        # new_model = deepcopy(exemplar)  # In AML, this line triggers "ReferenceError: weakly-referenced object no
+        # longer exists" so we will make a new instance instead
+        logging.info(f"Adding a {type(exemplar)} to the ensemble and loading its state from a checkpoint.")
+        new_model = type(exemplar)()
         assert isinstance(new_model, LightningModule)  # mypy
         new_model.load_state_dict(checkpoint['state_dict'], strict=False)
         self.ensemble_models.append(new_model)
