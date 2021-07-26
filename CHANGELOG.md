@@ -31,6 +31,9 @@ via the `--inference_on_val_set` flag.
 gets uploaded to AzureML, by skipping all test folders.
 - ([#509](https://github.com/microsoft/InnerEye-DeepLearning/pull/509)) Parameter `extra_downloaded_run_id` has been
   renamed to `pretraining_run_checkpoints`.
+- ([#526](https://github.com/microsoft/InnerEye-DeepLearning/pull/526)) Updated Covid config to use a multiclass
+  formulation. Moved functions `create_metric_computers` and `compute_and_log_metrics` from `ScalarLightning` to
+  `ScalarModelBase`.
 
 ### Fixed
 - ([#537](https://github.com/microsoft/InnerEye-DeepLearning/pull/537)) Print warning if inference is disabled but comparison requested.
@@ -54,6 +57,9 @@ in inference-only runs when using lightning containers.
 - ([#542](https://github.com/microsoft/InnerEye-DeepLearning/pull/542)) Removed Windows test leg from build pipeline.
 - ([#509](https://github.com/microsoft/InnerEye-DeepLearning/pull/509)) Parameters `local_weights_path` and
   `weights_url` can no longer be used to initialize a training run, only inference runs.
+- ([#526](https://github.com/microsoft/InnerEye-DeepLearning/pull/526)) Removed `get_posthoc_label_transform` in
+  class `ScalarModelBase`. Instead, functions `get_loss_function` and `compute_and_log_metrics` in
+  `ScalarModelBase` can be implemented to compute the loss and metrics in a task-specific manner.
 
 ### Deprecated
 

@@ -2,11 +2,10 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List
 
 import torch
 from pytorch_lightning.utilities import move_data_to_device
-from torch.nn import ModuleDict, ModuleList
 
 from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME
 from InnerEye.Common.metrics_constants import LoggingColumns, MetricType, TRAIN_PREFIX, VALIDATION_PREFIX
@@ -15,19 +14,16 @@ from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.dataset.sample import CroppedSample
 from InnerEye.ML.dataset.scalar_sample import ScalarItem
 from InnerEye.ML.lightning_base import InnerEyeLightning
-from InnerEye.ML.lightning_metrics import Accuracy05, AccuracyAtOptimalThreshold, AreaUnderPrecisionRecallCurve, \
-    AreaUnderRocCurve, BinaryCrossEntropyWithLogits, ExplainedVariance, FalseNegativeRateOptimalThreshold, \
-    FalsePositiveRateOptimalThreshold, MeanAbsoluteError, MeanSquaredError, MetricForMultipleStructures, \
-    OptimalThreshold, ScalarMetricsBase
+from InnerEye.ML.lightning_metrics import MetricForMultipleStructures
 from InnerEye.ML.metrics import compute_dice_across_patches
-from InnerEye.ML.metrics_dict import DataframeLogger, MetricsDict, SequenceMetricsDict
+from InnerEye.ML.metrics_dict import DataframeLogger, MetricsDict
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import image_util, metrics_util, model_util
 from InnerEye.ML.utils.dataset_util import DatasetExample, store_and_upload_example
 from InnerEye.ML.utils.model_util import get_scalar_model_inputs_and_labels
-from InnerEye.ML.utils.sequence_utils import apply_sequence_model_loss, get_masked_model_outputs_and_labels
+from InnerEye.ML.utils.sequence_utils import apply_sequence_model_loss
 from pytorch_lightning import Trainer
 
 SUBJECT_OUTPUT_PER_RANK_PREFIX = f"{SUBJECT_METRICS_FILE_NAME}.rank"
@@ -190,16 +186,14 @@ class ScalarLightning(InnerEyeLightning):
         super().__init__(config, *args, **kwargs)
         self.model = config.create_model()
         raw_loss = model_util.create_scalar_loss_function(config)
-        self.posthoc_label_transform = config.get_posthoc_label_transform()
         if isinstance(config, SequenceModelBase):
             self.loss_fn = lambda model_output, loss: apply_sequence_model_loss(raw_loss, model_output, loss)
             self.target_indices = config.get_target_indices()
-            self.target_names = [SequenceMetricsDict.get_hue_name_from_target_index(p)
-                                 for p in config.sequence_target_positions]
         else:
             self.loss_fn = raw_loss
             self.target_indices = []
-            self.target_names = config.target_names
+
+        self.target_names = config.target_names
         self.is_classification_model = config.is_classification_model
         self.use_mean_teacher_model = config.compute_mean_teacher_model
         self.is_binary_classification_or_regression = True if len(config.class_names) == 1 else False
@@ -207,41 +201,14 @@ class ScalarLightning(InnerEyeLightning):
         self.loss_type = config.loss_type
         # These two fields store the PyTorch Lightning Metrics objects that will compute metrics on validation
         # and training set, in particular ones that are not possible to compute from a single minibatch (AUC and alike)
-        self.train_metric_computers = self.create_metric_computers()
-        self.val_metric_computers = self.create_metric_computers()
-
+        self.train_metric_computers = config.create_metric_computers()
+        self.val_metric_computers = config.create_metric_computers()
+        self.compute_and_log_metrics = config.compute_and_log_metrics
         # if config.compute_grad_cam:
         #     model_to_evaluate = self.train_val_params.mean_teacher_model if \
         #         config.compute_mean_teacher_model else self.train_val_params.model
         #     self.guided_grad_cam = VisualizationMaps(model_to_evaluate, config)
         #     config.visualization_folder.mkdir(exist_ok=True)
-
-    def create_metric_computers(self) -> ModuleDict:
-        """
-        Gets a set of objects that compute all the metrics for the type of model that is being trained,
-        across all prediction targets (sequence positions when using a sequence model).
-        :return: A dictionary mapping from names of prediction targets to a list of metric computers.
-        """
-        # The metric computers should be stored in an object that derives from torch.Module,
-        # so that they are picked up when moving the whole LightningModule to GPU.
-        # https://github.com/PyTorchLightning/pytorch-lightning/issues/4713
-        return ModuleDict({p: self._get_metrics_computers() for p in self.target_names})
-
-    def _get_metrics_computers(self) -> ModuleList:
-        """
-        Gets the objects that compute metrics for the present kind of models, for a single prediction target.
-        """
-        if self.is_classification_model:
-            return ModuleList([Accuracy05(),
-                               AccuracyAtOptimalThreshold(),
-                               OptimalThreshold(),
-                               FalsePositiveRateOptimalThreshold(),
-                               FalseNegativeRateOptimalThreshold(),
-                               AreaUnderRocCurve(),
-                               AreaUnderPrecisionRecallCurve(),
-                               BinaryCrossEntropyWithLogits()])
-        else:
-            return ModuleList([MeanAbsoluteError(), MeanSquaredError(), ExplainedVariance()])
 
     def forward(self, *model_inputs: torch.Tensor) -> torch.Tensor:  # type: ignore
         """
@@ -283,7 +250,6 @@ class ScalarLightning(InnerEyeLightning):
         """
         model_inputs_and_labels = get_scalar_model_inputs_and_labels(self.model, self.target_indices, sample)
         labels = model_inputs_and_labels.labels
-        labels = self.posthoc_label_transform(labels)
         if is_training:
             logits = self.model(*model_inputs_and_labels.model_inputs)
         else:
@@ -292,61 +258,22 @@ class ScalarLightning(InnerEyeLightning):
         subject_ids = model_inputs_and_labels.subject_ids
         loss = self.loss_fn(logits, labels)
         self.write_loss(is_training, loss)
-        self.compute_and_log_metrics(logits, labels, subject_ids, is_training)
+        metrics = self.train_metric_computers if is_training else self.val_metric_computers
+        logger = self.train_subject_outputs_logger if is_training else self.val_subject_outputs_logger  # type: ignore
+        data_split = ModelExecutionMode.TRAIN if is_training else ModelExecutionMode.VAL
+        self.compute_and_log_metrics(logits=logits,
+                                     targets=labels,
+                                     subject_ids=subject_ids,
+                                     is_training=is_training,
+                                     metrics=metrics,
+                                     logger=logger,
+                                     current_epoch=self.current_epoch,
+                                     data_split=data_split)
         self.log_on_epoch(name=MetricType.SUBJECT_COUNT,
                           value=len(model_inputs_and_labels.subject_ids),
                           is_training=is_training,
                           reduce_fx=sum)
         return loss
-
-    def compute_and_log_metrics(self,
-                                logits: torch.Tensor,
-                                targets: torch.Tensor,
-                                subject_ids: List[str],
-                                is_training: bool) -> None:
-        """
-        Computes all the metrics for a given (logits, labels) pair, and writes them to the loggers.
-        :param logits: The model output before normalization.
-        :param targets: The expected model outputs.
-        :param subject_ids: The subject IDs for the present minibatch.
-        :param is_training: If True, write the metrics as training metrics, otherwise as validation metrics.
-        :return:
-        """
-        metrics = self.train_metric_computers if is_training else self.val_metric_computers
-        per_subject_outputs: List[Tuple[str, str, torch.Tensor, torch.Tensor]] = []
-        for i, (prediction_target, metric_list) in enumerate(metrics.items()):
-            # mask the model outputs and labels if required
-            masked = get_masked_model_outputs_and_labels(
-                logits[:, i, ...], targets[:, i, ...], subject_ids)
-            # compute metrics on valid masked tensors only
-            if masked is not None:
-                _logits = masked.model_outputs.data
-                _posteriors = self.logits_to_posterior(_logits)
-                # Classification metrics expect labels as integers, but they are float throughout the rest of the code
-                labels_dtype = torch.int if self.is_classification_model else _posteriors.dtype
-                _labels = masked.labels.data.to(dtype=labels_dtype)
-                _subject_ids = masked.subject_ids
-                assert _subject_ids is not None
-                for metric in metric_list:
-                    if isinstance(metric, ScalarMetricsBase) and metric.compute_from_logits:
-                        metric(_logits, _labels)
-                    else:
-                        metric(_posteriors, _labels)
-                per_subject_outputs.extend(
-                    zip(_subject_ids, [prediction_target] * len(_subject_ids), _posteriors.tolist(), _labels.tolist()))
-        # Write a full breakdown of per-subject predictions and labels to a file. These files are local to the current
-        # rank in distributed training, and will be aggregated after training.
-        logger = self.train_subject_outputs_logger if is_training else self.val_subject_outputs_logger  # type: ignore
-        data_split = ModelExecutionMode.TRAIN if is_training else ModelExecutionMode.VAL
-        for subject, prediction_target, model_output, label in per_subject_outputs:
-            logger.add_record({
-                LoggingColumns.Epoch.value: self.current_epoch,
-                LoggingColumns.Patient.value: subject,
-                LoggingColumns.Hue.value: prediction_target,
-                LoggingColumns.ModelOutput.value: model_output,
-                LoggingColumns.Label.value: label,
-                LoggingColumns.DataSplit.value: data_split.value
-            })
 
     def training_or_validation_epoch_end(self, is_training: bool) -> None:
         """

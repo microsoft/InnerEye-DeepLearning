@@ -170,7 +170,7 @@ def generate_classification_crossval_notebook(result_notebook: Path,
             'innereye_path': str(fixed_paths.repository_root_directory()),
             'train_metrics_csv': "",
             'val_metrics_csv': str_or_empty(crossval_metrics),
-            'test_metrics_csv': str_or_empty(crossval_metrics),
+            'test_metrics_csv': "",
             "config": codecs.encode(pickle.dumps(config), "base64").decode(),
             "is_crossval_report": True
         }
