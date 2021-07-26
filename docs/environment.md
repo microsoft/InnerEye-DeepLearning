@@ -14,9 +14,8 @@ submodule. We only recommended that if you are very handy with Python. More deta
 
 ## Windows Subsystem for Linux Setup
 When developing on a Windows machine, we recommend using [the Windows Subsystem for Linux, WSL2](https://docs.microsoft.com/en-us/windows/wsl/about).
-That's because PyTorch has better support for Linux.
-
-If you want to use WSL2, please follow [these instructions](/docs/WSL.md)
+That's because PyTorch has better support for Linux.  If you want to use WSL2, please follow 
+[these instructions](/docs/WSL.md) , that correspond to the manual installation in the official docs.
 
 ## Installing Conda or Miniconda
 You can skip this step if you have installed WSL as per the previous item.
