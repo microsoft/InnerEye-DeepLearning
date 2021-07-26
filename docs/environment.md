@@ -16,7 +16,7 @@ submodule. We only recommended that if you are very handy with Python. More deta
 When developing on a Windows machine, we recommend using [the Windows Subsystem for Linux, WSL2](https://docs.microsoft.com/en-us/windows/wsl/about).
 That's because PyTorch has better support for Linux.
 
-If you want to use WSL, please follow [these instructions](/docs/WSL.md)
+If you want to use WSL2, please follow [these instructions](/docs/WSL.md)
 
 ## Installing Conda or Miniconda
 You can skip this step if you have installed WSL as per the previous item.
@@ -125,9 +125,9 @@ point, if you want to dig deeper into the code.
 Our team uses [PyCharm](https://www.jetbrains.com/pycharm/) for development, but any good editor 
 ([VSCode](https://code.visualstudio.com/) for example) will do as well.
 
-This repository already contains a PyCharm configuration file in `.idea/InnerEye-DeepLearning.iml`. It will pick the
-WSL Python interpreter (see [WSL.md](WSL.md)) as the default - based on your configuration, you will need to adjust 
-that as described [here](https://www.jetbrains.com/help/pycharm/configuring-python-interpreter.html).
+This repository already contains a PyCharm configuration file in `.idea/InnerEye-DeepLearning.iml`. It should 
+automatically pick the WSL Python interpreter (see [WSL.md](WSL.md)) as the default (no need to import the settings file)
+- if it doesn't happen you will need to adjust that as described [here](https://www.jetbrains.com/help/pycharm/configuring-python-interpreter.html).
 
 
 ## How to manually set up flake8 as a PyCharm external tool
