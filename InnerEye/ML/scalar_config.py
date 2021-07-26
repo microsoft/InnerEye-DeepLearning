@@ -546,6 +546,11 @@ class ScalarModelBase(ModelConfigBase):
         :param targets: The expected model outputs.
         :param subject_ids: The subject IDs for the present minibatch.
         :param is_training: If True, write the metrics as training metrics, otherwise as validation metrics.
+        :param metrics: A dictionary mapping from names of prediction targets to a list of metric computers,
+        as returned by create_metric_computers.
+        :param logger: An object of type DataframeLogger which can be be used for logging within this function.
+        :param current_epoch: Current epoch number.
+        :param data_split: ModelExecutionMode object indicating if this is the train or validation split.
         :return:
         """
         per_subject_outputs: List[Tuple[str, str, torch.Tensor, torch.Tensor]] = []
