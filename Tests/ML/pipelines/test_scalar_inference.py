@@ -8,16 +8,23 @@ import numpy as np
 import pytest
 import torch
 
+from InnerEye.Common.common_util import ModelProcessing
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.type_annotations import TupleInt3
+from InnerEye.ML.common import ModelExecutionMode
+from InnerEye.ML.config import SegmentationModelBase
+from InnerEye.ML.configs.classification.GlaucomaPublic import GlaucomaPublic
+from InnerEye.ML.configs.segmentation.BasicModel2Epochs import BasicModel2Epochs
 from InnerEye.ML.dataset.sample import GeneralSampleMetadata
 from InnerEye.ML.dataset.scalar_sample import ScalarItem
 from InnerEye.ML.lightning_models import ScalarLightning, create_lightning_model
 from InnerEye.ML.models.architectures.base_model import DeviceAwareModule
 from InnerEye.ML.pipelines.scalar_inference import ScalarEnsemblePipeline, ScalarInferencePipeline, \
     ScalarInferencePipelineBase
+from InnerEye.ML.run_ml import is_classification_model
 from InnerEye.ML.scalar_config import EnsembleAggregationType
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
+from Tests.ML.models.architectures.sequential.test_rnn_classifier import ToySequenceModel
 from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
 
 
@@ -177,3 +184,48 @@ def test_aggregation() -> None:
     output = pipeline.aggregate_model_outputs(input_tensor)
     assert output.shape == input_tensor[0].shape
     assert torch.allclose(output, result_average)
+
+
+def test_is_classification_model() -> None:
+    assert is_classification_model(GlaucomaPublic())
+    assert is_classification_model(ClassificationModelForTesting())
+    assert not is_classification_model(BasicModel2Epochs())
+    assert not is_classification_model(ToySequenceModel())
+
+
+def test_inference_required_single_runs() -> None:
+    """
+    Test the flags for running full inference on the test set, for models in single training runs.
+    """
+    model = GlaucomaPublic()
+    assert not model.perform_cross_validation
+    # Normal training run without cross validation: it should not matter if the model is a classification model or not
+    assert model.is_inference_required(model_proc=ModelProcessing.DEFAULT,
+                                       data_split=ModelExecutionMode.TEST)
+    # If a flag is set explicitly, use that.
+    model.inference_on_test_set = False
+    assert not model.is_inference_required(model_proc=ModelProcessing.DEFAULT,
+                                           data_split=ModelExecutionMode.TEST)
+
+
+def test_inference_required_crossval_runs() -> None:
+    """
+    Test the flags for running full inference on the test set, for models that are trained in crossval mode.
+    """
+    classification_model = GlaucomaPublic()
+    classification_model.number_of_cross_validation_splits = 2
+    segmentation_model = SegmentationModelBase(should_validate=False)
+    segmentation_model.number_of_cross_validation_splits = 2
+    assert classification_model.perform_cross_validation
+    assert segmentation_model.perform_cross_validation
+    # Cross validation child runs for classification models need test set inference to ensure that the report works
+    # correctly.
+    assert classification_model.is_inference_required(model_proc=ModelProcessing.DEFAULT,
+                                                      data_split=ModelExecutionMode.TEST)
+    # For models other than classification models, there is by default no inference on the test set.
+    assert not segmentation_model.is_inference_required(model_proc=ModelProcessing.DEFAULT,
+                                                        data_split=ModelExecutionMode.TEST)
+    classification_model.inference_on_test_set = False
+    # If a flag is set explicitly, use that.
+    assert not classification_model.is_inference_required(model_proc=ModelProcessing.DEFAULT,
+                                                          data_split=ModelExecutionMode.TEST)

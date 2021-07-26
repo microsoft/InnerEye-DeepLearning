@@ -44,5 +44,6 @@ def test_train_2d_classification_model(test_output_dirs: OutputFolderForTests,
     assert actual_train_loss == pytest.approx(expected_train_loss, abs=1e-6)
     assert actual_val_loss == pytest.approx(expected_val_loss, abs=1e-6)
     assert actual_lr == pytest.approx(expected_learning_rates, rel=1e-5)
-    test_results = model_testing.model_test(config, ModelExecutionMode.TRAIN, checkpoint_handler=checkpoint_handler)
+    test_results = model_testing.model_test(config, ModelExecutionMode.TRAIN,
+                                            checkpoint_paths=checkpoint_handler.get_checkpoints_to_test())
     assert isinstance(test_results, InferenceMetricsForClassification)

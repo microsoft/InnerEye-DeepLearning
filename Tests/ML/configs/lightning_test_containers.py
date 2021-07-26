@@ -191,6 +191,7 @@ class DummyContainerWithModel(LightningContainer):
     def __init__(self) -> None:
         super().__init__()
         self.inference_on_train_set = True
+        self.inference_on_val_set = True
         self.num_epochs = 50
         self.l_rate = 1e-1
 

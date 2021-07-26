@@ -11,21 +11,22 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
+from InnerEye.Common.common_util import is_windows
 from InnerEye.Common.metrics_constants import LoggingColumns
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.Common.common_util import is_windows
 from InnerEye.ML.common import ModelExecutionMode
+from InnerEye.ML.configs.classification.DummyMulticlassClassification import DummyMulticlassClassification
+from InnerEye.ML.configs.classification.GlaucomaPublic import GlaucomaPublic
+from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
+from InnerEye.ML.metrics_dict import MetricsDict
 from InnerEye.ML.reports.classification_report import ReportedScalarMetrics, get_correct_and_misclassified_examples, \
-    get_image_filepath_from_subject_id, get_k_best_and_worst_performing, get_metric, get_labels_and_predictions, \
-    plot_image_from_filepath, get_image_labels_from_subject_id, get_image_outputs_from_subject_id, \
-    get_metrics_table_for_prediction_target
+    get_image_filepath_from_subject_id, get_image_labels_from_subject_id, get_image_outputs_from_subject_id, \
+    get_k_best_and_worst_performing, get_labels_and_predictions, get_metric, get_metrics_table_for_prediction_target, \
+    plot_image_from_filepath
 from InnerEye.ML.reports.notebook_report import generate_classification_crossval_notebook, \
     generate_classification_notebook
 from InnerEye.ML.scalar_config import ScalarModelBase
-from InnerEye.ML.configs.classification.DummyMulticlassClassification import DummyMulticlassClassification
-from InnerEye.ML.metrics_dict import MetricsDict
-from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
-from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
 
 
 @pytest.mark.skipif(is_windows(), reason="Random timeout errors on windows.")
@@ -70,23 +71,38 @@ def test_generate_classification_report(test_output_dirs: OutputFolderForTests) 
     assert result_html.suffix == ".html"
 
 
-@pytest.mark.skipif(is_windows(), reason="Random timeout errors on windows.")
-def test_generate_classification_crossval_report(test_output_dirs: OutputFolderForTests) -> None:
+def generate_crossval_notebook(config: ScalarModelBase, metrics_file: str,
+                               temp_folder: Path) -> None:
     reports_folder = Path(__file__).parent
-    crossval_metrics_file = reports_folder / "crossval_metrics_classification.csv"
-
-    config = ScalarModelBase(label_value_column="label",
-                             image_file_column="filePath",
-                             subject_column="subject",
-                             number_of_cross_validation_splits=3)
-
-    result_file = test_output_dirs.root_dir / "report.ipynb"
+    crossval_metrics_file = reports_folder / metrics_file
+    result_file = temp_folder / "report.ipynb"
     result_html = generate_classification_crossval_notebook(result_notebook=result_file,
                                                             config=config,
                                                             crossval_metrics=crossval_metrics_file)
     assert result_file.is_file()
     assert result_html.is_file()
     assert result_html.suffix == ".html"
+
+
+@pytest.mark.skipif(is_windows(), reason="Random timeout errors on windows.")
+def test_generate_classification_crossval_report(test_output_dirs: OutputFolderForTests) -> None:
+    config = ScalarModelBase(label_value_column="label",
+                             image_file_column="filePath",
+                             subject_column="subject",
+                             number_of_cross_validation_splits=3)
+    generate_crossval_notebook(config, metrics_file="crossval_metrics_classification.csv",
+                               temp_folder=test_output_dirs.root_dir)
+
+
+@pytest.mark.skipif(is_windows(), reason="Random timeout errors on windows.")
+def test_generate_classification_crossval_report_glaucoma(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test creation of the cross validation report if there are no metrics available for the test set.
+    """
+    config = GlaucomaPublic(number_of_cross_validation_splits=2)
+    config.inference_on_test_set = False
+    generate_crossval_notebook(config, metrics_file="Glaucoma_MetricsAcrossAllRuns.csv",
+                               temp_folder=test_output_dirs.root_dir)
 
 
 def test_get_labels_and_predictions() -> None:
@@ -292,9 +308,12 @@ def test_get_metrics_table_crossval() -> None:
     expected_rows = [
         f"{ReportedScalarMetrics.AUC_PR.value[0]}	0.5417	0.4481	0.6889	0.5595 (0.0991)".split('\t'),
         f"{ReportedScalarMetrics.AUC_ROC.value[0]}	0.5000	0.2778	0.7222	0.5000 (0.1814)".split('\t'),
-        f"{ReportedScalarMetrics.OptimalThreshold.value[0]}	0.6000	0.6000	0.6000	0.6000 (0.0000)".split('\t'),
-        f"{ReportedScalarMetrics.AccuracyAtOptimalThreshold.value[0]}	0.5000	0.2500	0.7500	0.5000 (0.2041)".split('\t'),
-        f"{ReportedScalarMetrics.AccuracyAtThreshold05.value[0]}	0.5000	0.1667	0.8333	0.5000 (0.2722)".split('\t'),
+        f"{ReportedScalarMetrics.OptimalThreshold.value[0]}	0.6000	0.6000	0.6000	0.6000 (0.0000)".split(
+            '\t'),
+        f"{ReportedScalarMetrics.AccuracyAtOptimalThreshold.value[0]}	0.5000	0.2500	0.7500	0.5000 (0.2041)".split(
+            '\t'),
+        f"{ReportedScalarMetrics.AccuracyAtThreshold05.value[0]}	0.5000	0.1667	0.8333	0.5000 (0.2722)".split(
+            '\t'),
         f"{ReportedScalarMetrics.Sensitivity.value[0]}	0.5000	0.1667	0.8333	0.5000 (0.2722)".split('\t'),
         f"{ReportedScalarMetrics.Specificity.value[0]}	0.5000	0.1667	0.8333	0.5000 (0.2722)".split('\t')
     ]
@@ -525,8 +544,8 @@ def test_image_labels_from_subject_id_multiple(test_output_dirs: OutputFolderFor
     dataset = ScalarDataset(args=config, data_frame=df)
 
     labels = get_image_labels_from_subject_id(subject_id="1",
-                                                  dataset=dataset,
-                                                  config=config)
+                                              dataset=dataset,
+                                              config=config)
     assert labels
     assert len(labels) == 2
     assert set(labels) == {config.class_names[1], config.class_names[2]}
@@ -551,15 +570,17 @@ def test_plot_image_from_filepath(test_output_dirs: OutputFolderForTests) -> Non
 def test_get_image_outputs_from_subject_id(test_output_dirs: OutputFolderForTests) -> None:
     hues = ["Hue1", "Hue2"]
 
-    metrics_df = pd.DataFrame.from_dict({LoggingColumns.Hue.value: [hues[0], hues[1]] * 6,
-                                         LoggingColumns.Epoch.value: [0] * 12,
-                                         LoggingColumns.Patient.value: [s for s in range(6) for _ in range(2)],
-                                         LoggingColumns.ModelOutput.value: [0.1, 0.1, 0.1, 0.9, 0.1, 0.9,
-                                                                            0.9, 0.9, 0.9, 0.9, 0.9, 0.1],
-                                         LoggingColumns.Label.value: [0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 0],
-                                         LoggingColumns.CrossValidationSplitIndex: [DEFAULT_CROSS_VALIDATION_SPLIT_INDEX] * 12,
-                                         LoggingColumns.DataSplit.value: [0] * 12,
-                                         }, dtype=str)
+    metrics_df = pd.DataFrame.from_dict(
+        {LoggingColumns.Hue.value: [hues[0], hues[1]] * 6,
+         LoggingColumns.Epoch.value: [0] * 12,
+         LoggingColumns.Patient.value: [s for s in range(6) for _ in range(2)],
+         LoggingColumns.ModelOutput.value: [0.1, 0.1, 0.1, 0.9, 0.1, 0.9,
+                                            0.9, 0.9, 0.9, 0.9, 0.9, 0.1],
+         LoggingColumns.Label.value: [0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 0],
+         LoggingColumns.CrossValidationSplitIndex: [DEFAULT_CROSS_VALIDATION_SPLIT_INDEX] * 12,
+         LoggingColumns.DataSplit.value: [0] * 12,
+         },
+        dtype=str)
 
     config = DummyMulticlassClassification()
     config.class_names = hues

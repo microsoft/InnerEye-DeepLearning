@@ -169,21 +169,21 @@ class CovidModel(ScalarModelBase):
 
     def _get_ssl_checkpoint_path(self) -> Path:
         # Get the SSL weights from the AML run provided via "pretraining_run_recovery_id" command line argument.
-        # Accessible via extra_downloaded_run_id field of the config.
-        assert self.extra_downloaded_run_id is not None
-        assert isinstance(self.extra_downloaded_run_id, RunRecovery)
+        # Accessible via pretraining_run_checkpoints field of the config.
+        assert self.pretraining_run_checkpoints is not None
+        assert isinstance(self.pretraining_run_checkpoints, RunRecovery)
         ssl_path = self.checkpoint_folder / "ssl_checkpoint.ckpt"
 
         if not ssl_path.exists():  # for test (when it is already present) we don't need to redo this.
             if self.name_of_checkpoint is not None:
                 logging.info(f"Using checkpoint: {self.name_of_checkpoint} as starting point.")
-                path_to_checkpoint = self.extra_downloaded_run_id.checkpoints_roots[0] / self.name_of_checkpoint
+                path_to_checkpoint = self.pretraining_run_checkpoints.checkpoints_roots[0] / self.name_of_checkpoint
             else:
-                path_to_checkpoint = self.extra_downloaded_run_id.get_best_checkpoint_paths()[0]
+                path_to_checkpoint = self.pretraining_run_checkpoints.get_best_checkpoint_paths()[0]
                 if not path_to_checkpoint.exists():
                     logging.info("No best checkpoint found for this model. Getting the latest recovery "
                                  "checkpoint instead.")
-                    path_to_checkpoint = self.extra_downloaded_run_id.get_recovery_checkpoint_paths()[0]
+                    path_to_checkpoint = self.pretraining_run_checkpoints.get_recovery_checkpoint_paths()[0]
             assert path_to_checkpoint.exists()
             path_to_checkpoint.rename(ssl_path)
         return ssl_path

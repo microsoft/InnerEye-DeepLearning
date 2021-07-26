@@ -29,7 +29,7 @@ from matplotlib import pyplot
 
 import InnerEye.Common.Statistics.mann_whitney_test as mann_whitney
 from InnerEye.Azure.azure_config import AzureConfig
-from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, download_run_output_file, \
+from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, RUN_CONTEXT, download_run_output_file, \
     fetch_child_runs, is_offline_run_context, is_parent_run
 from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.Statistics.wilcoxon_signed_rank_test import WilcoxonTestConfig, wilcoxon_signed_rank_test
@@ -163,6 +163,10 @@ class PlotCrossValidationConfig(GenericConfig):
         return self.short_names[run_id]
 
     def execution_modes_to_download(self) -> List[ModelExecutionMode]:
+        """
+        Returns the dataset splits (Train/Val/Test) for which results should be downloaded from the
+        cross validation child runs.
+        """
         if self.model_category.is_scalar:
             return [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL, ModelExecutionMode.TEST]
         else:
@@ -190,7 +194,8 @@ class PlotCrossValidationConfig(GenericConfig):
                                    local_src_subdir: Optional[Path] = None) -> Optional[Path]:
         """
         Downloads a file from the results folder of an AzureML run, or copies it from a local results folder.
-        Returns the path to the downloaded file if it exists, or None if the file was not found.
+        Returns the path to the downloaded file if it exists, or None if the file was not found, or could for other
+        reasons not be downloaded.
         If the blobs_path contains folders, the same folder structure will be created inside the destination folder.
         For example, downloading "foo.txt" to "/c/temp" will create "/c/temp/foo.txt". Downloading "foo/bar.txt"
         to "/c/temp" will create "/c/temp/foo/bar.txt"
@@ -217,7 +222,7 @@ class PlotCrossValidationConfig(GenericConfig):
         # Just copy the provided path in the outputs directory to the destination.
         if not destination.exists():
             destination.mkdir(parents=True)
-        if run is None or Run.get_context().id == run.id or is_parent_run(run) or is_offline_run_context(run):
+        if run is None or RUN_CONTEXT.id == run.id or is_parent_run(run) or is_offline_run_context(run):
             if run is None:
                 assert self.local_run_results is not None, "Local run results must be set in unit testing"
                 local_src = Path(self.local_run_results)
@@ -237,8 +242,7 @@ class PlotCrossValidationConfig(GenericConfig):
                     destination=destination,
                     run=run
                 )
-            except Exception as ex:
-                logging.warning(f"File {blob_to_download} not found in output of run {run.id}: {ex}")
+            except Exception:
                 return None
 
 
@@ -445,8 +449,8 @@ def crossval_config_from_model_config(train_config: DeepLearningConfig) -> PlotC
 
 def get_config_and_results_for_offline_runs(train_config: DeepLearningConfig) -> OfflineCrossvalConfigAndFiles:
     """
-    Creates a configuration for crossvalidation analysis for the given model training configuration, and gets
-    the input files required for crossvalidation analysis.
+    Creates a configuration for cross validation analysis for the given model training configuration, and gets
+    the input files required for cross validation analysis.
     :param train_config: The model configuration to work with.
     """
     plot_crossval_config = crossval_config_from_model_config(train_config)
@@ -678,7 +682,8 @@ def save_outliers(config: PlotCrossValidationConfig,
 
                     f.write(f"\n\n=== METRIC: {metric_type} ===\n\n")
                     if len(outliers) > 0:
-                        # If running inside institution there may be no CSV_SERIES_HEADER or CSV_INSTITUTION_HEADER columns
+                        # If running inside institution there may be no CSV_SERIES_HEADER or CSV_INSTITUTION_HEADER
+                        # columns
                         groupby_columns = [MetricsFileColumns.Patient.value, MetricsFileColumns.Structure.value]
                         if CSV_SERIES_HEADER in outliers.columns:
                             groupby_columns.append(CSV_SERIES_HEADER)
@@ -777,11 +782,14 @@ def check_result_file_counts(config_and_files: OfflineCrossvalConfigAndFiles, is
     n_splits = config_and_files.config.number_of_cross_validation_splits
     failing_modes = []
     for mode, files in result_files_by_mode.items():
-        # By default inference is not run on the training / val set for ensemble models but for test we might have the
-        # result on the test set as well for ensemble.
-        if len(files) != n_splits and not (
-                is_ensemble_run and mode == ModelExecutionMode.TEST and len(files) == (n_splits + 1)):
-            failing_modes.append(mode)
+        if not is_ensemble_run:
+            if len(files) not in (0, n_splits):
+                # For non-ensemble runs there should be either 0 or n_splits results
+                failing_modes.append(mode)
+        else:
+            # For ensemble models there could be results on ensemble children and/or ensemble.
+            if len(files) not in (0, 1, n_splits, n_splits + 1):
+                failing_modes.append(mode)
     if not failing_modes:
         return
     logging.warning(f"The expected number of runs to evaluate was {n_splits}.")
@@ -807,6 +815,9 @@ def plot_cross_validation_from_files(config_and_files: OfflineCrossvalConfigAndF
     result_files = config_and_files.files
     metrics_dfs = load_dataframes(result_files, config)
     full_csv_file = root_folder / FULL_METRICS_DATAFRAME_FILE
+    if len(metrics_dfs.values()) == 0:
+        logging.info("Insufficient inference results to plot cross validation")
+        return
     initial_metrics = pd.concat(list(metrics_dfs.values()))
     if is_segmentation_run:
         if config.create_plots:

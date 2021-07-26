@@ -92,7 +92,7 @@ def test_train_classification_model(class_name: str, test_output_dirs: OutputFol
     assert actual_val_loss == pytest.approx(expected_val_loss, abs=1e-6), "Validation loss"
     assert actual_lr == pytest.approx(expected_learning_rates, rel=1e-5), "Learning rates"
     test_results = model_testing.model_test(config, ModelExecutionMode.TRAIN,
-                                            checkpoint_handler=checkpoint_handler)
+                                            checkpoint_paths=checkpoint_handler.get_checkpoints_to_test())
     assert isinstance(test_results, InferenceMetricsForClassification)
     expected_metrics = [0.636085, 0.735952]
     assert test_results.metrics.values(class_name)[MetricType.CROSS_ENTROPY.value] == \
@@ -205,7 +205,7 @@ def test_train_classification_multilabel_model(test_output_dirs: OutputFolderFor
     assert actual_val_loss == pytest.approx(expected_val_loss, abs=1e-6), "Validation loss"
     assert actual_lr == pytest.approx(expected_learning_rates, rel=1e-5), "Learning rates"
     test_results = model_testing.model_test(config, ModelExecutionMode.TRAIN,
-                                            checkpoint_handler=checkpoint_handler)
+                                            checkpoint_paths=checkpoint_handler.get_checkpoints_to_test())
     assert isinstance(test_results, InferenceMetricsForClassification)
 
     expected_metrics = {MetricType.CROSS_ENTROPY: [1.3996, 5.2966, 1.4020, 0.3553, 0.6908],
@@ -387,7 +387,7 @@ def test_runner_restart(test_output_dirs: OutputFolderForTests) -> None:
     checkpoint_handler = CheckpointHandler(azure_config=azure_config,
                                            container=runner.container,
                                            project_root=test_output_dirs.root_dir)
-    _, storing_logger = model_train(checkpoint_handler=checkpoint_handler,
+    _, storing_logger = model_train(checkpoint_path=checkpoint_handler.get_recovery_or_checkpoint_path_train(),
                                     container=runner.container)
     # We expect to have 4 checkpoints, FIXED_EPOCH (recovery), FIXED_EPOCH+1, FIXED_EPOCH and best.
     assert len(os.listdir(runner.container.checkpoint_folder)) == 4

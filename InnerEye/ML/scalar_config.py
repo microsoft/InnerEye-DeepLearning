@@ -240,6 +240,9 @@ class ScalarModelBase(ModelConfigBase):
             self.num_dataset_reader_workers = num_dataset_reader_workers
         if self.target_names is None:
             self.target_names = self.class_names
+        # Report generation assumes that results for the test set are available when we do cross validation on
+        # all ScalarModels.
+        self.inference_on_test_set = True
 
     def validate(self) -> None:
         if len(self.class_names) > 1 and not self.is_classification_model:
