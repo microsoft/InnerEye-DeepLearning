@@ -218,20 +218,21 @@ class CovidModel(ScalarModelBase):
                                 current_epoch: int,
                                 data_split: ModelExecutionMode) -> None:
         posteriors = self.get_post_loss_logits_normalization_function()(logits)
-        labels = torch.argmax(targets.data.to(dtype=torch.int), dim=-1)
+        labels = torch.argmax(targets, dim=-1)
         metric = metrics[MetricsDict.DEFAULT_HUE_KEY][0]
         metric(posteriors, labels)
 
-        per_subject_outputs = zip(subject_ids, posteriors.tolist(), labels.tolist())
-        for subject, model_output, label in per_subject_outputs:
-            logger.add_record({
-                LoggingColumns.Epoch.value: current_epoch,
-                LoggingColumns.Patient.value: subject,
-                LoggingColumns.Hue.value: MetricsDict.DEFAULT_HUE_KEY,
-                LoggingColumns.ModelOutput.value: model_output,
-                LoggingColumns.Label.value: label,
-                LoggingColumns.DataSplit.value: data_split.value
-            })
+        per_subject_outputs = zip(subject_ids, posteriors.tolist(), targets.tolist())
+        for subject, model_output, target in per_subject_outputs:
+            for i in range(len(self.target_names)):
+                logger.add_record({
+                    LoggingColumns.Epoch.value: current_epoch,
+                    LoggingColumns.Patient.value: subject,
+                    LoggingColumns.Hue.value: self.target_names[i],
+                    LoggingColumns.ModelOutput.value: model_output[i],
+                    LoggingColumns.Label.value: target[i],
+                    LoggingColumns.DataSplit.value: data_split.value
+                })
 
     def generate_custom_report(self, report_dir: Path, model_proc: ModelProcessing) -> Path:
         """
