@@ -63,11 +63,6 @@ Start the Windows Terminal app, create an Ubuntu tab. In the shell, run the foll
 - Close your WSL shell and re-start it
 - Clone repo or access your repos via /mnt/c/...
 - Create conda environment: `conda env create --file environment.yml`
-- Create a file in the top level directory of the repository, named `InnerEyeTestVariables.txt`, with one line:
-```
-APPLICATION_KEY=<app key for your AML workspace>
-```
-This will enable you to run tests that require authentication to Azure.
 - Clean your pyc files (in case you have some left from Windows):
 ```
 find * -name '*.pyc' | xargs -d'\n' rm`
