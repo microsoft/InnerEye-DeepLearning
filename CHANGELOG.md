@@ -40,6 +40,8 @@ gets uploaded to AzureML, by skipping all test folders.
 - ([#546](https://github.com/microsoft/InnerEye-DeepLearning/pull/546)) Environment and hello_world_model documentation updated
 - ([#525](https://github.com/microsoft/InnerEye-DeepLearning/pull/525)) Enable --store_dataset_sample
 - ([#495](https://github.com/microsoft/InnerEye-DeepLearning/pull/495)) Fix model comparison.
+- ([#547](https://github.com/microsoft/InnerEye-DeepLearning/pull/547)) The parameter pl_find_unused_parameters was no longer used 
+to initialize the DDP Plugin.
 - ([#482](https://github.com/microsoft/InnerEye-DeepLearning/pull/482)) Check bool parameter is either true or false.
 - ([#475](https://github.com/microsoft/InnerEye-DeepLearning/pull/475)) Bug in AML SDK meant that we could not train
 any large models anymore because data loaders ran out of memory.
