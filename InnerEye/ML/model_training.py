@@ -128,7 +128,7 @@ def create_lightning_trainer(container: LightningContainer,
     effective_num_gpus = num_gpus * num_nodes
     # Accelerator should be "ddp" when running large models in AzureML (when using DDP_spawn, we get out of GPU memory).
     if effective_num_gpus > 1:
-        accelerator = "ddp"
+        accelerator: Optional[str] = "ddp"
         # Initialize the DDP plugin with find_unused_parameters=False by default. If True (default), it prints out
         # lengthy warnings about the performance impact of find_unused_parameters
         plugins = [DDPPlugin(num_nodes=num_nodes, sync_batchnorm=True,
@@ -273,10 +273,10 @@ def model_train(checkpoint_path: Optional[Path],
     # Per-subject model outputs for regression models are written per rank, and need to be aggregated here.
     # Each thread per rank will come here, and upload its files to the run outputs. Rank 0 will later download them.
     if is_azureml_run and world_size > 1 and isinstance(lightning_model, ScalarLightning):
-        upload_output_file_as_temp(lightning_model.train_subject_outputs_logger.csv_path,
-                                   container.outputs_folder)  # type: ignore
-        upload_output_file_as_temp(lightning_model.val_subject_outputs_logger.csv_path,
-                                   container.outputs_folder)  # type: ignore
+        upload_output_file_as_temp(lightning_model.train_subject_outputs_logger.csv_path,  # type: ignore
+                                   container.outputs_folder)
+        upload_output_file_as_temp(lightning_model.val_subject_outputs_logger.csv_path,  # type: ignore
+                                   container.outputs_folder)
     # DDP will start multiple instances of the runner, one for each GPU. Those should terminate here after training.
     # We can now use the global_rank of the Lightining model, rather than environment variables, because DDP has set
     # all necessary properties.
