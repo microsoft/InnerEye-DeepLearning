@@ -130,7 +130,7 @@ def create_lightning_trainer(container: LightningContainer,
     if effective_num_gpus > 1:
         accelerator: Optional[str] = "ddp"
         # Initialize the DDP plugin. The default for pl_find_unused_parameters is False. If True, the plugin prints out
-        # lengthy warnings about the performance impact of find_unused_parameters
+        # lengthy warnings about the performance impact of find_unused_parameters.
         plugins = [DDPPlugin(num_nodes=num_nodes, sync_batchnorm=True,
                              find_unused_parameters=container.pl_find_unused_parameters)]
     else:
