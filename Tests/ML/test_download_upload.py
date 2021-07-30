@@ -96,19 +96,19 @@ def test_download_azureml_dataset(test_output_dirs: OutputFolderForTests) -> Non
     fake_folder = runner.project_root / "foo"
     runner.container.local_dataset = fake_folder
     with pytest.raises(FileNotFoundError):
-        runner.mount_or_download_dataset(runner.container.azure_dataset_id, runner.container.local_dataset)
+        runner.download_or_use_existing_dataset(runner.container.azure_dataset_id, runner.container.local_dataset)
 
     # If the local dataset folder exists, mount_or_download_dataset should not do anything.
     fake_folder.mkdir()
-    local_dataset = runner.mount_or_download_dataset(runner.container.azure_dataset_id, runner.container.local_dataset)
+    local_dataset = runner.download_or_use_existing_dataset(runner.container.azure_dataset_id, runner.container.local_dataset)
     assert local_dataset == fake_folder
 
     # Pointing the model to a dataset in Azure should trigger a download
     runner.container.local_dataset = None
     runner.container.azure_dataset_id = dataset_name
     with logging_section("Starting download"):
-        result_path = runner.mount_or_download_dataset(runner.container.azure_dataset_id,
-                                                       runner.container.local_dataset)
+        result_path = runner.download_or_use_existing_dataset(runner.container.azure_dataset_id,
+                                                              runner.container.local_dataset)
     # Download goes into <project_root> / "datasets" / "test_dataset"
     expected_path = runner.project_root / fixed_paths.DATASETS_DIR_NAME / dataset_name
     assert result_path == expected_path

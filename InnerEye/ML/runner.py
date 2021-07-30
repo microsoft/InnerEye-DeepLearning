@@ -8,12 +8,13 @@ import warnings
 from pathlib import Path
 
 import matplotlib
-
 # Suppress all errors here because the imports after code cause loads of warnings. We can't specifically suppress
 # individual warnings only.
 # flake8: noqa
 # Workaround for an issue with how AzureML and Pytorch Lightning interact: When spawning additional processes for DDP,
 # the working directory is not correctly picked up in sys.path
+from health.azure.himl import AzureRunInformation
+
 print(f"Starting InnerEye runner at {sys.argv[0]}")
 innereye_root = Path(__file__).absolute().parent.parent.parent
 if (innereye_root / "InnerEye").is_dir():
@@ -185,7 +186,7 @@ class Runner:
             logging.info("extra_code_directory is unset")
         return parser_result
 
-    def run(self) -> Tuple[Optional[DeepLearningConfig], Optional[Run]]:
+    def run(self) -> Tuple[Optional[DeepLearningConfig], AzureRunInformation]:
         """
         The main entry point for training and testing models from the commandline. This chooses a model to train
         via a commandline argument, runs training or testing, and writes all required info to disk and logs.
@@ -201,16 +202,13 @@ class Runner:
         if self.lightning_container.perform_cross_validation:
             # force hyperdrive usage if performing cross validation
             self.azure_config.hyperdrive = True
-        run_object: Optional[Run] = None
-        if self.azure_config.azureml:
-            run_object = self.submit_to_azureml()
-        else:
-            self.run_in_situ()
+        azure_run_info = self.submit_to_azureml()
+        self.run_in_situ(azure_run_info)
         if self.model_config is None:
-            return self.lightning_container, run_object
-        return self.model_config, run_object
+            return self.lightning_container, azure_run_info
+        return self.model_config, azure_run_info
 
-    def submit_to_azureml(self) -> Run:
+    def submit_to_azureml(self) -> AzureRunInformation:
         """
         Submit a job to AzureML, returning the resulting Run object, or exiting if we were asked to wait for
         completion and the Run did not succeed.
@@ -242,9 +240,10 @@ class Runner:
         if not self.lightning_container.regression_test_folder:
             ignored_folders.append("RegressionTestResults")
         with append_to_amlignore(ignored_folders):
-            azure_run = submit_to_azureml(self.azure_config, source_config,
-                                          self.lightning_container.all_azure_dataset_ids(),
-                                          self.lightning_container.all_dataset_mountpoints())
+            azure_run_info = submit_to_azureml(self.azure_config, source_config,
+                                               self.lightning_container.all_azure_dataset_ids(),
+                                               self.lightning_container.all_dataset_mountpoints())
+        azure_run = azure_run_info.run
         logging.info("Job submission to AzureML done.")
         if self.azure_config.pytest_mark and self.azure_config.wait_for_completion:
             # The AzureML job can optionally run pytest. Attempt to download it to the current directory.
@@ -254,11 +253,12 @@ class Runner:
             download_pytest_result(azure_run)
         else:
             logging.info("No pytest_mark present, hence not downloading the pytest result file.")
+        # TODO: Remove that, this should live in health-ml: https://github.com/microsoft/hi-ml/issues/40
         # For PR builds where we wait for job completion, the job must have ended in a COMPLETED state.
         if self.azure_config.wait_for_completion and not is_run_and_child_runs_completed(azure_run):
             raise ValueError(f"Run {azure_run.id} in experiment {azure_run.experiment.name} or one of its child "
                              "runs failed.")
-        return azure_run
+        return azure_run_info
 
     def print_git_tags(self) -> None:
         """
@@ -278,9 +278,11 @@ class Runner:
         for key, value in tags_to_print.items():
             logging.info(f"    {key:20}: {value}")
 
-    def run_in_situ(self) -> None:
+    def run_in_situ(self, azure_run_info: AzureRunInformation) -> None:
         """
         Actually run the AzureML job; this method will typically run on an Azure VM.
+        :param azure_run_info: Contains all information about the present run in AzureML, in particular where the
+        datasets are mounted.
         """
         # Only set the logging level now. Usually, when we set logging to DEBUG, we want diagnostics about the model
         # build itself, but not the tons of debug information that AzureML submissions create.
@@ -305,7 +307,7 @@ class Runner:
             # if it detects that it is not in a multi-node environment.
             set_environment_variables_for_multi_node()
             ml_runner = self.create_ml_runner()
-            ml_runner.setup()
+            ml_runner.setup(azure_run_info)
             ml_runner.start_logging_to_file()
             try:
                 ml_runner.run()
