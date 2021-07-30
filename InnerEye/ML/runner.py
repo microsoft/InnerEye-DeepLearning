@@ -2,18 +2,18 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import logging
 import os
 import sys
 import warnings
 from pathlib import Path
+from typing import Optional, Tuple
 
-import matplotlib
 # Suppress all errors here because the imports after code cause loads of warnings. We can't specifically suppress
 # individual warnings only.
 # flake8: noqa
 # Workaround for an issue with how AzureML and Pytorch Lightning interact: When spawning additional processes for DDP,
 # the working directory is not correctly picked up in sys.path
-from health.azure.himl import AzureRunInformation
 
 print(f"Starting InnerEye runner at {sys.argv[0]}")
 innereye_root = Path(__file__).absolute().parent.parent.parent
@@ -29,22 +29,21 @@ runner_path = Path(sys.argv[0])
 if not runner_path.is_absolute():
     sys.argv[0] = str(runner_path.absolute())
 
-import logging
-from typing import Optional, Tuple
-
 from azureml._base_sdk_common import user_agent
 from azureml.core import Run
+from health.azure.himl import AzureRunInformation
+import matplotlib
 
 from InnerEye.Azure import azure_util
 from InnerEye.Azure.azure_config import AzureConfig, ParserResult, SourceConfig
-from InnerEye.Azure.azure_runner import create_runner_parser, get_git_tags, parse_args_and_add_yaml_variables, \
-    parse_arguments, set_environment_variables_for_multi_node, submit_to_azureml
-from InnerEye.Azure.azure_util import RUN_CONTEXT, get_all_environment_files, is_offline_run_context, \
-    is_run_and_child_runs_completed
+from InnerEye.Azure.azure_runner import (create_runner_parser, get_git_tags, parse_args_and_add_yaml_variables,
+                                         parse_arguments, set_environment_variables_for_multi_node, submit_to_azureml)
+from InnerEye.Azure.azure_util import (RUN_CONTEXT, get_all_environment_files, is_offline_run_context,
+                                       is_run_and_child_runs_completed)
 from InnerEye.Azure.run_pytest import download_pytest_result, run_pytest
 from InnerEye.Common import fixed_paths
-from InnerEye.Common.common_util import FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE, \
-    append_to_amlignore, disable_logging_to_file, is_linux, logging_to_stdout
+from InnerEye.Common.common_util import (FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE,
+                                         disable_logging_to_file, is_linux, logging_to_stdout)
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
@@ -202,13 +201,13 @@ class Runner:
         if self.lightning_container.perform_cross_validation:
             # force hyperdrive usage if performing cross validation
             self.azure_config.hyperdrive = True
-        azure_run_info = self.submit_to_azureml()
+        azure_run_info = self.submit_to_azureml_if_needed()
         self.run_in_situ(azure_run_info)
         if self.model_config is None:
             return self.lightning_container, azure_run_info
         return self.model_config, azure_run_info
 
-    def submit_to_azureml(self) -> AzureRunInformation:
+    def submit_to_azureml_if_needed(self) -> AzureRunInformation:
         """
         Submit a job to AzureML, returning the resulting Run object, or exiting if we were asked to wait for
         completion and the Run did not succeed.
@@ -239,10 +238,10 @@ class Runner:
             ignored_folders.extend(["Tests", "TestsOutsidePackage", "TestSubmodule"])
         if not self.lightning_container.regression_test_folder:
             ignored_folders.append("RegressionTestResults")
-        with append_to_amlignore(ignored_folders):
-            azure_run_info = submit_to_azureml(self.azure_config, source_config,
-                                               self.lightning_container.all_azure_dataset_ids(),
-                                               self.lightning_container.all_dataset_mountpoints())
+        azure_run_info = submit_to_azureml(self.azure_config, source_config,
+                                           self.lightning_container.all_azure_dataset_ids(),
+                                           self.lightning_container.all_dataset_mountpoints(),
+                                           ignored_files_or_folders=ignored_folders)
         azure_run = azure_run_info.run
         logging.info("Job submission to AzureML done.")
         if self.azure_config.pytest_mark and self.azure_config.wait_for_completion:
@@ -258,6 +257,8 @@ class Runner:
         if self.azure_config.wait_for_completion and not is_run_and_child_runs_completed(azure_run):
             raise ValueError(f"Run {azure_run.id} in experiment {azure_run.experiment.name} or one of its child "
                              "runs failed.")
+        if self.azure_config.azureml:
+            sys.exit(0)
         return azure_run_info
 
     def print_git_tags(self) -> None:

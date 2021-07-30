@@ -9,4 +9,3 @@ variables:
   cluster: 'training-nd24'
   model_configs_namespace: ''
   extra_code_directory: ''
-  pip_extra_index_url: 'https://test.pypi.org/simple'

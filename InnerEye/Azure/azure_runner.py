@@ -13,8 +13,8 @@ from datetime import date
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from azureml.core import Environment, Run, ScriptRunConfig
-from health.azure.azure_util import create_run_recovery_id
+from azureml.core import Environment, Run
+from health.azure.azure_util import create_run_recovery_id, to_azure_friendly_string
 from health.azure.datasets import DatasetConfig
 from health.azure.himl import AzureRunInformation, RUN_RECOVERY_FILE, submit_to_azure_if_needed
 
@@ -48,11 +48,14 @@ ENV_LOCAL_RANK = "LOCAL_RANK"
 def submit_to_azureml(azure_config: AzureConfig,
                       source_config: SourceConfig,
                       all_azure_dataset_ids: List[str],
-                      all_dataset_mountpoints: List[str]) -> AzureRunInformation:
+                      all_dataset_mountpoints: List[str],
+                      ignored_files_or_folders: List[str]) -> AzureRunInformation:
     """
     The main entry point when submitting the runner script to AzureML.
     It creates an AzureML workspace if needed, submits an experiment using the code
     as specified in source_config, and waits for completion if needed.
+    :param ignored_files_or_folders: A list of folders in the repository root that will not be uploaded to the
+    AzureML snapshot.
     :param azure_config: azure related configurations to setup valid workspace
     :param source_config: The information about which code should be submitted, and which arguments should be used.
     :param all_azure_dataset_ids: The name of all datasets on blob storage that will be used for this run.
@@ -69,15 +72,9 @@ def submit_to_azureml(azure_config: AzureConfig,
     # In case of version conflicts, the package version in the outer project is given priority.
     # conda_dependencies, merged_yaml = merge_conda_dependencies(source_config.conda_dependencies_files)  # type: ignore
     assert len(source_config.conda_dependencies_files) == 1, "Multiple conda files not yet supported"
-    # TODO: maximum run duration
-    # max_run_duration = None
-    # if azure_config.max_run_duration:
-    #     max_run_duration = run_duration_string_to_seconds(azure_config.max_run_duration)
     # TODO: Add hyperdrive
     # if azure_config.hyperdrive:
     #     script_run_config = source_config.hyperdrive_config_func(script_run_config)  # type: ignore
-    # TODO: experiment name
-    # experiment_name = azure_util.to_azure_friendly_string(create_experiment_name(azure_config))
     run_information = submit_to_azure_if_needed(
         entry_script=source_config.entry_script,
         snapshot_root_directory=source_config.root_folder,
@@ -87,10 +84,14 @@ def submit_to_azureml(azure_config: AzureConfig,
         compute_cluster_name=azure_config.cluster,
         environment_variables={},
         default_datastore=azure_config.azureml_datastore,
+        experiment_name=to_azure_friendly_string(create_experiment_name(azure_config)),
+        max_run_duration=azure_config.max_run_duration,
         input_datasets=input_datasets,
         num_nodes=azure_config.num_nodes,
         wait_for_completion=False,
-        ignored_folders=[Path("foo")]
+        ignored_folders=ignored_files_or_folders,
+        pip_extra_index_url=azure_config.pip_extra_index_url,
+        exit_after_submission=False,
     )
     set_additional_run_tags(run_information.run,
                             azure_config=azure_config,
@@ -99,7 +100,6 @@ def submit_to_azureml(azure_config: AzureConfig,
     print("If this run fails, re-start runner.py and supply these additional arguments: "
           f"--run_recovery_id={recovery_id}")
     print(f"The run recovery ID has been written to this file: {RUN_RECOVERY_FILE}")
-    print("==============================================================================")
     if azure_config.tensorboard and azure_config.azureml:
         print("Starting TensorBoard now because you specified --tensorboard")
         monitor(monitor_config=AMLTensorBoardMonitorConfig(run_ids=[run_information.run.id]), azure_config=azure_config)
