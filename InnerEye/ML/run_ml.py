@@ -64,21 +64,6 @@ ModelDeploymentHookSignature = Callable[[LightningContainer, AzureConfig, Model,
 PostCrossValidationHookSignature = Callable[[ModelConfigBase, Path], None]
 
 
-def try_to_mount_input_dataset(dataset_index: int = 0) -> Optional[Path]:
-    """
-    Checks if the AzureML run context has a field for input datasets. If yes, the dataset stored there is
-    returned as a Path. Returns None if no input datasets was found.
-
-    :param dataset_index: suffix of AML dataset name, return path to INPUT_DATA_KEY_idx dataset
-    """
-    if hasattr(RUN_CONTEXT, "input_datasets"):
-        try:
-            return Path(RUN_CONTEXT.input_datasets[f"{INPUT_DATA_KEY}_{dataset_index}"])
-        except KeyError:
-            logging.warning(f"Run context field input_datasets has no {INPUT_DATA_KEY}_{dataset_index} entry.")
-    return None
-
-
 def download_dataset(azure_dataset_id: str,
                      target_folder: Path,
                      dataset_csv: str,
@@ -220,7 +205,7 @@ class MLRunner:
                 if mounted_dataset is None:
                     mounted_dataset = self.download_or_use_existing_dataset(self.container.azure_dataset_id,
                                                                             self.container.local_dataset)
-                self.container.local_dataset = mounted_dataset
+                self.container.local_dataset = Path(mounted_dataset) if mounted_dataset else None
                 dataset_index += 1
             num_extra_local_datasets = len(self.container.extra_local_dataset_paths)
             extra_locals: List[Path] = []
