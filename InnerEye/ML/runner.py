@@ -242,24 +242,24 @@ class Runner:
                                            self.lightning_container.all_azure_dataset_ids(),
                                            self.lightning_container.all_dataset_mountpoints(),
                                            ignored_files_or_folders=ignored_folders)
-        azure_run = azure_run_info.run
-        logging.info("Job submission to AzureML done.")
-        if self.azure_config.pytest_mark and self.azure_config.wait_for_completion:
-            # The AzureML job can optionally run pytest. Attempt to download it to the current directory.
-            # A build step will pick up that file and publish it to Azure DevOps.
-            # If pytest_mark is set, this file must exist.
-            logging.info("Downloading pytest result file.")
-            download_pytest_result(azure_run)
+        if not self.azure_config.azureml:
+            return azure_run_info
         else:
-            logging.info("No pytest_mark present, hence not downloading the pytest result file.")
-        # TODO: Remove that, this should live in health-ml: https://github.com/microsoft/hi-ml/issues/40
-        # For PR builds where we wait for job completion, the job must have ended in a COMPLETED state.
-        if self.azure_config.wait_for_completion and not is_run_and_child_runs_completed(azure_run):
-            raise ValueError(f"Run {azure_run.id} in experiment {azure_run.experiment.name} or one of its child "
-                             "runs failed.")
-        if self.azure_config.azureml:
+            azure_run = azure_run_info.run
+            if self.azure_config.pytest_mark and self.azure_config.wait_for_completion:
+                # The AzureML job can optionally run pytest. Attempt to download it to the current directory.
+                # A build step will pick up that file and publish it to Azure DevOps.
+                # If pytest_mark is set, this file must exist.
+                logging.info("Downloading pytest result file.")
+                download_pytest_result(azure_run)
+            else:
+                # TODO: Remove that, this should live in health-ml: https://github.com/microsoft/hi-ml/issues/40
+                # For PR builds where we wait for job completion, the job must have ended in a COMPLETED state.
+                if self.azure_config.wait_for_completion and not is_run_and_child_runs_completed(azure_run):
+                    raise ValueError(f"Run {azure_run.id} in experiment {azure_run.experiment.name} or one of its child "
+                                     "runs failed.")
+            print("AzureML job has been submitted successfully. Exiting.")
             sys.exit(0)
-        return azure_run_info
 
     def print_git_tags(self) -> None:
         """

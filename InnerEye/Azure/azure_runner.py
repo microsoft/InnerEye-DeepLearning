@@ -99,7 +99,6 @@ def submit_to_azureml(azure_config: AzureConfig,
     recovery_id = create_run_recovery_id(run_information.run)
     print("If this run fails, re-start runner.py and supply these additional arguments: "
           f"--run_recovery_id={recovery_id}")
-    print(f"The run recovery ID has been written to this file: {RUN_RECOVERY_FILE}")
     if azure_config.tensorboard and azure_config.azureml:
         print("Starting TensorBoard now because you specified --tensorboard")
         monitor(monitor_config=AMLTensorBoardMonitorConfig(run_ids=[run_information.run.id]), azure_config=azure_config)
@@ -154,7 +153,7 @@ def set_additional_run_tags(run: Run, azure_config: AzureConfig, commandline_arg
         "build_user_email": azure_config.build_user_email,
         **git_information,
         "commandline_args": commandline_args,
-        CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY: -1,
+        CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY: "-1",
     })
 
 
