@@ -6,20 +6,17 @@ from __future__ import annotations
 
 import getpass
 import logging
-import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import param
-from azureml.core import Dataset, Datastore, Run, ScriptRunConfig, Workspace
+from azureml.core import Run, ScriptRunConfig, Workspace
 from azureml.core.authentication import InteractiveLoginAuthentication, ServicePrincipalAuthentication
-from azureml.data import FileDataset
-from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.train.hyperdrive import HyperDriveConfig
 from git import Repo
 
-from InnerEye.Azure.azure_util import fetch_run, is_offline_run_context, remove_arg
+from InnerEye.Azure.azure_util import fetch_run, is_offline_run_context
 from InnerEye.Azure.secrets_handling import SecretsHandling, read_all_settings
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.generic_parsing import GenericConfig
@@ -254,13 +251,6 @@ class SourceConfig:
     hyperdrive_config_func: Optional[Callable[[ScriptRunConfig], HyperDriveConfig]] = None
     upload_timeout_seconds: int = 36000
     environment_variables: Optional[Dict[str, str]] = None
-
-    def set_script_params_except_submit_flag(self) -> None:
-        """
-        Populates the script_param field of the present object from the arguments in sys.argv, with the exception
-        of the "azureml" flag.
-        """
-        self.script_params = remove_arg(AZURECONFIG_SUBMIT_TO_AZUREML, sys.argv[1:])
 
 
 @dataclass
