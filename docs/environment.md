@@ -188,3 +188,36 @@ You can do this, for example, to force an update of the `azureml-sdk` and all it
 If you want to take the second route:
 1. Use `conda env update -f environment.yml --prune` to refresh if you make changes in environment.yml
 1. To update packages use `conda update --all` and `pip-review --local --interactive`
+
+
+## Using the hi-ml package
+
+To work on `hi-ml` package at the same time as `InnerEye-DeepLearning`, it can help to add the `hi-ml` package
+as a submodule, rather than a package from pypi. Any change to the package will require a full new docker image build,
+and that costs 20min per run.
+
+* In the repository root, run `git submodule add https://github.com/microsoft/hi-ml`
+* In PyCharm's project browser, mark the folder `hi-ml/src` as Sources Root
+* Remove the entry for the `hi-ml` package from `environment.yml`
+* Modify the start of `InnerEye/ML/runner.py` to look like this:
+```python
+print(f"Starting InnerEye runner at {sys.argv[0]}")
+innereye_root = Path(__file__).absolute().parent.parent.parent
+if (innereye_root / "InnerEye").is_dir():
+    innereye_root_str = str(innereye_root)
+    if innereye_root_str not in sys.path:
+        print(f"Adding InnerEye folder to sys.path: {innereye_root_str}")
+        sys.path.insert(0, innereye_root_str)
+    sys.path.append(str(innereye_root / "hi-ml" / "src"))
+```
+
+Alternatively, you can consume a developer version of `hi-ml` from `test.pypi`:
+* Remove the entry for the `hi-ml` package from `environment.yml`
+* Add a section like this to `environment.yml`, to point pip to `test.pypi`, and a specific version of th package:
+```
+  ...
+  - pip:
+      - --extra-index-url https://test.pypi.org/simple/
+      - hi-ml==0.1.0.post236
+      ...
+```

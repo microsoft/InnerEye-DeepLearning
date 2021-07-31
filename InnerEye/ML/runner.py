@@ -22,6 +22,7 @@ if (innereye_root / "InnerEye").is_dir():
     if innereye_root_str not in sys.path:
         print(f"Adding InnerEye folder to sys.path: {innereye_root_str}")
         sys.path.insert(0, innereye_root_str)
+    sys.path.append(str(innereye_root / "hi-ml" / "src"))
 # We change the current working directory before starting the actual training. However, this throws off starting
 # the child training threads because sys.argv[0] is a relative path when running in AzureML. Turn that into an absolute
 # path.
