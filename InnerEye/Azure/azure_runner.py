@@ -13,20 +13,16 @@ from datetime import date
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from azureml.core import Environment, Run
+from azureml.core import Environment
 
-from InnerEye.Azure import azure_util
 from InnerEye.Azure.azure_config import AzureConfig, ParserResult, SourceConfig
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, RUN_RECOVERY_FROM_ID_KEY_NAME, \
-    RUN_RECOVERY_ID_KEY_NAME, merge_conda_dependencies
+    merge_conda_dependencies
 from InnerEye.Azure.secrets_handling import read_all_settings
-from InnerEye.Azure.tensorboard_monitor import AMLTensorBoardMonitorConfig, monitor
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
-from health.azure.azure_util import create_run_recovery_id, to_azure_friendly_string
 from health.azure.datasets import DatasetConfig
-from health.azure.himl import AzureRunInformation, submit_to_azure_if_needed
 
 SLEEP_TIME_SECONDS = 30
 
@@ -43,80 +39,6 @@ ENV_OMPI_COMM_WORLD_RANK = "OMPI_COMM_WORLD_RANK"
 ENV_NODE_RANK = "NODE_RANK"
 ENV_GLOBAL_RANK = "GLOBAL_RANK"
 ENV_LOCAL_RANK = "LOCAL_RANK"
-
-
-def submit_to_azureml_if_needed(azure_config: AzureConfig,
-                                source_config: SourceConfig,
-                                all_azure_dataset_ids: List[str],
-                                all_dataset_mountpoints: List[str],
-                                ignored_files_or_folders: List[str]) -> AzureRunInformation:
-    """
-    The main entry point when submitting the runner script to AzureML.
-    It creates an AzureML workspace if needed, submits an experiment using the code
-    as specified in source_config, and waits for completion if needed.
-    :param ignored_files_or_folders: A list of folders in the repository root that will not be uploaded to the
-    AzureML snapshot.
-    :param azure_config: azure related configurations to setup valid workspace
-    :param source_config: The information about which code should be submitted, and which arguments should be used.
-    :param all_azure_dataset_ids: The name of all datasets on blob storage that will be used for this run.
-    :param all_dataset_mountpoints: When using mounted datasets in AzureML, these are the per-dataset mount points.
-    The list must have the same length as all_azure_dataset_ids.
-    """
-    input_datasets = create_dataset_configs(azure_config,
-                                            all_azure_dataset_ids=all_azure_dataset_ids,
-                                            all_dataset_mountpoints=all_dataset_mountpoints)
-    # TODO: Ensure that merging is triggering correctly
-    # Merge the project-specific dependencies with the packages that InnerEye itself needs. This should not be
-    # necessary if the innereye package is installed. It is necessary when working with an outer project and
-    # InnerEye as a git submodule and submitting jobs from the local machine.
-    # In case of version conflicts, the package version in the outer project is given priority.
-    # conda_dependencies, merged_yaml = merge_conda_dependencies(source_config.conda_dependencies_files)  # type: ignore
-    assert len(source_config.conda_dependencies_files) == 1, "Multiple conda files not yet supported"
-    # TODO: Add hyperdrive
-    # if azure_config.hyperdrive:
-    #     script_run_config = source_config.hyperdrive_config_func(script_run_config)  # type: ignore
-    print("submitting")
-    run_information = submit_to_azure_if_needed(
-        entry_script=source_config.entry_script,
-        snapshot_root_directory=source_config.root_folder,
-        script_params=source_config.script_params,
-        conda_environment_file=source_config.conda_dependencies_files[0],
-        aml_workspace=azure_config.get_workspace(),
-        compute_cluster_name=azure_config.cluster,
-        environment_variables={},
-        default_datastore=azure_config.azureml_datastore,
-        experiment_name=to_azure_friendly_string(create_experiment_name(azure_config)),
-        max_run_duration=azure_config.max_run_duration,
-        input_datasets=input_datasets,
-        num_nodes=azure_config.num_nodes,
-        wait_for_completion=False,
-        ignored_folders=ignored_files_or_folders,
-        pip_extra_index_url=azure_config.pip_extra_index_url,
-        exit_after_submission=False,
-        submit_to_azureml=azure_config.azureml
-    )
-    print("done")
-    print(run_information)
-    set_additional_run_tags(run_information.run,
-                            azure_config=azure_config,
-                            commandline_args=" ".join(source_config.script_params))
-    recovery_id = create_run_recovery_id(run_information.run)
-    print("If this run fails, re-start runner.py and supply these additional arguments: "
-          f"--run_recovery_id={recovery_id}")
-    if azure_config.tensorboard and azure_config.azureml:
-        print("Starting TensorBoard now because you specified --tensorboard")
-        monitor(monitor_config=AMLTensorBoardMonitorConfig(run_ids=[run_information.run.id]), azure_config=azure_config)
-    else:
-        print(f"To monitor this run locally using TensorBoard, run the script: "
-              f"InnerEye/Azure/tensorboard_monitor.py --run_ids={run_information.run.id}")
-        print("==============================================================================")
-
-    if azure_config.wait_for_completion:
-        # We want the job output to be visible on the console, but the program should not exit if the
-        # job fails because we need to download the pytest result file.
-        run_information.run.wait_for_completion(show_output=True, raise_on_error=False)
-
-    return run_information
 
 
 def get_git_tags(azure_config: AzureConfig) -> Dict[str, str]:
@@ -138,19 +60,17 @@ def get_git_tags(azure_config: AzureConfig) -> Dict[str, str]:
     }
 
 
-def set_additional_run_tags(run: Run, azure_config: AzureConfig, commandline_args: str) -> None:
+def additional_run_tags(azure_config: AzureConfig, commandline_args: str) -> Dict[str, str]:
     """
-    Modifies the tags of the given run to contain a full set of metadata, like git status and user name.
-    :param run: The AzureML run to modify.
+    Gets the set of tags that will be added to the AzureML run as metadata, like git status and user name.
     :param azure_config: The configurations for the present AzureML job
     :param commandline_args: A string that holds all commandline arguments that were used for the present run.
     """
     git_information = get_git_tags(azure_config)
-    run.set_tags({
+    return {
         "tag": azure_config.tag,
         "model_name": azure_config.model,
         "execution_mode": ModelExecutionMode.TRAIN.value if azure_config.train else ModelExecutionMode.TEST.value,
-        RUN_RECOVERY_ID_KEY_NAME: azure_util.create_run_recovery_id(run=run),
         RUN_RECOVERY_FROM_ID_KEY_NAME: azure_config.run_recovery_id,
         "build_number": str(azure_config.build_number),
         "build_user": azure_config.build_user,
@@ -158,7 +78,7 @@ def set_additional_run_tags(run: Run, azure_config: AzureConfig, commandline_arg
         **git_information,
         "commandline_args": commandline_args,
         CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY: "-1",
-    })
+    }
 
 
 def create_experiment_name(azure_config: AzureConfig) -> str:

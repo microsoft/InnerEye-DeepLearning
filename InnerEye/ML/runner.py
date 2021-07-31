@@ -32,15 +32,20 @@ if not runner_path.is_absolute():
 
 from azureml._base_sdk_common import user_agent
 from azureml.core import Run
-from health.azure.himl import AzureRunInformation
+from health.azure.himl import AzureRunInformation, is_running_in_azure, submit_to_azure_if_needed
+from health.azure.azure_util import create_run_recovery_id, to_azure_friendly_string
 import matplotlib
 
+from InnerEye.Azure.tensorboard_monitor import AMLTensorBoardMonitorConfig, monitor
 from InnerEye.Azure import azure_util
 from InnerEye.Azure.azure_config import AzureConfig, ParserResult, SourceConfig
-from InnerEye.Azure.azure_runner import (create_runner_parser, get_git_tags, parse_args_and_add_yaml_variables,
-                                         parse_arguments, set_environment_variables_for_multi_node,
-                                         submit_to_azureml_if_needed)
-from InnerEye.Azure.azure_util import (RUN_CONTEXT, get_all_environment_files, is_offline_run_context,
+from InnerEye.Azure.azure_runner import (create_dataset_configs, create_experiment_name, create_runner_parser,
+                                         get_git_tags,
+                                         parse_args_and_add_yaml_variables,
+                                         parse_arguments, additional_run_tags,
+                                         set_environment_variables_for_multi_node)
+from InnerEye.Azure.azure_util import (RUN_CONTEXT, RUN_RECOVERY_ID_KEY_NAME, get_all_environment_files,
+                                       is_offline_run_context,
                                        is_run_and_child_runs_completed)
 from InnerEye.Azure.run_pytest import download_pytest_result, run_pytest
 from InnerEye.Common import fixed_paths
@@ -240,14 +245,64 @@ class Runner:
             ignored_folders.extend(["Tests", "TestsOutsidePackage", "TestSubmodule"])
         if not self.lightning_container.regression_test_folder:
             ignored_folders.append("RegressionTestResults")
-        azure_run_info = submit_to_azureml_if_needed(self.azure_config, source_config,
-                                                     self.lightning_container.all_azure_dataset_ids(),
-                                                     self.lightning_container.all_dataset_mountpoints(),
-                                                     ignored_files_or_folders=ignored_folders)
-        if not self.azure_config.azureml:
+
+        input_datasets = create_dataset_configs(self.azure_config,
+                                                all_azure_dataset_ids=self.lightning_container.all_azure_dataset_ids(),
+                                                all_dataset_mountpoints=self.lightning_container.all_dataset_mountpoints())
+        # TODO: Ensure that merging is triggering correctly
+        # Merge the project-specific dependencies with the packages that InnerEye itself needs. This should not be
+        # necessary if the innereye package is installed. It is necessary when working with an outer project and
+        # InnerEye as a git submodule and submitting jobs from the local machine.
+        # In case of version conflicts, the package version in the outer project is given priority.
+        # conda_dependencies, merged_yaml = merge_conda_dependencies(source_config.conda_dependencies_files)  # type:
+        # ignore
+        assert len(source_config.conda_dependencies_files) == 1, "Multiple conda files not yet supported"
+        # TODO: Add hyperdrive
+        # if azure_config.hyperdrive:
+        #     script_run_config = source_config.hyperdrive_config_func(script_run_config)  # type: ignore
+        azure_run_info = submit_to_azure_if_needed(
+            entry_script=source_config.entry_script,
+            snapshot_root_directory=source_config.root_folder,
+            script_params=source_config.script_params,
+            conda_environment_file=source_config.conda_dependencies_files[0],
+            aml_workspace=self.azure_config.get_workspace(),
+            compute_cluster_name=self.azure_config.cluster,
+            environment_variables=source_config.environment_variables,
+            default_datastore=self.azure_config.azureml_datastore,
+            experiment_name=to_azure_friendly_string(create_experiment_name(self.azure_config)),
+            max_run_duration=self.azure_config.max_run_duration,
+            input_datasets=input_datasets,
+            num_nodes=self.azure_config.num_nodes,
+            wait_for_completion=False,
+            ignored_folders=ignored_folders,
+            pip_extra_index_url=self.azure_config.pip_extra_index_url,
+            exit_after_submission=False,
+            submit_to_azureml=self.azure_config.azureml,
+            tags=additional_run_tags(azure_config=self.azure_config,
+                                     commandline_args=" ".join(source_config.script_params))
+        )
+        if is_running_in_azure():
             return azure_run_info
         else:
             azure_run = azure_run_info.run
+            # Add an extra tag that depends on the run that was actually submitted. This is used for later filtering
+            # run in cross validation analysis
+            azure_run.tag(RUN_RECOVERY_ID_KEY_NAME, azure_util.create_run_recovery_id(run=azure_run))
+            recovery_id = create_run_recovery_id(azure_run)
+            print("If this run fails, re-start runner.py and supply these additional arguments: "
+                  f"--run_recovery_id={recovery_id}")
+            if self.azure_config.tensorboard:
+                print("Starting TensorBoard now because you specified --tensorboard")
+                monitor(monitor_config=AMLTensorBoardMonitorConfig(run_ids=[azure_run.id]),
+                        azure_config=self.azure_config)
+            else:
+                print(f"To monitor this run locally using TensorBoard, run the script: "
+                      f"InnerEye/Azure/tensorboard_monitor.py --run_ids={azure_run.id}")
+
+            if self.azure_config.wait_for_completion:
+                # We want the job output to be visible on the console, but the program should not exit if the
+                # job fails because we need to download the pytest result file.
+                azure_run.wait_for_completion(show_output=True, raise_on_error=False)
             if self.azure_config.pytest_mark and self.azure_config.wait_for_completion:
                 # The AzureML job can optionally run pytest. Attempt to download it to the current directory.
                 # A build step will pick up that file and publish it to Azure DevOps.
