@@ -75,6 +75,7 @@ def submit_to_azureml_if_needed(azure_config: AzureConfig,
     # TODO: Add hyperdrive
     # if azure_config.hyperdrive:
     #     script_run_config = source_config.hyperdrive_config_func(script_run_config)  # type: ignore
+    print("submitting")
     run_information = submit_to_azure_if_needed(
         entry_script=source_config.entry_script,
         snapshot_root_directory=source_config.root_folder,
@@ -94,6 +95,8 @@ def submit_to_azureml_if_needed(azure_config: AzureConfig,
         exit_after_submission=False,
         submit_to_azureml=azure_config.azureml
     )
+    print("done")
+    print(run_information)
     set_additional_run_tags(run_information.run,
                             azure_config=azure_config,
                             commandline_args=" ".join(source_config.script_params))
