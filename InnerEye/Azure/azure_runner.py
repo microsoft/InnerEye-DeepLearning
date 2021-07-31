@@ -14,9 +14,6 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from azureml.core import Environment, Run
-from health.azure.azure_util import create_run_recovery_id, to_azure_friendly_string
-from health.azure.datasets import DatasetConfig
-from health.azure.himl import AzureRunInformation, RUN_RECOVERY_FILE, submit_to_azure_if_needed
 
 from InnerEye.Azure import azure_util
 from InnerEye.Azure.azure_config import AzureConfig, ParserResult, SourceConfig
@@ -27,6 +24,9 @@ from InnerEye.Azure.tensorboard_monitor import AMLTensorBoardMonitorConfig, moni
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
+from health.azure.azure_util import create_run_recovery_id, to_azure_friendly_string
+from health.azure.datasets import DatasetConfig
+from health.azure.himl import AzureRunInformation, submit_to_azure_if_needed
 
 SLEEP_TIME_SECONDS = 30
 
@@ -45,11 +45,11 @@ ENV_GLOBAL_RANK = "GLOBAL_RANK"
 ENV_LOCAL_RANK = "LOCAL_RANK"
 
 
-def submit_to_azureml(azure_config: AzureConfig,
-                      source_config: SourceConfig,
-                      all_azure_dataset_ids: List[str],
-                      all_dataset_mountpoints: List[str],
-                      ignored_files_or_folders: List[str]) -> AzureRunInformation:
+def submit_to_azureml_if_needed(azure_config: AzureConfig,
+                                source_config: SourceConfig,
+                                all_azure_dataset_ids: List[str],
+                                all_dataset_mountpoints: List[str],
+                                ignored_files_or_folders: List[str]) -> AzureRunInformation:
     """
     The main entry point when submitting the runner script to AzureML.
     It creates an AzureML workspace if needed, submits an experiment using the code
@@ -92,6 +92,7 @@ def submit_to_azureml(azure_config: AzureConfig,
         ignored_folders=ignored_files_or_folders,
         pip_extra_index_url=azure_config.pip_extra_index_url,
         exit_after_submission=False,
+        submit_to_azureml=azure_config.azureml
     )
     set_additional_run_tags(run_information.run,
                             azure_config=azure_config,

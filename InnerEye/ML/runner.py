@@ -38,7 +38,8 @@ import matplotlib
 from InnerEye.Azure import azure_util
 from InnerEye.Azure.azure_config import AzureConfig, ParserResult, SourceConfig
 from InnerEye.Azure.azure_runner import (create_runner_parser, get_git_tags, parse_args_and_add_yaml_variables,
-                                         parse_arguments, set_environment_variables_for_multi_node, submit_to_azureml)
+                                         parse_arguments, set_environment_variables_for_multi_node,
+                                         submit_to_azureml_if_needed)
 from InnerEye.Azure.azure_util import (RUN_CONTEXT, get_all_environment_files, is_offline_run_context,
                                        is_run_and_child_runs_completed)
 from InnerEye.Azure.run_pytest import download_pytest_result, run_pytest
@@ -239,10 +240,10 @@ class Runner:
             ignored_folders.extend(["Tests", "TestsOutsidePackage", "TestSubmodule"])
         if not self.lightning_container.regression_test_folder:
             ignored_folders.append("RegressionTestResults")
-        azure_run_info = submit_to_azureml(self.azure_config, source_config,
-                                           self.lightning_container.all_azure_dataset_ids(),
-                                           self.lightning_container.all_dataset_mountpoints(),
-                                           ignored_files_or_folders=ignored_folders)
+        azure_run_info = submit_to_azureml_if_needed(self.azure_config, source_config,
+                                                     self.lightning_container.all_azure_dataset_ids(),
+                                                     self.lightning_container.all_dataset_mountpoints(),
+                                                     ignored_files_or_folders=ignored_folders)
         if not self.azure_config.azureml:
             return azure_run_info
         else:
@@ -257,8 +258,9 @@ class Runner:
                 # TODO: Remove that, this should live in health-ml: https://github.com/microsoft/hi-ml/issues/40
                 # For PR builds where we wait for job completion, the job must have ended in a COMPLETED state.
                 if self.azure_config.wait_for_completion and not is_run_and_child_runs_completed(azure_run):
-                    raise ValueError(f"Run {azure_run.id} in experiment {azure_run.experiment.name} or one of its child "
-                                     "runs failed.")
+                    raise ValueError(
+                        f"Run {azure_run.id} in experiment {azure_run.experiment.name} or one of its child "
+                        "runs failed.")
             print("AzureML job has been submitted successfully. Exiting.")
             sys.exit(0)
 
