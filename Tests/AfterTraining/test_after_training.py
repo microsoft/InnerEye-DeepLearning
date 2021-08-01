@@ -22,7 +22,6 @@ from azureml._restclient.constants import RunStatus
 from azureml.core import Model, Run
 
 from InnerEye.Azure.azure_config import AzureConfig
-from InnerEye.Azure.azure_runner import RUN_RECOVERY_FILE
 from InnerEye.Azure.azure_util import MODEL_ID_KEY_NAME, download_run_output_file, download_run_outputs_by_prefix, \
     get_comparison_baseline_paths, \
     is_running_on_azure_agent, to_azure_friendly_string
@@ -49,6 +48,7 @@ from InnerEye.ML.utils.io_util import zip_random_dicom_series
 from InnerEye.ML.visualizers.plot_cross_validation import PlotCrossValidationConfig
 from InnerEye.Scripts import submit_for_inference
 from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_default_workspace, get_nifti_shape
+from health.azure.himl import RUN_RECOVERY_FILE
 
 FALLBACK_SINGLE_RUN = "refs_pull_545_merge:refs_pull_545_merge_1626538212_d2b07afd"
 FALLBACK_ENSEMBLE_RUN = "refs_pull_545_merge:HD_caea82ae-9603-48ba-8280-7d2bc6272411"
