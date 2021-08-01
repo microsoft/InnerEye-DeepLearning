@@ -218,9 +218,8 @@ class MLRunner:
                     if 0 < num_extra_local_datasets <= i:
                         raise ValueError(f"The model refers to an Azure dataset '{extra_azure_id}' at index {i}, "
                                          "but there is no matching local dataset in `extra_azure_dataset_ids`.")
-                    local_dataset = None if num_extra_local_datasets == 0 else self.container.extra_azure_dataset_ids[i]
-                    mounted_dataset = self.download_or_use_existing_dataset(extra_azure_id,
-                                                                            local_dataset)
+                    local = None if num_extra_local_datasets == 0 else self.container.extra_local_dataset_paths[i]
+                    mounted_dataset = self.download_or_use_existing_dataset(extra_azure_id, local_dataset=local)
                 assert mounted_dataset is not None  # for mypy
                 extra_locals.append(mounted_dataset)
             self.container.extra_local_dataset_paths = extra_locals
