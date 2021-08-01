@@ -129,9 +129,6 @@ venv.bak/
 .dmypy.json
 dmypy.json
 
-# other
-.vscode/
-
 /InnerEye/ML/src/aml_config
 *.exe
 *.suo
