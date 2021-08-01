@@ -3,7 +3,7 @@
 FROM mcr.microsoft.com/vscode/devcontainers/miniconda:0-3
 
 RUN apt-get update
-ENV DEBIAN_FRONTEND=noninteractive
+RUN export DEBIAN_FRONTEND=noninteractive
 RUN apt-get -y install --no-install-recommends make
 RUN apt-get -y install gcc git-lfs python3-dev build-essential
 
@@ -12,6 +12,10 @@ RUN apt-get -y install gcc git-lfs python3-dev build-essential
 COPY environment.yml* .devcontainer/noop.txt /tmp/conda-tmp/
 RUN if [ -f "/tmp/conda-tmp/environment.yml" ]; then /opt/conda/bin/conda env update --name base --file /tmp/conda-tmp/environment.yml; fi
 RUN rm -rf /tmp/conda-tmp
+# N.B. Despite the previous lines I still needed to run
+#     conda update --name base conda --channel anaconda
+#     conda env create --file environment.yml
+# manually in the container after it started. TODO: Fix that.
 
 # [Optional] Uncomment this section to hard code HIML test environment variables into image.
 # ENV HIML_RESOURCE_GROUP="<< YOUR_HIML_RESOURCE_GROUP >>"
