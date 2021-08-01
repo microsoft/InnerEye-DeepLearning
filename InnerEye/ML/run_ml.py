@@ -21,27 +21,27 @@ from pytorch_lightning.core.datamodule import LightningDataModule
 from torch.utils.data import DataLoader
 
 from InnerEye.Azure import azure_util
-from InnerEye.Azure.azure_config import AzureConfig, INPUT_DATA_KEY
-from InnerEye.Azure.azure_runner import ENVIRONMENT_VERSION, ENV_OMPI_COMM_WORLD_RANK, get_git_tags
-from InnerEye.Azure.azure_util import (CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, 
+from InnerEye.Azure.azure_config import INPUT_DATA_KEY, AzureConfig
+from InnerEye.Azure.azure_runner import ENV_OMPI_COMM_WORLD_RANK, ENVIRONMENT_VERSION, get_git_tags
+from InnerEye.Azure.azure_util import (CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX,
                                        EFFECTIVE_RANDOM_SEED_KEY_NAME, IS_ENSEMBLE_KEY_NAME, MODEL_ID_KEY_NAME,
                                        PARENT_RUN_CONTEXT, PARENT_RUN_ID_KEY_NAME, RUN_CONTEXT,
                                        RUN_RECOVERY_FROM_ID_KEY_NAME, RUN_RECOVERY_ID_KEY_NAME, create_run_recovery_id,
                                        get_all_environment_files, is_offline_run_context, merge_conda_files)
 from InnerEye.Common import fixed_paths
-from InnerEye.Common.common_util import (BASELINE_COMPARISONS_FOLDER, BASELINE_WILCOXON_RESULTS_FILE, 
+from InnerEye.Common.common_util import (BASELINE_COMPARISONS_FOLDER, BASELINE_WILCOXON_RESULTS_FILE,
                                          CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, FULL_METRICS_DATAFRAME_FILE,
-                                         METRICS_AGGREGATES_FILE, ModelProcessing, OTHER_RUNS_SUBDIR_NAME,
-                                         SCATTERPLOTS_SUBDIR_NAME, SUBJECT_METRICS_FILE_NAME, change_working_directory,
-                                         get_best_epoch_results_path, is_windows, logging_section, logging_to_file, 
+                                         METRICS_AGGREGATES_FILE, OTHER_RUNS_SUBDIR_NAME, SCATTERPLOTS_SUBDIR_NAME,
+                                         SUBJECT_METRICS_FILE_NAME, ModelProcessing, change_working_directory,
+                                         get_best_epoch_results_path, is_windows, logging_section, logging_to_file,
                                          print_exception, remove_file_or_directory)
 from InnerEye.Common.fixed_paths import INNEREYE_PACKAGE_NAME, LOG_FILE_NAME, PYTHON_ENVIRONMENT_NAME
 from InnerEye.ML.baselines_util import compare_folders_and_run_outputs
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.deep_learning_config import (CHECKPOINT_FOLDER, DeepLearningConfig, FINAL_ENSEMBLE_MODEL_FOLDER,
-                                              FINAL_MODEL_FOLDER, ModelCategory, MultiprocessingStartMethod,
-                                              load_checkpoint, EXTRA_RUN_SUBFOLDER)
+from InnerEye.ML.deep_learning_config import (CHECKPOINT_FOLDER, EXTRA_RUN_SUBFOLDER, FINAL_ENSEMBLE_MODEL_FOLDER,
+                                              FINAL_MODEL_FOLDER, DeepLearningConfig, ModelCategory,
+                                              MultiprocessingStartMethod, load_checkpoint)
 from InnerEye.ML.lightning_base import InnerEyeContainer
 from InnerEye.ML.lightning_container import InnerEyeInference, LightningContainer
 from InnerEye.ML.metrics import InferenceMetrics, InferenceMetricsForSegmentation
@@ -51,7 +51,7 @@ from InnerEye.ML.model_testing import model_test
 from InnerEye.ML.model_training import create_lightning_trainer, is_global_rank_zero, model_train
 from InnerEye.ML.reports.notebook_report import (generate_classification_crossval_notebook,
                                                  generate_classification_multilabel_notebook,
-                                                 generate_classification_notebook, generate_segmentation_notebook, 
+                                                 generate_classification_notebook, generate_segmentation_notebook,
                                                  get_ipynb_report_name, reports_folder)
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
@@ -505,7 +505,7 @@ class MLRunner:
             lightning_model.on_inference_start()
             for loader, split in dataloaders:
                 logging.info(f"Starting inference on {split.value} set")
-                lightning_model.on_inference_start_dataset(execution_mode=split)
+                lightning_model.on_inference_start_dataset(dataset_split=split)
                 for batch_idx, batch in enumerate(loader):
                     posteriors = lightning_model.forward(batch['x'])
                     lightning_model.record_posteriors(batch, batch_idx, posteriors)
@@ -1010,24 +1010,32 @@ class MLRunner:
         :param model: The LightningModule model to use as the template for the models in the ensemble.
         :param checkpoint_paths: The paths to the checkpoints gleaned from the cross validation runs.
         """
-        if self.innereye_config.ensemble_model:
-            ensemble = self.innereye_config.ensemble_model
-        elif isinstance(model, InnerEyeEnsembleInference):
-            ensemble = model
-        else:
+        if not isinstance(model, InnerEyeInference):
             raise ValueError(
                 "To build an ensemble model out of the checkpoints from a Lightning model's cross validation run we ",
-                "need an instance of a subclass of InnerEyeEnsembleInference. This can be specified via the  ",
-                "ensemble_model_name flag, or passed in to this method as the model parameter. We found neither.")
-        ensemble.load_checkpoints_into_ensemble(
-            exemplar=model,
-            checkpoint_paths=checkpoint_paths,
-            use_gpu=self.container.use_gpu)
+                "need an instance of a subclass of InnerEyeInference.")
+
+        ensemble_models: List[InnerEyeInference] = []
+        for checkpoint_path in checkpoint_paths:
+            # TODO: Is this the correct way to pass through use_gpu?
+            use_gpu = False
+            if isinstance(self.container.config, DeepLearningConfig):
+                use_gpu = self.container.config.use_gpu
+            checkpoint = load_checkpoint(checkpoint_path, use_gpu)
+            new_model = type(model)()
+            new_model.load_state_dict(checkpoint['state_dict'], strict=False)
+            ensemble_models.append(new_model)
+
         test_dataloader = self.container.get_data_module().test_dataloader()
-        ensemble.on_ensemble_inference_start()
-        ensemble.on_ensemble_inference_start_dataset(ModelExecutionMode.TEST)
-        for batch_idx, batch in enumerate(test_dataloader):
-            posterior = ensemble.ensemble_forward(batch['x'])
-            ensemble.record_ensemble_posterior(batch['y'], batch_idx, posterior)
-        ensemble.on_ensemble_inference_end_dataset()
-        ensemble.on_ensemble_inference_end()
+        ensemble_posteriors: List[] = []
+
+        for inference_model in ensemble_models:
+            inference_model.on_inference_start()
+            inference_model.on_inference_start_dataset(ModelExecutionMode.TEST)
+            for batch_idx, batch in enumerate(test_dataloader):
+                posteriors = inference_model.forward(batch['x'])  # type: ignore
+                inference_model.record_posteriors(batch['y'], batch_idx, posteriors)
+            inference_model.on_inference_end_dataset()
+            inference_model.on_inference_end()
+
+        ensemble_owner = ensemble_models[0]
