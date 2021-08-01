@@ -22,7 +22,10 @@ if (innereye_root / "InnerEye").is_dir():
     if innereye_root_str not in sys.path:
         print(f"Adding InnerEye folder to sys.path: {innereye_root_str}")
         sys.path.insert(0, innereye_root_str)
-    sys.path.append(str(innereye_root / "hi-ml" / "src"))
+    # Add hi-ml package if that was included as a submodule, rather than coming from pip
+    himl_folder = innereye_root / "hi-ml" / "src"
+    if himl_folder.is_dir() and str(himl_folder) not in sys.path:
+        sys.path.insert(0, str(himl_folder))
 # We change the current working directory before starting the actual training. However, this throws off starting
 # the child training threads because sys.argv[0] is a relative path when running in AzureML. Turn that into an absolute
 # path.
@@ -257,34 +260,15 @@ class Runner:
         # conda_dependencies, merged_yaml = merge_conda_dependencies(source_config.conda_dependencies_files)  # type:
         # ignore
         assert len(source_config.conda_dependencies_files) == 1, "Multiple conda files not yet supported"
+
         # TODO: Add hyperdrive
         # if azure_config.hyperdrive:
         #     script_run_config = source_config.hyperdrive_config_func(script_run_config)  # type: ignore
-        azure_run_info = submit_to_azure_if_needed(
-            entry_script=source_config.entry_script,
-            snapshot_root_directory=source_config.root_folder,
-            script_params=source_config.script_params,
-            conda_environment_file=source_config.conda_dependencies_files[0],
-            aml_workspace=self.azure_config.get_workspace(),
-            compute_cluster_name=self.azure_config.cluster,
-            environment_variables=source_config.environment_variables,
-            default_datastore=self.azure_config.azureml_datastore,
-            experiment_name=to_azure_friendly_string(create_experiment_name(self.azure_config)),
-            max_run_duration=self.azure_config.max_run_duration,
-            input_datasets=input_datasets,
-            num_nodes=self.azure_config.num_nodes,
-            wait_for_completion=False,
-            ignored_folders=ignored_folders,
-            pip_extra_index_url=self.azure_config.pip_extra_index_url,
-            exit_after_submission=False,
-            submit_to_azureml=self.azure_config.azureml,
-            tags=additional_run_tags(azure_config=self.azure_config,
-                                     commandline_args=" ".join(source_config.script_params))
-        )
-        if is_running_in_azure():
-            return azure_run_info
-        else:
-            azure_run = azure_run_info.run
+
+        def after_submission_hook(azure_run: Run) -> None:
+            """
+            A function that will be called right after job submission.
+            """
             # Add an extra tag that depends on the run that was actually submitted. This is used for later filtering
             # run in cross validation analysis
             azure_run.tag(RUN_RECOVERY_ID_KEY_NAME, azure_util.create_run_recovery_id(run=azure_run))
@@ -316,8 +300,31 @@ class Runner:
                     raise ValueError(
                         f"Run {azure_run.id} in experiment {azure_run.experiment.name} or one of its child "
                         "runs failed.")
-            print("AzureML job has been submitted successfully. Exiting.")
-            sys.exit(0)
+
+        azure_run_info = submit_to_azure_if_needed(
+            entry_script=source_config.entry_script,
+            snapshot_root_directory=source_config.root_folder,
+            script_params=source_config.script_params,
+            conda_environment_file=source_config.conda_dependencies_files[0],
+            aml_workspace=self.azure_config.get_workspace(),
+            compute_cluster_name=self.azure_config.cluster,
+            environment_variables=source_config.environment_variables,
+            default_datastore=self.azure_config.azureml_datastore,
+            experiment_name=to_azure_friendly_string(create_experiment_name(self.azure_config)),
+            max_run_duration=self.azure_config.max_run_duration,
+            input_datasets=input_datasets,
+            num_nodes=self.azure_config.num_nodes,
+            wait_for_completion=False,
+            ignored_folders=ignored_folders,
+            pip_extra_index_url=self.azure_config.pip_extra_index_url,
+            submit_to_azureml=self.azure_config.azureml,
+            tags=additional_run_tags(azure_config=self.azure_config,
+                                     commandline_args=" ".join(source_config.script_params)),
+            after_submission=after_submission_hook
+        )
+        # submit_to_azure_if_needed calls sys.exit after submitting to AzureML. We only reach this when running
+        # the script locally or in AzureML.
+        return azure_run_info
 
     def print_git_tags(self) -> None:
         """

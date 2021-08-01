@@ -13,6 +13,7 @@ from pytorch_lightning import LightningModule
 from azureml.core import ScriptRunConfig
 from azureml.train.hyperdrive.runconfig import HyperDriveConfig
 
+from InnerEye.Azure.azure_util import is_offline_run_context
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.deep_learning_config import ARGS_TXT, DatasetParams, WorkflowParams
@@ -36,8 +37,7 @@ def test_run_container_in_situ(test_output_dirs: OutputFolderForTests) -> None:
     args = ["", "--model=DummyContainerWithModel", "--model_configs_namespace=Tests.ML.configs",
             f"--output_to={test_output_dirs.root_dir}", f"--local_dataset={local_dataset}"]
     with mock.patch("sys.argv", args):
-        loaded_config, actual_run = runner.run()
-    assert actual_run is None
+        runner.run()
     assert isinstance(runner.lightning_container, DummyContainerWithModel)
     # Test if the outputs folder is relative to the folder that we specified via the commandline
     runner.lightning_container.outputs_folder.relative_to(test_output_dirs.root_dir)
@@ -81,8 +81,7 @@ def test_run_container_with_plain_lightning_in_situ(test_output_dirs: OutputFold
     args = ["", "--model=DummyContainerWithPlainLightning", "--model_configs_namespace=Tests.ML.configs",
             f"--output_to={test_output_dirs.root_dir}", f"--local_dataset={local_dataset}"]
     with mock.patch("sys.argv", args):
-        loaded_config, actual_run = runner.run()
-    assert actual_run is None
+        runner.run()
     assert isinstance(runner.lightning_container, DummyContainerWithPlainLightning)
     # Test if the outputs folder is relative to the folder that we specified via the commandline
     runner.lightning_container.outputs_folder.relative_to(test_output_dirs.root_dir)

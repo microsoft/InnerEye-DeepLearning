@@ -14,7 +14,6 @@ from functools import wraps
 from pathlib import Path
 from typing import Any, Callable, Generator, Iterable, List, Optional, Union
 
-from InnerEye.Common import fixed_paths
 from InnerEye.Common.fixed_paths import repository_root_directory
 from InnerEye.Common.type_annotations import PathOrString
 from InnerEye.ML.common import ModelExecutionMode
@@ -24,7 +23,6 @@ MAX_PATH_LENGTH = 260
 # convert string to None if an empty string or whitespace is provided
 empty_string_to_none = lambda x: None if (x is None or len(x.strip()) == 0) else x
 string_to_path = lambda x: None if (x is None or len(x.strip()) == 0) else Path(x)
-
 
 SUBJECT_METRICS_FILE_NAME = "metrics.csv"
 EPOCH_METRICS_FILE_NAME = "epoch_metrics.csv"
