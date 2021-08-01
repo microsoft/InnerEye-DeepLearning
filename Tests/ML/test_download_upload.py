@@ -89,7 +89,7 @@ def test_download_azureml_dataset(test_output_dirs: OutputFolderForTests) -> Non
     # creation may need access to the dataset.
     with pytest.raises(ValueError) as ex:
         runner.setup()
-    assert ex.value.args[0] == "The model must contain either local_dataset or azure_dataset_id."
+    assert ex.value.args[0] == "Expecting that a dataset is available here."
     runner.project_root = test_output_dirs.root_dir
 
     # Pointing the model to a dataset folder that does not exist should raise an Exception

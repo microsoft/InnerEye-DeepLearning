@@ -5,7 +5,6 @@
 import logging
 import os
 import sys
-import warnings
 from pathlib import Path
 from typing import Optional, Tuple
 
@@ -35,7 +34,7 @@ if not runner_path.is_absolute():
 
 from azureml._base_sdk_common import user_agent
 from azureml.core import Run
-from health.azure.himl import AzureRunInformation, is_running_in_azure, submit_to_azure_if_needed
+from health.azure.himl import AzureRunInformation, submit_to_azure_if_needed
 from health.azure.azure_util import create_run_recovery_id, to_azure_friendly_string
 import matplotlib
 
@@ -222,13 +221,8 @@ class Runner:
         Submit a job to AzureML, returning the resulting Run object, or exiting if we were asked to wait for
         completion and the Run did not succeed.
         """
-        # The adal package creates a logging.info line each time it gets an authentication token, avoid that.
-        logging.getLogger('adal-python').setLevel(logging.WARNING)
-        # Azure core prints full HTTP requests even in INFO mode
-        logging.getLogger('azure').setLevel(logging.WARNING)
-        # PyJWT prints out warnings that are beyond our control
-        warnings.filterwarnings("ignore", category=DeprecationWarning)
-        if isinstance(self.model_config, DeepLearningConfig) and not self.lightning_container.azure_dataset_id:
+        if self.azure_config.azureml and isinstance(self.model_config, DeepLearningConfig) \
+                and not self.lightning_container.azure_dataset_id:
             raise ValueError("When running an InnerEye built-in model in AzureML, the 'azure_dataset_id' "
                              "property must be set.")
         source_config = SourceConfig(

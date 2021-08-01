@@ -49,13 +49,3 @@ def test_dataset_consumption4() -> None:
     with pytest.raises(ValueError) as ex:
         create_dataset_configs(azure_config, ["test-dataset", "test-dataset"], ["foo"])
     assert "must equal the number of Azure dataset IDs" in str(ex)
-
-
-def test_dataset_consumption5() -> None:
-    """
-    Test error handling for empty dataset IDs.
-    """
-    azure_config = get_default_azure_config()
-    with pytest.raises(ValueError) as ex:
-        azure_config.get_or_create_dataset("")
-    assert "No dataset ID provided" in str(ex)
