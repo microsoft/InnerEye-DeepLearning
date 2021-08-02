@@ -213,8 +213,8 @@ class MLRunner:
             if self.container.extra_azure_dataset_ids:
                 num_extra_local_datasets = len(self.container.extra_local_dataset_paths)
                 extra_locals: List[Path] = []
-                for i, extra_azure_id in enumerate(self.container.extra_azure_dataset_ids, 1):
-                    if 0 < num_extra_local_datasets <= i:
+                for i, extra_azure_id in enumerate(self.container.extra_azure_dataset_ids):
+                    if num_extra_local_datasets > 0 and i < (num_extra_local_datasets - 1):
                         raise ValueError(f"The model refers to an Azure dataset '{extra_azure_id}' at index {i}, "
                                          f"but there are not enough local datasets given ")
                     mounted_dataset = azure_run_info.input_datasets[dataset_index]

@@ -187,16 +187,15 @@ def submit_for_inference(args: SubmitForInferenceConfig, azure_config: AzureConf
         run_config=run_config
     )
 
-    run = submit_run(workspace=workspace, experiment_name=args.experiment_name, script_run_config=script_run_config)
-    logging.info(f"Submitted run {run.id} in experiment {run.experiment.name}")
-    logging.info(f"Run URL: {run.get_portal_url()}")
+    run = submit_run(workspace=workspace,
+                     experiment_name=args.experiment_name,
+                     script_run_config=script_run_config,
+                     wait_for_completion=True)
     if not args.keep_upload_folder:
         source_directory.cleanup()
         logging.info(f"Deleted submission directory {source_directory_path}")
     if args.download_folder is None:
         return None
-    logging.info("Awaiting run completion")
-    run.wait_for_completion()
     logging.info(f"Run has completed with status {run.get_status()}")
     download_file = DEFAULT_RESULT_ZIP_DICOM_NAME if args.use_dicom else DEFAULT_RESULT_IMAGE_NAME
     download_path = choose_download_path(download_file, args.download_folder)
