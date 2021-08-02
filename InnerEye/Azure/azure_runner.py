@@ -182,7 +182,8 @@ def create_dataset_configs(azure_config: AzureConfig,
         if dataset_id:
             datasets.append(DatasetConfig(name=dataset_id,
                                           target_folder=mount_point,
-                                          use_mounting=azure_config.use_dataset_mount))
+                                          use_mounting=azure_config.use_dataset_mount,
+                                          datastore=azure_config.azureml_datastore))
         elif mount_point:
             raise ValueError(f"Inconsistent setup: Dataset name at index {i} is empty, but a mount point has "
                              f"been provided ('{mount_point}')")
