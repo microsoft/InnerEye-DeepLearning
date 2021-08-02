@@ -33,7 +33,7 @@ if not runner_path.is_absolute():
     sys.argv[0] = str(runner_path.absolute())
 
 from azureml._base_sdk_common import user_agent
-from azureml.core import Run
+from azureml.core import Run, ScriptRunConfig
 from health.azure.himl import AzureRunInformation, submit_to_azure_if_needed
 from health.azure.azure_util import create_run_recovery_id, to_azure_friendly_string
 import matplotlib
@@ -295,6 +295,10 @@ class Runner:
                         f"Run {azure_run.id} in experiment {azure_run.experiment.name} or one of its child "
                         "runs failed.")
 
+        hyperdrive_config = None
+        if self.azure_config.hyperdrive:
+            hyperdrive_config = self.lightning_container.get_hyperdrive_config(ScriptRunConfig(source_directory=""))
+
         azure_run_info = submit_to_azure_if_needed(
             entry_script=source_config.entry_script,
             snapshot_root_directory=source_config.root_folder,
@@ -314,7 +318,8 @@ class Runner:
             submit_to_azureml=self.azure_config.azureml,
             tags=additional_run_tags(azure_config=self.azure_config,
                                      commandline_args=" ".join(source_config.script_params)),
-            after_submission=after_submission_hook
+            after_submission=after_submission_hook,
+            hyperdrive_config=hyperdrive_config
         )
         # submit_to_azure_if_needed calls sys.exit after submitting to AzureML. We only reach this when running
         # the script locally or in AzureML.
