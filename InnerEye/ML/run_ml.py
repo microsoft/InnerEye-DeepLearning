@@ -208,24 +208,21 @@ class MLRunner:
                 if mounted_dataset is None:
                     mounted_dataset = self.download_or_use_existing_dataset(self.container.azure_dataset_id,
                                                                             self.container.local_dataset)
-                self.container.local_dataset = Path(mounted_dataset) if mounted_dataset else None
+                self.container.local_dataset = mounted_dataset
                 dataset_index += 1
-            num_extra_local_datasets = len(self.container.extra_local_dataset_paths)
-            extra_locals: List[Path] = []
-            for i, extra_azure_id in enumerate(self.container.extra_azure_dataset_ids, 1):
-                if 0 < num_extra_local_datasets <= i:
-                    raise ValueError(f"The model referes to an Azure dataset '{extra_azure_id}' at index {i}, "
-                                     f"but there are not enough local datasets given ")
-                mounted_dataset = azure_run_info.input_datasets[dataset_index]
-                if mounted_dataset is None:
+            if self.container.extra_azure_dataset_ids:
+                num_extra_local_datasets = len(self.container.extra_local_dataset_paths)
+                extra_locals: List[Path] = []
+                for i, extra_azure_id in enumerate(self.container.extra_azure_dataset_ids, 1):
                     if 0 < num_extra_local_datasets <= i:
                         raise ValueError(f"The model refers to an Azure dataset '{extra_azure_id}' at index {i}, "
-                                         "but there is no matching local dataset in `extra_azure_dataset_ids`.")
-                    local = None if num_extra_local_datasets == 0 else self.container.extra_local_dataset_paths[i]
-                    mounted_dataset = self.download_or_use_existing_dataset(extra_azure_id, local_dataset=local)
-                assert mounted_dataset is not None  # for mypy
-                extra_locals.append(mounted_dataset)
-            self.container.extra_local_dataset_paths = extra_locals
+                                         f"but there are not enough local datasets given ")
+                    mounted_dataset = azure_run_info.input_datasets[dataset_index]
+                    if mounted_dataset is None:
+                        local = None if num_extra_local_datasets == 0 else self.container.extra_local_dataset_paths[i]
+                        mounted_dataset = self.download_or_use_existing_dataset(extra_azure_id, local_dataset=local)
+                    extra_locals.append(mounted_dataset)
+                self.container.extra_local_dataset_paths = extra_locals
         # Ensure that we use fixed seeds before initializing the PyTorch models
         seed_everything(self.container.get_effective_random_seed())
         # Creating the folder structure must happen before the LightningModule is created, because the output
@@ -557,7 +554,7 @@ class MLRunner:
 
     def download_or_use_existing_dataset(self,
                                          azure_dataset_id: Optional[str],
-                                         local_dataset: Optional[Path]) -> Optional[Path]:
+                                         local_dataset: Optional[Path]) -> Path:
         """
         Makes the dataset that the model uses available on the executing machine. If the present training run is outside
         of AzureML, it expects that either the model has a `local_dataset` field set, in which case no action will be
@@ -569,15 +566,6 @@ class MLRunner:
         """
         if not self.is_offline_run:
             raise ValueError("This function should only be called in runs outside AzureML.")
-        # A dataset, either local or in Azure, is required for the built-in InnerEye models. When models are
-        # specified via a LightningContainer, these dataset fields are optional, because the container datasets
-        # could be downloaded even from the web.
-        is_dataset_required = isinstance(self.container, InnerEyeContainer)
-        # The present run is outside of AzureML: If local_dataset is set, use that as the path to the data.
-        # Otherwise, download the dataset specified by the azure_dataset_id
-        if is_dataset_required:
-            if (not azure_dataset_id) and (local_dataset is None):
-                raise ValueError("The model must contain either local_dataset or azure_dataset_id.")
         if local_dataset:
             return check_dataset_folder_exists(local_dataset)
         if azure_dataset_id:
@@ -587,7 +575,7 @@ class MLRunner:
             return download_dataset(azure_dataset_id=azure_dataset_id,
                                     target_folder=self.project_root / fixed_paths.DATASETS_DIR_NAME,
                                     dataset_csv=dataset_csv, azure_config=self.azure_config)
-        return None
+        raise ValueError("The model must contain either local_dataset or azure_dataset_id")
 
     def set_multiprocessing_start_method(self) -> None:
         """
