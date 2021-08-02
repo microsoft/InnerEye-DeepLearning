@@ -58,6 +58,7 @@ from InnerEye.ML.utils.run_recovery import RunRecovery
 from InnerEye.ML.visualizers import activation_maps
 from InnerEye.ML.visualizers.plot_cross_validation import \
     get_config_and_results_for_offline_runs, plot_cross_validation_from_files
+from health.azure.datasets import get_or_create_dataset
 from health.azure.himl import AzureRunInformation
 
 ModelDeploymentHookSignature = Callable[[LightningContainer, AzureConfig, Model, ModelProcessing], Any]
@@ -82,7 +83,9 @@ def download_dataset(azure_dataset_id: str,
     :return: A path on the local machine that contains the dataset.
     """
     logging.info("Trying to download dataset via AzureML datastore now.")
-    azure_dataset = azure_config.get_or_create_dataset(azure_dataset_id)
+    azure_dataset = get_or_create_dataset(workspace=azure_config.get_workspace(),
+                                          datastore_name=azure_config.azureml_datastore,
+                                          dataset_name=azure_dataset_id)
     if not isinstance(azure_dataset, FileDataset):
         raise ValueError(f"Expected to get a FileDataset, but got {type(azure_dataset)}")
     # The downloaded dataset may already exist from a previous run.

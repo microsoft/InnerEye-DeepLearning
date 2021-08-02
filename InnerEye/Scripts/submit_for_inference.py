@@ -11,7 +11,7 @@ from typing import Dict, List, Optional
 
 import param
 import requests
-from azureml.core import Experiment, Model, ScriptRunConfig
+from azureml.core import Model, ScriptRunConfig
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common.common_util import logging_to_stdout
@@ -19,7 +19,7 @@ from InnerEye.Common.fixed_paths import DEFAULT_DATA_FOLDER, DEFAULT_RESULT_IMAG
     DEFAULT_TEST_IMAGE_NAME, DEFAULT_TEST_ZIP_NAME, ENVIRONMENT_YAML_FILE_NAME, PYTHON_ENVIRONMENT_NAME, \
     RUN_SCORING_SCRIPT, SCORE_SCRIPT, SETTINGS_YAML_FILE, repository_root_directory
 from InnerEye.Common.generic_parsing import GenericConfig
-from health.azure.himl import create_run_configuration
+from health.azure.himl import create_run_configuration, submit_run
 
 
 class SubmitForInferenceConfig(GenericConfig):
@@ -187,8 +187,7 @@ def submit_for_inference(args: SubmitForInferenceConfig, azure_config: AzureConf
         run_config=run_config
     )
 
-    exp = Experiment(workspace=workspace, name=args.experiment_name)
-    run = exp.submit(script_run_config)
+    run = submit_run(workspace=workspace, experiment_name=args.experiment_name, script_run_config=script_run_config)
     logging.info(f"Submitted run {run.id} in experiment {run.experiment.name}")
     logging.info(f"Run URL: {run.get_portal_url()}")
     if not args.keep_upload_folder:
