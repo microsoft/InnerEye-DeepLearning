@@ -2,7 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from collections import OrderedDict
 import copy
 import logging
 import os
@@ -11,6 +10,7 @@ import time
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+import numpy as np
 import pandas as pd
 import stopit
 from torch.functional import Tensor
@@ -1049,7 +1049,7 @@ class MLRunner:
         ensemble_owner.on_inference_start_dataset(ModelExecutionMode.TEST)
         for batch_idx, batch in enumerate(test_dataloader):
             ensemble_posteriors = ensemble_owner.aggregate_ensemble_model_outputs(
-                ensembles_models_posteriors[batch_idx])
+                ensembles_models_posteriors[batch_idx])  # type: ignore  # surely list is an iterator!
             ensemble_owner.record_posteriors(batch, batch_idx, ensemble_posteriors)
         ensemble_owner.on_inference_end_dataset()
         ensemble_owner.on_inference_end()
