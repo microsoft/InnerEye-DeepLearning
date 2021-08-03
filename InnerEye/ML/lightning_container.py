@@ -43,21 +43,23 @@ class InnerEyeInference(abc.ABC):
     model.on_inference_end()
     """
 
-    def on_inference_start(self) -> None:
+    def on_inference_start(self, is_ensemble_model: bool = False) -> None:
         """
         Runs initialization for everything that inference might require. This can initialize
         output files, set up metric computation, etc. This is run only once.
+        :param is_ensemble_model: If False (the default), the model_output posteriors come from an individual model,
+        i.e. this model. If True, the model outputs come from multiple models and this model has been choosen to process
+        them (typically because it is at index zero in the list of models which make up the ensemble). You should use
+        this to change where the metrics are saved for ensemble models.
         """
         pass
 
-    def on_inference_start_dataset(self, dataset_split: ModelExecutionMode, is_ensemble_model: bool = False) -> None:
+    def on_inference_start_dataset(self, dataset_split: ModelExecutionMode) -> None:
         """
         Runs initialization for inference, when starting inference on a new dataset split (train/val/test).
         Depending on the settings, this can be called anywhere between 0 (no inference at all) to 3 times (inference
         on all of train/val/test split).
         :param dataset_split: Indicates whether the item comes from the training, validation or test set.
-        :param is_ensemble_model: If False (the default), the model_outputs come from an individual model. If True, the
-        model outputs come from multiple models. Use this to change where the metrics are saved for ensemble models.
         """
         pass
 

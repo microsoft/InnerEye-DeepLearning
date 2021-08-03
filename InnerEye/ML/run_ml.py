@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+from collections import OrderedDict
 import copy
 import logging
 import os
@@ -12,6 +13,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import pandas as pd
 import stopit
+from torch.functional import Tensor
 import torch.multiprocessing
 from azureml._restclient.constants import RunStatus
 from azureml.core import Model, Run, model
@@ -1017,7 +1019,7 @@ class MLRunner:
 
         ensemble_models: List[InnerEyeInference] = []
         for checkpoint_path in checkpoint_paths:
-            # TODO: Is this the correct way to pass through use_gpu?
+            # TODO: Is this the correct way to pass on use_gpu, I don't think LightningModels have a DeepLearningConfig?
             use_gpu = False
             if isinstance(self.container.config, DeepLearningConfig):
                 use_gpu = self.container.config.use_gpu
@@ -1027,15 +1029,27 @@ class MLRunner:
             ensemble_models.append(new_model)
 
         test_dataloader = self.container.get_data_module().test_dataloader()
-        ensemble_posteriors: List[] = []
+        ensembles_models_posteriors: Dict[int, List[Tensor]] = {}  # Mapping batch_idx to the list of model posteriors
+        # from the models that make up the ensemble
 
         for inference_model in ensemble_models:
             inference_model.on_inference_start()
             inference_model.on_inference_start_dataset(ModelExecutionMode.TEST)
             for batch_idx, batch in enumerate(test_dataloader):
                 posteriors = inference_model.forward(batch['x'])  # type: ignore
+                if batch_idx not in ensembles_models_posteriors:
+                    ensembles_models_posteriors[batch_idx] = []
+                ensembles_models_posteriors[batch_idx].append(posteriors)
                 inference_model.record_posteriors(batch['y'], batch_idx, posteriors)
             inference_model.on_inference_end_dataset()
             inference_model.on_inference_end()
 
         ensemble_owner = ensemble_models[0]
+        ensemble_owner.on_inference_start(is_ensemble_model=True)
+        ensemble_owner.on_inference_start_dataset(ModelExecutionMode.TEST)
+        for batch_idx, batch in enumerate(test_dataloader):
+            ensemble_posteriors = ensemble_owner.aggregate_ensemble_model_outputs(
+                ensembles_models_posteriors[batch_idx])
+            ensemble_owner.record_posteriors(batch, batch_idx, ensemble_posteriors)
+        ensemble_owner.on_inference_end_dataset()
+        ensemble_owner.on_inference_end()
