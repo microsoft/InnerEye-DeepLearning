@@ -127,18 +127,18 @@ class DummyRegression(DummyRegressionPlainLightning, InnerEyeInference):
         self.log("loss", loss, on_epoch=True, on_step=True)
         return loss
 
-    def on_inference_start(self) -> None:
+    def on_inference_start(self, is_ensemble_model: bool = False) -> None:
         Path("on_inference_start.txt").touch()
         self.inference_mse: Dict[ModelExecutionMode, float] = {}
 
-    def on_inference_epoch_start(self, dataset_split: ModelExecutionMode, is_ensemble_model: bool) -> None:
+    def on_inference_start_dataset(self, dataset_split: ModelExecutionMode) -> None:
         self.dataset_split = dataset_split
         Path(f"on_inference_start_{self.dataset_split.value}.txt").touch()
         self.mse = MeanSquaredError()
 
-    def inference_step(self, item: Tuple[Tensor, Tensor], batch_idx: int, model_output: torch.Tensor) -> None:
+    def record_posteriors(self, batch: Any, batch_idx: int, posteriors: torch.Tensor) -> None:
         input, target = item
-        prediction = self.forward(input)
+        prediction = self.forward(batch)
         self.mse(prediction, target)
         with Path(f"inference_step_{self.dataset_split.value}.txt").open(mode="a") as f:
             f.write(f"{prediction.item()},{target.item()}\n")
