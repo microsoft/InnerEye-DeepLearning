@@ -1,2 +1,1 @@
-disable=
-    ungrouped-imports
+disable=ungrouped-imports,trailing-whitespace
