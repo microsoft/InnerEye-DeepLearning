@@ -1,4 +1,23 @@
 {
+    "githubPullRequests.queries": [
+    
+        {
+            "label": "Waiting For My Review",
+            "query": "is:open review-requested:${user}"
+        },
+        {
+            "label": "Assigned To Me",
+            "query": "is:open assignee:${user}"
+        },
+        {
+            "label": "Created By Me (Open)",
+            "query": "is:open author:${user}"
+        },
+        {
+            "label": "Created By Me (All)",
+            "query": "author:${user}"
+        },
+    ],
     "python.envFile": "${workspaceFolder}/.vscode/.env",
     "python.linting.pylintEnabled": true,
     "python.linting.pylintArgs": [
