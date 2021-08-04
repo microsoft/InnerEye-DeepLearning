@@ -1025,6 +1025,7 @@ class MLRunner:
             checkpoint = load_checkpoint(checkpoint_path, use_gpu)
             new_model = type(model)()
             new_model.load_state_dict(checkpoint['state_dict'], strict=False)
+            new_model.eval()
             ensemble_models.append(new_model)
 
         test_dataloader = self.container.get_data_module().test_dataloader()
