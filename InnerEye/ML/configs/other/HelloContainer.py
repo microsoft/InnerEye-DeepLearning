@@ -263,14 +263,16 @@ class HelloRegression(LightningModule, InnerEyeInference):
             with (self.outputs_folder / "test_mae.txt").open("a") as test_mae_file:
                 test_mae_file.write(f"{str(self.execution_mode.name)}: {str(self.test_mae.compute().item())}\n")  # type: ignore
 
-    # We will not override
-    #     on_inference_end(self) -> None:
-    # In this case we have nothing special to do after all inference datasets are complete.
+    def on_inference_end(self) -> None:
+        """
+        Reset the output path.
+        """
+        self.inference_output_path = Path.cwd()
 
     # We will not override
-    #     aggregate_ensemble_model_outputs(self, model_outputs: Iterator[torch.Tensor]) -> torch.Tensor:
-    # Callers can use the base class implementation which averages the predictions from multiple models when using them
-    # as an ensemble model.
+    #     aggregate_ensemble_model_outputs(self, model_outputs: Iterator[torch.Tensor]) -> torch.Tensor
+    # and so use the base class implementation which averages the predictions from multiple models when using them # as
+    # an ensemble model.
 
     # endregion InnerEyeInference overrides
 
