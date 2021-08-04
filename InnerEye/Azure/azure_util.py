@@ -11,13 +11,13 @@ from typing import Generator, List, Optional, Tuple
 
 import conda_merge
 import ruamel.yaml
-from azureml._restclient.constants import RunStatus
 from azureml.core import Experiment, Run, Workspace, get_run
 from azureml.core.conda_dependencies import CondaDependencies
 from azureml.exceptions import UserErrorException
 
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME
+from health.azure.azure_util import create_run_recovery_id
 
 DEFAULT_CROSS_VALIDATION_SPLIT_INDEX = -1
 EXPERIMENT_RUN_SEPARATOR = ":"
@@ -43,16 +43,6 @@ PARENT_RUN_CONTEXT = getattr(RUN_CONTEXT, "parent", None)
 
 INNEREYE_SDK_NAME = "innereye"
 INNEREYE_SDK_VERSION = "1.0"
-
-
-def create_run_recovery_id(run: Run) -> str:
-    """
-   Creates an recovery id for a run so it's checkpoints could be recovered for training/testing
-
-   :param run: an instantiated run.
-   :return: recovery id for a given run in format: [experiment name]:[run id]
-   """
-    return str(run.experiment.name + EXPERIMENT_RUN_SEPARATOR + run.id)
 
 
 def split_recovery_id(id: str) -> Tuple[str, str]:
@@ -393,26 +383,6 @@ def is_running_on_azure_agent() -> bool:
     """
     # Guess by looking at the AGENT_OS variable, that all Azure hosted agents define.
     return bool(os.environ.get("AGENT_OS", None))
-
-
-def is_run_and_child_runs_completed(run: Run) -> bool:
-    """
-    Checks if the given run has successfully completed. If the run has child runs, it also checks if the child runs
-    completed successfully.
-    :param run: The AzureML run to check.
-    :return: True if the run and all child runs completed successfully.
-    """
-
-    def is_completed(run: Run) -> bool:
-        status = run.get_status()
-        if run.status == RunStatus.COMPLETED:
-            return True
-        logging.info(f"Run {run.id} in experiment {run.experiment.name} finished with status {status}.")
-        return False
-
-    runs = list(run.get_children())
-    runs.append(run)
-    return all(is_completed(run) for run in runs)
 
 
 def get_comparison_baseline_paths(outputs_folder: Path,

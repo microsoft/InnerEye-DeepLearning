@@ -9,11 +9,10 @@ from unittest import mock
 
 import pandas as pd
 import pytest
-from pytorch_lightning import LightningModule
 from azureml.core import ScriptRunConfig
 from azureml.train.hyperdrive.runconfig import HyperDriveConfig
+from pytorch_lightning import LightningModule
 
-from InnerEye.Azure.azure_util import is_offline_run_context
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.deep_learning_config import ARGS_TXT, DatasetParams, WorkflowParams
@@ -22,8 +21,8 @@ from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.run_ml import MLRunner
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.configs.lightning_test_containers import DummyContainerWithAzureDataset, DummyContainerWithHooks, DummyContainerWithModel, \
-    DummyContainerWithPlainLightning
+from Tests.ML.configs.lightning_test_containers import (DummyContainerWithAzureDataset, DummyContainerWithHooks,
+                                                        DummyContainerWithModel, DummyContainerWithPlainLightning)
 from Tests.ML.util import default_runner
 
 

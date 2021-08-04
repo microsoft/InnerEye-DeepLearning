@@ -170,7 +170,7 @@ def submit_for_inference(args: SubmitForInferenceConfig, azure_config: AzureConf
                     str(entry_script))
     run_config = create_run_configuration(workspace=azure_config.get_workspace(),
                                           compute_cluster_name=azure_config.cluster,
-                                          aml_environment=python_environment_name)
+                                          aml_environment_name=python_environment_name)
     script_run_config = ScriptRunConfig(
         source_directory=str(source_directory_path),
         entry_script=entry_script.relative_to(source_directory_path),
