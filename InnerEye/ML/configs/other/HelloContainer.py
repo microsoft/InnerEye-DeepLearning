@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+from InnerEye.ML.common import ModelExecutionMode
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -15,7 +16,7 @@ from torch.utils.data import DataLoader, Dataset
 from sklearn.model_selection import KFold
 
 from InnerEye.Common import fixed_paths
-from InnerEye.ML.lightning_container import LightningContainer
+from InnerEye.ML.lightning_container import InnerEyeInference, LightningContainer
 
 
 class HelloDataset(Dataset):
@@ -120,7 +121,7 @@ class HelloDataModule(LightningDataModule):
         return DataLoader(self.test, batch_size=5)
 
 
-class HelloRegression(LightningModule):
+class HelloRegression(LightningModule, InnerEyeInference):
     """
     A simple 1-dim regression model.
     """
@@ -130,6 +131,10 @@ class HelloRegression(LightningModule):
         self.model = torch.nn.Linear(in_features=1, out_features=1, bias=True)
         self.test_mse: List[torch.Tensor] = []
         self.test_mae = MeanAbsoluteError()
+        self.inference_output_path = Path.cwd()
+        self.execution_mode: Optional[ModelExecutionMode] = None
+
+    # region  standard PyTorch Lightning interface methods
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:  # type: ignore
         """
@@ -150,7 +155,7 @@ class HelloRegression(LightningModule):
         :param batch: The batch of training data
         :return: The loss value with a computation graph attached.
         """
-        loss = self.shared_step(batch)
+        loss = self._shared_step(batch)
         self.log("loss", loss, on_epoch=True, on_step=False)
         return loss
 
@@ -164,21 +169,9 @@ class HelloRegression(LightningModule):
         :param batch: The batch of validation data
         :return: The loss value on the validation data.
         """
-        loss = self.shared_step(batch)
+        loss = self._shared_step(batch)
         self.log("val_loss", loss, on_epoch=True, on_step=False)
         return loss
-
-    def shared_step(self, batch: Dict[str, torch.Tensor]) -> torch.Tensor:
-        """
-        This is a convenience method to reduce code duplication, because training, validation, and test step share
-        large amounts of code.
-        :param batch: The batch of data to process, with input data and targets.
-        :return: The MSE loss that the model achieved on this batch.
-        """
-        input = batch["x"]
-        target = batch["y"]
-        prediction = self.forward(input)
-        return torch.nn.functional.mse_loss(prediction, target)
 
     def configure_optimizers(self) -> Tuple[List[Optimizer], List[_LRScheduler]]:
         """
@@ -231,6 +224,71 @@ class HelloRegression(LightningModule):
         average_mse = torch.mean(torch.stack(self.test_mse))
         Path("test_mse.txt").write_text(str(average_mse.item()))
         Path("test_mae.txt").write_text(str(self.test_mae.compute().item()))
+
+    # endregion  standard PyTorch Lightning interface methods
+
+    # region InnerEyeInference overrides
+
+    def on_inference_start(self, is_ensemble_model: bool = False) -> None:
+        """
+        Initialize the variables used to store predictions and metrics.
+
+        If we are operating as the first-amoung-equals in an ensemble model we save our metrics to an 'ensemble'
+        sub-directory. 
+        """
+        self.on_test_epoch_start()
+        self.execution_mode = None
+        if is_ensemble_model:
+            self.inference_output_path = self.inference_output_path / "ensemble"
+            self.inference_output_path.mkdir(exist_ok=False)
+
+    def on_inference_start_dataset(self, dataset_split: ModelExecutionMode) -> None:
+        """
+        Remember to execution mode so we can use it to name output files.
+        """
+        self.execution_mode = dataset_split
+
+    def record_posteriors(self, batch_y: torch.Tensor, batch_idx: int, posteriors: torch.Tensor) -> None:
+        self.test_mse.append(torch.nn.functional.mse_loss(posteriors, batch_y))
+        self.test_mae.update(preds=posteriors, target=batch_y)
+
+    def on_inference_end_dataset(self) -> None:
+        """
+        Append the metrics from this dataset's inference run to the metrics' files.
+        """
+        if self.outputs_folder:
+            average_mse = torch.mean(torch.stack(self.test_mse))
+            with (self.outputs_folder / "test_mse.txt").open("a") as test_mse_file:
+                test_mse_file.write(f"{str(self.execution_mode.name)}: {str(average_mse.item())}\n")  # type: ignore
+            with (self.outputs_folder / "test_mae.txt").open("a") as test_mae_file:
+                test_mae_file.write(f"{str(self.execution_mode.name)}: {str(self.test_mae.compute().item())}\n")  # type: ignore
+
+    # We will not override
+    #     on_inference_end(self) -> None:
+    # In this case we have nothing special to do after all inference datasets are complete.
+
+    # We will not override
+    #     aggregate_ensemble_model_outputs(self, model_outputs: Iterator[torch.Tensor]) -> torch.Tensor:
+    # Callers can use the base class implementation which averages the predictions from multiple models when using them
+    # as an ensemble model.
+
+    # endregion InnerEyeInference overrides
+
+    # region helper methods
+
+    def _shared_step(self, batch: Dict[str, torch.Tensor]) -> torch.Tensor:
+        """
+        This is a convenience method to reduce code duplication, because training, validation, and test step share
+        large amounts of code.
+        :param batch: The batch of data to process, with input data and targets.
+        :return: The MSE loss that the model achieved on this batch.
+        """
+        input = batch["x"]
+        target = batch["y"]
+        prediction = self.forward(input)
+        return torch.nn.functional.mse_loss(prediction, target)
+
+    # endregion helper methods
 
 
 class HelloContainer(LightningContainer):

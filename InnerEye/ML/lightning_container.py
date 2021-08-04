@@ -9,6 +9,7 @@ from pathlib import Path
 import param
 import torch
 from pytorch_lightning import LightningDataModule, LightningModule
+from torch.functional import Tensor
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 from azureml.core import ScriptRunConfig
@@ -63,12 +64,12 @@ class InnerEyeInference(abc.ABC):
         """
         pass
 
-    def record_posteriors(self, batch: Any, batch_idx: int, posteriors: torch.Tensor) -> None:
+    def record_posteriors(self, batch_y: Tensor, batch_idx: int, posteriors: torch.Tensor) -> None:
         """
         This hook is called when the model has finished making a prediction. It can write the results to a file,
         or compute metrics and store them.
-        :param batch: The batch of data for which the model made a prediction.
-        :param batch: The index of the batch.
+        :param batch_y: The batch of data for which the model made a prediction.
+        :param batch_idx: The index of the batch.
         :param posteriors: The posteriors output by the model.
         """
         # We don't want abstract methods here, it avoids class creation for unit tests, and we also want this
