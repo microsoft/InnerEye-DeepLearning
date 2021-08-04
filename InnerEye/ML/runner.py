@@ -258,8 +258,8 @@ class Runner:
             """
             # Add an extra tag that depends on the run that was actually submitted. This is used for later filtering
             # run in cross validation analysis
-            azure_run.tag(RUN_RECOVERY_ID_KEY_NAME, azure_util.create_run_recovery_id(run=azure_run))
             recovery_id = create_run_recovery_id(azure_run)
+            azure_run.tag(RUN_RECOVERY_ID_KEY_NAME, recovery_id)
             print("If this run fails, re-start runner.py and supply these additional arguments: "
                   f"--run_recovery_id={recovery_id}")
             if self.azure_config.tensorboard:
