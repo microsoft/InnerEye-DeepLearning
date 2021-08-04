@@ -7,13 +7,14 @@ from pathlib import Path
 
 import pytest
 from azureml.core import Run
+from azureml.core.conda_dependencies import CondaDependencies
 from azureml.core.workspace import Workspace
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_runner import create_experiment_name
 from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, fetch_child_runs, fetch_run, \
     get_cross_validation_split_index, is_cross_validation_child_run, \
-    merge_conda_dependencies, merge_conda_files, to_azure_friendly_container_path
+    to_azure_friendly_container_path
 from InnerEye.Common.common_util import is_linux, logging_to_stdout
 from InnerEye.Common.fixed_paths import PRIVATE_SETTINGS_FILE, PROJECT_SECRETS_FILE, \
     repository_root_directory
@@ -83,66 +84,6 @@ def test_is_cross_validation_child_run_ensemble_run() -> None:
     run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_ENSEMBLE_RUN)
     assert not is_cross_validation_child_run(run)
     assert all([is_cross_validation_child_run(x) for x in fetch_child_runs(run)])
-
-
-@pytest.mark.skipif(is_linux(), reason="Spurious file read/write errors on linux build agents.")
-def test_merge_conda(test_output_dirs: OutputFolderForTests) -> None:
-    """
-    Tests the logic for merging Conda environment files.
-    """
-    env1 = """
-channels:
-  - defaults
-  - pytorch
-dependencies:
-  - conda1=1.0
-  - conda2=2.0
-  - conda_both=3.0
-  - pip:
-      - azureml-sdk==1.7.0
-      - foo==1.0
-"""
-    env2 = """
-channels:
-  - defaults
-dependencies:
-  - conda1=1.1
-  - conda_both=3.0
-  - pip:
-      - azureml-sdk==1.6.0
-      - bar==2.0
-"""
-    # Spurious test failures on Linux build agents, saying that they can't write the file. Wait a bit.
-    time.sleep(0.5)
-    file1 = test_output_dirs.root_dir / "env1.yml"
-    file1.write_text(env1)
-    file2 = test_output_dirs.root_dir / "env2.yml"
-    file2.write_text(env2)
-    # Spurious test failures on Linux build agents, saying that they can't read the file. Wait a bit.
-    time.sleep(0.5)
-    files = [file1, file2]
-    merged_file = test_output_dirs.root_dir / "merged.yml"
-    merge_conda_files(files, merged_file)
-    assert merged_file.read_text().splitlines() == """channels:
-- defaults
-- pytorch
-dependencies:
-- conda1=1.0
-- conda1=1.1
-- conda2=2.0
-- conda_both=3.0
-- pip:
-  - azureml-sdk==1.6.0
-  - azureml-sdk==1.7.0
-  - bar==2.0
-  - foo==1.0
-""".splitlines()
-    conda_dep, _ = merge_conda_dependencies(files)
-    # We expect to see the union of channels.
-    assert list(conda_dep.conda_channels) == ["defaults", "pytorch"]
-    # Package version conflicts are not resolved, both versions are retained.
-    assert list(conda_dep.conda_packages) == ["conda1=1.0", "conda1=1.1", "conda2=2.0", "conda_both=3.0"]
-    assert list(conda_dep.pip_packages) == ["azureml-sdk==1.6.0", "azureml-sdk==1.7.0", "bar==2.0", "foo==1.0"]
 
 
 def test_experiment_name() -> None:

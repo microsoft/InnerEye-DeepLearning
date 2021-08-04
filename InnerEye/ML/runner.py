@@ -5,6 +5,7 @@
 import logging
 import os
 import sys
+import uuid
 from pathlib import Path
 from typing import Optional, Tuple
 
@@ -35,7 +36,7 @@ if not runner_path.is_absolute():
 from azureml._base_sdk_common import user_agent
 from azureml.core import Run, ScriptRunConfig
 from health.azure.himl import AzureRunInformation, submit_to_azure_if_needed
-from health.azure.azure_util import create_run_recovery_id, to_azure_friendly_string
+from health.azure.azure_util import create_run_recovery_id, merge_conda_files, to_azure_friendly_string
 import matplotlib
 
 from InnerEye.Azure.tensorboard_monitor import AMLTensorBoardMonitorConfig, monitor
@@ -47,8 +48,7 @@ from InnerEye.Azure.azure_runner import (create_dataset_configs, create_experime
                                          parse_arguments, additional_run_tags,
                                          set_environment_variables_for_multi_node)
 from InnerEye.Azure.azure_util import (RUN_CONTEXT, RUN_RECOVERY_ID_KEY_NAME, get_all_environment_files,
-                                       is_offline_run_context,
-                                       is_run_and_child_runs_completed)
+                                       is_offline_run_context)
 from InnerEye.Azure.run_pytest import download_pytest_result, run_pytest
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import (FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE,
@@ -246,14 +246,6 @@ class Runner:
         input_datasets = create_dataset_configs(self.azure_config,
                                                 all_azure_dataset_ids=self.lightning_container.all_azure_dataset_ids(),
                                                 all_dataset_mountpoints=self.lightning_container.all_dataset_mountpoints())
-        # TODO: Ensure that merging is triggering correctly
-        # Merge the project-specific dependencies with the packages that InnerEye itself needs. This should not be
-        # necessary if the innereye package is installed. It is necessary when working with an outer project and
-        # InnerEye as a git submodule and submitting jobs from the local machine.
-        # In case of version conflicts, the package version in the outer project is given priority.
-        # conda_dependencies, merged_yaml = merge_conda_dependencies(source_config.conda_dependencies_files)  # type:
-        # ignore
-        assert len(source_config.conda_dependencies_files) == 1, "Multiple conda files not yet supported"
 
         # TODO: Add hyperdrive
         # if azure_config.hyperdrive:
@@ -287,40 +279,46 @@ class Runner:
                 # If pytest_mark is set, this file must exist.
                 logging.info("Downloading pytest result file.")
                 download_pytest_result(azure_run)
-            else:
-                # TODO: Remove that, this should live in health-ml: https://github.com/microsoft/hi-ml/issues/40
-                # For PR builds where we wait for job completion, the job must have ended in a COMPLETED state.
-                if self.azure_config.wait_for_completion and not is_run_and_child_runs_completed(azure_run):
-                    raise ValueError(
-                        f"Run {azure_run.id} in experiment {azure_run.experiment.name} or one of its child "
-                        "runs failed.")
 
         hyperdrive_config = None
         if self.azure_config.hyperdrive:
             hyperdrive_config = self.lightning_container.get_hyperdrive_config(ScriptRunConfig(source_directory=""))
 
-        azure_run_info = submit_to_azure_if_needed(
-            entry_script=source_config.entry_script,
-            snapshot_root_directory=source_config.root_folder,
-            script_params=source_config.script_params,
-            conda_environment_file=source_config.conda_dependencies_files[0],
-            aml_workspace=self.azure_config.get_workspace(),
-            compute_cluster_name=self.azure_config.cluster,
-            environment_variables=source_config.environment_variables,
-            default_datastore=self.azure_config.azureml_datastore,
-            experiment_name=to_azure_friendly_string(create_experiment_name(self.azure_config)),
-            max_run_duration=self.azure_config.max_run_duration,
-            input_datasets=input_datasets,
-            num_nodes=self.azure_config.num_nodes,
-            wait_for_completion=False,
-            ignored_folders=ignored_folders,
-            pip_extra_index_url=self.azure_config.pip_extra_index_url,
-            submit_to_azureml=self.azure_config.azureml,
-            tags=additional_run_tags(azure_config=self.azure_config,
-                                     commandline_args=" ".join(source_config.script_params)),
-            after_submission=after_submission_hook,
-            hyperdrive_config=hyperdrive_config
-        )
+        # Create a temporary file for the merged conda file, that will be removed after submission of the job.
+        temp_conda: Optional[Path] = None
+        try:
+            if len(source_config.conda_dependencies_files) > 1:
+                temp_conda = source_config.root_folder / f"temp_environment-{uuid.uuid4().hex[:8]}.yml"
+                # Merge the project-specific dependencies with the packages that InnerEye itself needs. This should not
+                # be necessary if the innereye package is installed. It is necessary when working with an outer project
+                # and InnerEye as a git submodule and submitting jobs from the local machine.
+                # In case of version conflicts, the package version in the outer project is given priority.
+                merge_conda_files(source_config.conda_dependencies_files, temp_conda)
+            azure_run_info = submit_to_azure_if_needed(
+                entry_script=source_config.entry_script,
+                snapshot_root_directory=source_config.root_folder,
+                script_params=source_config.script_params,
+                conda_environment_file=temp_conda or source_config.conda_dependencies_files[0],
+                aml_workspace=self.azure_config.get_workspace(),
+                compute_cluster_name=self.azure_config.cluster,
+                environment_variables=source_config.environment_variables,
+                default_datastore=self.azure_config.azureml_datastore,
+                experiment_name=to_azure_friendly_string(create_experiment_name(self.azure_config)),
+                max_run_duration=self.azure_config.max_run_duration,
+                input_datasets=input_datasets,
+                num_nodes=self.azure_config.num_nodes,
+                wait_for_completion=False,
+                ignored_folders=ignored_folders,
+                pip_extra_index_url=self.azure_config.pip_extra_index_url,
+                submit_to_azureml=self.azure_config.azureml,
+                tags=additional_run_tags(azure_config=self.azure_config,
+                                         commandline_args=" ".join(source_config.script_params)),
+                after_submission=after_submission_hook,
+                hyperdrive_config=hyperdrive_config
+            )
+        finally:
+            if temp_conda:
+                temp_conda.unlink()
         # submit_to_azure_if_needed calls sys.exit after submitting to AzureML. We only reach this when running
         # the script locally or in AzureML.
         return azure_run_info

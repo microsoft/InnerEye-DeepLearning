@@ -227,53 +227,6 @@ def strip_prefix(string: str, prefix: str) -> str:
     return string
 
 
-def _log_conda_dependencies_stats(conda: CondaDependencies, message_prefix: str) -> None:
-    """
-    Write number of conda and pip packages to logs.
-    :param conda: A conda dependencies object
-    :param message_prefix: A message to prefix to the log string.
-    """
-    conda_packages_count = len(list(conda.conda_packages))
-    pip_packages_count = len(list(conda.pip_packages))
-    logging.info(f"{message_prefix}: {conda_packages_count} conda packages, {pip_packages_count} pip packages")
-    logging.debug("  Conda packages:")
-    for p in conda.conda_packages:
-        logging.debug(f"    {p}")
-    logging.debug("  Pip packages:")
-    for p in conda.pip_packages:
-        logging.debug(f"    {p}")
-
-
-def merge_conda_files(files: List[Path], result_file: Path) -> None:
-    """
-    Merges the given Conda environment files using the conda_merge package, and writes the merged file to disk.
-    :param files: The Conda environment files to read.
-    :param result_file: The location where the merge results should be written.
-    """
-    # This code is a slightly modified version of conda_merge. That code can't be re-used easily
-    # it defaults to writing to stdout
-    env_definitions = [conda_merge.read_file(str(f)) for f in files]
-    unified_definition = {}
-    NAME = "name"
-    CHANNELS = "channels"
-    DEPENDENCIES = "dependencies"
-    name = conda_merge.merge_names(env.get(NAME) for env in env_definitions)
-    if name:
-        unified_definition[NAME] = name
-    try:
-        channels = conda_merge.merge_channels(env.get(CHANNELS) for env in env_definitions)
-    except conda_merge.MergeError:
-        logging.error("Failed to merge channel priorities.")
-        raise
-    if channels:
-        unified_definition[CHANNELS] = channels
-    deps = conda_merge.merge_dependencies(env.get(DEPENDENCIES) for env in env_definitions)
-    if deps:
-        unified_definition[DEPENDENCIES] = deps
-    with result_file.open("w") as f:
-        ruamel.yaml.dump(unified_definition, f, indent=2, default_flow_style=False)
-
-
 def get_all_environment_files(project_root: Path) -> List[Path]:
     """
     Returns a list of all Conda environment files that should be used. This is firstly the InnerEye conda file,
@@ -287,27 +240,6 @@ def get_all_environment_files(project_root: Path) -> List[Path]:
     if innereye_yaml != project_yaml:
         files.append(project_yaml)
     return files
-
-
-def merge_conda_dependencies(files: List[Path]) -> Tuple[CondaDependencies, str]:
-    """
-    Creates a CondaDependencies object from the Conda environments specified in one or more files.
-    The resulting object contains the union of the Conda and pip packages in the files, where merging
-    is done via the conda_merge package.
-    :param files: The Conda environment files to read.
-    :return: Tuple of (CondaDependencies object that contains packages from all the files,
-    string contents of the merge Conda environment)
-    """
-    for file in files:
-        _log_conda_dependencies_stats(CondaDependencies(file), f"Conda environment in {file}")
-    temp_merged_file = tempfile.NamedTemporaryFile(delete=False)
-    merged_file_path = Path(temp_merged_file.name)
-    merge_conda_files(files, result_file=merged_file_path)
-    merged_dependencies = CondaDependencies(temp_merged_file.name)
-    _log_conda_dependencies_stats(merged_dependencies, "Merged Conda environment")
-    merged_file_contents = merged_file_path.read_text()
-    temp_merged_file.close()
-    return merged_dependencies, merged_file_contents
 
 
 def tag_values_all_distinct(runs: List[Run], tag: str) -> bool:
