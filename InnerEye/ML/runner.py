@@ -42,7 +42,8 @@ import matplotlib
 from InnerEye.Azure.tensorboard_monitor import AMLTensorBoardMonitorConfig, monitor
 from InnerEye.Azure import azure_util
 from InnerEye.Azure.azure_config import AzureConfig, ParserResult, SourceConfig
-from InnerEye.Azure.azure_runner import (create_dataset_configs, create_experiment_name, create_runner_parser,
+from InnerEye.Azure.azure_runner import (DEFAULT_DOCKER_BASE_IMAGE, create_dataset_configs, create_experiment_name,
+                                         create_runner_parser,
                                          get_git_tags,
                                          parse_args_and_add_yaml_variables,
                                          parse_arguments, additional_run_tags,
@@ -239,7 +240,7 @@ class Runner:
         # when running pytest.
         ignored_folders = []
         if not self.azure_config.pytest_mark:
-            ignored_folders.extend(["Tests", "TestsOutsidePackage", "TestSubmodule"])
+            ignored_folders.extend(["Tests", "TestsOutsidePackage"])
         if not self.lightning_container.regression_test_folder:
             ignored_folders.append("RegressionTestResults")
 
@@ -311,6 +312,8 @@ class Runner:
                 ignored_folders=ignored_folders,
                 pip_extra_index_url=self.azure_config.pip_extra_index_url,
                 submit_to_azureml=self.azure_config.azureml,
+                docker_base_image=DEFAULT_DOCKER_BASE_IMAGE,
+                docker_shm_size=self.azure_config.docker_shm_size,
                 tags=additional_run_tags(azure_config=self.azure_config,
                                          commandline_args=" ".join(source_config.script_params)),
                 after_submission=after_submission_hook,

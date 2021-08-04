@@ -22,7 +22,7 @@ from torch.utils.data import DataLoader
 
 from InnerEye.Azure import azure_util
 from InnerEye.Azure.azure_config import AzureConfig
-from InnerEye.Azure.azure_runner import ENVIRONMENT_VERSION, ENV_OMPI_COMM_WORLD_RANK, get_git_tags
+from InnerEye.Azure.azure_runner import ENV_OMPI_COMM_WORLD_RANK, get_git_tags
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, \
     EFFECTIVE_RANDOM_SEED_KEY_NAME, IS_ENSEMBLE_KEY_NAME, MODEL_ID_KEY_NAME, PARENT_RUN_CONTEXT, \
     PARENT_RUN_ID_KEY_NAME, RUN_CONTEXT, RUN_RECOVERY_FROM_ID_KEY_NAME, RUN_RECOVERY_ID_KEY_NAME, \
@@ -58,7 +58,7 @@ from InnerEye.ML.utils.run_recovery import RunRecovery
 from InnerEye.ML.visualizers import activation_maps
 from InnerEye.ML.visualizers.plot_cross_validation import \
     get_config_and_results_for_offline_runs, plot_cross_validation_from_files
-from health.azure.azure_util import create_run_recovery_id, merge_conda_files
+from health.azure.azure_util import ENVIRONMENT_VERSION, create_run_recovery_id, merge_conda_files
 from health.azure.datasets import get_or_create_dataset
 from health.azure.himl import AzureRunInfo
 
