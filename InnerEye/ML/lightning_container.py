@@ -36,11 +36,11 @@ class InnerEyeInference(abc.ABC):
 
     model.on_inference_start()
     for dataset_split in [Train, Val, Test]
-        model.on_inference_epoch_start(dataset_split, is_ensemble_model=False)
-        for batch_idx, item in enumerate(dataloader[dataset_split])):
-            model_outputs = model.forward(item)
-            model.inference_step(item, batch_idx, model_outputs)
-        model.on_inference_epoch_end()
+        model.on_inference_start_dataset(dataset_split, is_ensemble_model=False)
+        for batch_idx, batch in enumerate(dataloader[dataset_split])):
+            posteriors = model.forward(batch['x'])
+            model.record_posteriors(batch['y'], batch_idx, posteriors)
+        model.on_inference_end_dataset()
     model.on_inference_end()
     """
 
