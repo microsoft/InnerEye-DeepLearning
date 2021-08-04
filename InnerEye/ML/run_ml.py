@@ -1035,11 +1035,11 @@ class MLRunner:
             inference_model.on_inference_start()
             inference_model.on_inference_start_dataset(ModelExecutionMode.TEST)
             for batch_idx, batch in enumerate(test_dataloader):
-                posteriors = inference_model.forward(batch['x'])  # type: ignore
+                posteriors = inference_model.forward(batch["x"])  # type: ignore
                 if batch_idx not in ensembles_models_posteriors:
                     ensembles_models_posteriors[batch_idx] = []
                 ensembles_models_posteriors[batch_idx].append(posteriors)
-                inference_model.record_posteriors(batch['y'], batch_idx, posteriors)
+                inference_model.record_posteriors(batch["y"], batch_idx, posteriors)
             inference_model.on_inference_end_dataset()
             inference_model.on_inference_end()
 
