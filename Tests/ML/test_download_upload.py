@@ -25,7 +25,7 @@ from Tests.AfterTraining.test_after_training import FALLBACK_ENSEMBLE_RUN, FALLB
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.configs.lightning_test_containers import DummyContainerWithDatasets
 from Tests.ML.util import get_default_azure_config
-from health.azure.himl import AzureRunInformation
+from health.azure.himl import AzureRunInfo
 
 logging_to_stdout(logging.DEBUG)
 
@@ -163,13 +163,13 @@ def _test_mount_for_lightning_container(test_output_dirs: OutputFolderForTests,
             runner = MLRunner(config, container=container,
                               azure_config=None, project_root=test_output_dirs.root_dir)
             path_from_aml = [None] if is_offline_run else [mount_path]
-            runner.setup(azure_run_info=AzureRunInformation(input_datasets=path_from_aml,
-                                                            output_datasets=[],
-                                                            run=None,
-                                                            is_running_in_azure=False,
-                                                            output_folder=Path(),
-                                                            logs_folder=Path()
-                                                            ))
+            runner.setup(azure_run_info=AzureRunInfo(input_datasets=path_from_aml,
+                                                     output_datasets=[],
+                                                     run=None,
+                                                     is_running_in_azure=False,
+                                                     output_folder=Path(),
+                                                     logs_folder=Path()
+                                                     ))
             return runner.container
 
 

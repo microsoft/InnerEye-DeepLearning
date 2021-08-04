@@ -394,8 +394,10 @@ def test_recovery_on_2_nodes(test_output_dirs: OutputFolderForTests) -> None:
                  "--tag", "recovery_on_2_nodes"
                  ]
     script = str(repository_root_directory() / "InnerEye" / "ML" / "runner.py")
-    with mock.patch("sys.argv", [script] + args_list):
-        main()
+    # Submission of the recovery job will try to exit the process, catch that and check the submitted run.
+    with pytest.raises(SystemExit):
+        with mock.patch("sys.argv", [script] + args_list):
+            main()
     run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_2NODE_RUN)
     assert run.status == RunStatus.COMPLETED
     files = run.get_file_names()

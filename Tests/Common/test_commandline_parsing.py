@@ -15,7 +15,7 @@ from InnerEye.ML.config import PhotometricNormalizationMethod, SegmentationModel
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.runner import Runner
 from Tests.ML.configs.DummyModel import DummyModel
-from health.azure.himl import AzureRunInformation
+from health.azure.himl import AzureRunInfo
 
 
 @pytest.mark.parametrize("is_container", [True, False])
@@ -62,12 +62,12 @@ def test_create_ml_runner_args(is_container: bool,
                     runner.parse_and_load_model()
                     # Only when calling config.create_filesystem we expect to see the correct paths, and this happens
                     # inside run_in_situ
-                    azure_run_info = AzureRunInformation(input_datasets=[None],
-                                                         output_datasets=[None],
-                                                         run=None,
-                                                         is_running_in_azure=False,
-                                                         output_folder=Path.cwd(),
-                                                         logs_folder=Path.cwd())
+                    azure_run_info = AzureRunInfo(input_datasets=[None],
+                                                  output_datasets=[None],
+                                                  run=None,
+                                                  is_running_in_azure=False,
+                                                  output_folder=Path.cwd(),
+                                                  logs_folder=Path.cwd())
                     runner.run_in_situ(azure_run_info)
                     azure_config = runner.azure_config
                     container_or_legacy_config = runner.lightning_container if is_container else runner.model_config

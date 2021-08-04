@@ -60,7 +60,7 @@ from InnerEye.ML.visualizers.plot_cross_validation import \
     get_config_and_results_for_offline_runs, plot_cross_validation_from_files
 from health.azure.azure_util import create_run_recovery_id
 from health.azure.datasets import get_or_create_dataset
-from health.azure.himl import AzureRunInformation
+from health.azure.himl import AzureRunInfo
 
 ModelDeploymentHookSignature = Callable[[LightningContainer, AzureConfig, Model, ModelProcessing], Any]
 PostCrossValidationHookSignature = Callable[[ModelConfigBase, Path], None]
@@ -190,7 +190,7 @@ class MLRunner:
         self.output_subfolder = output_subfolder
         self._has_setup_run = False
 
-    def setup(self, azure_run_info: Optional[AzureRunInformation] = None) -> None:
+    def setup(self, azure_run_info: Optional[AzureRunInfo] = None) -> None:
         """
         If the present object is using one of the InnerEye built-in models, create a (fake) container for it
         and call the setup method. It sets the random seeds, and then creates the actual Lightning modules.

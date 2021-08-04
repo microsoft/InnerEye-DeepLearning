@@ -35,7 +35,7 @@ if not runner_path.is_absolute():
 
 from azureml._base_sdk_common import user_agent
 from azureml.core import Run, ScriptRunConfig
-from health.azure.himl import AzureRunInformation, submit_to_azure_if_needed
+from health.azure.himl import AzureRunInfo, submit_to_azure_if_needed
 from health.azure.azure_util import create_run_recovery_id, merge_conda_files, to_azure_friendly_string
 import matplotlib
 
@@ -194,7 +194,7 @@ class Runner:
             logging.info("extra_code_directory is unset")
         return parser_result
 
-    def run(self) -> Tuple[Optional[DeepLearningConfig], AzureRunInformation]:
+    def run(self) -> Tuple[Optional[DeepLearningConfig], AzureRunInfo]:
         """
         The main entry point for training and testing models from the commandline. This chooses a model to train
         via a commandline argument, runs training or testing, and writes all required info to disk and logs.
@@ -216,7 +216,7 @@ class Runner:
             return self.lightning_container, azure_run_info
         return self.model_config, azure_run_info
 
-    def submit_to_azureml_if_needed(self) -> AzureRunInformation:
+    def submit_to_azureml_if_needed(self) -> AzureRunInfo:
         """
         Submit a job to AzureML, returning the resulting Run object, or exiting if we were asked to wait for
         completion and the Run did not succeed.
@@ -341,7 +341,7 @@ class Runner:
         for key, value in tags_to_print.items():
             logging.info(f"    {key:20}: {value}")
 
-    def run_in_situ(self, azure_run_info: AzureRunInformation) -> None:
+    def run_in_situ(self, azure_run_info: AzureRunInfo) -> None:
         """
         Actually run the AzureML job; this method will typically run on an Azure VM.
         :param azure_run_info: Contains all information about the present run in AzureML, in particular where the
