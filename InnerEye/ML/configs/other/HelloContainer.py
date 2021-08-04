@@ -256,12 +256,13 @@ class HelloRegression(LightningModule, InnerEyeInference):
         """
         Append the metrics from this dataset's inference run to the metrics' files.
         """
-        if self.outputs_folder:
-            average_mse = torch.mean(torch.stack(self.test_mse))
-            with (self.outputs_folder / "test_mse.txt").open("a") as test_mse_file:
-                test_mse_file.write(f"{str(self.execution_mode.name)}: {str(average_mse.item())}\n")  # type: ignore
-            with (self.outputs_folder / "test_mae.txt").open("a") as test_mae_file:
-                test_mae_file.write(f"{str(self.execution_mode.name)}: {str(self.test_mae.compute().item())}\n")  # type: ignore
+        average_mse = torch.mean(torch.stack(self.test_mse))
+        with (self.inference_output_path / "test_mse.txt").open("a") as test_mse_file:
+            test_mse_file.write(
+                f"{str(self.execution_mode.name)}: {str(average_mse.item())}\n")  # type: ignore
+        with (self.inference_output_path / "test_mae.txt").open("a") as test_mae_file:
+            test_mae_file.write(
+                f"{str(self.execution_mode.name)}: {str(self.test_mae.compute().item())}\n")  # type: ignore
 
     def on_inference_end(self) -> None:
         """
