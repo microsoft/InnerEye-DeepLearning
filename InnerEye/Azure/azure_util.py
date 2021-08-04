@@ -13,7 +13,6 @@ from azureml.exceptions import UserErrorException
 
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME
-from health.azure.azure_util import create_run_recovery_id
 
 DEFAULT_CROSS_VALIDATION_SPLIT_INDEX = -1
 EXPERIMENT_RUN_SEPARATOR = ":"
@@ -135,12 +134,8 @@ def fetch_child_runs(run: Run, status: Optional[str] = None,
             run = PARENT_RUN_CONTEXT
     children_runs = list(run.get_children(tags=RUN_RECOVERY_ID_KEY_NAME))
     if 0 < expected_number_cross_validation_splits != len(children_runs):
-        logging.warning(
-            f"The expected number of child runs was {expected_number_cross_validation_splits}."
-            f"Fetched only: {len(children_runs)} runs. Now trying to fetch them manually.")
-        run_ids_to_evaluate = [f"{create_run_recovery_id(run)}_{i}"
-                               for i in range(expected_number_cross_validation_splits)]
-        children_runs = [fetch_run(run.experiment.workspace, id) for id in run_ids_to_evaluate]
+        raise ValueError(f"Expected {expected_number_cross_validation_splits} child runs, but only got "
+                         f"{len(children_runs)}")
     if status is not None:
         children_runs = [child_run for child_run in children_runs if child_run.get_status() == status]
     return children_runs
