@@ -162,7 +162,7 @@ def _test_mount_for_lightning_container(test_output_dirs: OutputFolderForTests,
         with mock.patch("InnerEye.ML.run_ml.download_dataset", return_value=download_path):
             runner = MLRunner(config, container=container,
                               azure_config=None, project_root=test_output_dirs.root_dir)
-            path_from_aml = [None] if is_offline_run else [mount_path]
+            path_from_aml: List[Optional[Path]] = [None] if is_offline_run else [mount_path]
             runner.setup(azure_run_info=AzureRunInfo(input_datasets=path_from_aml,
                                                      output_datasets=[],
                                                      run=None,

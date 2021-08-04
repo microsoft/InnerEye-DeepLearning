@@ -5,14 +5,10 @@
 import logging
 import os
 import re
-import tempfile
 from pathlib import Path
 from typing import Generator, List, Optional, Tuple
 
-import conda_merge
-import ruamel.yaml
 from azureml.core import Experiment, Run, Workspace, get_run
-from azureml.core.conda_dependencies import CondaDependencies
 from azureml.exceptions import UserErrorException
 
 from InnerEye.Common import fixed_paths
