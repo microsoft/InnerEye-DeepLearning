@@ -173,7 +173,7 @@ def submit_for_inference(args: SubmitForInferenceConfig, azure_config: AzureConf
                                           aml_environment_name=python_environment_name)
     script_run_config = ScriptRunConfig(
         source_directory=str(source_directory_path),
-        entry_script=entry_script.relative_to(source_directory_path),
+        script=entry_script.relative_to(source_directory_path),
         arguments=["--model-folder", ".",
                    "--model-id", model_id,
                    SCORE_SCRIPT,
