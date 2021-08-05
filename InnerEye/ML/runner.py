@@ -14,7 +14,6 @@ from typing import Optional, Tuple
 # flake8: noqa
 # Workaround for an issue with how AzureML and Pytorch Lightning interact: When spawning additional processes for DDP,
 # the working directory is not correctly picked up in sys.path
-
 print(f"Starting InnerEye runner at {sys.argv[0]}")
 innereye_root = Path(__file__).absolute().parent.parent.parent
 if (innereye_root / "InnerEye").is_dir():
@@ -22,16 +21,6 @@ if (innereye_root / "InnerEye").is_dir():
     if innereye_root_str not in sys.path:
         print(f"Adding InnerEye folder to sys.path: {innereye_root_str}")
         sys.path.insert(0, innereye_root_str)
-    # Add hi-ml package if that was included as a submodule, rather than coming from pip
-    himl_folder = innereye_root / "hi-ml" / "src"
-    if himl_folder.is_dir() and str(himl_folder) not in sys.path:
-        sys.path.insert(0, str(himl_folder))
-# We change the current working directory before starting the actual training. However, this throws off starting
-# the child training threads because sys.argv[0] is a relative path when running in AzureML. Turn that into an absolute
-# path.
-runner_path = Path(sys.argv[0])
-if not runner_path.is_absolute():
-    sys.argv[0] = str(runner_path.absolute())
 
 from azureml._base_sdk_common import user_agent
 from azureml.core import Run, ScriptRunConfig
@@ -63,6 +52,14 @@ from InnerEye.ML.model_training import is_global_rank_zero, is_local_rank_zero
 from InnerEye.ML.run_ml import MLRunner, ModelDeploymentHookSignature, PostCrossValidationHookSignature
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.lightning_container import LightningContainer
+
+fixed_paths.add_submodules_to_path()
+# We change the current working directory before starting the actual training. However, this throws off starting
+# the child training threads because sys.argv[0] is a relative path when running in AzureML. Turn that into an absolute
+# path.
+runner_path = Path(sys.argv[0])
+if not runner_path.is_absolute():
+    sys.argv[0] = str(runner_path.absolute())
 
 
 def initialize_rpdb() -> None:

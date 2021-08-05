@@ -5,7 +5,7 @@ steps:
       source activate InnerEye
       pytest ./Tests -m "${{parameters.pytest_mark}}" --junitxml=junit/test-${{parameters.test_run_title}}.xml
     env:
-      PYTHONPATH: $(Build.SourcesDirectory):$(Build.SourcesDirectory)/hi-ml/src
+      PYTHONPATH: $(Build.SourcesDirectory)
       APPLICATION_KEY: $(InnerEyeDeepLearningServicePrincipalKey)
       BUILD_BRANCH: $(Build.SourceBranch)
     displayName: Run pytests that require training run

@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import os
+import sys
 from pathlib import Path
 
 import pytest
@@ -10,6 +11,7 @@ import pytest
 from InnerEye.Common import common_util
 from InnerEye.Common.common_util import (change_working_directory, check_is_any_of,
                                          is_private_field_name, namespace_to_path, path_to_namespace, print_exception)
+from InnerEye.Common.fixed_paths import add_submodules_to_path, repository_root_directory
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path, tests_root_directory
 from InnerEye.Common.output_directories import OutputFolderForTests
 
@@ -123,3 +125,17 @@ def test_change_dir(test_output_dirs: OutputFolderForTests) -> None:
         Path("bar.txt").touch()
     assert Path.cwd() == test_output_dirs.root_dir
     assert (new_dir / "bar.txt").is_file()
+
+
+def test_add_submodules_to_path() -> None:
+    original_sys_path = sys.path
+    try:
+        fastmri_folder = repository_root_directory() / "fastMRI"
+        fastmri_str = str(fastmri_folder)
+        assert fastmri_folder.is_dir()
+        if fastmri_str in sys.path:
+            sys.path.remove(fastmri_str)
+        add_submodules_to_path()
+        assert fastmri_str in sys.path
+    finally:
+        sys.path = original_sys_path
