@@ -21,6 +21,8 @@ if (innereye_root / "InnerEye").is_dir():
     if innereye_root_str not in sys.path:
         print(f"Adding InnerEye folder to sys.path: {innereye_root_str}")
         sys.path.insert(0, innereye_root_str)
+from InnerEye.Common import fixed_paths
+fixed_paths.add_submodules_to_path()
 
 from azureml._base_sdk_common import user_agent
 from azureml.core import Run, ScriptRunConfig
@@ -40,7 +42,6 @@ from InnerEye.Azure.azure_runner import (DEFAULT_DOCKER_BASE_IMAGE, create_datas
 from InnerEye.Azure.azure_util import (RUN_CONTEXT, RUN_RECOVERY_ID_KEY_NAME, get_all_environment_files,
                                        is_offline_run_context)
 from InnerEye.Azure.run_pytest import download_pytest_result, run_pytest
-from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import (FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE,
                                          disable_logging_to_file, is_linux, logging_to_stdout)
 from InnerEye.Common.generic_parsing import GenericConfig
@@ -53,7 +54,6 @@ from InnerEye.ML.run_ml import MLRunner, ModelDeploymentHookSignature, PostCross
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.lightning_container import LightningContainer
 
-fixed_paths.add_submodules_to_path()
 # We change the current working directory before starting the actual training. However, this throws off starting
 # the child training threads because sys.argv[0] is a relative path when running in AzureML. Turn that into an absolute
 # path.
