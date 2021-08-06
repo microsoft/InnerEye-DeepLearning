@@ -14,15 +14,17 @@ from typing import Generator
 import pytest
 
 from InnerEye.Common.fixed_paths import add_submodules_to_path
-from InnerEye.Common.output_directories import OutputFolderForTests, remove_and_create_folder
 from InnerEye.Common.fixed_paths_for_tests import TEST_OUTPUTS_PATH
+from InnerEye.Common.output_directories import OutputFolderForTests, remove_and_create_folder
+
+# This needs to be right at the start of conftest, so that already test collection has access to all submodules
+add_submodules_to_path()
 
 
 @pytest.fixture(autouse=True, scope='session')
 def test_suite_setup() -> Generator:
     # create a default outputs root for all tests
     remove_and_create_folder(TEST_OUTPUTS_PATH)
-    add_submodules_to_path()
     # run the entire test suite
     yield
 
