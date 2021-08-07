@@ -101,6 +101,7 @@ def get_most_recent_model_id(fallback_run_id_for_local_execution: str = FALLBACK
     azure_config = AzureConfig.from_yaml(fixed_paths.SETTINGS_YAML_FILE,
                                          project_root=fixed_paths.repository_root_directory())
     run = azure_config.fetch_run(most_recent_run)
+    assert run.status == "Completed", f"AzureML run {run.id} did not complete successfully."
     tags = run.get_tags()
     model_id = tags.get(MODEL_ID_KEY_NAME, None)
     assert model_id, f"No model_id tag was found on run {most_recent_run}"
