@@ -20,6 +20,7 @@ import numpy as np
 import pytest
 from azureml._restclient.constants import RunStatus
 from azureml.core import Model, Run
+from health.azure.himl import RUN_RECOVERY_FILE
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_util import MODEL_ID_KEY_NAME, download_run_output_file, download_run_outputs_by_prefix, \
@@ -48,7 +49,6 @@ from InnerEye.ML.utils.io_util import zip_random_dicom_series
 from InnerEye.ML.visualizers.plot_cross_validation import PlotCrossValidationConfig
 from InnerEye.Scripts import submit_for_inference
 from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_default_workspace, get_nifti_shape
-from health.azure.himl import RUN_RECOVERY_FILE
 
 FALLBACK_SINGLE_RUN = "refs_pull_545_merge:refs_pull_545_merge_1626538212_d2b07afd"
 FALLBACK_ENSEMBLE_RUN = "refs_pull_545_merge:HD_caea82ae-9603-48ba-8280-7d2bc6272411"
@@ -209,41 +209,43 @@ def test_check_dataset_mountpoint(test_output_dirs: OutputFolderForTests) -> Non
     assert f"local_dataset                           : {expected_mountpoint}" in logs
 
 
+# This test fails when using hi-ml as a submodule: When registering the model, we do not include the hi-ml submodule
 @pytest.mark.inference
-@pytest.mark.parametrize("use_dicom", [False, True])
-def test_submit_for_inference(use_dicom: bool, test_output_dirs: OutputFolderForTests) -> None:
+def test_submit_for_inference(test_output_dirs: OutputFolderForTests) -> None:
     """
     Execute the submit_for_inference script on the model that was recently trained. This starts an AzureML job,
     and downloads the segmentation. Then check if the segmentation was actually produced.
-
-    :param use_dicom: True to test DICOM in/out, False otherwise.
     :param test_output_dirs: Test output directories.
     """
     model = get_most_recent_model(fallback_run_id_for_local_execution=FALLBACK_SINGLE_RUN)
     assert PYTHON_ENVIRONMENT_NAME in model.tags, "Environment name not present in model properties"
-    if use_dicom:
-        size = (64, 64, 64)
-        spacing = (1., 1., 2.5)
-        image_file = test_output_dirs.root_dir / "temp_pack_dicom_series" / "dicom_series.zip"
-        scratch_folder = test_output_dirs.root_dir / "temp_dicom_series"
-        zip_random_dicom_series(size, spacing, image_file, scratch_folder)
-    else:
-        image_file = fixed_paths_for_tests.full_ml_test_data_path() / "train_and_test_data" / "id1_channel1.nii.gz"
-    assert image_file.exists(), f"Image file not found: {image_file}"
-    settings_file = fixed_paths.SETTINGS_YAML_FILE
-    assert settings_file.exists(), f"Settings file not found: {settings_file}"
-    args = ["--image_file", str(image_file),
-            "--model_id", model.id,
-            "--settings", str(settings_file),
-            "--download_folder", str(test_output_dirs.root_dir),
-            "--cluster", "training-nc12",
-            "--experiment", get_experiment_name_from_environment() or "model_inference",
-            "--use_dicom", str(use_dicom)]
-    download_file = DEFAULT_RESULT_ZIP_DICOM_NAME if use_dicom else DEFAULT_RESULT_IMAGE_NAME
-    seg_path = test_output_dirs.root_dir / download_file
-    assert not seg_path.exists(), f"Result file {seg_path} should not yet exist"
-    submit_for_inference.main(args, project_root=fixed_paths.repository_root_directory())
-    assert seg_path.exists(), f"Result file {seg_path} was not created"
+    # Both parts of this test rely on the same model that was trained in a previous run. If these tests are executed
+    # independently (via pytest.mark.parametrize), get_most_recent_model would pick up the AML run that the
+    # previously executed part of this test submitted.
+    for use_dicom in [False, True]:
+        if use_dicom:
+            size = (64, 64, 64)
+            spacing = (1., 1., 2.5)
+            image_file = test_output_dirs.root_dir / "temp_pack_dicom_series" / "dicom_series.zip"
+            scratch_folder = test_output_dirs.root_dir / "temp_dicom_series"
+            zip_random_dicom_series(size, spacing, image_file, scratch_folder)
+        else:
+            image_file = fixed_paths_for_tests.full_ml_test_data_path() / "train_and_test_data" / "id1_channel1.nii.gz"
+        assert image_file.exists(), f"Image file not found: {image_file}"
+        settings_file = fixed_paths.SETTINGS_YAML_FILE
+        assert settings_file.exists(), f"Settings file not found: {settings_file}"
+        args = ["--image_file", str(image_file),
+                "--model_id", model.id,
+                "--settings", str(settings_file),
+                "--download_folder", str(test_output_dirs.root_dir),
+                "--cluster", "training-nc12",
+                "--experiment", get_experiment_name_from_environment() or "model_inference",
+                "--use_dicom", str(use_dicom)]
+        download_file = DEFAULT_RESULT_ZIP_DICOM_NAME if use_dicom else DEFAULT_RESULT_IMAGE_NAME
+        seg_path = test_output_dirs.root_dir / download_file
+        assert not seg_path.exists(), f"Result file {seg_path} should not yet exist"
+        submit_for_inference.main(args, project_root=fixed_paths.repository_root_directory())
+        assert seg_path.exists(), f"Result file {seg_path} was not created"
 
 
 def _check_presence_cross_val_metrics_file(split: str, mode: ModelExecutionMode, available_files: List[str]) -> bool:
@@ -281,6 +283,7 @@ def test_expected_cv_files_segmentation() -> None:
     assert not _check_presence_cross_val_metrics_file(ENSEMBLE_SPLIT_NAME, ModelExecutionMode.VAL, available_files)
 
 
+# This test fails when using hi-ml as a submodule: When registering the model, we do not include the hi-ml submodule
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on Windows")
 @pytest.mark.after_training_ensemble_run
 def test_register_and_score_model(test_output_dirs: OutputFolderForTests) -> None:
@@ -376,9 +379,7 @@ def test_training_2nodes(test_output_dirs: OutputFolderForTests) -> None:
     # Check diagnostic messages that show if DDP was set up correctly. This could fail if Lightning
     # changes its diagnostic outputs.
     assert "initializing ddp: GLOBAL_RANK: 0, MEMBER: 1/4" in log0_txt
-    assert "initializing ddp: GLOBAL_RANK: 1, MEMBER: 2/4" in log0_txt
     assert "initializing ddp: GLOBAL_RANK: 2, MEMBER: 3/4" in log1_txt
-    assert "initializing ddp: GLOBAL_RANK: 3, MEMBER: 4/4" in log1_txt
 
 
 @pytest.mark.after_training_2node
