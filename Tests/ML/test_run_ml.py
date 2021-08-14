@@ -14,7 +14,7 @@ from sklearn.model_selection import KFold
 from InnerEye.Common.fixed_paths_for_tests import tests_root_directory
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
-from InnerEye.ML.configs.other.HelloContainer import HelloContainer, HelloEnsembleInference, HelloRegression
+from InnerEye.ML.configs.other.HelloContainer import HelloContainer, HelloRegression
 from InnerEye.ML.run_ml import MLRunner
 from Tests.ML.util import default_runner
 
@@ -30,7 +30,7 @@ def test_create_ensemble_model_and_run_inference_for_innereyeinference(test_outp
     test_mses: List[float] = []
     test_maes: List[float] = []
     np.random.seed(42)
-    # Since cross validation for Lightning models will not run locally in our infrastructure, we need to set the data up
+    # Since cross validation for Lightning models will not run locally in our infrastructure, we need to setup the data
     # manually for each of the cross validation child runs, and run them manually, collating their checkpoints.
     raw_data = np.loadtxt(
         tests_root_directory().parent / "InnerEye" / "ML" / "configs" / "other" / "hellocontainer.csv",
@@ -59,7 +59,8 @@ def test_create_ensemble_model_and_run_inference_for_innereyeinference(test_outp
         # Using runner we can now train the cross validation split model and save out its best checkpoint
         with mock.patch("sys.argv", args):
             loaded_config, _ = runner.run()
-        checkpoint_path = loaded_config.file_system_config.run_folder / "checkpoints" / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX  # type: ignore
+        checkpoint_path = loaded_config.file_system_config.run_folder / "checkpoints" / \
+            BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX  # type: ignore
         checkpoint_paths.append(checkpoint_path)
         mse_metrics = _load_metrics_from_file(metrics_file=loaded_config.file_system_config.run_folder / "test_mse.txt")  # type: ignore
         test_mses.append(mse_metrics["TEST"])
@@ -67,7 +68,8 @@ def test_create_ensemble_model_and_run_inference_for_innereyeinference(test_outp
         test_maes.append(mae_metrics["TEST"])
     # Now we can test the method on run_ml
     ml_runner = MLRunner(container=HelloContainer())
-    ml_runner.ensemble_model = HelloEnsembleInference(outputs_folder=test_output_dirs.root_dir)
+    ml_runner.ensemble_model = HelloRegression()
+
     ml_runner.create_ensemble_model_and_run_inference_from_lightningmodule_checkpoints(
         HelloRegression(),
         checkpoint_paths)
