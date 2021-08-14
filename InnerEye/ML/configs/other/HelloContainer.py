@@ -18,6 +18,10 @@ from sklearn.model_selection import KFold
 from InnerEye.Common import fixed_paths
 from InnerEye.ML.lightning_container import InnerEyeInference, LightningContainer
 
+TEST_MSE_FILENAME = "test_mse.txt"
+TEST_MAE_FILENAME = "test_mae.txt"
+INFERENCE_SUBDIR = "inference"
+
 
 class HelloDataset(Dataset):
     """
@@ -94,7 +98,7 @@ class HelloDataModule(LightningDataModule):
             np.random.shuffle(raw_data)
             if number_of_cross_validation_splits >= len(raw_data):
                 raise ValueError(f"Asked for {number_of_cross_validation_splits} cross validation splits from a "
-                f"dataset of length {len(raw_data)}")
+                                 f"dataset of length {len(raw_data)}")
             # Hold out the last 30% as test data
             self.test = HelloDataset(raw_data[70:100])
             # Create k-folds from the remaining 70% of the data-set. Use one for the validation
@@ -131,7 +135,8 @@ class HelloRegression(LightningModule, InnerEyeInference):
         self.model = torch.nn.Linear(in_features=1, out_features=1, bias=True)
         self.test_mse: List[torch.Tensor] = []
         self.test_mae = MeanAbsoluteError()
-        self.inference_output_path = Path.cwd()
+        self.inference_output_path = Path(INFERENCE_SUBDIR)
+        self.inference_output_path.mkdir(exist_ok=False)
         self.execution_mode: Optional[ModelExecutionMode] = None
 
     # region  standard PyTorch Lightning interface methods
@@ -222,8 +227,8 @@ class HelloRegression(LightningModule, InnerEyeInference):
         for example writing aggregate metrics to disk.
         """
         average_mse = torch.mean(torch.stack(self.test_mse))
-        Path("test_mse.txt").write_text(str(average_mse.item()))
-        Path("test_mae.txt").write_text(str(self.test_mae.compute().item()))
+        Path(TEST_MSE_FILENAME).write_text(str(average_mse.item()))
+        Path(TEST_MAE_FILENAME).write_text(str(self.test_mae.compute().item()))
 
     # endregion  standard PyTorch Lightning interface methods
 
@@ -241,6 +246,8 @@ class HelloRegression(LightningModule, InnerEyeInference):
         if is_ensemble_model:
             self.inference_output_path = self.inference_output_path / "ensemble"
             self.inference_output_path.mkdir(exist_ok=False)
+        (self.inference_output_path / TEST_MSE_FILENAME).touch()
+        (self.inference_output_path / TEST_MAE_FILENAME).touch()
 
     def on_inference_start_dataset(self, dataset_split: ModelExecutionMode) -> None:
         """
@@ -257,10 +264,10 @@ class HelloRegression(LightningModule, InnerEyeInference):
         Append the metrics from this dataset's inference run to the metrics' files.
         """
         average_mse = torch.mean(torch.stack(self.test_mse))
-        with (self.inference_output_path / "test_mse.txt").open("a") as test_mse_file:
+        with (self.inference_output_path / TEST_MSE_FILENAME).open("a") as test_mse_file:
             test_mse_file.write(
                 f"{str(self.execution_mode.name)}: {str(average_mse.item())}\n")  # type: ignore
-        with (self.inference_output_path / "test_mae.txt").open("a") as test_mae_file:
+        with (self.inference_output_path / TEST_MAE_FILENAME).open("a") as test_mae_file:
             test_mae_file.write(
                 f"{str(self.execution_mode.name)}: {str(self.test_mae.compute().item())}\n")  # type: ignore
 
@@ -268,7 +275,7 @@ class HelloRegression(LightningModule, InnerEyeInference):
         """
         Reset the output path.
         """
-        self.inference_output_path = Path.cwd()
+        self.inference_output_path = Path(INFERENCE_SUBDIR)
 
     # We will not override
     #     aggregate_ensemble_model_outputs(self, model_outputs: Iterator[torch.Tensor]) -> torch.Tensor
@@ -311,7 +318,9 @@ class HelloContainer(LightningContainer):
     # This method must be overridden by any subclass of LightningContainer. It returns the model that you wish to
     # train, as a LightningModule
     def create_model(self) -> LightningModule:
-        return HelloRegression()
+        if not self._model:
+            self._model = HelloRegression()
+        return self._model
 
     # This method must be overridden by any subclass of LightningContainer. It returns a data module, which
     # in turn contains 3 data loaders for training, validation, and test set. 
@@ -332,8 +341,12 @@ class HelloContainer(LightningContainer):
     # training, and cook them into a nice looking report. Here, the report is a simple text file.
     def create_report(self) -> None:
         # This just prints out the test MSE, but you could also generate a Jupyter notebook here, for example.
-        test_mse = Path("test_mse.txt").read_text().strip()
-        test_mae = Path("test_mae.txt").read_text().strip()
-        report = f"Performance on test set: MSE = {test_mse}, MAE = {test_mae}"
-        print(report)
-        Path("report.txt").write_text(report)
+        if self._model:
+            assert isinstance(self._model, HelloRegression)
+            test_mse_file = self._model.inference_output_path / TEST_MSE_FILENAME
+            test_mse = test_mse_file.read_text().strip()
+            test_mae_file = self._model.inference_output_path / TEST_MAE_FILENAME
+            test_mae = test_mae_file.read_text().strip()
+            report = f"Performance on test set: MSE = {test_mse}, MAE = {test_mae}"
+            print(report)
+            Path("report.txt").write_text(report)

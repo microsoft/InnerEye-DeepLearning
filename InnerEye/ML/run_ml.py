@@ -421,12 +421,12 @@ class MLRunner:
                         self.wait_for_runs_to_finish()
                         self.create_ensemble_model_and_run_inference_for_innereye_container()
             else:
-                # Inference for all models that are specified via LightningContainers.
-                with logging_section("Model inference"):
-                    self.run_inference_for_lightning_models(checkpoint_paths_for_testing)
                 # We can't enforce that files are written to the output folder, hence change the working directory
                 # manually
                 with change_working_directory(self.container.outputs_folder):
+                    # Inference for all models that are specified via LightningContainers.
+                    with logging_section("Model inference"):
+                        self.run_inference_for_lightning_models(checkpoint_paths_for_testing)
                     self.container.create_report()
 
         if self.container.regression_test_folder:
@@ -509,7 +509,10 @@ class MLRunner:
                 lightning_model.on_inference_start_dataset(dataset_split=split)
                 for batch_idx, batch in enumerate(loader):
                     posteriors = lightning_model.forward(batch['x'])
-                    lightning_model.record_posteriors(batch, batch_idx, posteriors)
+                    lightning_model.record_posteriors(
+                        batch_y=batch['y'],
+                        batch_idx=batch_idx,
+                        posteriors=posteriors)
                 lightning_model.on_inference_end_dataset()
             lightning_model.on_inference_end()
 
