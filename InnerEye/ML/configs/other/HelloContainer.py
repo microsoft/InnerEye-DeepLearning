@@ -2,6 +2,17 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+
+"""
+Simple Lightning container classes demonstrating our Bring Your Own Lightning Model cpapbilities. These perform a simple
+one-dimensional regression task. This can be run locally with the command
+    python InnerEye/ML/runner.py --model=HelloContainer
+(adding the --azureml flag to run in Azure ML instead of locally.)
+
+See the README file for more details:
+    https://github.com/microsoft/InnerEye-DeepLearning/blob/main/docs/bring_your_own_model.md
+"""
+
 from InnerEye.ML.common import ModelExecutionMode
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -21,6 +32,7 @@ from InnerEye.ML.lightning_container import InnerEyeInference, LightningContaine
 TEST_MSE_FILENAME = "test_mse.txt"
 TEST_MAE_FILENAME = "test_mae.txt"
 INFERENCE_SUBDIR = "inference"
+ENSEMBLE_SUBDIR = "inference"
 
 
 class HelloDataset(Dataset):
@@ -135,8 +147,6 @@ class HelloRegression(LightningModule, InnerEyeInference):
         self.model = torch.nn.Linear(in_features=1, out_features=1, bias=True)
         self.test_mse: List[torch.Tensor] = []
         self.test_mae = MeanAbsoluteError()
-        self.inference_output_path = Path(INFERENCE_SUBDIR)
-        self.inference_output_path.mkdir(exist_ok=False)
         self.execution_mode: Optional[ModelExecutionMode] = None
 
     # region  standard PyTorch Lightning interface methods
@@ -239,13 +249,14 @@ class HelloRegression(LightningModule, InnerEyeInference):
         Initialize the variables used to store predictions and metrics.
 
         If we are operating as the first-amoung-equals in an ensemble model we save our metrics to an 'ensemble'
-        sub-directory. 
+        sub-directory.
         """
         self.on_test_epoch_start()
         self.execution_mode = None
         if is_ensemble_model:
-            self.inference_output_path = self.inference_output_path / "ensemble"
-            self.inference_output_path.mkdir(exist_ok=False)
+            self._set_path_for_inference(ENSEMBLE_SUBDIR)
+        else:
+            self._set_path_for_inference()
         (self.inference_output_path / TEST_MSE_FILENAME).touch()
         (self.inference_output_path / TEST_MAE_FILENAME).touch()
 
@@ -275,7 +286,7 @@ class HelloRegression(LightningModule, InnerEyeInference):
         """
         Reset the output path.
         """
-        self.inference_output_path = Path(INFERENCE_SUBDIR)
+        self._set_path_for_inference()
 
     # We will not override
     #     aggregate_ensemble_model_outputs(self, model_outputs: Iterator[torch.Tensor]) -> torch.Tensor
@@ -297,6 +308,19 @@ class HelloRegression(LightningModule, InnerEyeInference):
         target = batch["y"]
         prediction = self.forward(input)
         return torch.nn.functional.mse_loss(prediction, target)
+
+    def _set_path_for_inference(self, subdir: str = "") -> Path:
+        """
+        Set the path where inference output files will be stored
+        :param subdir: (Optional) additional sub-directory required (e.g. for the ensemble results)
+        :return: The path (also available in the inference_output_path instance variable)
+        """
+        self.inference_output_path = Path(INFERENCE_SUBDIR)
+        self.inference_output_path.mkdir(exist_ok=True)
+        if subdir:
+            self.inference_output_path = self.inference_output_path / subdir
+            self.inference_output_path.mkdir(exist_ok=True)
+        return self.inference_output_path
 
     # endregion helper methods
 
