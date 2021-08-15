@@ -314,24 +314,59 @@ class MLRunner:
         """
         assert isinstance(self.innereye_config, ScalarModelBase)
 
-        def _spawn_run(cross_val_split_index: int) -> None:
-            split_config = copy.deepcopy(self.innereye_config)
-            split_config.cross_validation_split_index = cross_val_split_index
-            logging.info(f"Running model train and test on cross validation split: {cross_val_split_index}")
-            split_ml_runner = MLRunner(model_config=split_config,
-                                       container=None,
-                                       azure_config=self.azure_config,
-                                       project_root=self.project_root,
-                                       post_cross_validation_hook=self.post_cross_validation_hook,
-                                       model_deployment_hook=self.model_deployment_hook,
-                                       output_subfolder=str(cross_val_split_index))
-            split_ml_runner.run()
-
         for i in range(self.innereye_config.number_of_cross_validation_splits):
-            _spawn_run(i)
+            self._spawn_run(i, innereye_config=self.innereye_config)
 
         config_and_files = get_config_and_results_for_offline_runs(self.innereye_config)
         plot_cross_validation_from_files(config_and_files, Path(config_and_files.config.outputs_directory))
+
+    def spawn_offline_cross_val_lightning_child_runs(self) -> None:
+        """
+        Trains and Tests k models based on their respective data splits sequentially.
+        Stores the results on the Validation set to the outputs directory of the parent run.
+        """
+        assert isinstance(self.container, LightningContainer)
+
+        for i in range(self.innereye_config.number_of_cross_validation_splits):
+            self._spawn_run(i, container=self.container)
+
+        # TODO: Is there something generic for BYO Lightning models we can do in place of these lines we do for InnerEye
+        # configs?
+        # config_and_files = get_config_and_results_for_offline_runs(self.innereye_config)
+        # plot_cross_validation_from_files(config_and_files, Path(config_and_files.config.outputs_directory))
+
+    def _spawn_run(
+            self,
+            cross_val_split_index: int,
+            innereye_config: Optional[ScalarModelBase] = None,
+            container: Optional[LightningContainer] = None) -> None:
+        """
+        Spawn a local cross validation run with the given cross validation index.
+        :param cross_val_split_index: The cross validation split index for this run.
+        :param innereye_config: (Optional) The instance of ScalarModelBase to deep-copy for the child run.
+        :param innereye_config: (Optional) The instance of LightningContainer to deep-copy for the child run.
+        """
+        if innereye_config:
+            split_config: Optional[ScalarModelBase] = copy.deepcopy(innereye_config)
+            split_config.cross_validation_split_index = cross_val_split_index
+            split_container: Optional[LightningContainer] = None
+        elif container:
+            split_config = None
+            split_container = copy.deepcopy(container)
+            split_container.cross_validation_split_index = cross_val_split_index
+        else:
+            raise ValueError("Spawning child runs needs either an instance of ScalarModelBase or LightingContainer "
+                             "from which to create the child runs")
+        logging.info(f"Running model train and test on cross validation split: {cross_val_split_index}")
+        split_ml_runner = MLRunner(
+            model_config=split_config,
+            container=split_container,
+            azure_config=self.azure_config,
+            project_root=self.project_root,
+            post_cross_validation_hook=self.post_cross_validation_hook,
+            model_deployment_hook=self.model_deployment_hook,
+            output_subfolder=str(cross_val_split_index))
+        split_ml_runner.run()
 
     def set_run_tags_from_parent(self) -> None:
         """
@@ -468,6 +503,7 @@ class MLRunner:
         :param checkpoint_paths: The paths to the checkpoint that should be used for inference.
         """
 
+        logging.info(f"run_inference_for_lightning_models with {len(checkpoint_paths)} checkpoints.")
         if len(checkpoint_paths) > 1:
             self.create_ensemble_model_and_run_inference_from_lightningmodule_checkpoints(
                 self.container.model,
