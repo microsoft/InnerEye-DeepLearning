@@ -7,7 +7,11 @@
 Simple Lightning container classes demonstrating our Bring Your Own Lightning Model cpapbilities. These perform a simple
 one-dimensional regression task. This can be run locally with the command
     python InnerEye/ML/runner.py --model=HelloContainer
-(adding the --azureml flag to run in Azure ML instead of locally.)
+adding the --azureml flag to run in AzureML instead of locally.
+
+Local cross validation runs are not implemented for Bring Your Own Lightning Models, but they can be run in AzureML,
+e.g.:
+    python InnerEye/ML/runner.py --model=HelloContainer --number_of_cross_validation_splits=5 --azureml
 
 See the README file for more details:
     https://github.com/microsoft/InnerEye-DeepLearning/blob/main/docs/bring_your_own_model.md
@@ -331,7 +335,8 @@ class HelloContainer(LightningContainer):
     to generate the actual Lightning model, and read out the datamodule that will be used for training.
     The number of training epochs is controlled at container level.
     You can train this model by running `python InnerEye/ML/runner.py --model=HelloContainer` on the local box,
-    or via `python InnerEye/ML/runner.py --model=HelloContainer --azureml=True` in AzureML
+    or via `python InnerEye/ML/runner.py --model=HelloContainer --azureml` in AzureML
+    Add, for example `--number_of_cross_validation_splits=5` for cross training in AzureML
     """
 
     def __init__(self) -> None:

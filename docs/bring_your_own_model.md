@@ -98,6 +98,10 @@ class MyContainer(LightningContainer):
         return MyDataModule(root_path=self.local_dataset)
 ```
 
+Local cross validation runs are not implemented for Bring Your Own Lightning Models, but they can be run in AzureML,
+e.g. `python InnerEye/ML/runner.py --model=HelloContainer --number_of_cross_validation_splits=5 --azureml`
+
+### Training Data
 Where does the data for training come from?
 - When training a model on a local box or VM, the data is read from the `local_dataset` folder that you define in the 
 container.

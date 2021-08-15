@@ -33,7 +33,7 @@
             "name": "InnerEye: Local Cross Validation",
             "type": "python",
             "request": "launch",
-            "program": "${file}",
+            "program": "${workspaceRoot}/InnerEye/ML/runner.py",
             "env": {"PYTHONPATH": "${workspaceRoot}"},
             "args": ["--model=HelloContainer", "--number_of_cross_validation_splits=5"],
             "console": "integratedTerminal"
@@ -42,7 +42,7 @@
             "name": "InnerEye: AzureML Cross Validation",
             "type": "python",
             "request": "launch",
-            "program": "${file}",
+            "program": "${workspaceRoot}/InnerEye/ML/runner.py",
             "env": {"PYTHONPATH": "${workspaceRoot}"},
             "args": ["--model=HelloContainer", "--number_of_cross_validation_splits=5", "--azureml"],
             "console": "integratedTerminal"
