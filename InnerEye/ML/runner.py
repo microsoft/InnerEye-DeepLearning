@@ -292,30 +292,36 @@ class Runner:
                 # and InnerEye as a git submodule and submitting jobs from the local machine.
                 # In case of version conflicts, the package version in the outer project is given priority.
                 merge_conda_files(source_config.conda_dependencies_files, temp_conda)
-            azure_run_info = submit_to_azure_if_needed(
-                entry_script=source_config.entry_script,
-                snapshot_root_directory=source_config.root_folder,
-                script_params=source_config.script_params,
-                conda_environment_file=temp_conda or source_config.conda_dependencies_files[0],
-                aml_workspace=self.azure_config.get_workspace(),
-                compute_cluster_name=self.azure_config.cluster,
-                environment_variables=source_config.environment_variables,
-                default_datastore=self.azure_config.azureml_datastore,
-                experiment_name=to_azure_friendly_string(create_experiment_name(self.azure_config)),
-                max_run_duration=self.azure_config.max_run_duration,
-                input_datasets=input_datasets,
-                num_nodes=self.azure_config.num_nodes,
-                wait_for_completion=False,
-                ignored_folders=ignored_folders,
-                pip_extra_index_url=self.azure_config.pip_extra_index_url,
-                submit_to_azureml=self.azure_config.azureml,
-                docker_base_image=DEFAULT_DOCKER_BASE_IMAGE,
-                docker_shm_size=self.azure_config.docker_shm_size,
-                tags=additional_run_tags(azure_config=self.azure_config,
-                                         commandline_args=" ".join(source_config.script_params)),
-                after_submission=after_submission_hook,
-                hyperdrive_config=hyperdrive_config
-            )
+
+            # Calls like `self.azure_config.get_workspace()` will fail if we have no AzureML credentials set up, and so
+            # we should only attempt them if we intend to elevate this to AzureML
+            if self.azure_config.azureml:
+                azure_run_info = submit_to_azure_if_needed(
+                    entry_script=source_config.entry_script,
+                    snapshot_root_directory=source_config.root_folder,
+                    script_params=source_config.script_params,
+                    conda_environment_file=temp_conda or source_config.conda_dependencies_files[0],
+                    aml_workspace=self.azure_config.get_workspace(),
+                    compute_cluster_name=self.azure_config.cluster,
+                    environment_variables=source_config.environment_variables,
+                    default_datastore=self.azure_config.azureml_datastore,
+                    experiment_name=to_azure_friendly_string(create_experiment_name(self.azure_config)),
+                    max_run_duration=self.azure_config.max_run_duration,
+                    input_datasets=input_datasets,
+                    num_nodes=self.azure_config.num_nodes,
+                    wait_for_completion=False,
+                    ignored_folders=ignored_folders,
+                    pip_extra_index_url=self.azure_config.pip_extra_index_url,
+                    submit_to_azureml=self.azure_config.azureml,
+                    docker_base_image=DEFAULT_DOCKER_BASE_IMAGE,
+                    docker_shm_size=self.azure_config.docker_shm_size,
+                    tags=additional_run_tags(
+                        azure_config=self.azure_config,
+                        commandline_args=" ".join(source_config.script_params)),
+                    after_submission=after_submission_hook,
+                    hyperdrive_config=hyperdrive_config)
+            else:
+                azure_run_info = submit_to_azure_if_needed(input_datasets=input_datasets, submit_to_azureml=False)
         finally:
             if temp_conda:
                 temp_conda.unlink()
