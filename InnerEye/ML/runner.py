@@ -296,6 +296,9 @@ class Runner:
             # Calls like `self.azure_config.get_workspace()` will fail if we have no AzureML credentials set up, and so
             # we should only attempt them if we intend to elevate this to AzureML
             if self.azure_config.azureml:
+                if not self.azure_config.cluster:
+                    raise ValueError("self.azure_config.cluster not set, but we need a compute_cluster_name to submit"
+                                     "the script to run in AzureML")
                 azure_run_info = submit_to_azure_if_needed(
                     entry_script=source_config.entry_script,
                     snapshot_root_directory=source_config.root_folder,
@@ -321,7 +324,11 @@ class Runner:
                     after_submission=after_submission_hook,
                     hyperdrive_config=hyperdrive_config)
             else:
-                azure_run_info = submit_to_azure_if_needed(input_datasets=input_datasets, submit_to_azureml=False)
+                # compute_cluster_name is a required parameter in early versions of the HI-ML package 
+                azure_run_info = submit_to_azure_if_needed(
+                    input_datasets=input_datasets,
+                    submit_to_azureml=False,
+                    compute_cluster_name="")
         finally:
             if temp_conda:
                 temp_conda.unlink()
