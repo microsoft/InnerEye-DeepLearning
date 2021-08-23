@@ -15,6 +15,7 @@ class NIH_COVID_BYOL(SSLContainer):
 
     def __init__(self,
                  covid_dataset_id: str = COVID_DATASET_ID,
+                 pretraining_dataset_id: str = NIH_AZURE_DATASET_ID,
                  **kwargs: Any):
         super().__init__(ssl_training_dataset_name=SSLDatasetName.NIHCXR,
                          linear_head_dataset_name=SSLDatasetName.Covid,
@@ -29,7 +30,7 @@ class NIH_COVID_BYOL(SSLContainer):
                          use_balanced_binary_loss_for_linear_head=True,
                          ssl_augmentation_config=path_encoder_augmentation_cxr,
                          extra_azure_dataset_ids=[covid_dataset_id],
-                         azure_dataset_id=NIH_AZURE_DATASET_ID,
+                         azure_dataset_id=pretraining_dataset_id,
                          linear_head_augmentation_config=path_linear_head_augmentation_cxr,
                          online_evaluator_lr=1e-5,
                          linear_head_batch_size=64,

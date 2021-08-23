@@ -82,6 +82,8 @@ class CovidModel(ScalarModelBase):
                          l_rate_scheduler=LRSchedulerType.Step,
                          l_rate_step_gamma=1.0,
                          l_rate_multi_step_milestones=None,
+                         inference_on_val_set=True,
+                         ensemble_inference_on_val_set=True,
                          should_validate=False)  # validate only after adding kwargs
         self.num_classes = 4
         self.add_and_validate(kwargs)
@@ -237,45 +239,118 @@ class CovidModel(ScalarModelBase):
     def generate_custom_report(self, report_dir: Path, model_proc: ModelProcessing) -> Path:
         """
         Generate a custom report for the Covid model. This report will read the file model_output.csv generated for
-        the training, validation or test sets and compute the multiclass accuracy based on this.
+        the training, validation or test sets and compute both the multiclass accuracy and the accuracy for each of the
+        hierarchical tasks.
         :param report_dir: Directory report is to be written to
         :param model_proc: Whether this is a single or ensemble model (model_output.csv will be located in different
         paths for single vs ensemble runs.)
         """
+
+        label_prefix = LoggingColumns.Label.value
+        output_prefix = LoggingColumns.ModelOutput.value
 
         def get_output_csv_path(mode: ModelExecutionMode) -> Path:
             p = get_best_epoch_results_path(mode=mode, model_proc=model_proc)
             return self.outputs_folder / p / MODEL_OUTPUT_CSV
 
         def get_labels_and_predictions(df: pd.DataFrame) -> pd.DataFrame:
+            """
+            Given a dataframe with predictions for a single subject, returns the label and model output for the
+            tasks: CVX03vs12, CVX0vs3, CVX1vs2 and multiclass.
+            """
             labels = []
             predictions = []
             for target in self.target_names:
                 target_df = df[df[LoggingColumns.Hue.value] == target]
-                predictions.append(target_df[LoggingColumns.ModelOutput.value])
-                labels.append(target_df[LoggingColumns.Label.value])
+                predictions.append(target_df[output_prefix].item())
+                labels.append(target_df[label_prefix].item())
+
+            pred_cvx03vs12 = predictions[1] + predictions[2]
+            label_cvx03vs12 = 1 if labels[1] or labels[2] else 0
+
+            if (predictions[0] + predictions[3]) != 0:
+                pred_cvx0vs3 = predictions[3] / (predictions[0] + predictions[3])
+            else:
+                pred_cvx0vs3 = np.NaN
+            label_cvx0vs3 = 0 if labels[0] else 1 if labels[3] else np.NaN
+
+            if (predictions[1] + predictions[2]) != 0:
+                pred_cvx1vs2 = predictions[2] / (predictions[1] + predictions[2])
+            else:
+                pred_cvx1vs2 = np.NaN
+            label_cvx1vs2 = 0 if labels[1] else 1 if labels[2] else np.NaN
 
             return pd.DataFrame.from_dict({LoggingColumns.Patient.value: [df.iloc[0][LoggingColumns.Patient.value]],
-                                           LoggingColumns.ModelOutput.value: [np.argmax(predictions)],
-                                           LoggingColumns.Label.value: [np.argmax(labels)]})
+                                           output_prefix: [np.argmax(predictions)],
+                                           label_prefix: [np.argmax(labels)],
+                                           f"{output_prefix}_CVX03vs12": pred_cvx03vs12,
+                                           f"{label_prefix}_CVX03vs12": label_cvx03vs12,
+                                           f"{output_prefix}_CVX0vs3": pred_cvx0vs3,
+                                           f"{label_prefix}_CVX0vs3": label_cvx0vs3,
+                                           f"{output_prefix}_CVX1vs2": pred_cvx1vs2,
+                                           f"{label_prefix}_CVX1vs2": label_cvx1vs2})
 
-        def get_accuracy(df: pd.DataFrame) -> float:
-            df = df.groupby(LoggingColumns.Patient.value, as_index=False).apply(get_labels_and_predictions).reset_index(
-                drop=True)
-            return (df[LoggingColumns.ModelOutput.value] == df[LoggingColumns.Label.value]).mean()  # type: ignore
+        def get_per_task_output_and_labels(df: pd.DataFrame) -> pd.DataFrame:
+            df = df.groupby(LoggingColumns.Patient.value, as_index=False).apply(get_labels_and_predictions).reset_index(drop=True)
+            return df
 
-        train_metrics = get_output_csv_path(ModelExecutionMode.TRAIN)
-        val_metrics = get_output_csv_path(ModelExecutionMode.VAL)
-        test_metrics = get_output_csv_path(ModelExecutionMode.TEST)
+        def get_report_section(df: pd.DataFrame, data_split: ModelExecutionMode) -> str:
+            def compute_binary_accuracy(model_outputs: pd.Series, labels: pd.Series) -> float:
+                non_nan_indices = model_outputs.notna()
+                return ((model_outputs[non_nan_indices] > .5) == labels[non_nan_indices]).mean()
 
-        msg = f"Multiclass Accuracy Train: {get_accuracy(pd.read_csv(train_metrics))}\n" if train_metrics.exists() else ""
-        msg += f"Multiclass Accuracy Val: {get_accuracy(pd.read_csv(val_metrics))}\n" if val_metrics.exists() else ""
-        msg += f"Multiclass Accuracy Test: {get_accuracy(pd.read_csv(test_metrics))}\n" if test_metrics.exists() else ""
+            outputs_and_labels = get_per_task_output_and_labels(df)
+            cvx03vs12_indices = (outputs_and_labels[f"{label_prefix}_CVX03vs12"] == 1)
+            cvx03vs12_accuracy = compute_binary_accuracy(model_outputs=outputs_and_labels[f"{output_prefix}_CVX03vs12"],
+                                                         labels=outputs_and_labels[f"{label_prefix}_CVX03vs12"])
+            cvx0vs3_outputs_and_labels = outputs_and_labels[~cvx03vs12_indices]
+            cvx0vs3_accuracy = compute_binary_accuracy(model_outputs=cvx0vs3_outputs_and_labels[f"{output_prefix}_CVX0vs3"],
+                                                       labels=cvx0vs3_outputs_and_labels[f"{label_prefix}_CVX0vs3"])
+            cvx1vs2_outputs_and_labels = outputs_and_labels[cvx03vs12_indices]
+            cvx1vs2_accuracy = compute_binary_accuracy(model_outputs=cvx1vs2_outputs_and_labels[f"{output_prefix}_CVX1vs2"],
+                                                       labels=cvx1vs2_outputs_and_labels[f"{label_prefix}_CVX1vs2"])
+            multiclass_acc = (outputs_and_labels[output_prefix] == outputs_and_labels[label_prefix]).mean()  # type: ignore
+
+            report_section_text = f"{data_split.value}\n"
+            report_section_text += f"CVX03vs12 Accuracy: {cvx03vs12_accuracy:.4f}\n"
+
+            report_section_text += f"CVX0vs3 Accuracy: {cvx0vs3_accuracy:.4f}\n"
+            nan_in_cvx0vs3 = cvx0vs3_outputs_and_labels[f"{output_prefix}_CVX0vs3"].isna().sum()
+            if nan_in_cvx0vs3 > 0:
+                report_section_text += f"Warning: CVX0vs3 accuracy was computed skipping {nan_in_cvx0vs3} NaN model outputs.\n"
+
+            report_section_text += f"CVX1vs2 Accuracy: {cvx1vs2_accuracy:.4f}\n"
+            nan_in_cvx1vs2 = cvx1vs2_outputs_and_labels[f"{output_prefix}_CVX1vs2"].isna().sum()
+            if nan_in_cvx1vs2 > 0:
+                report_section_text += f"Warning: CVX1vs2 accuracy was computed skipping {nan_in_cvx1vs2} NaN model outputs.\n"
+
+            report_section_text += f"Multiclass Accuracy: {multiclass_acc:.4f}\n"
+            report_section_text += "\n"
+
+            return report_section_text
+
+        train_csv_path = get_output_csv_path(ModelExecutionMode.TRAIN)
+        val_csv_path = get_output_csv_path(ModelExecutionMode.VAL)
+        test_csv_path = get_output_csv_path(ModelExecutionMode.TEST)
+
+        report_text = ""
+
+        if train_csv_path.exists():
+            train_df = pd.read_csv(train_csv_path)
+            report_text += get_report_section(train_df, ModelExecutionMode.TRAIN)
+
+        if val_csv_path.exists():
+            val_df = pd.read_csv(val_csv_path)
+            report_text += get_report_section(val_df, ModelExecutionMode.VAL)
+
+        if test_csv_path.exists():
+            test_df = pd.read_csv(test_csv_path)
+            report_text += get_report_section(test_df, ModelExecutionMode.TEST)
 
         report = report_dir / "report.txt"
-        report.write_text(msg)
+        report.write_text(report_text)
 
-        logging.info(msg)
+        logging.info(report_text)
 
         return report
 
