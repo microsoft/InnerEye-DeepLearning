@@ -166,8 +166,8 @@ class SSLContainer(LightningContainer):
                 f"Found {self.ssl_training_type.value}")
         model.hparams.update({'ssl_type': self.ssl_training_type.value,
                               "num_classes": self.data_module.num_classes})
-        self.encoder_output_dim = get_encoder_output_dim(model, self.data_module)
 
+        self.encoder_output_dim = get_encoder_output_dim(model, self.data_module)
         return model
 
     def get_data_module(self) -> InnerEyeDataModuleTypes:
@@ -210,6 +210,7 @@ class SSLContainer(LightningContainer):
                                       batch_size=batch_size_per_gpu,
                                       num_workers=self.num_workers,
                                       seed=self.random_seed)
+        #import pdb; pdb.set_trace()
         dm.prepare_data()
         dm.setup()
         return dm
@@ -232,16 +233,26 @@ class SSLContainer(LightningContainer):
                             SSLDatasetName.CheXpert.value,
                             SSLDatasetName.Covid.value]:
             assert augmentation_config is not None
-            train_transforms, val_transforms = get_cxr_ssl_transforms(augmentation_config,
-                                                                      return_two_views_per_sample=is_ssl_encoder_module,
-                                                                      use_training_augmentations_for_validation=is_ssl_encoder_module)
+            train_transforms, val_transforms = get_cxr_ssl_transforms(
+                augmentation_config,
+                return_two_views_per_sample=is_ssl_encoder_module,
+                use_training_augmentations_for_validation=is_ssl_encoder_module
+            )
         elif dataset_name in [SSLDatasetName.CIFAR10.value, SSLDatasetName.CIFAR100.value]:
             train_transforms = \
                 InnerEyeCIFARTrainTransform(32) if is_ssl_encoder_module else InnerEyeCIFARLinearHeadTransform(32)
             val_transforms = \
                 InnerEyeCIFARTrainTransform(32) if is_ssl_encoder_module else InnerEyeCIFARLinearHeadTransform(32)
+        elif  augmentation_config:
+            train_transforms, val_transforms = get_cxr_ssl_transforms(
+                augmentation_config,
+                return_two_views_per_sample=is_ssl_encoder_module,
+                use_training_augmentations_for_validation=is_ssl_encoder_module
+            )
+            logging.warning(f"Dataset {dataset_name} unknown. The config will be consumed by "
+                            f"get_cxr_ssl_transforms() to create the augmentation pipeline.")
         else:
-            raise ValueError(f"Dataset {dataset_name} unknown.")
+            raise ValueError(f"Dataset {dataset_name} unknown and no config has been passed")
 
         return train_transforms, val_transforms
 
