@@ -15,7 +15,8 @@ from InnerEye.ML.augmentations.transform_pipeline import create_cxr_transforms_f
 
 def get_cxr_ssl_transforms(config: CfgNode,
                            return_two_views_per_sample: bool,
-                           use_training_augmentations_for_validation: bool = False) -> Tuple[Any, Any]:
+                           use_training_augmentations_for_validation: bool = False,
+                           expand_channels: bool = True) -> Tuple[Any, Any]:
     """
     Returns training and validation transforms for CXR.
     Transformations are constructed in the following way:
@@ -33,10 +34,14 @@ def get_cxr_ssl_transforms(config: CfgNode,
     :param use_training_augmentations_for_validation: If True, use augmentation at validation time too.
     This is required for SSL validation loss to be meaningful. If False, only apply basic processing step
     (no augmentations)
+    :param expand_channels: if True the expand channel transformation from InnerEye.ML.augmentations.image_transforms
+    will be added to the transformation passed through the config. This is needed for single channel images as CXR.
     """
-    train_transforms = create_cxr_transforms_from_config(config, apply_augmentations=True)
+    train_transforms = create_cxr_transforms_from_config(config, apply_augmentations=True,
+                                                         expand_channels=expand_channels)
     val_transforms = create_cxr_transforms_from_config(config,
-                                                       apply_augmentations=use_training_augmentations_for_validation)
+                                                       apply_augmentations=use_training_augmentations_for_validation,
+                                                       expand_channels=expand_channels)
     if return_two_views_per_sample:
         train_transforms = DualViewTransformWrapper(train_transforms)  # type: ignore
         val_transforms = DualViewTransformWrapper(val_transforms)  # type: ignore

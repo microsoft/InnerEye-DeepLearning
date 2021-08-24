@@ -247,7 +247,8 @@ class SSLContainer(LightningContainer):
             train_transforms, val_transforms = get_cxr_ssl_transforms(
                 augmentation_config,
                 return_two_views_per_sample=is_ssl_encoder_module,
-                use_training_augmentations_for_validation=is_ssl_encoder_module
+                use_training_augmentations_for_validation=is_ssl_encoder_module,
+                expand_channels=False,
             )
             logging.warning(f"Dataset {dataset_name} unknown. The config will be consumed by "
                             f"get_cxr_ssl_transforms() to create the augmentation pipeline.")

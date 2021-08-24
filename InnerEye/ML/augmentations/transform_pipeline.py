@@ -87,15 +87,21 @@ class ImageTransformationPipeline:
 
 
 def create_cxr_transforms_from_config(config: CfgNode,
-                                      apply_augmentations: bool) -> ImageTransformationPipeline:
+                                      apply_augmentations: bool,
+                                      expand_channels: bool = True) -> ImageTransformationPipeline:
     """
     Defines the image transformations pipeline used in Chest-Xray datasets. Can be used for other types of
     images data, type of augmentations to use and strength are expected to be defined in the config.
     :param config: config yaml file fixing strength and type of augmentation to apply
     :param apply_augmentations: if True return transformation pipeline with augmentations. Else,
     disable augmentations i.e. only resize and center crop the image.
+    :param expand_channels: if True the expand channel transformation from InnerEye.ML.augmentations.image_transforms
+    will be added to the transformation passed through the config. This is needed for single channel images as CXR.
     """
-    transforms: List[Any] = [ExpandChannels()]
+    if expand_channels:
+        transforms: List[Any] = [ExpandChannels()]
+    else:
+        transforms: List[Any] = []
     if apply_augmentations:
         if config.augmentation.use_random_affine:
             transforms.append(RandomAffine(
