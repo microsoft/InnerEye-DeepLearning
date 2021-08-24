@@ -96,6 +96,7 @@ class SSLContainer(LightningContainer):
     learning_rate_linear_head_during_ssl_training = param.Number(default=1e-4,
                                                                  doc="Learning rate for linear head training during "
                                                                      "SSL training.")
+    drop_last = param.Boolean(default=True, doc="If True drops the last incomplete batch")
 
     def setup(self) -> None:
         from InnerEye.ML.SSL.lightning_containers.ssl_image_classifier import SSLClassifierContainer
@@ -209,7 +210,8 @@ class SSLContainer(LightningContainer):
                                       data_dir=str(datamodule_args.dataset_path),
                                       batch_size=batch_size_per_gpu,
                                       num_workers=self.num_workers,
-                                      seed=self.random_seed)
+                                      seed=self.random_seed,
+                                      drop_last=self.drop_last)
         dm.prepare_data()
         dm.setup()
         return dm
