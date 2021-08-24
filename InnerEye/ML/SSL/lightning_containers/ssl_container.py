@@ -210,7 +210,6 @@ class SSLContainer(LightningContainer):
                                       batch_size=batch_size_per_gpu,
                                       num_workers=self.num_workers,
                                       seed=self.random_seed)
-        #import pdb; pdb.set_trace()
         dm.prepare_data()
         dm.setup()
         return dm
