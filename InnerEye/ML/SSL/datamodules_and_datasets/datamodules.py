@@ -29,7 +29,7 @@ class InnerEyeVisionDataModule(VisionDataModule):
                  num_workers: int = 6,
                  batch_size: int = 32,
                  seed: int = 42,
-                 drop_last = True,
+                 drop_last: bool = True,
                  *args: Any, **kwargs: Any) -> None:
         """
         Wrapper around VisionDatamodule to load torchvision dataset into a pytorch-lightning module.

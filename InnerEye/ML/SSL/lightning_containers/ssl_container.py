@@ -244,7 +244,7 @@ class SSLContainer(LightningContainer):
                 InnerEyeCIFARTrainTransform(32) if is_ssl_encoder_module else InnerEyeCIFARLinearHeadTransform(32)
             val_transforms = \
                 InnerEyeCIFARTrainTransform(32) if is_ssl_encoder_module else InnerEyeCIFARLinearHeadTransform(32)
-        elif  augmentation_config:
+        elif augmentation_config:
             train_transforms, val_transforms = get_cxr_ssl_transforms(
                 augmentation_config,
                 return_two_views_per_sample=is_ssl_encoder_module,
