@@ -20,6 +20,9 @@ module on test data with partial ground truth files. (Also [522](https://github.
 jobs that run in AzureML.
 - ([#509](https://github.com/microsoft/InnerEye-DeepLearning/pull/509)) Run inference on registered models (single and
   ensemble) using the parameter `model_id`.
+- ([#554](https://github.com/microsoft/InnerEye-DeepLearning/pull/554)) Added a parameter `pretraining_dataset_id` to
+  `NIH_COVID_BYOL` to specify the name of the SSL training dataset.
+
 ### Changed
 - ([#531](https://github.com/microsoft/InnerEye-DeepLearning/pull/531)) Updated PL to 1.3.8, torchmetrics and pl-bolts and changed relevant metrics and SSL code API.
 - ([#555](https://github.com/microsoft/InnerEye-DeepLearning/pull/555)) Make the SSLContainer compatible with new datasets
@@ -32,11 +35,19 @@ via the `--inference_on_val_set` flag.
 gets uploaded to AzureML, by skipping all test folders.
 - ([#509](https://github.com/microsoft/InnerEye-DeepLearning/pull/509)) Parameter `extra_downloaded_run_id` has been
   renamed to `pretraining_run_checkpoints`.
+- ([#526](https://github.com/microsoft/InnerEye-DeepLearning/pull/526)) Updated Covid config to use a multiclass
+  formulation. Moved functions `create_metric_computers` and `compute_and_log_metrics` from `ScalarLightning` to
+  `ScalarModelBase`.
+- ([#554](https://github.com/microsoft/InnerEye-DeepLearning/pull/554)) Updated report in CovidModel. Set parameters
+  in the config to run inference on both the validation and test sets by default.
 
 ### Fixed
 - ([#537](https://github.com/microsoft/InnerEye-DeepLearning/pull/537)) Print warning if inference is disabled but comparison requested.
+- ([#546](https://github.com/microsoft/InnerEye-DeepLearning/pull/546)) Environment and hello_world_model documentation updated
 - ([#525](https://github.com/microsoft/InnerEye-DeepLearning/pull/525)) Enable --store_dataset_sample
 - ([#495](https://github.com/microsoft/InnerEye-DeepLearning/pull/495)) Fix model comparison.
+- ([#547](https://github.com/microsoft/InnerEye-DeepLearning/pull/547)) The parameter pl_find_unused_parameters was no longer used 
+to initialize the DDP Plugin.
 - ([#482](https://github.com/microsoft/InnerEye-DeepLearning/pull/482)) Check bool parameter is either true or false.
 - ([#475](https://github.com/microsoft/InnerEye-DeepLearning/pull/475)) Bug in AML SDK meant that we could not train
 any large models anymore because data loaders ran out of memory.
@@ -49,12 +60,18 @@ multiple large checkpoints can time out.
 mounting and running matplotblib on some machines. Re-instantiated a disabled test.
 - ([#509](https://github.com/microsoft/InnerEye-DeepLearning/pull/509)) Fix issue where model checkpoints were not loaded
 in inference-only runs when using lightning containers.
+- ([#553](https://github.com/microsoft/InnerEye-DeepLearning/pull/553)) Fix incomplete test data module setup in Lightning inference.
 
 ### Removed
 
 - ([#542](https://github.com/microsoft/InnerEye-DeepLearning/pull/542)) Removed Windows test leg from build pipeline.
 - ([#509](https://github.com/microsoft/InnerEye-DeepLearning/pull/509)) Parameters `local_weights_path` and
   `weights_url` can no longer be used to initialize a training run, only inference runs.
+- ([#526](https://github.com/microsoft/InnerEye-DeepLearning/pull/526)) Removed `get_posthoc_label_transform` in
+  class `ScalarModelBase`. Instead, functions `get_loss_function` and `compute_and_log_metrics` in
+  `ScalarModelBase` can be implemented to compute the loss and metrics in a task-specific manner.
+- ([#554](https://github.com/microsoft/InnerEye-DeepLearning/pull/554)) Removed cryptography from list of invalid
+  packages in `test_invalid_python_packages` as it is already present as a dependency in our conda environment.
 
 ### Deprecated
 

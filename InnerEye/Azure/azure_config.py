@@ -251,8 +251,8 @@ class AzureConfig(GenericConfig):
             raise ValueError("No value set for 'azureml_datastore' (name of the datastore in the AzureML workspace)")
         if not azure_dataset_id:
             raise ValueError("No dataset ID provided.")
-        logging.info(f"Retrieving datastore '{self.azureml_datastore}' from AzureML workspace")
         workspace = self.get_workspace()
+        logging.info(f"Retrieving datastore '{self.azureml_datastore}' from AzureML workspace {workspace.name}")
         datastore = Datastore.get(workspace, self.azureml_datastore)
         try:
             logging.info(f"Trying to retrieve AzureML Dataset '{azure_dataset_id}'")
