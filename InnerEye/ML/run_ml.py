@@ -520,7 +520,7 @@ class MLRunner:
             # files to the right folder. Best guess is to change the current working directory to where files should go.
             with change_working_directory(self.container.outputs_folder):
                 trainer.test(self.container.model,
-                             test_dataloaders=self.container.get_data_module().test_dataloader())
+                             datamodule=self.container.get_data_module())
         else:
             logging.warning("None of the suitable test methods is overridden. Skipping inference completely.")
 

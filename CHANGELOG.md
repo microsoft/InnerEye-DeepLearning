@@ -61,6 +61,7 @@ multiple large checkpoints can time out.
 mounting and running matplotblib on some machines. Re-instantiated a disabled test.
 - ([#509](https://github.com/microsoft/InnerEye-DeepLearning/pull/509)) Fix issue where model checkpoints were not loaded
 in inference-only runs when using lightning containers.
+- ([#553](https://github.com/microsoft/InnerEye-DeepLearning/pull/553)) Fix incomplete test data module setup in Lightning inference.
 
 ### Removed
 
