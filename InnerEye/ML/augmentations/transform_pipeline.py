@@ -100,7 +100,7 @@ def create_cxr_transforms_from_config(config: CfgNode,
     """
     transforms: List[Any] = []
     if expand_channels:
-       transforms.append(ExpandChannels())
+            transforms.append(ExpandChannels())
     if apply_augmentations:
         if config.augmentation.use_random_affine:
             transforms.append(RandomAffine(
