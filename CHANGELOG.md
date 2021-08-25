@@ -20,6 +20,9 @@ module on test data with partial ground truth files. (Also [522](https://github.
 jobs that run in AzureML.
 - ([#509](https://github.com/microsoft/InnerEye-DeepLearning/pull/509)) Run inference on registered models (single and
   ensemble) using the parameter `model_id`.
+- ([#554](https://github.com/microsoft/InnerEye-DeepLearning/pull/554)) Added a parameter `pretraining_dataset_id` to
+  `NIH_COVID_BYOL` to specify the name of the SSL training dataset.
+
 ### Changed
 - ([#531](https://github.com/microsoft/InnerEye-DeepLearning/pull/531)) Updated PL to 1.3.8, torchmetrics and pl-bolts and changed relevant metrics and SSL code API.
 - ([#533](https://github.com/microsoft/InnerEye-DeepLearning/pull/533)) Better defaults for inference on ensemble children.
@@ -34,6 +37,8 @@ gets uploaded to AzureML, by skipping all test folders.
 - ([#526](https://github.com/microsoft/InnerEye-DeepLearning/pull/526)) Updated Covid config to use a multiclass
   formulation. Moved functions `create_metric_computers` and `compute_and_log_metrics` from `ScalarLightning` to
   `ScalarModelBase`.
+- ([#554](https://github.com/microsoft/InnerEye-DeepLearning/pull/554)) Updated report in CovidModel. Set parameters
+  in the config to run inference on both the validation and test sets by default.
 
 ### Fixed
 - ([#537](https://github.com/microsoft/InnerEye-DeepLearning/pull/537)) Print warning if inference is disabled but comparison requested.

@@ -380,6 +380,7 @@ def test_training_2nodes(test_output_dirs: OutputFolderForTests) -> None:
     assert "initializing ddp: GLOBAL_RANK: 3, MEMBER: 4/4" in log1_txt
 
 
+@pytest.mark.skip("The recovery job hangs after completing on AML")
 @pytest.mark.after_training_2node
 def test_recovery_on_2_nodes(test_output_dirs: OutputFolderForTests) -> None:
     args_list = ["--model", "BasicModel2EpochsMoreData",
