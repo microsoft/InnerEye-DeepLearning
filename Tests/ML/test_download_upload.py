@@ -48,7 +48,6 @@ def check_single_checkpoint(downloaded_checkpoints: List[Path]) -> None:
 
 
 @pytest.mark.after_training_single_run
-@pytest.mark.skip(reason="")
 def test_download_recovery_single_run(test_output_dirs: OutputFolderForTests,
                                       runner_config: AzureConfig) -> None:
     output_dir = test_output_dirs.root_dir
@@ -63,7 +62,6 @@ def test_download_recovery_single_run(test_output_dirs: OutputFolderForTests,
 
 
 @pytest.mark.after_training_ensemble_run
-@pytest.mark.skip(reason="")
 def test_download_best_checkpoints_ensemble_run(test_output_dirs: OutputFolderForTests,
                                                 runner_config: AzureConfig) -> None:
     output_dir = test_output_dirs.root_dir
