@@ -272,7 +272,7 @@ class CovidModel(ScalarModelBase):
                 labels.append(target_df[label_prefix].item())
 
             pred_cvx03vs12 = predictions[1] + predictions[2]
-            label_cvx03vs12 = 1 if int(labels[1] or labels[2]) else 0
+            label_cvx03vs12 = 1 if (labels[1] or labels[2]) else 0
 
             if (predictions[0] + predictions[3]) != 0:
                 pred_cvx0vs3 = predictions[3] / (predictions[0] + predictions[3])
