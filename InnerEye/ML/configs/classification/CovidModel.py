@@ -248,6 +248,12 @@ class CovidModel(ScalarModelBase):
 
         label_prefix = LoggingColumns.Label.value
         output_prefix = LoggingColumns.ModelOutput.value
+        label_key_cvx03vs12 = f"{label_prefix}_CVX03vs12"
+        output_key_cvx03vs12 = f"{output_prefix}_CVX03vs12"
+        label_key_cvx0vs3 = f"{label_prefix}_CVX0vs3"
+        output_key_cvx0vs3 = f"{output_prefix}_CVX0vs3"
+        label_key_cvx1vs2 = f"{label_prefix}_CVX1vs2"
+        output_key_cvx1vs2 = f"{output_prefix}_CVX1vs2"
 
         def get_output_csv_path(mode: ModelExecutionMode) -> Path:
             p = get_best_epoch_results_path(mode=mode, model_proc=model_proc)
@@ -266,29 +272,29 @@ class CovidModel(ScalarModelBase):
                 labels.append(target_df[label_prefix].item())
 
             pred_cvx03vs12 = predictions[1] + predictions[2]
-            label_cvx03vs12 = 1 if labels[1] or labels[2] else 0
+            label_cvx03vs12 = 1 if int(labels[1] or labels[2]) else 0
 
             if (predictions[0] + predictions[3]) != 0:
                 pred_cvx0vs3 = predictions[3] / (predictions[0] + predictions[3])
             else:
                 pred_cvx0vs3 = np.NaN
-            label_cvx0vs3 = 0 if labels[0] else 1 if labels[3] else np.NaN
+            label_cvx0vs3 = 0 if labels[0] else (1 if labels[3] else np.NaN)
 
             if (predictions[1] + predictions[2]) != 0:
                 pred_cvx1vs2 = predictions[2] / (predictions[1] + predictions[2])
             else:
                 pred_cvx1vs2 = np.NaN
-            label_cvx1vs2 = 0 if labels[1] else 1 if labels[2] else np.NaN
+            label_cvx1vs2 = 0 if labels[1] else (1 if labels[2] else np.NaN)
 
             return pd.DataFrame.from_dict({LoggingColumns.Patient.value: [df.iloc[0][LoggingColumns.Patient.value]],
                                            output_prefix: [np.argmax(predictions)],
                                            label_prefix: [np.argmax(labels)],
-                                           f"{output_prefix}_CVX03vs12": pred_cvx03vs12,
-                                           f"{label_prefix}_CVX03vs12": label_cvx03vs12,
-                                           f"{output_prefix}_CVX0vs3": pred_cvx0vs3,
-                                           f"{label_prefix}_CVX0vs3": label_cvx0vs3,
-                                           f"{output_prefix}_CVX1vs2": pred_cvx1vs2,
-                                           f"{label_prefix}_CVX1vs2": label_cvx1vs2})
+                                           output_key_cvx03vs12: pred_cvx03vs12,
+                                           label_key_cvx03vs12: label_cvx03vs12,
+                                           output_key_cvx0vs3: pred_cvx0vs3,
+                                           label_key_cvx0vs3: label_cvx0vs3,
+                                           output_key_cvx1vs2: pred_cvx1vs2,
+                                           label_key_cvx1vs2: label_cvx1vs2})
 
         def get_per_task_output_and_labels(df: pd.DataFrame) -> pd.DataFrame:
             df = df.groupby(LoggingColumns.Patient.value, as_index=False).apply(get_labels_and_predictions).reset_index(drop=True)
@@ -300,27 +306,27 @@ class CovidModel(ScalarModelBase):
                 return ((model_outputs[non_nan_indices] > .5) == labels[non_nan_indices]).mean()
 
             outputs_and_labels = get_per_task_output_and_labels(df)
-            cvx03vs12_indices = (outputs_and_labels[f"{label_prefix}_CVX03vs12"] == 1)
-            cvx03vs12_accuracy = compute_binary_accuracy(model_outputs=outputs_and_labels[f"{output_prefix}_CVX03vs12"],
-                                                         labels=outputs_and_labels[f"{label_prefix}_CVX03vs12"])
+            cvx03vs12_indices = (outputs_and_labels[label_key_cvx03vs12] == 1)
+            cvx03vs12_accuracy = compute_binary_accuracy(model_outputs=outputs_and_labels[output_key_cvx03vs12],
+                                                         labels=outputs_and_labels[label_key_cvx03vs12])
             cvx0vs3_outputs_and_labels = outputs_and_labels[~cvx03vs12_indices]
-            cvx0vs3_accuracy = compute_binary_accuracy(model_outputs=cvx0vs3_outputs_and_labels[f"{output_prefix}_CVX0vs3"],
-                                                       labels=cvx0vs3_outputs_and_labels[f"{label_prefix}_CVX0vs3"])
+            cvx0vs3_accuracy = compute_binary_accuracy(model_outputs=cvx0vs3_outputs_and_labels[output_key_cvx0vs3],
+                                                       labels=cvx0vs3_outputs_and_labels[label_key_cvx0vs3])
             cvx1vs2_outputs_and_labels = outputs_and_labels[cvx03vs12_indices]
-            cvx1vs2_accuracy = compute_binary_accuracy(model_outputs=cvx1vs2_outputs_and_labels[f"{output_prefix}_CVX1vs2"],
-                                                       labels=cvx1vs2_outputs_and_labels[f"{label_prefix}_CVX1vs2"])
+            cvx1vs2_accuracy = compute_binary_accuracy(model_outputs=cvx1vs2_outputs_and_labels[output_key_cvx1vs2],
+                                                       labels=cvx1vs2_outputs_and_labels[label_key_cvx1vs2])
             multiclass_acc = (outputs_and_labels[output_prefix] == outputs_and_labels[label_prefix]).mean()  # type: ignore
 
             report_section_text = f"{data_split.value}\n"
             report_section_text += f"CVX03vs12 Accuracy: {cvx03vs12_accuracy:.4f}\n"
 
             report_section_text += f"CVX0vs3 Accuracy: {cvx0vs3_accuracy:.4f}\n"
-            nan_in_cvx0vs3 = cvx0vs3_outputs_and_labels[f"{output_prefix}_CVX0vs3"].isna().sum()
+            nan_in_cvx0vs3 = cvx0vs3_outputs_and_labels[output_key_cvx0vs3].isna().sum()
             if nan_in_cvx0vs3 > 0:
                 report_section_text += f"Warning: CVX0vs3 accuracy was computed skipping {nan_in_cvx0vs3} NaN model outputs.\n"
 
             report_section_text += f"CVX1vs2 Accuracy: {cvx1vs2_accuracy:.4f}\n"
-            nan_in_cvx1vs2 = cvx1vs2_outputs_and_labels[f"{output_prefix}_CVX1vs2"].isna().sum()
+            nan_in_cvx1vs2 = cvx1vs2_outputs_and_labels[output_key_cvx1vs2].isna().sum()
             if nan_in_cvx1vs2 > 0:
                 report_section_text += f"Warning: CVX1vs2 accuracy was computed skipping {nan_in_cvx1vs2} NaN model outputs.\n"
 
