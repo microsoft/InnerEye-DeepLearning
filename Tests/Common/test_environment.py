@@ -15,7 +15,6 @@ def test_invalid_python_packages() -> None:
     packages_to_avoid = [
         "ca-certificates",
         "openssl",
-        "cryptography",
         "ndg-httpsclient",
         "pyopenssl",
         "urllib3"
