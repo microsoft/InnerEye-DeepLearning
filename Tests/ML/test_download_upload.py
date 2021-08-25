@@ -116,10 +116,10 @@ def test_download_azureml_dataset(test_output_dirs: OutputFolderForTests) -> Non
     dataset_csv = Path(result_path) / DATASET_CSV_FILE_NAME
     assert dataset_csv.is_file()
     # Check that each individual file in the dataset is present
-    for folder in [1, *range(10, 20)]:
+    for folder in [1, 10]:
         sub_folder = result_path / str(folder)
         sub_folder.is_dir()
-        for file in ["ct", "esophagus", "heart", "lung_l", "lung_r", "spinalcord"]:
+        for file in ["esophagus", "heart", "lung_l", "lung_r", "spinalcord"]:
             f = (sub_folder / file).with_suffix(".nii.gz")
             assert f.is_file()
 
