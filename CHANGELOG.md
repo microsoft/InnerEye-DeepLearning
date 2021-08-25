@@ -68,6 +68,8 @@ in inference-only runs when using lightning containers.
 - ([#526](https://github.com/microsoft/InnerEye-DeepLearning/pull/526)) Removed `get_posthoc_label_transform` in
   class `ScalarModelBase`. Instead, functions `get_loss_function` and `compute_and_log_metrics` in
   `ScalarModelBase` can be implemented to compute the loss and metrics in a task-specific manner.
+- ([#554](https://github.com/microsoft/InnerEye-DeepLearning/pull/554)) Removed cryptography from list of invalid
+  packages in `test_invalid_python_packages` as it is already present as a dependency in our conda environment.
 
 ### Deprecated
 
