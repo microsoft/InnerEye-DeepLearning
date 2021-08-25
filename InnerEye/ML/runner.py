@@ -321,7 +321,7 @@ class Runner:
                     after_submission=after_submission_hook,
                     hyperdrive_config=hyperdrive_config)
             else:
-                # compute_cluster_name is a required parameter in early versions of the HI-ML package 
+                # compute_cluster_name is a required parameter in early versions of the HI-ML package
                 azure_run_info = submit_to_azure_if_needed(
                     input_datasets=input_datasets,
                     submit_to_azureml=False,
