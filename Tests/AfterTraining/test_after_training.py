@@ -209,7 +209,6 @@ def test_check_dataset_mountpoint(test_output_dirs: OutputFolderForTests) -> Non
     assert f"local_dataset                           : {expected_mountpoint}" in logs
 
 
-# This test fails when using hi-ml as a submodule: When registering the model, we do not include the hi-ml submodule
 @pytest.mark.inference
 def test_submit_for_inference(test_output_dirs: OutputFolderForTests) -> None:
     """
@@ -283,7 +282,6 @@ def test_expected_cv_files_segmentation() -> None:
     assert not _check_presence_cross_val_metrics_file(ENSEMBLE_SPLIT_NAME, ModelExecutionMode.VAL, available_files)
 
 
-# This test fails when using hi-ml as a submodule: When registering the model, we do not include the hi-ml submodule
 @pytest.mark.skipif(common_util.is_windows(), reason="Too slow on Windows")
 @pytest.mark.after_training_ensemble_run
 def test_register_and_score_model(test_output_dirs: OutputFolderForTests) -> None:
