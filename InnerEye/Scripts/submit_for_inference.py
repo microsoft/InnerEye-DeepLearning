@@ -178,8 +178,7 @@ def submit_for_inference(args: SubmitForInferenceConfig, azure_config: AzureConf
                    "--model-id", model_id,
                    SCORE_SCRIPT,
                    # The data folder must be relative to the root folder of the AzureML
-                   # job. test_image_files
-                   # is then just the file relative to the data_folder
+                   # job. image_files is then just the file relative to the data_folder
                    "--data_folder", image.parent.name,
                    "--image_files", image.name,
                    "--use_dicom", str(args.use_dicom),
