@@ -245,9 +245,6 @@ class Runner:
                                                 all_azure_dataset_ids=self.lightning_container.all_azure_dataset_ids(),
                                                 all_dataset_mountpoints=self.lightning_container.all_dataset_mountpoints())
 
-        # TODO: Add hyperdrive
-        # if azure_config.hyperdrive:
-        #     script_run_config = source_config.hyperdrive_config_func(script_run_config)  # type: ignore
 
         def after_submission_hook(azure_run: Run) -> None:
             """
