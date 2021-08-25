@@ -98,10 +98,9 @@ def create_cxr_transforms_from_config(config: CfgNode,
     :param expand_channels: if True the expand channel transformation from InnerEye.ML.augmentations.image_transforms
     will be added to the transformation passed through the config. This is needed for single channel images as CXR.
     """
+    transforms: List[Any] = []
     if expand_channels:
-        transforms: List[Any] = [ExpandChannels()]
-    else:
-        transforms: List[Any] = []
+       transforms.append(ExpandChannels())
     if apply_augmentations:
         if config.augmentation.use_random_affine:
             transforms.append(RandomAffine(
