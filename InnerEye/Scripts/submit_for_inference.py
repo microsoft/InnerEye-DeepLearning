@@ -11,15 +11,15 @@ from typing import Dict, List, Optional
 
 import param
 import requests
-from azureml.core import Experiment, Model
+from azureml.core import Model, ScriptRunConfig
 
-from InnerEye.Azure.azure_config import AzureConfig, SourceConfig
-from InnerEye.Azure.azure_runner import create_run_config
+from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common.common_util import logging_to_stdout
 from InnerEye.Common.fixed_paths import DEFAULT_DATA_FOLDER, DEFAULT_RESULT_IMAGE_NAME, DEFAULT_RESULT_ZIP_DICOM_NAME, \
-    DEFAULT_TEST_IMAGE_NAME, DEFAULT_TEST_ZIP_NAME, ENVIRONMENT_YAML_FILE_NAME, RUN_SCORING_SCRIPT, SCORE_SCRIPT, \
-    SETTINGS_YAML_FILE, repository_root_directory, PYTHON_ENVIRONMENT_NAME
+    DEFAULT_TEST_IMAGE_NAME, DEFAULT_TEST_ZIP_NAME, ENVIRONMENT_YAML_FILE_NAME, PYTHON_ENVIRONMENT_NAME, \
+    RUN_SCORING_SCRIPT, SCORE_SCRIPT, SETTINGS_YAML_FILE, repository_root_directory
 from InnerEye.Common.generic_parsing import GenericConfig
+from health.azure.himl import create_run_configuration, submit_run
 
 
 class SubmitForInferenceConfig(GenericConfig):
@@ -29,8 +29,9 @@ class SubmitForInferenceConfig(GenericConfig):
     experiment_name: str = param.String(default="model_inference",
                                         doc="Name of experiment the run should belong to")
     model_id: str = param.String(doc="Id of model, e.g. Prostate:123. Mandatory.")
-    image_file: Path = param.ClassSelector(class_=Path, doc="Image file to segment, ending in .nii.gz if use_dicom=False, "
-                                                            "or zip of a DICOM series otherwise. Mandatory.")
+    image_file: Path = param.ClassSelector(class_=Path,
+                                           doc="Image file to segment, ending in .nii.gz if use_dicom=False, "
+                                               "or zip of a DICOM series otherwise. Mandatory.")
     settings: Path = param.ClassSelector(class_=Path,
                                          doc="File containing Azure settings (typically your settings.yml). If not "
                                              "provided, use the default settings file.")
@@ -66,7 +67,8 @@ class SubmitForInferenceConfig(GenericConfig):
 def copy_image_file(image: Path, destination_folder: Path, use_dicom: bool) -> Path:
     """
     Copy the source image file into the given folder destination_folder.
-    :param image: image file, must be Gzipped Nifti format with name ending .nii.gz if use_dicom=False or .zip otherwise.
+    :param image: image file, must be Gzipped Nifti format with name ending .nii.gz if use_dicom=False or .zip
+    otherwise.
     :param destination_folder: top-level directory to copy image into (as test.nii.gz or test.zip)
     :param use_dicom: True to treat as a zip file.
     :return: The full path of the image in the destination_folder
@@ -154,43 +156,45 @@ def submit_for_inference(args: SubmitForInferenceConfig, azure_config: AzureConf
     # clash.
     temp_folder = source_directory_path / "temp_for_scoring"
     conda_files = download_files_from_model(model_sas_urls, ENVIRONMENT_YAML_FILE_NAME, dir_path=temp_folder)
-    if not conda_files:
-        raise ValueError("At least 1 Conda environment definition must exist in the model.")
+    if len(conda_files) != 1:
+        raise ValueError("Exactly 1 Conda environment definition must exist in the model.")
     # Retrieve the name of the Python environment that the training run used. This environment should have been
     # registered. If no such environment exists, it will be re-create from the Conda files provided.
     python_environment_name = model.tags.get(PYTHON_ENVIRONMENT_NAME, "")
+    if not python_environment_name:
+        raise ValueError(f"The model did not contain tag {PYTHON_ENVIRONMENT_NAME} for the AzureML environment to use.")
     # Copy the scoring script from the repository. This will start the model download from Azure, and invoke the
     # scoring script.
     entry_script = source_directory_path / Path(RUN_SCORING_SCRIPT).name
     shutil.copyfile(str(repository_root_directory(RUN_SCORING_SCRIPT)),
                     str(entry_script))
-    source_config = SourceConfig(
-        root_folder=source_directory_path,
-        entry_script=entry_script,
-        script_params=["--model-folder", ".",
-                       "--model-id", model_id,
-                       SCORE_SCRIPT,
-                       # The data folder must be relative to the root folder of the AzureML job. test_image_files
-                       # is then just the file relative to the data_folder
-                       "--data_folder", image.parent.name,
-                       "--image_files", image.name,
-                       "--use_dicom", str(args.use_dicom),
-                       "--model_id", model_id],
-        conda_dependencies_files=conda_files,
+    run_config = create_run_configuration(workspace=azure_config.get_workspace(),
+                                          compute_cluster_name=azure_config.cluster,
+                                          aml_environment_name=python_environment_name)
+    script_run_config = ScriptRunConfig(
+        source_directory=str(source_directory_path),
+        script=entry_script.relative_to(source_directory_path),
+        arguments=["--model-folder", ".",
+                   "--model-id", model_id,
+                   SCORE_SCRIPT,
+                   # The data folder must be relative to the root folder of the AzureML
+                   # job. image_files is then just the file relative to the data_folder
+                   "--data_folder", image.parent.name,
+                   "--image_files", image.name,
+                   "--use_dicom", str(args.use_dicom),
+                   "--model_id", model_id],
+        run_config=run_config
     )
-    run_config = create_run_config(azure_config, source_config, environment_name=python_environment_name,
-                                   all_azure_dataset_ids=[], all_dataset_mountpoints=[])
-    exp = Experiment(workspace=workspace, name=args.experiment_name)
-    run = exp.submit(run_config)
-    logging.info(f"Submitted run {run.id} in experiment {run.experiment.name}")
-    logging.info(f"Run URL: {run.get_portal_url()}")
+
+    run = submit_run(workspace=workspace,
+                     experiment_name=args.experiment_name,
+                     script_run_config=script_run_config,
+                     wait_for_completion=True)
     if not args.keep_upload_folder:
         source_directory.cleanup()
         logging.info(f"Deleted submission directory {source_directory_path}")
     if args.download_folder is None:
         return None
-    logging.info("Awaiting run completion")
-    run.wait_for_completion()
     logging.info(f"Run has completed with status {run.get_status()}")
     download_file = DEFAULT_RESULT_ZIP_DICOM_NAME if args.use_dicom else DEFAULT_RESULT_IMAGE_NAME
     download_path = choose_download_path(download_file, args.download_folder)

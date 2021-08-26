@@ -13,7 +13,20 @@ This document describes guidelines for contributing to the InnerEye-DeepLearning
 - DO NOT mix independent and unrelated changes in one PR.
 
 ## Coding Style
-The coding style is enforced via flake8 and mypy
+The coding style is enforced via `flake8` and `mypy`. Before pushing any changes to a PR, run both tools on
+your dev box:
+* `flake8`
+* `python mypy_runner.py`
+
+## Unit testing
+- DO write unit tests for each new function or class that you add.
+- DO extend unit tests for existing functions or classes if you change their core behaviour.
+- DO ensure that your tests are designed in a way that they can pass on the local box, even if they are relying on
+specific cloud features.
+- DO run all unit tests on your dev box before submitting your changes. The test suite is designed to pass completely
+also outside of cloud builds.
+- DO NOT rely only on the test builds in the cloud. Cloud builds trigger AzureML runs on GPU 
+machines that have a higher CO2 footprint than your dev box.
 
 ## Creating Issues
 - DO use a descriptive title that identifies the issue or the requested feature.
