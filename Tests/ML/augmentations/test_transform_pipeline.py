@@ -107,17 +107,18 @@ def test_custom_tf_on_various_input(use_different_transformation_per_channel: bo
     assert torch.isclose(transformed[0, 0], transformed[1, 1]).all() != use_different_transformation_per_channel
 
 
-def test_create_transform_pipeline_from_config() -> None:
+@pytest.mark.parametrize("expand_channels", [True, False])
+def test_create_transform_pipeline_from_config(expand_channels: bool) -> None:
     """
     Tests that the pipeline returned by create_transform_pipeline_from_config returns the expected transformation.
     """
-    transformation_pipeline = create_transforms_from_config(cxr_augmentation_config, apply_augmentations=True)
+    transformation_pipeline = create_transforms_from_config(cxr_augmentation_config, apply_augmentations=True,
+                                                            expand_channels=expand_channels)
     fake_cxr_as_array = np.ones([256, 256]) * 255.
     fake_cxr_as_array[100:150, 100:200] = 1
     fake_cxr_image = PIL.Image.fromarray(fake_cxr_as_array).convert("L")
 
-    all_transforms = [ExpandChannels(),
-                      RandomAffine(degrees=180, translate=(0, 0), shear=40),
+    all_transforms = [RandomAffine(degrees=180, translate=(0, 0), shear=40),
                       RandomResizedCrop(scale=(0.4, 1.0), size=256),
                       RandomHorizontalFlip(p=0.5),
                       RandomGamma(scale=(0.5, 1.5)),
@@ -127,6 +128,8 @@ def test_create_transform_pipeline_from_config() -> None:
                       RandomErasing(scale=(0.15, 0.4), ratio=(0.33, 3)),
                       AddGaussianNoise(std=0.05, p_apply=0.5)
                       ]
+    if expand_channels:
+        all_transforms.insert(0, ExpandChannels())
 
     np.random.seed(3)
     torch.manual_seed(3)

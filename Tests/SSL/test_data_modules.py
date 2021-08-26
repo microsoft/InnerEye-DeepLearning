@@ -70,7 +70,8 @@ def test_innereye_vision_module() -> None:
                                            data_dir=None,
                                            batch_size=5,
                                            shuffle=False,
-                                           num_workers=0)
+                                           num_workers=0,
+                                           drop_last=True)
     data_module.prepare_data()
     data_module.setup()
     assert len(data_module.dataset_train) == 45000
