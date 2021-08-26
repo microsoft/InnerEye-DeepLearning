@@ -62,6 +62,8 @@ mounting and running matplotblib on some machines. Re-instantiated a disabled te
 - ([#509](https://github.com/microsoft/InnerEye-DeepLearning/pull/509)) Fix issue where model checkpoints were not loaded
 in inference-only runs when using lightning containers.
 - ([#553](https://github.com/microsoft/InnerEye-DeepLearning/pull/553)) Fix incomplete test data module setup in Lightning inference.
+- ([#557](https://github.com/microsoft/InnerEye-DeepLearning/pull/557)) Fix issue where learning rate was not set
+  correctly in the SimCLR module
 
 ### Removed
 
