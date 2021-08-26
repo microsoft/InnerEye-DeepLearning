@@ -13,7 +13,7 @@ from torchvision.transforms.functional import to_tensor
 
 from InnerEye.ML.augmentations.image_transforms import AddGaussianNoise, ElasticTransform, ExpandChannels, RandomGamma
 from InnerEye.ML.augmentations.transform_pipeline import ImageTransformationPipeline, \
-    create_cxr_transforms_from_config
+    create_transforms_from_config
 
 from Tests.SSL.test_data_modules import cxr_augmentation_config
 
@@ -111,7 +111,7 @@ def test_create_transform_pipeline_from_config() -> None:
     """
     Tests that the pipeline returned by create_transform_pipeline_from_config returns the expected transformation.
     """
-    transformation_pipeline = create_cxr_transforms_from_config(cxr_augmentation_config, apply_augmentations=True)
+    transformation_pipeline = create_transforms_from_config(cxr_augmentation_config, apply_augmentations=True)
     fake_cxr_as_array = np.ones([256, 256]) * 255.
     fake_cxr_as_array[100:150, 100:200] = 1
     fake_cxr_image = PIL.Image.fromarray(fake_cxr_as_array).convert("L")
@@ -154,7 +154,7 @@ def test_create_transform_pipeline_from_config() -> None:
     assert torch.isclose(expected_transformed, transformed_image).all()
 
     # Test the evaluation pipeline
-    transformation_pipeline = create_cxr_transforms_from_config(cxr_augmentation_config, apply_augmentations=False)
+    transformation_pipeline = create_transforms_from_config(cxr_augmentation_config, apply_augmentations=False)
     transformed_image = transformation_pipeline(image)
     assert isinstance(transformed_image, torch.Tensor)
     all_transforms = [ExpandChannels(), Resize(size=256), CenterCrop(size=224)]

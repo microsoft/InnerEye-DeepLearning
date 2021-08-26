@@ -10,17 +10,17 @@ import torch
 from pl_bolts.models.self_supervised.simclr import SimCLRTrainDataTransform
 from yacs.config import CfgNode
 
-from InnerEye.ML.augmentations.transform_pipeline import create_cxr_transforms_from_config
+from InnerEye.ML.augmentations.transform_pipeline import create_transforms_from_config
 
 
-def get_cxr_ssl_transforms(config: CfgNode,
-                           return_two_views_per_sample: bool,
-                           use_training_augmentations_for_validation: bool = False,
-                           expand_channels: bool = True) -> Tuple[Any, Any]:
+def get_ssl_transforms_from_config(config: CfgNode,
+                                   return_two_views_per_sample: bool,
+                                   use_training_augmentations_for_validation: bool = False,
+                                   expand_channels: bool = True) -> Tuple[Any, Any]:
     """
     Returns training and validation transforms for CXR.
     Transformations are constructed in the following way:
-    1. Construct the pipeline of augmentations in create_chest_xray_transform (e.g. resize, flip, affine) as defined
+    1. Construct the pipeline of augmentations in create_transform_from_config (e.g. resize, flip, affine) as defined
     by the config.
     2. If we just want to construct the transformation pipeline for a classification model or for the linear evaluator
     of the SSL module, return this pipeline.
@@ -37,11 +37,11 @@ def get_cxr_ssl_transforms(config: CfgNode,
     :param expand_channels: if True the expand channel transformation from InnerEye.ML.augmentations.image_transforms
     will be added to the transformation passed through the config. This is needed for single channel images as CXR.
     """
-    train_transforms = create_cxr_transforms_from_config(config, apply_augmentations=True,
-                                                         expand_channels=expand_channels)
-    val_transforms = create_cxr_transforms_from_config(config,
-                                                       apply_augmentations=use_training_augmentations_for_validation,
-                                                       expand_channels=expand_channels)
+    train_transforms = create_transforms_from_config(config, apply_augmentations=True,
+                                                     expand_channels=expand_channels)
+    val_transforms = create_transforms_from_config(config,
+                                                   apply_augmentations=use_training_augmentations_for_validation,
+                                                   expand_channels=expand_channels)
     if return_two_views_per_sample:
         train_transforms = DualViewTransformWrapper(train_transforms)  # type: ignore
         val_transforms = DualViewTransformWrapper(val_transforms)  # type: ignore

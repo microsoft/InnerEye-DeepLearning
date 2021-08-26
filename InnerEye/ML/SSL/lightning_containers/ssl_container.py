@@ -17,7 +17,7 @@ from InnerEye.ML.SSL.datamodules_and_datasets.cxr_datasets import CheXpert, Covi
 from InnerEye.ML.SSL.datamodules_and_datasets.datamodules import CombinedDataModule, InnerEyeVisionDataModule
 from InnerEye.ML.SSL.datamodules_and_datasets.transforms_utils import InnerEyeCIFARLinearHeadTransform, \
     InnerEyeCIFARTrainTransform, \
-    get_cxr_ssl_transforms
+    get_ssl_transforms_from_config
 from InnerEye.ML.SSL.encoders import get_encoder_output_dim
 from InnerEye.ML.SSL.lightning_modules.byol.byol_module import BYOLInnerEye
 from InnerEye.ML.SSL.lightning_modules.simclr_module import SimCLRInnerEye
@@ -234,7 +234,7 @@ class SSLContainer(LightningContainer):
                             SSLDatasetName.CheXpert.value,
                             SSLDatasetName.Covid.value]:
             assert augmentation_config is not None
-            train_transforms, val_transforms = get_cxr_ssl_transforms(
+            train_transforms, val_transforms = get_ssl_transforms_from_config(
                 augmentation_config,
                 return_two_views_per_sample=is_ssl_encoder_module,
                 use_training_augmentations_for_validation=is_ssl_encoder_module
@@ -245,16 +245,17 @@ class SSLContainer(LightningContainer):
             val_transforms = \
                 InnerEyeCIFARTrainTransform(32) if is_ssl_encoder_module else InnerEyeCIFARLinearHeadTransform(32)
         elif augmentation_config:
-            train_transforms, val_transforms = get_cxr_ssl_transforms(
+            train_transforms, val_transforms = get_ssl_transforms_from_config(
                 augmentation_config,
                 return_two_views_per_sample=is_ssl_encoder_module,
                 use_training_augmentations_for_validation=is_ssl_encoder_module,
                 expand_channels=False,
             )
             logging.warning(f"Dataset {dataset_name} unknown. The config will be consumed by "
-                            f"get_cxr_ssl_transforms() to create the augmentation pipeline.")
+                            f"get_ssl_transforms() to create the augmentation pipeline, make sure"
+                            f"the transformations in your configs are compatible. ")
         else:
-            raise ValueError(f"Dataset {dataset_name} unknown and no config has been passed")
+            raise ValueError(f"Dataset {dataset_name} unknown and no config has been passed.")
 
         return train_transforms, val_transforms
 

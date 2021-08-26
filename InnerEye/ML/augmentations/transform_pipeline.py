@@ -86,12 +86,13 @@ class ImageTransformationPipeline:
         return self.transform_image(data)
 
 
-def create_cxr_transforms_from_config(config: CfgNode,
-                                      apply_augmentations: bool,
-                                      expand_channels: bool = True) -> ImageTransformationPipeline:
+def create_transforms_from_config(config: CfgNode,
+                                  apply_augmentations: bool,
+                                  expand_channels: bool = True) -> ImageTransformationPipeline:
     """
-    Defines the image transformations pipeline used in Chest-Xray datasets. Can be used for other types of
-    images data, type of augmentations to use and strength are expected to be defined in the config.
+    Defines the image transformations pipeline from a config file. It has been designed for Chest X-Ray
+    images but it can be used for other types of images data, type of augmentations to use and strength are
+    expected to be defined in the config. The channel expansion is needed for gray images.
     :param config: config yaml file fixing strength and type of augmentation to apply
     :param apply_augmentations: if True return transformation pipeline with augmentations. Else,
     disable augmentations i.e. only resize and center crop the image.
@@ -100,7 +101,7 @@ def create_cxr_transforms_from_config(config: CfgNode,
     """
     transforms: List[Any] = []
     if expand_channels:
-            transforms.append(ExpandChannels())
+        transforms.append(ExpandChannels())
     if apply_augmentations:
         if config.augmentation.use_random_affine:
             transforms.append(RandomAffine(
