@@ -30,7 +30,7 @@ def get_ssl_transforms_from_config(config: CfgNode,
 
     :param config: configuration defining which augmentations to apply as well as their intensities.
     :param return_two_views_per_sample: if True the resulting transforms will return two versions of each sample they
-    are called on. If False, simply return one transformed version of the sample.
+    are called on. If False, simply return one transformed version of the sample centered and cropped.
     :param use_training_augmentations_for_validation: If True, use augmentation at validation time too.
     This is required for SSL validation loss to be meaningful. If False, only apply basic processing step
     (no augmentations)

@@ -187,7 +187,7 @@ class SSLContainer(LightningContainer):
         """
         Returns torch lightning data module for encoder or linear head
 
-        :param is_ssl_encoder_module: whether to return the data module for SSL training or for linear heard. If true,
+        :param is_ssl_encoder_module: whether to return the data module for SSL training or for linear head. If true,
         :return transforms with two views per sample (batch like (img_v1, img_v2, label)). If False, return only one
         view per sample but also return the index of the sample in the dataset (to make sure we don't use twice the same
         batch in one training epoch (batch like (index, img_v1, label), as classifier dataloader expected to be shorter
@@ -225,8 +225,8 @@ class SSLContainer(LightningContainer):
         examples.
         :param dataset_name: name of the dataset, value has to be in SSLDatasetName, determines which transformation
         pipeline to return.
-        :param is_ssl_encoder_module: if True the transformation pipeline will yield two version of the image it is
-        applied on. If False, return only one transformation.
+        :param is_ssl_encoder_module: if True the transformation pipeline will yield two versions of the image it is
+        applied on and it applies the same transformations for validation. If False, return only one transformation.
         :return: training transformation pipeline and validation transformation pipeline.
         """
         if dataset_name in [SSLDatasetName.RSNAKaggleCXR.value,
@@ -252,7 +252,7 @@ class SSLContainer(LightningContainer):
                 expand_channels=False,
             )
             logging.warning(f"Dataset {dataset_name} unknown. The config will be consumed by "
-                            f"get_ssl_transforms() to create the augmentation pipeline, make sure"
+                            f"get_ssl_transforms() to create the augmentation pipeline, make sure "
                             f"the transformations in your configs are compatible. ")
         else:
             raise ValueError(f"Dataset {dataset_name} unknown and no config has been passed.")

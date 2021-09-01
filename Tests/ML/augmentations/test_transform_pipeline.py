@@ -133,6 +133,7 @@ def test_create_transform_pipeline_from_config(expand_channels: bool) -> None:
         all_transforms.insert(0, ExpandChannels())
     else:
         fake_3d_array = np.stack([fake_cxr_as_array for i in range(3)])
+        # TODO this is raising an error - understands what shapes/values you need in here
         fake_cxr_image = PIL.Image.fromarray(fake_3d_array).convert("RGB")
 
     np.random.seed(3)
@@ -159,6 +160,7 @@ def test_create_transform_pipeline_from_config(expand_channels: bool) -> None:
     assert torch.isclose(expected_transformed, transformed_image).all()
 
     # Test the evaluation pipeline
+    # TODO why this is not parametrized?
     transformation_pipeline = create_transforms_from_config(cxr_augmentation_config, apply_augmentations=False,
                                                             expand_channels=expand_channels)
     transformed_image = transformation_pipeline(image)
