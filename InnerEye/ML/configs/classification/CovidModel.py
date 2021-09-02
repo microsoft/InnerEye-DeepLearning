@@ -19,10 +19,10 @@ from torchvision.transforms import Compose
 from InnerEye.Common.common_util import ModelProcessing, get_best_epoch_results_path
 from InnerEye.Common.metrics_constants import LoggingColumns
 
+from InnerEye.ML.SSL.encoders import SSLEncoder
 from InnerEye.ML.SSL.lightning_containers.ssl_container import EncoderName
-
 from InnerEye.ML.SSL.lightning_modules.ssl_classifier_module import SSLClassifier
-from InnerEye.ML.SSL.utils import create_ssl_encoder, create_ssl_image_classifier, load_yaml_augmentation_config
+from InnerEye.ML.SSL.utils import create_ssl_image_classifier, load_yaml_augmentation_config
 from InnerEye.ML.augmentations.transform_pipeline import create_cxr_transforms_from_config
 from InnerEye.ML.common import ModelExecutionMode
 
@@ -158,7 +158,7 @@ class CovidModel(ScalarModelBase):
                 freeze_encoder=self.freeze_encoder)
 
         else:
-            encoder = create_ssl_encoder(encoder_name=EncoderName.densenet121.value)
+            encoder = SSLEncoder(encoder_name=EncoderName.densenet121.value)
             model = SSLClassifier(num_classes=self.num_classes,
                                   encoder=encoder,
                                   freeze_encoder=self.freeze_encoder,
