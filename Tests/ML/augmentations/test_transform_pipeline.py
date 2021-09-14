@@ -7,11 +7,12 @@ import random
 import PIL
 import pytest
 import torch
-from torchvision.transforms import CenterCrop, ColorJitter, RandomAffine, RandomErasing, RandomHorizontalFlip, \
-    RandomResizedCrop, Resize, ToTensor
+from torchvision.transforms import (CenterCrop, ColorJitter, RandomAffine, RandomErasing, RandomHorizontalFlip,
+RandomResizedCrop, Resize, ToTensor)
 from torchvision.transforms.functional import to_tensor
 
-from InnerEye.ML.augmentations.image_transforms import AddGaussianNoise, ElasticTransform, ExpandChannels, RandomGamma
+from InnerEye.ML.augmentations.image_transforms import (AddGaussianNoise, ElasticTransform,
+ExpandChannels, RandomGamma)
 from InnerEye.ML.augmentations.transform_pipeline import ImageTransformationPipeline, \
     create_transforms_from_config
 
@@ -30,7 +31,6 @@ test_2d_image_as_ZCHW_tensor = test_2d_image_as_CHW_tensor.unsqueeze(0)
 
 test_4d_scan_as_tensor = torch.ones([5, 4, *image_size]) * 255.
 test_4d_scan_as_tensor[..., 10:15, 10:20] = 1
-
 
 @pytest.mark.parametrize("use_different_transformation_per_channel", [True, False])
 def test_torchvision_on_various_input(use_different_transformation_per_channel: bool) -> None:
@@ -116,7 +116,6 @@ def test_create_transform_pipeline_from_config(expand_channels: bool) -> None:
                                                             expand_channels=expand_channels)
     fake_cxr_as_array = np.ones([256, 256]) * 255.
     fake_cxr_as_array[100:150, 100:200] = 1
-
     all_transforms = [RandomAffine(degrees=180, translate=(0, 0), shear=40),
                       RandomResizedCrop(scale=(0.4, 1.0), size=256),
                       RandomHorizontalFlip(p=0.5),
@@ -139,7 +138,7 @@ def test_create_transform_pipeline_from_config(expand_channels: bool) -> None:
         fake_image = PIL.Image.fromarray(fake_3d_array.astype(np.uint8)).convert("RGB")
         # In the pipeline the image is converted to tensor before applying the transformations. Do the same here.
         image = ToTensor()(fake_image).reshape([1, 3, 256, 256])
-    
+
     np.random.seed(3)
     torch.manual_seed(3)
     random.seed(3)
@@ -150,7 +149,6 @@ def test_create_transform_pipeline_from_config(expand_channels: bool) -> None:
     np.random.seed(3)
     torch.manual_seed(3)
     random.seed(3)
-
     expected_transformed = image
     for t in all_transforms:
         expected_transformed = t(expected_transformed)
