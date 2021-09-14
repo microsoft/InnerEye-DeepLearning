@@ -38,7 +38,7 @@ image_size = (32, 32)
 crop_size = 24
 test_image_as_array = np.ones(list(image_size)) * 255.0
 test_image_as_array[10:15, 10:20] = 1
-test_image_as_pil = PIL.Image.fromarray(test_image_as_array).convert("L")
+test_image_as_pil = PIL.Image.fromarray(test_image_as_array).convert('L')
 test_2d_image_as_CHW_tensor = to_tensor(test_image_as_array)
 
 test_2d_image_as_ZCHW_tensor = test_2d_image_as_CHW_tensor.unsqueeze(0)
@@ -47,7 +47,7 @@ test_4d_scan_as_tensor = torch.ones([5, 4, *image_size]) * 255.0
 test_4d_scan_as_tensor[..., 10:15, 10:20] = 1
 
 
-@pytest.mark.parametrize("use_different_transformation_per_channel", [True, False])
+@pytest.mark.parametrize('use_different_transformation_per_channel', [True, False])
 def test_torchvision_on_various_input(
     use_different_transformation_per_channel: bool,
 ) -> None:
@@ -93,7 +93,7 @@ def test_torchvision_on_various_input(
     )
 
 
-@pytest.mark.parametrize("use_different_transformation_per_channel", [True, False])
+@pytest.mark.parametrize('use_different_transformation_per_channel', [True, False])
 def test_custom_tf_on_various_input(
     use_different_transformation_per_channel: bool,
 ) -> None:
@@ -145,7 +145,7 @@ def test_create_transform_pipeline_from_config() -> None:
     )
     fake_cxr_as_array = np.ones([256, 256]) * 255.0
     fake_cxr_as_array[100:150, 100:200] = 1
-    fake_cxr_image = PIL.Image.fromarray(fake_cxr_as_array).convert("L")
+    fake_cxr_image = PIL.Image.fromarray(fake_cxr_as_array).convert('L')
 
     all_transforms = [
         ExpandChannels(),
@@ -169,7 +169,7 @@ def test_create_transform_pipeline_from_config() -> None:
     # Expected pipeline
     image = np.ones([256, 256]) * 255.0
     image[100:150, 100:200] = 1
-    image = PIL.Image.fromarray(image).convert("L")
+    image = PIL.Image.fromarray(image).convert('L')
     # In the pipeline the image is converted to tensor before applying the transformations. Do the same here.
     image = ToTensor()(image).reshape([1, 1, 256, 256])
 
@@ -197,8 +197,3 @@ def test_create_transform_pipeline_from_config() -> None:
         expected_transformed = t(expected_transformed)
     expected_transformed = torch.transpose(expected_transformed, 1, 0).squeeze(1)
     assert torch.isclose(expected_transformed, transformed_image).all()
-
-
-# TODO remove this after check
-a = 1
-# very long comment !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
