@@ -12,6 +12,7 @@ On the modelling side, this toolbox supports
 - Classification and regression models
 - Sequence models
 - Adding cloud support to any PyTorch Lightning model, via a [bring-your-own-model setup](docs/bring_your_own_model.md) 
+- Active label cleaning and noise robust learning toolbox (stand-alone folder)
 
 Classification, regression, and sequence models can be built with only images as inputs, or a combination of images
 and non-imaging data as input. This supports typical use cases on medical data where measurements, biomarkers, 
@@ -101,6 +102,7 @@ Further detailed instructions, including setup in Azure, are here:
 1. [Model diagnostics](docs/model_diagnostics.md)
 1. [Move a model to a different workspace](docs/move_model.md)   
 1. [Working with FastMRI models](docs/fastmri.md)
+1. [Active label cleaning and noise robust learning toolbox](InnerEye-DataSelection/README.md)
 
 ## Deployment
 We offer a companion set of open-sourced tools that help to integrate trained CT segmentation models with clinical
@@ -140,6 +142,10 @@ Please send an email to InnerEyeInfo@microsoft.com if you would like further inf
 ## Publications
 
 Oktay O., Nanavati J., Schwaighofer A., Carter D., Bristow M., Tanno R., Jena R., Barnett G., Noble D., Rimmer Y., Glocker B., O’Hara K., Bishop C., Alvarez-Valle J., Nori A.: Evaluation of Deep Learning to Augment Image-Guided Radiotherapy for Head and Neck and Prostate Cancers. JAMA Netw Open. 2020;3(11):e2027426. doi:10.1001/jamanetworkopen.2020.27426
+
+Bannur S., Oktay O., Bernhardt M, Schwaighofer A., Jena R., Nushi B., Wadhwani S., Nori A., Natarajan K., Ashraf S., Alvarez-Valle J., Castro D. C.: Hierarchical Analysis of Visual COVID-19 Features from Chest Radiographs. ICML 2021 Workshop on Interpretable Machine Learning in Healthcare. https://arxiv.org/abs/2107.06618
+
+Bernhardt M., Castro D. C., Tanno R., Schwaighofer A., Tezcan K. C., Monteiro M., Bannur S., Lungren M., Nori S., Glocker B., Alvarez-Valle J., Oktay. O: Active label cleaning: Improving dataset quality under resource constraints. ArXiv pre-print (under peer review). https://arxiv.org/abs/2109.00574. Accompagnying code [InnerEye-DataSelection](InnerEye-DataSelection/README.md)
 
 ## Contributing
 
