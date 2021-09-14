@@ -160,7 +160,6 @@ def test_create_transform_pipeline_from_config(expand_channels: bool) -> None:
     assert torch.isclose(expected_transformed, transformed_image).all()
 
     # Test the evaluation pipeline
-    # TODO why this is not parametrized?
     transformation_pipeline = create_transforms_from_config(cxr_augmentation_config, apply_augmentations=False,
                                                             expand_channels=expand_channels)
     transformed_image = transformation_pipeline(image)
