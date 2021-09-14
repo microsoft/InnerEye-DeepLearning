@@ -127,26 +127,26 @@ def test_create_transform_pipeline_from_config(expand_channels: bool) -> None:
                       RandomErasing(scale=(0.15, 0.4), ratio=(0.33, 3)),
                       AddGaussianNoise(std=0.05, p_apply=0.5)
                       ]
-    if expand_channels:
-        # expand channels is used for single-channel input images
-        fake_cxr_image = PIL.Image.fromarray(fake_cxr_as_array).convert("L")
-        all_transforms.insert(0, ExpandChannels())
-    else:
-        fake_3d_array = np.stack([fake_cxr_as_array for i in range(3)])
-        # TODO this is raising an error - understands what shapes/values you need in here
-        fake_cxr_image = PIL.Image.fromarray(fake_3d_array).convert("RGB")
 
+    if expand_channels:
+        all_transforms.insert(0, ExpandChannels())
+        # expand channels is used for single-channel input images
+        fake_image = PIL.Image.fromarray(fake_cxr_as_array).convert("L")
+        # In the pipeline the image is converted to tensor before applying the transformations. Do the same here.
+        image = ToTensor()(fake_image).reshape([1, 1, 256, 256])
+    else:
+        fake_3d_array = np.dstack([fake_cxr_as_array, fake_cxr_as_array, fake_cxr_as_array])
+        fake_image = PIL.Image.fromarray(fake_3d_array.astype(np.uint8)).convert("RGB")
+        # In the pipeline the image is converted to tensor before applying the transformations. Do the same here.
+        image = ToTensor()(fake_image).reshape([1, 3, 256, 256])
+    
     np.random.seed(3)
     torch.manual_seed(3)
     random.seed(3)
-
-    transformed_image = transformation_pipeline(fake_cxr_image)
+    transformed_image = transformation_pipeline(fake_image)
     assert isinstance(transformed_image, torch.Tensor)
 
     # Expected pipeline
-    # In the pipeline the image is converted to tensor before applying the transformations. Do the same here.
-    image = ToTensor()(fake_cxr_image).reshape([1, 1, 256, 256])
-
     np.random.seed(3)
     torch.manual_seed(3)
     random.seed(3)
