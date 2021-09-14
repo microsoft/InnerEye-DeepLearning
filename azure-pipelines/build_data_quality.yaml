@@ -30,9 +30,9 @@ steps:
     displayName: Take ownership of conda installation
 
   - bash: |
-      python InnerEye-DataSelection/create_environment.py
+      conda env create --file InnerEye-DataSelection/environment.yml --name InnerEyeDataQuality
       source activate InnerEyeDataQuality
-      pip freeze > requirements.txt
+      pip freeze
     failOnStderr: false # Conda env create does not have an option to suppress warnings generated in wheel.py
     condition: succeeded()
     displayName: Create conda environment
