@@ -18,7 +18,7 @@ from InnerEyeDataQuality.datasets.label_distribution import LabelDistribution
 from InnerEyeDataQuality.evaluation.metrics import compute_label_entropy
 from InnerEyeDataQuality.selection.simulation_statistics import SimulationStats, get_ambiguous_sample_ids
 from InnerEyeDataQuality.utils.generic import convert_labels_to_one_hot
-import wget
+
 
 TOTAL_CIFAR10H_DATASET_SIZE = 10000
 
