@@ -40,7 +40,7 @@ steps:
   - bash: |
       source activate InnerEyeDataQuality
       cd InnerEye-DataSelection
-      python setup.py develop --no-deps
+      pip install -e .
       pytest --doctest-modules --junitxml=junit/test-results.xml --cov=. --cov-report=xml --cov-report=html -n 2 --dist=loadscope --verbose
     failOnStderr: false
     condition: succeededOrFailed()
