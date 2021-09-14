@@ -22,7 +22,7 @@ from InnerEye.Common.metrics_constants import LoggingColumns
 from InnerEye.ML.SSL.encoders import SSLEncoder
 from InnerEye.ML.SSL.lightning_containers.ssl_container import EncoderName
 from InnerEye.ML.SSL.lightning_modules.ssl_classifier_module import SSLClassifier
-from InnerEye.ML.SSL.utils import create_ssl_encoder, create_ssl_image_classifier, load_yaml_augmentation_config
+from InnerEye.ML.SSL.utils import create_ssl_image_classifier, load_yaml_augmentation_config
 from InnerEye.ML.augmentations.transform_pipeline import create_transforms_from_config
 
 from InnerEye.ML.common import ModelExecutionMode
