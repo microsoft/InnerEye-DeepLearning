@@ -32,23 +32,15 @@ steps:
   - bash: |
       conda env create --file InnerEye-DataSelection/environment.yml --name InnerEyeDataQuality
       source activate InnerEyeDataQuality
-      pip freeze
+      pip freeze > requirements.txt
     failOnStderr: false # Conda env create does not have an option to suppress warnings generated in wheel.py
     condition: succeeded()
     displayName: Create conda environment
   
-  - task: ComponentGovernanceComponentDetection@0
-    condition: succeeded()
-    inputs:
-      scanType: 'Register'
-      verbosity: 'Normal'
-      alertWarningLevel: 'High'
-      failOnAlert: false
-      failOnStderr: true
-  
   - bash: |
-      conda activate InnerEyeDataQuality
+      source activate InnerEyeDataQuality
       cd InnerEye-DataSelection
+      python setup.py develop --no-deps
       pytest --doctest-modules --junitxml=junit/test-results.xml --cov=. --cov-report=xml --cov-report=html -n 2 --dist=loadscope --verbose
     failOnStderr: false
     condition: succeededOrFailed()
@@ -60,6 +52,15 @@ steps:
       testRunTitle: 'tests_on_$(Agent.OS)'
     condition: succeededOrFailed()
     displayName: Publish test results
+
+  - task: ComponentGovernanceComponentDetection@0
+    condition: succeeded()
+    inputs:
+      scanType: 'Register'
+      verbosity: 'Normal'
+      alertWarningLevel: 'High'
+      failOnAlert: false
+      failOnStderr: true
 
   - task: PublishCodeCoverageResults@1
     inputs:
