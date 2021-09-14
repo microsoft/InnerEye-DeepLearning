@@ -1,0 +1,5 @@
+selector:
+  type: ['PosteriorBasedSelectorJoint']
+  model_name: 'Vanilla'
+  model_config_path: 'InnerEyeDataQuality/configs/models/cifar10h_noise_15/resnet.yaml'
+

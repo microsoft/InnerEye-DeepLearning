@@ -1,0 +1,40 @@
+name: InnerEyeDataQuality
+channels:
+  - defaults
+  - pytorch
+dependencies:
+  - pip=20.1.1
+  - python=3.7.3
+  - pytorch=1.6.0
+  - pip:
+      - autopep8==1.5.3
+      - flake8==3.9.0
+      - fvcore==0.1.1.post20200716
+      - joblib==0.16.0
+      - matplotlib==3.3.0
+      - mypy==0.770
+      - mypy-extensions==0.4.3
+      - numpy==1.19.1
+      - opencv-python-headless==4.5.1.48
+      - pandas==1.1.0
+      - param==1.9.3
+      - pydicom==2.0.0
+      - pytorch-lightning==1.0.8
+      - pytest==6.0.1
+      - pytest-cov==2.10.1
+      - pytest-forked==1.3.0
+      - pytest-xdist==1.34.0
+      - scikit-image==0.17.2
+      - scikit-learn==0.23.2
+      - scipy==1.5.2
+      - seaborn==0.11.0
+      - simpleitk==1.2.4
+      - termcolor==1.1.0
+      - thop<0.0.31.post2004070130
+      - tensorboard==2.3.0
+      - tensorboardX==2.1
+      - torchprof==1.1.1
+      - torchvision==0.7.0
+      - git+https://github.com/NVIDIA/apex.git@a0d99fd#egg=apex
+      - git+https://github.com/PyTorchLightning/pytorch-lightning-bolts.git@245bf8f#egg=pytorch_lightning_bolts
+      - wget==3.2

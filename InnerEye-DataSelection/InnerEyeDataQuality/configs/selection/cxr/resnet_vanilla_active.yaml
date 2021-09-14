@@ -1,0 +1,5 @@
+selector:
+  type: ['PosteriorBasedSelector']
+  model_name: 'Vanilla (heavy aug) Active'
+  model_config_path: 'InnerEyeDataQuality/configs/models/cxr/resnet.yaml'
+  use_active_relabelling: True

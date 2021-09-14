@@ -1,0 +1,8 @@
+selector:
+  type: ['PosteriorBasedSelector']
+  model_name: 'Self-Supervision-Active'
+  model_config_path: 'InnerEyeDataQuality/configs/models/benchmark_3_idn/b3_ssl_cleaning_v2.yaml'
+  output_directory: 'b3_ssl_cleaning_v2_active'
+  use_active_relabelling: True
+tensorboard:
+  save_events: False
