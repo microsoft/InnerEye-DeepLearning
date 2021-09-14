@@ -1,7 +1,5 @@
 steps:
   - checkout: self
-    lfs: true
-    submodules: true
 
   - task: CredScan@3
     condition: and(succeeded(), eq( variables['Agent.OS'], 'Windows_NT' ))
@@ -32,12 +30,13 @@ steps:
     displayName: Take ownership of conda installation
 
   - bash: |
-      python create_environment.py
+      python InnerEye-DataSelection/create_environment.py
       source activate InnerEyeDataQuality
       pip freeze > requirements.txt
     failOnStderr: false # Conda env create does not have an option to suppress warnings generated in wheel.py
     condition: succeeded()
     displayName: Create conda environment
+  
   - task: ComponentGovernanceComponentDetection@0
     condition: succeeded()
     inputs:
@@ -46,24 +45,14 @@ steps:
       alertWarningLevel: 'High'
       failOnAlert: false
       failOnStderr: true
-  - bash: |
-      source activate InnerEyeDataQuality
-      flake8
-    failOnStderr: true
-    condition: succeeded()
-    displayName: flake8
-  - bash: |
-      source activate InnerEyeDataQuality
-      python mypy_runner.py
-    failOnStderr: true
-    condition: succeededOrFailed()
-    displayName: mypy
+  
   - bash: |
       source activate InnerEyeDataQuality
       pytest --doctest-modules --junitxml=junit/test-results.xml --cov=. --cov-report=xml --cov-report=html -n 2 --dist=loadscope --verbose
     failOnStderr: false
     condition: succeededOrFailed()
-    displayName: Run pytest
+    displayName: Run pytest for DataSelection folder
+  
   - task: PublishTestResults@2
     inputs:
       testResultsFiles: '**/test-*.xml'
