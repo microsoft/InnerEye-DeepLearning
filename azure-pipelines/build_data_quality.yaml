@@ -47,7 +47,7 @@ steps:
       failOnStderr: true
   
   - bash: |
-      source activate InnerEyeDataQuality
+      conda activate InnerEyeDataQuality
       cd InnerEye-DataSelection
       pytest --doctest-modules --junitxml=junit/test-results.xml --cov=. --cov-report=xml --cov-report=html -n 2 --dist=loadscope --verbose
     failOnStderr: false
