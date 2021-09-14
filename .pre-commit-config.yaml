@@ -33,3 +33,9 @@ repos:
     hooks:
     -   id: mypy
         additional_dependencies: [types-all]
+
+-   repo: https://github.com/ambv/black
+    rev: stable
+    hooks:
+    - id: black
+      language_version: python3.7

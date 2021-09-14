@@ -22,6 +22,7 @@ jobs that run in AzureML.
   ensemble) using the parameter `model_id`.
 - ([#554](https://github.com/microsoft/InnerEye-DeepLearning/pull/554)) Added a parameter `pretraining_dataset_id` to
   `NIH_COVID_BYOL` to specify the name of the SSL training dataset.
+- ([#560](https://github.com/microsoft/InnerEye-DeepLearning/pull/560)) Added pre-commit hooks.
 
 ### Changed
 - ([#531](https://github.com/microsoft/InnerEye-DeepLearning/pull/531)) Updated PL to 1.3.8, torchmetrics and pl-bolts and changed relevant metrics and SSL code API.
@@ -47,7 +48,7 @@ gets uploaded to AzureML, by skipping all test folders.
 - ([#546](https://github.com/microsoft/InnerEye-DeepLearning/pull/546)) Environment and hello_world_model documentation updated
 - ([#525](https://github.com/microsoft/InnerEye-DeepLearning/pull/525)) Enable --store_dataset_sample
 - ([#495](https://github.com/microsoft/InnerEye-DeepLearning/pull/495)) Fix model comparison.
-- ([#547](https://github.com/microsoft/InnerEye-DeepLearning/pull/547)) The parameter pl_find_unused_parameters was no longer used 
+- ([#547](https://github.com/microsoft/InnerEye-DeepLearning/pull/547)) The parameter pl_find_unused_parameters was no longer used
 to initialize the DDP Plugin.
 - ([#482](https://github.com/microsoft/InnerEye-DeepLearning/pull/482)) Check bool parameter is either true or false.
 - ([#475](https://github.com/microsoft/InnerEye-DeepLearning/pull/475)) Bug in AML SDK meant that we could not train
@@ -91,8 +92,8 @@ in inference-only runs when using lightning containers.
 - ([#454](https://github.com/microsoft/InnerEye-DeepLearning/pull/454)) Checking that labels are mutually exclusive.
 - ([#447](https://github.com/microsoft/InnerEye-DeepLearning/pull/447/)) Added a sanity check to ensure there are no
   missing channels, nor missing files. If missing channels in the csv file or filenames associated with channels are
-  incorrect, pipeline exits with error report before running training or inference. 
-- ([#446](https://github.com/microsoft/InnerEye-DeepLearning/pull/446)) Guarding `save_outlier` so that it works when 
+  incorrect, pipeline exits with error report before running training or inference.
+- ([#446](https://github.com/microsoft/InnerEye-DeepLearning/pull/446)) Guarding `save_outlier` so that it works when
 institution id and series id columns are missing.
 - ([#441](https://github.com/microsoft/InnerEye-DeepLearning/pull/441)) Add script to move models from one AzureML workspace to another: `python InnerEye/Scripts/move_model.py`
 - ([#417](https://github.com/microsoft/InnerEye-DeepLearning/pull/417)) Added a generic way of adding PyTorch Lightning
@@ -143,8 +144,8 @@ with the FastMRI challenge datasets.
 console for easier diagnostics.
 - ([#445](https://github.com/microsoft/InnerEye-DeepLearning/pull/445)) Adding test coverage for the `HelloContainer`
   model with multiple GPUs
-- ([#450](https://github.com/microsoft/InnerEye-DeepLearning/pull/450)) Adds the metric "Accuracy at threshold 0.5" to the classification report (`classification_crossval_report.ipynb`). 
-- ([#451](https://github.com/microsoft/InnerEye-DeepLearning/pull/451)) Write a file `model_outputs.csv` with columns 
+- ([#450](https://github.com/microsoft/InnerEye-DeepLearning/pull/450)) Adds the metric "Accuracy at threshold 0.5" to the classification report (`classification_crossval_report.ipynb`).
+- ([#451](https://github.com/microsoft/InnerEye-DeepLearning/pull/451)) Write a file `model_outputs.csv` with columns
   `subject`, `prediction_target`, `label`, `model_output` and `cross_validation_split_index`. This file is not written out for sequence models.
 - ([#440](https://github.com/microsoft/InnerEye-DeepLearning/pull/440)) Added support for training of self-supervised
   models (BYOL and SimCLR) based on the bring-your-own-model framework. Providing examples configurations for training
@@ -178,22 +179,22 @@ console for easier diagnostics.
 - ([#437](https://github.com/microsoft/InnerEye-DeepLearning/pull/437)) Upgrade to PyTorch-Lightning 1.2.8.
 - ([#439](https://github.com/microsoft/InnerEye-DeepLearning/pull/439)) Recovery checkpoints are now
   named `recovery_epoch=x.ckpt` instead of `recovery.ckpt` or `recovery-v0.ckpt`.
-- ([#451](https://github.com/microsoft/InnerEye-DeepLearning/pull/451)) Change the signature for function `generate_custom_report` 
+- ([#451](https://github.com/microsoft/InnerEye-DeepLearning/pull/451)) Change the signature for function `generate_custom_report`
   in `ModelConfigBase` to take only the path to the reports folder and a `ModelProcessing` object.
 - ([#444](https://github.com/microsoft/InnerEye-DeepLearning/pull/444)) The method `before_training_on_rank_zero` of
  the `LightningContainer` class has been renamed to `before_training_on_global_rank_zero`. The order in which the
  hooks are called has been changed.
-- ([#458](https://github.com/microsoft/InnerEye-DeepLearning/pull/458)) Simplifying and generalizing the way we handle 
-  data augmentations for classification models. The pipelining logic is now taken care of by a ImageTransformPipeline 
+- ([#458](https://github.com/microsoft/InnerEye-DeepLearning/pull/458)) Simplifying and generalizing the way we handle
+  data augmentations for classification models. The pipelining logic is now taken care of by a ImageTransformPipeline
   class that takes as input a list of transforms to chain together. This pipeline takes of applying transforms on 3D or
-  2D images. The user can choose to apply the same transformation for all channels (RGB example) or whether to apply 
-  different transformation for each channel (if each channel represents a different 
-  modality / time point for example). The pipeline can now work directly with out-of-the box torchvision transform 
-  (as long as they support [..., C, H, W] inputs). This allows to get rid of nearly all of our custom augmentations 
-  functions. The conversion from pipeline of image transformation to ScalarItemAugmentation is now taken care of under 
+  2D images. The user can choose to apply the same transformation for all channels (RGB example) or whether to apply
+  different transformation for each channel (if each channel represents a different
+  modality / time point for example). The pipeline can now work directly with out-of-the box torchvision transform
+  (as long as they support [..., C, H, W] inputs). This allows to get rid of nearly all of our custom augmentations
+  functions. The conversion from pipeline of image transformation to ScalarItemAugmentation is now taken care of under
   the hood, the user does not need to call this wrapper for each config class. In models derived from ScalarModelConfig
   to change which augmentations are applied to the images inputs (resp. segmentations inputs), users can override
-  `get_image_transform` (resp. `get_segmentation_transform`). These two functions replace the old 
+  `get_image_transform` (resp. `get_segmentation_transform`). These two functions replace the old
   `get_image_sample_transforms` method. See `docs/building_models.md` for more information on augmentations.
 
 ### Fixed
@@ -215,7 +216,7 @@ console for easier diagnostics.
 - ([#450](https://github.com/microsoft/InnerEye-DeepLearning/pull/450)) Delete unused `classification_report.ipynb`.
 - ([#455](https://github.com/microsoft/InnerEye-DeepLearning/pull/455)) Removed the AzureRunner conda environment.
   The full InnerEye conda environment is needed to submit a training job to AzureML.
-- ([#458](https://github.com/microsoft/InnerEye-DeepLearning/pull/458)) Getting rid of all the unused code for 
+- ([#458](https://github.com/microsoft/InnerEye-DeepLearning/pull/458)) Getting rid of all the unused code for
    RandAugment & Co. The user has now instead complete freedom to specify the set of augmentations to use.
 - ([#468](https://github.com/microsoft/InnerEye-DeepLearning/pull/468)) Removed the `KneeSinglecoil` example model
 
