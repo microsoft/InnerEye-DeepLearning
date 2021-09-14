@@ -4,7 +4,7 @@
 
 This subfolder contains all the code associated to the pre-print ["Active label cleaning: Improving dataset quality under resource constraints"](https://arxiv.org/abs/2109.00574).
 
-In particular this repository provides with the tools to:
+In particular, this subfolder provides the tools to:
 1. Train noise robust models (co-teaching, ELR, SSL pretraining and finetuning capabilities)
 2. Run the label cleaning simulation benchmark proposed in the above mentioned manuscript. 
 3. Run the model selection benchmark.
