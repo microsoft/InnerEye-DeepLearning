@@ -16,11 +16,7 @@ import torch
 from pytorch_lightning import LightningDataModule, LightningModule
 from torch.utils.tensorboard import SummaryWriter
 
-from InnerEye.Common.common_util import add_folder_to_sys_path_if_needed
 from InnerEye.ML.lightning_container import LightningContainer
-
-add_folder_to_sys_path_if_needed("fastMRI")
-
 from fastmri.data.subsample import create_mask_for_mask_type
 from fastmri.data.transforms import VarNetDataTransform
 from fastmri.pl_modules import FastMriDataModule, VarNetModule

@@ -29,6 +29,8 @@ jobs that run in AzureML.
 - ([#533](https://github.com/microsoft/InnerEye-DeepLearning/pull/533)) Better defaults for inference on ensemble children.
 - ([#536](https://github.com/microsoft/InnerEye-DeepLearning/pull/536)) Inference will not run on the validation set by default, this can be turned on
 via the `--inference_on_val_set` flag.
+- ([#548](https://github.com/microsoft/InnerEye-DeepLearning/pull/548)) Many Azure-related functions have been moved
+out of the toolbox, into the separate hi-ml Python package.
 - ([#502](https://github.com/microsoft/InnerEye-DeepLearning/pull/502)) Renamed command line option 'perform_training_set_inference' to 'inference_on_train_set'. Replaced command line option 'perform_validation_and_test_set_inference' with the pair of options 'inference_on_val_set' and 'inference_on_test_set'.
 - ([#496](https://github.com/microsoft/InnerEye-DeepLearning/pull/496)) All plots are now saved as PNG, rather than JPG.
 - ([#497](https://github.com/microsoft/InnerEye-DeepLearning/pull/497)) Reducing the size of the code snapshot that
@@ -61,6 +63,10 @@ mounting and running matplotblib on some machines. Re-instantiated a disabled te
 - ([#509](https://github.com/microsoft/InnerEye-DeepLearning/pull/509)) Fix issue where model checkpoints were not loaded
 in inference-only runs when using lightning containers.
 - ([#553](https://github.com/microsoft/InnerEye-DeepLearning/pull/553)) Fix incomplete test data module setup in Lightning inference.
+- ([#557](https://github.com/microsoft/InnerEye-DeepLearning/pull/557)) Fix issue where learning rate was not set
+  correctly in the SimCLR module
+- ([#558](https://github.com/microsoft/InnerEye-DeepLearning/pull/558)) Fix issue with the CovidModel config where model
+  weights from a finetuning run were incompatible with the model architecture created for non-finetuning runs.
 
 ### Removed
 

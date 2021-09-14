@@ -73,9 +73,8 @@ def main(yaml_file_path: Path) -> None:
     In addition, the arguments '--image_channel' and '--gt_channel' must be specified (see below).
     """
     config, runner_config, args = get_configs(SegmentationModelBase(should_validate=False), yaml_file_path)
-    local_dataset = MLRunner(config, azure_config=runner_config).mount_or_download_dataset(config.azure_dataset_id,
-                                                                                           config.local_dataset)
-    assert local_dataset is not None
+    runner = MLRunner(config, azure_config=runner_config)
+    local_dataset = runner.download_or_use_existing_dataset(config.azure_dataset_id, config.local_dataset)
     dataframe = pd.read_csv(local_dataset / DATASET_CSV_FILE_NAME)
     normalizer_config = NormalizeAndVisualizeConfig(**args)
     actual_mask_channel = None if normalizer_config.ignore_mask else config.mask_id

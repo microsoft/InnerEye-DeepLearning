@@ -279,7 +279,7 @@ def model_train_unittest(config: Optional[DeepLearningConfig],
     # It will also set random seeds correctly. Later we use so initialized container.
     # For all tests running in AzureML, we need to skip the downloading of datasets that would otherwise happen,
     # because all unit test configs come with their own local dataset already.
-    runner.setup(use_mount_or_download_dataset=False)
+    runner.setup()
     if checkpoint_handler is None:
         azure_config = get_default_azure_config()
         checkpoint_handler = CheckpointHandler(azure_config=azure_config,

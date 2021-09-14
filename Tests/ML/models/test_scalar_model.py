@@ -377,7 +377,7 @@ def test_runner_restart(test_output_dirs: OutputFolderForTests) -> None:
     model_config.recovery_checkpoint_save_interval = 1
     model_config.recovery_checkpoints_save_last_k = -1
     runner = MLRunner(model_config=model_config)
-    runner.setup(use_mount_or_download_dataset=False)
+    runner.setup()
     # Epochs are 0 based for saving
     create_model_and_store_checkpoint(model_config,
                                       runner.container.checkpoint_folder / f"{RECOVERY_CHECKPOINT_FILE_NAME}_epoch="

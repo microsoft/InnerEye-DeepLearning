@@ -150,7 +150,7 @@ class SSLContainer(LightningContainer):
                                                     gpus=self.total_num_gpus,
                                                     num_samples=self.data_module.num_samples,
                                                     batch_size=self.data_module.batch_size,
-                                                    lr=self.l_rate,
+                                                    learning_rate=self.l_rate,
                                                     max_epochs=self.num_epochs)
         elif self.ssl_training_type == SSLTrainingType.BYOL:
             model = BYOLInnerEye(encoder_name=self.ssl_encoder.value,

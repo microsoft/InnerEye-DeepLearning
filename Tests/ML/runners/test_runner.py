@@ -396,14 +396,16 @@ def test_cross_validation_for_lighting_container_models_is_supported() -> None:
     to azure_runner's submit_to_azureml method.
     """
     args_list = ["--model=HelloContainer", "--number_of_cross_validation_splits=5", "--azureml=True"]
+    mock_run = mock.MagicMock()
+    mock_run.id = "foo"
+    mock_run.experiment.name = "bar"
     with mock.patch("sys.argv", [""] + args_list):
         runner = Runner(project_root=fixed_paths.repository_root_directory(),
                         yaml_config_file=fixed_paths.SETTINGS_YAML_FILE)
-        with mock.patch("InnerEye.Azure.azure_runner.create_and_submit_experiment",
-                        return_value=None) as create_and_submit_experiment_patch:
-            runner.run()
+        with mock.patch("health.azure.himl.submit_run", return_value=mock_run) as create_and_submit_experiment_patch:
+            with pytest.raises(SystemExit):
+                runner.run()
             assert runner.lightning_container.model_name == 'HelloContainer'
             assert runner.lightning_container.number_of_cross_validation_splits == 5
-            args, _ = create_and_submit_experiment_patch.call_args
-            script_run_config = args[1]
-            assert isinstance(script_run_config, HyperDriveConfig)
+            script_run_config_arg = create_and_submit_experiment_patch.call_args[1]["script_run_config"]
+            assert isinstance(script_run_config_arg, HyperDriveConfig)

@@ -2,7 +2,9 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import logging
 import os
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -91,3 +93,28 @@ def get_environment_yaml_file() -> Path:
             raise ValueError(f"File {ENVIRONMENT_YAML_FILE_NAME} was not found not found in the package folder "
                              f"{INNEREYE_PACKAGE_ROOT}, and not in the repository root {repository_root_directory()}.")
     return env
+
+
+def add_submodules_to_path() -> None:
+    """
+    This function adds all submodules that the code uses to sys.path and to the environment variables. This is
+    necessary to make the code work without any further changes when switching from/to using hi-ml as a package
+    or as a submodule for development.
+    It also adds the InnerEye root folder to sys.path. The latter is necessary to make AzureML and Pytorch Lightning
+    work together: When spawning additional processes for DDP, the working directory is not correctly picked
+    up in sys.path.
+    """
+    innereye_root = repository_root_directory()
+    folders_to_add = [(innereye_root, "InnerEye"),
+                      (innereye_root / "fastMRI", "fastmri"),
+                      (innereye_root / "hi-ml" / "src", "health")]
+    for (folder, subfolder_that_must_exist) in folders_to_add:
+        if (folder / subfolder_that_must_exist).is_dir():
+            folder_str = str(folder)
+            if folder_str not in sys.path:
+                logging.debug(f"Adding folder {folder} to sys.path")
+                sys.path.insert(0, folder_str)
+            else:
+                logging.debug(f"Not adding folder {folder} because it is already in sys.path")
+        else:
+            logging.debug(f"Not adding folder {folder} because it does not have subfolder {subfolder_that_must_exist}")
