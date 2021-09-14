@@ -1,38 +1,13 @@
 steps:
-  - checkout: self
-
-  - task: CredScan@3
-    condition: and(succeeded(), eq( variables['Agent.OS'], 'Windows_NT' ))
-
-  - task: PostAnalysis@1
-    condition: and(succeeded(), eq( variables['Agent.OS'], 'Windows_NT' ))
-    displayName: 'Post Analysis'
-    inputs:
-      CredScan: true
-
-  - bash: |
-      echo "Adding this directory to PATH: $CONDA/$subdir"
-      echo "##vso[task.prependpath]$CONDA/$subdir"
-    displayName: Add conda to PATH
-    condition: succeeded()
-  - bash: |
-      conda install conda=4.8.3 -y
-      conda --version
-      conda list
-    displayName: Print conda version and package list
-  - script: echo %NUMBER_OF_PROCESSORS%
-    condition: and(succeeded(), eq( variables['Agent.OS'], 'Windows_NT' ))
-    displayName: Print processors
-
-  # Linux only; not required in Windows
-  - bash: sudo chown -R $USER /usr/share/miniconda
-    condition: and(succeeded(), eq( variables['Agent.OS'], 'Linux' ))
-    displayName: Take ownership of conda installation
+  - template: checkout.yml
 
   - bash: |
       conda env create --file InnerEye-DataSelection/environment.yml --name InnerEyeDataQuality
       source activate InnerEyeDataQuality
+      echo Storing environment for later use by ComponentGovernance
       pip freeze > requirements.txt
+      echo Environment has been created with these packages:
+      cat requirements.txt
     failOnStderr: false # Conda env create does not have an option to suppress warnings generated in wheel.py
     condition: succeeded()
     displayName: Create conda environment
@@ -40,7 +15,6 @@ steps:
   - bash: |
       source activate InnerEyeDataQuality
       cd InnerEye-DataSelection
-      pip install -e .
       pytest --doctest-modules --junitxml=junit/test-results.xml --cov=. --cov-report=xml --cov-report=html -n 2 --dist=loadscope --verbose
     failOnStderr: false
     condition: succeededOrFailed()
