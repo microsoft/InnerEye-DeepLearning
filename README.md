@@ -141,11 +141,11 @@ Please send an email to InnerEyeInfo@microsoft.com if you would like further inf
 
 ## Publications
 
-Oktay O., Nanavati J., Schwaighofer A., Carter D., Bristow M., Tanno R., Jena R., Barnett G., Noble D., Rimmer Y., Glocker B., O’Hara K., Bishop C., Alvarez-Valle J., Nori A.: Evaluation of Deep Learning to Augment Image-Guided Radiotherapy for Head and Neck and Prostate Cancers. JAMA Netw Open. 2020;3(11):e2027426. doi:10.1001/jamanetworkopen.2020.27426
+Oktay O., Nanavati J., Schwaighofer A., Carter D., Bristow M., Tanno R., Jena R., Barnett G., Noble D., Rimmer Y., Glocker B., O’Hara K., Bishop C., Alvarez-Valle J., Nori A.: Evaluation of Deep Learning to Augment Image-Guided Radiotherapy for Head and Neck and Prostate Cancers. JAMA Netw Open. 2020;3(11):e2027426. [doi:10.1001/jamanetworkopen.2020.27426](https://pubmed.ncbi.nlm.nih.gov/33252691/)
 
-Bannur S., Oktay O., Bernhardt M, Schwaighofer A., Jena R., Nushi B., Wadhwani S., Nori A., Natarajan K., Ashraf S., Alvarez-Valle J., Castro D. C.: Hierarchical Analysis of Visual COVID-19 Features from Chest Radiographs. ICML 2021 Workshop on Interpretable Machine Learning in Healthcare. https://arxiv.org/abs/2107.06618
+Bannur S., Oktay O., Bernhardt M, Schwaighofer A., Jena R., Nushi B., Wadhwani S., Nori A., Natarajan K., Ashraf S., Alvarez-Valle J., Castro D. C.: Hierarchical Analysis of Visual COVID-19 Features from Chest Radiographs. ICML 2021 Workshop on Interpretable Machine Learning in Healthcare. [https://arxiv.org/abs/2107.06618](https://arxiv.org/abs/2107.06618)
 
-Bernhardt M., Castro D. C., Tanno R., Schwaighofer A., Tezcan K. C., Monteiro M., Bannur S., Lungren M., Nori S., Glocker B., Alvarez-Valle J., Oktay. O: Active label cleaning: Improving dataset quality under resource constraints. ArXiv pre-print (under peer review). https://arxiv.org/abs/2109.00574. Accompagnying code [InnerEye-DataSelection](InnerEye-DataSelection/README.md)
+Bernhardt M., Castro D. C., Tanno R., Schwaighofer A., Tezcan K. C., Monteiro M., Bannur S., Lungren M., Nori S., Glocker B., Alvarez-Valle J., Oktay. O: Active label cleaning: Improving dataset quality under resource constraints. ArXiv pre-print (under peer review). [https://arxiv.org/abs/2109.00574](https://arxiv.org/abs/2109.00574). Accompagnying code [InnerEye-DataSelection](InnerEye-DataSelection/README.md)
 
 ## Contributing
 
