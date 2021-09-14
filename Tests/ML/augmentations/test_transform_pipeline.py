@@ -8,11 +8,11 @@ import PIL
 import pytest
 import torch
 from torchvision.transforms import (CenterCrop, ColorJitter, RandomAffine, RandomErasing, RandomHorizontalFlip,
-RandomResizedCrop, Resize, ToTensor)
+                                    RandomResizedCrop, Resize, ToTensor)
 from torchvision.transforms.functional import to_tensor
 
 from InnerEye.ML.augmentations.image_transforms import (AddGaussianNoise, ElasticTransform,
-ExpandChannels, RandomGamma)
+                                                        ExpandChannels, RandomGamma)
 from InnerEye.ML.augmentations.transform_pipeline import ImageTransformationPipeline, \
     create_transforms_from_config
 
