@@ -226,7 +226,9 @@ class SSLContainer(LightningContainer):
         :param dataset_name: name of the dataset, value has to be in SSLDatasetName, determines which transformation
         pipeline to return.
         :param is_ssl_encoder_module: if True the transformation pipeline will yield two versions of the image it is
-        applied on and it applies the same transformations for validation. If False, return only one transformation.
+        applied on and it applies the same transformations for training and validation. Note that if your transformation 
+        does not contain any randomness, the pipeline will return two identical copies. If False, it will return only one 
+        transformation.
         :return: training transformation pipeline and validation transformation pipeline.
         """
         if dataset_name in [SSLDatasetName.RSNAKaggleCXR.value,
