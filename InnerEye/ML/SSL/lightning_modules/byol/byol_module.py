@@ -4,14 +4,15 @@
 #  ------------------------------------------------------------------------------------------
 
 from copy import deepcopy
-from typing import Any, Dict, Iterator, List, Tuple, Union
+from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
 from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
 from torch import Tensor as T
-from torch.optim import Adam
+from torch.optim import Adam, Optimizer
+from torch.optim.lr_scheduler import StepLR
 
 from InnerEye.ML.SSL.lightning_modules.byol.byol_models import SiameseArm
 from InnerEye.ML.SSL.lightning_modules.byol.byol_moving_average import ByolMovingAverageWeightUpdate
@@ -57,6 +58,7 @@ class BYOLInnerEye(pl.LightningModule):
         self.online_network = SiameseArm(encoder_name, use_7x7_first_conv_in_resnet)
         self.target_network = deepcopy(self.online_network)
         self.weight_callback = ByolMovingAverageWeightUpdate()
+        self.online_eval_optimizer: Optional[Optimizer] = None
 
     def on_train_batch_end(self, *args: Any, **kwargs: Any) -> None:
         # Add callback for user automatically since it's key to BYOL weight update
@@ -119,7 +121,13 @@ class BYOLInnerEye(pl.LightningModule):
         optimizer = Adam(parameters, lr=self.hparams.learning_rate, weight_decay=self.hparams.weight_decay)  # type: ignore
         scheduler = LinearWarmupCosineAnnealingLR(
             optimizer, warmup_epochs=self.hparams.warmup_epochs, max_epochs=self.hparams.max_epochs)   # type: ignore
-        return [optimizer], [scheduler]
+        optimizers = [optimizer]
+        schedulers = [scheduler]
+        if self.online_eval_optimizer:
+            optimizers.append(self.online_eval_optimizer)
+            # When returning two optimizers, also create a second scheduler. Make that effectively use constant LR.
+            schedulers.append(StepLR(self.online_eval_optimizer, step_size=1, gamma=1.0))
+        return optimizers, schedulers
 
     def exclude_from_wt_decay(self,
                               named_params: Iterator[Tuple[str, T]],

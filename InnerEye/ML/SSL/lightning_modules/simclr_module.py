@@ -3,13 +3,15 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from pl_bolts.models.self_supervised.simclr.simclr_module import SimCLR
 from torch import Tensor as T
+from torch.optim import Optimizer
+from torch.optim.lr_scheduler import StepLR, _LRScheduler
 
 from InnerEye.ML.SSL.encoders import SSLEncoder
 from InnerEye.ML.SSL.utils import SSLDataModuleType
@@ -53,6 +55,7 @@ class SimCLRInnerEye(SimCLR):
         self.save_hyperparameters()
         self.encoder = SSLEncoder(encoder_name, use_7x7_first_conv_in_resnet)
         self.projection = _Projection(input_dim=self.encoder.get_output_feature_dim(), hidden_dim=2048, output_dim=128)
+        self.online_eval_optimizer: Optional[Optimizer] = None
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.encoder(x)
@@ -72,6 +75,15 @@ class SimCLRInnerEye(SimCLR):
         loss = self.nt_xent_loss(z1, z2, self.temperature)
 
         return loss
+
+    def configure_optimizers(self) -> Tuple[List[Optimizer], List[_LRScheduler]]:
+        base_optim, base_scheduler = super().configure_optimizers()
+        if self.online_eval_optimizer:
+            base_optim.append(self.online_eval_optimizer)
+            # When returning two optimizers, also create a second scheduler. Make that effectively use constant LR.
+            base_scheduler.append(StepLR(self.online_eval_optimizer, step_size=1, gamma=1.0))
+        return base_optim, base_scheduler
+
 
 
 

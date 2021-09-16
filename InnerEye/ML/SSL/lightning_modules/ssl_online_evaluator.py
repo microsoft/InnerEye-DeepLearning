@@ -43,6 +43,13 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
                                           Accuracy05()] \
             if self.num_classes == 2 else [Accuracy05()]
         self.class_weights = class_weights
+        self.non_linear_evaluator = SSLEvaluator(n_input=self.z_dim,
+                                                      n_classes=self.num_classes,
+                                                      p=self.drop_p,
+                                                      n_hidden=self.hidden_dim)
+        self.optimizer = torch.optim.Adam(self.non_linear_evaluator.parameters(),
+                                          lr=self.learning_rate,
+                                          weight_decay=self.weight_decay)
 
     def on_pretrain_routine_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
         """
@@ -50,15 +57,8 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
         """
         for metric in [*self.train_metrics, *self.val_metrics]:
             metric.to(device=pl_module.device)  # type: ignore
-
-        pl_module.non_linear_evaluator = SSLEvaluator(n_input=self.z_dim,
-                                                      n_classes=self.num_classes,
-                                                      p=self.drop_p,
-                                                      n_hidden=self.hidden_dim).to(pl_module.device)
         assert isinstance(pl_module.non_linear_evaluator, torch.nn.Module)
-        self.optimizer = torch.optim.Adam(pl_module.non_linear_evaluator.parameters(),
-                                          lr=self.learning_rate,
-                                          weight_decay=self.weight_decay)
+        pl_module.non_linear_evaluator = self.non_linear_evaluator.to(pl_module.device)
 
     @staticmethod
     def to_device(batch: Any, device: Union[str, torch.device]) -> Tuple[T, T]:

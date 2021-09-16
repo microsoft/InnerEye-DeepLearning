@@ -167,7 +167,13 @@ class SSLContainer(LightningContainer):
         model.hparams.update({'ssl_type': self.ssl_training_type.value,
                               "num_classes": self.data_module.num_classes})
         self.encoder_output_dim = get_encoder_output_dim(model, self.data_module)
-
+        self.online_eval = SSLOnlineEvaluatorInnerEye(class_weights=self.data_module.class_weights,  # type: ignore
+                                                      z_dim=self.encoder_output_dim,
+                                                      num_classes=self.data_module.num_classes,  # type: ignore
+                                                      dataset=self.linear_head_dataset_name.value,  # type: ignore
+                                                      drop_p=0.2,
+                                                      learning_rate=self.learning_rate_linear_head_during_ssl_training)
+        model.online_eval_optimizer = self.online_eval.optimizer
         return model
 
     def get_data_module(self) -> InnerEyeDataModuleTypes:
@@ -246,12 +252,6 @@ class SSLContainer(LightningContainer):
         return train_transforms, val_transforms
 
     def get_trainer_arguments(self) -> Dict[str, Any]:
-        self.online_eval = SSLOnlineEvaluatorInnerEye(class_weights=self.data_module.class_weights,  # type: ignore
-                                                      z_dim=self.encoder_output_dim,
-                                                      num_classes=self.data_module.num_classes,  # type: ignore
-                                                      dataset=self.linear_head_dataset_name.value,  # type: ignore
-                                                      drop_p=0.2,
-                                                      learning_rate=self.learning_rate_linear_head_during_ssl_training)
         trainer_kwargs: Dict[str, Any] = {"callbacks": self.online_eval}
         if self.is_debug_model:
             trainer_kwargs.update({"limit_train_batches": 1, "limit_val_batches": 1})
