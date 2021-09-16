@@ -1,14 +1,16 @@
 # InnerEye-DataSelection
 
-## About this sub-repository:
+TODO: Maybe name the root folder as `InnerEye-DataQuality` instead of DataSelection to make it consistent. And make the associated renaming in the files.
 
-This subfolder contains all the code associated to the pre-print ["Active label cleaning: Improving dataset quality under resource constraints"](https://arxiv.org/abs/2109.00574).
+## Contents of this sub-repository:
 
-In particular, this subfolder provides the tools to:
-1. Train noise robust models (co-teaching, ELR, SSL pretraining and finetuning capabilities)
-2. Run the label cleaning simulation benchmark proposed in the above mentioned manuscript. 
-3. Run the model selection benchmark.
-4. All the code related to our benchmark datasets CIFAR10H and our proposed NoisyChestXray benchmark. 
+This folder contains all the source code associated to the manuscript ["Bernhardt et al.: Active label cleaning: Improving dataset quality under resource constraints"](https://arxiv.org/abs/2109.00574).
+
+In particular, this folder provides the tools for:
+1. Label noise robust training (e.g. co-teaching, ELR, self-supervised pretraining and finetuning capabilities)
+2. The label cleaning simulation benchmark proposed in the above mentioned manuscript. 
+3. The model selection benchmark.
+4. All the code related to our benchmark datasets "CIFAR10H" and "NoisyChestXray". 
 
 
 ## Installation:
@@ -26,17 +28,15 @@ conda activate InnerEyeDataQuality
 pip install -e .
 ```
 
-## Benchmark datasets
-### CIFAR10H
+## Benchmark datasets:
+
+### <ins>CIFAR10H</ins>
 The CIFAR10H dataset consists of samples taken from the CIFAR10 test set but all the samples have been labelled by multiple annotators.
 We use the CIFAR training set as our clean test set.
 
-### Noisy Chest-Xray
-The images released as part of the Kaggle Challenge, where originally released as part of the NIH chest x-ray datasets. 
-Before starting the competition, 30k images have been selected as the images for competitions. The labels for these images
-have then been adjudicated to label them with bounding boxes indicating "pneumonia-life opacities". In order to evaluate 
-our label cleaning framework on medical dataset, we have sampled a small subset of the Kaggle dataset (4000 samples, balanced) 
-for which we have access to the original labels provided in the NIH dataset. This dataset uses the kaggle dataset with noisy labels
+### <ins>Noisy Chest-Xray</ins>
+The images released as part of the [Kaggle Challenge](https://www.kaggle.com/c/rsna-pneumonia-detection-challenge/), where originally released as part of the [NIH chest x-ray dataset](https://www.nih.gov/news-events/news-releases/nih-clinical-center-provides-one-largest-publicly-available-chest-x-ray-datasets-scientific-community). Before starting the competition, 30k images have been selected as the images for competitions. The labels for these images
+have then been adjudicated to label them with bounding boxes indicating "pneumonia-life opacities". This dataset uses the kaggle dataset with noisy labels
 as the original labels from RSNA and the clean labels are the Kaggle labels. Originally the dataset had 14 classes, we 
 created a new binary label to label each image as "pneumonia-like" or "non-pneumonia-like" depending on the original label
 prior to adjudication. The original (binarized) labels along with their corresponding adjudicated label, can be created with [create_noisy_chestxray_dataset.py](InnerEyeDataQuality/datasets/noisy_cxr_benchmark_creation/create_noisy_chestxray_dataset.py) (see "How to use it" section below). The dataset class for this dataset
@@ -197,7 +197,6 @@ To pretrain embeddings with contrastive learning on CIFAR10H you can use the
 #### NIH Chest-Xray 
 Provided that you have downloaded the dataset as explained in the Benchmark Datasets > Other Chest Xray Datasets > NIH Datasets > Pre-requisites section, you can easily launch a unsupervised pretraining run on the full NIH dataset using the [nih_byol.yaml](InnerEyeDataQuality/deep_learning/self_supervised/configs/nih_byol.yaml) or the [nih_simclr.yaml](InnerEyeDataQuality/deep_learning/self_supervised/configs/nih_simclr.yaml)
 configs. Don't forget to update the `dataset_dir` field of your config to reflect your local path.
-
 
 
 
