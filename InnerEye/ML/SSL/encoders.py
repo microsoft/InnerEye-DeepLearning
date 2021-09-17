@@ -44,8 +44,10 @@ class SSLEncoder(nn.Module):
         """
 
         super().__init__()
-        self.cnn_model = create_ssl_encoder(encoder_name=encoder_name,
-                                            use_7x7_first_conv_in_resnet=use_7x7_first_conv_in_resnet)
+        self.cnn_model = create_ssl_encoder(
+            encoder_name=encoder_name,
+            use_7x7_first_conv_in_resnet=use_7x7_first_conv_in_resnet,
+        )
 
     def forward(self, x: T) -> T:
         x = self.cnn_model(x)
@@ -55,21 +57,29 @@ class SSLEncoder(nn.Module):
         return get_encoder_output_dim(self)
 
 
-def get_encoder_output_dim(pl_module: Union[pl.LightningModule, torch.nn.Module],
-                           dm: Optional[pl.LightningDataModule] = None) -> int:
+def get_encoder_output_dim(
+    pl_module: Union[pl.LightningModule, torch.nn.Module],
+    dm: Optional[pl.LightningDataModule] = None,
+) -> int:
     """
     Calculates the output dimension of ssl encoder by making a single forward pass.
     :param pl_module: pl encoder module
     :param dm: pl datamodule
     """
     # Target device
-    device = pl_module.device if isinstance(pl_module, pl.LightningDataModule) else \
-        next(pl_module.parameters()).device  # type: ignore
-    assert (isinstance(device, torch.device))
+    device = (
+        pl_module.device
+        if isinstance(pl_module, pl.LightningDataModule)
+        else next(pl_module.parameters()).device
+    )  # type: ignore
+    assert isinstance(device, torch.device)
 
     # Create a dummy input image
     if dm is not None:
-        from InnerEye.ML.SSL.lightning_modules.ssl_online_evaluator import SSLOnlineEvaluatorInnerEye
+        from InnerEye.ML.SSL.lightning_modules.ssl_online_evaluator import (
+            SSLOnlineEvaluatorInnerEye,
+        )
+
         dataloader = dm.train_dataloader()
         dataloader = dataloader[SSLDataModuleType.LINEAR_HEAD] if isinstance(dataloader, dict) else dataloader  # type: ignore
         batch = iter(dataloader).next()  # type: ignore
@@ -82,3 +92,7 @@ def get_encoder_output_dim(pl_module: Union[pl.LightningModule, torch.nn.Module]
         representations = pl_module(x)
 
     return representations.shape[1]
+
+
+a = 1
+# remove after
