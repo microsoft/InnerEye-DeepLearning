@@ -34,5 +34,5 @@ class NIH_COVID_BYOL(SSLContainer):
                          linear_head_augmentation_config=path_linear_head_augmentation_cxr,
                          online_evaluator_lr=1e-5,
                          linear_head_batch_size=64,
-                         pl_find_unused_parameters=True,
+                         pl_find_unused_parameters=False,
                          **kwargs)
