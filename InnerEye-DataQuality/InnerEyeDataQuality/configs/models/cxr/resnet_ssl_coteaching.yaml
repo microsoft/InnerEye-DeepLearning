@@ -31,8 +31,8 @@ train:
   use_self_supervision: True
   self_supervision:
     freeze_encoder: False
-    checkpoints: ["/datadrive/InnerEye-DataSelection/logs/nih/ssup/byol_seed_3/checkpoints/epoch=999.ckpt",
-                  "/datadrive/InnerEye-DataSelection/logs/nih/ssup/byol_seed_3/checkpoints/epoch=999.ckpt"]
+    checkpoints: ["/datadrive/InnerEye-DataQuality/logs/nih/ssup/byol_seed_3/checkpoints/epoch=999.ckpt",
+                  "/datadrive/InnerEye-DataQuality/logs/nih/ssup/byol_seed_3/checkpoints/epoch=999.ckpt"]
   dataloader:
     num_workers: 6
     drop_last: False

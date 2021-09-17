@@ -2,7 +2,7 @@ steps:
   - template: checkout.yml
 
   - bash: |
-      conda env create --file InnerEye-DataSelection/environment.yml --name InnerEyeDataQuality
+      conda env create --file InnerEye-DataQuality/environment.yml --name InnerEyeDataQuality
       source activate InnerEyeDataQuality
       echo Storing environment for later use by ComponentGovernance
       pip freeze > requirements.txt
@@ -14,7 +14,7 @@ steps:
   
   - bash: |
       source activate InnerEyeDataQuality
-      cd InnerEye-DataSelection
+      cd InnerEye-DataQuality
       pytest --doctest-modules --junitxml=junit/test-results.xml --cov=. --cov-report=xml --cov-report=html -n 2 --dist=loadscope --verbose
     failOnStderr: false
     condition: succeededOrFailed()

@@ -1,4 +1,4 @@
-# InnerEye-DataSelection
+# InnerEye-DataQuality
 
 TODO: Maybe name the root folder as `InnerEye-DataQuality` instead of DataSelection to make it consistent. And make the associated renaming in the files.
 
@@ -15,10 +15,10 @@ In particular, this folder provides the tools for:
 
 ## Installation:
 
-Cloning the InnerEye-DeepLearning repository to your local disk and move to the InnerEye-DataSelection folder.
+Cloning the InnerEye-DeepLearning repository to your local disk and move to the InnerEye-DataQuality folder.
 ```
 git clone https://github.com/microsoft/InnerEye-DeepLearning
-cd InnerEye-DeepLearning/InnerEye-DataSelection
+cd InnerEye-DeepLearning/InnerEye-DataQuality
 ```
 
 Setting up the `InnerEyeDataQuality` python environment. Note that this repository uses a specific conda environment, independent from the `InnerEye` environment. 

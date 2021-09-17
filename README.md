@@ -102,7 +102,7 @@ Further detailed instructions, including setup in Azure, are here:
 1. [Model diagnostics](docs/model_diagnostics.md)
 1. [Move a model to a different workspace](docs/move_model.md)   
 1. [Working with FastMRI models](docs/fastmri.md)
-1. [Active label cleaning and noise robust learning toolbox](InnerEye-DataSelection/README.md)
+1. [Active label cleaning and noise robust learning toolbox](InnerEye-DataQuality/README.md)
 
 ## Deployment
 We offer a companion set of open-sourced tools that help to integrate trained CT segmentation models with clinical
@@ -145,7 +145,7 @@ Oktay O., Nanavati J., Schwaighofer A., Carter D., Bristow M., Tanno R., Jena R.
 
 Bannur S., Oktay O., Bernhardt M, Schwaighofer A., Jena R., Nushi B., Wadhwani S., Nori A., Natarajan K., Ashraf S., Alvarez-Valle J., Castro D. C.: Hierarchical Analysis of Visual COVID-19 Features from Chest Radiographs. ICML 2021 Workshop on Interpretable Machine Learning in Healthcare. [https://arxiv.org/abs/2107.06618](https://arxiv.org/abs/2107.06618)
 
-Bernhardt M., Castro D. C., Tanno R., Schwaighofer A., Tezcan K. C., Monteiro M., Bannur S., Lungren M., Nori S., Glocker B., Alvarez-Valle J., Oktay. O: Active label cleaning: Improving dataset quality under resource constraints. ArXiv pre-print (under peer review). [https://arxiv.org/abs/2109.00574](https://arxiv.org/abs/2109.00574). Accompagnying code [InnerEye-DataSelection](InnerEye-DataSelection/README.md)
+Bernhardt M., Castro D. C., Tanno R., Schwaighofer A., Tezcan K. C., Monteiro M., Bannur S., Lungren M., Nori S., Glocker B., Alvarez-Valle J., Oktay. O: Active label cleaning: Improving dataset quality under resource constraints. ArXiv pre-print (under peer review). [https://arxiv.org/abs/2109.00574](https://arxiv.org/abs/2109.00574). Accompagnying code [InnerEye-DataQuality](InnerEye-DataQuality/README.md)
 
 ## Contributing
 
