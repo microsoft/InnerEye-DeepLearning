@@ -70,7 +70,7 @@ In a subset of experiments, for unsupervised pretraining of chest xray models, t
 
 1. The code will assume that the NIH ChestXray dataset is present on your machine. You will need to download the data from its dedicated [Kaggle
 page](https://www.kaggle.com/nih-chest-xrays/data) to the `dataset_dir` of your choice.
-2. Update the `dataset_dir` field in the corresponding model configs. 
+2. Update the `dataset_dir` field in the corresponding model configs.
 
 ## Noise Robust Learning
 
@@ -128,7 +128,7 @@ To launch a training job simply run:
 ```
 python InnerEyeDataQuality/deep_learning/self_supervised/main.py --config path/to/ssl_config
 ```
-Please check the [Readme](InnerEyeDataQuality/configs/README.md) file to learn more about how to configure the self-supervision (SSL) runs.
+Please check the [Readme](InnerEyeDataQuality/configs/README.md) file to learn more about how to configure the self-supervised (SSL) training.
 
 
 
