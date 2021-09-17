@@ -92,7 +92,3 @@ def get_encoder_output_dim(
         representations = pl_module(x)
 
     return representations.shape[1]
-
-
-a = 1
-# remove after
