@@ -99,7 +99,7 @@ python InnerEyeDataQuality/main_simulation.py --config <path/config1> <path/conf
 This will by default clean the training set associated to your config. If you wish to clean the validation set instead, please add the `--on-val-set` flag to your command. Please check the [Readme](InnerEyeDataQuality/configs/README.md) file to learn more about how to configure the simulation benchmark for label cleaning.
 
 ## Model selection benchmark
-Likewise we provide the capability to run the model selection benchmark described in the paper. In more details, this script will first evaluate the model on the original noisy validation set. Then it will load the cleaned validation labels (coming from running one selector on the noisy validation dataset) and re-run evaluation on this cleaned dataset. The script will then report metrics for all models evaluated on both noisy and cleaned data. 
+The repository also provides the capability to run the model selection benchmark described in the paper. In particular, the [script](InnerEyeDataQuality/model_selection_benchmark.py) will first evaluate the model on the original noisy validation set. Then it will load the cleaned validation labels (coming from running one selector on the noisy validation dataset) and re-run evaluation on this cleaned dataset. The script will then report metrics for all models evaluated on both noisy and cleaned data. 
 
 Running the benchmark: 
 * [Pre-requisite] Prior to running the benchmark that are a few steps to do first:
@@ -115,9 +115,9 @@ python InnerEyeDataQuality/model_selection_benchmark.py --config <path-to-model-
 Examples model and selector configs for this benchmark for CIFAR10H dataset can be found in [configs/models/benchmark3_idn](InnerEyeDataQuality/models/benchmark3_idn).
 
 ## Self supervised pretraining for noise robust learning
-In this subfolder we also provide the code to train self-supervised models using
+In this subfolder you will find the source code to pre-train models using
 [SimCLR](http://proceedings.mlr.press/v119/chen20j/chen20j.pdf) or
-[BYOL](https://proceedings.neurips.cc/paper/2020/file/f3ada80d5c4ee70142b17b8192b2958e-Paper.pdf). 
+[BYOL](https://proceedings.neurips.cc/paper/2020/file/f3ada80d5c4ee70142b17b8192b2958e-Paper.pdf) self-supervision methods.
 
 ### General
 For the unsupervised training of the models, we rely on PyTorch Lightning and Pytorch Lightining bolts. The main entry point
@@ -128,17 +128,8 @@ To launch a training job simply run:
 ```
 python InnerEyeDataQuality/deep_learning/self_supervised/main.py --config path/to/ssl_config
 ```
+Please check the [Readme](InnerEyeDataQuality/configs/README.md) file to learn more about how to configure the self-supervision (SSL) runs.
 
-We provide configs and data module to run the self-supervised training on CIFAR10H and on the NIH Chest Xray dataset.
-
-### Predefined ssl model configs
-#### CIFAR10H
-To pretrain embeddings with contrastive learning on CIFAR10H you can use the 
-[cifar10h_byol.yaml](InnerEyeDataQuality/deep_learning/self_supervised/configs/cifar10h_byol.yaml) or the [cifar10h_simclr.yaml](InnerEyeDataQuality/deep_learning/self_supervised/configs/cifar10h_simclr.yaml) config files. 
-
-#### NIH Chest-Xray 
-Provided that you have downloaded the dataset as explained in the Benchmark Datasets > Other Chest Xray Datasets > NIH Datasets > Pre-requisites section, you can easily launch a unsupervised pretraining run on the full NIH dataset using the [nih_byol.yaml](InnerEyeDataQuality/deep_learning/self_supervised/configs/nih_byol.yaml) or the [nih_simclr.yaml](InnerEyeDataQuality/deep_learning/self_supervised/configs/nih_simclr.yaml)
-configs. Don't forget to update the `dataset_dir` field of your config to reflect your local path.
 
 
 
