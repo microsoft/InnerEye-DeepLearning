@@ -79,48 +79,13 @@ In this section, we provide details on how to train noise robust supervised mode
 ### Training noise robust supervised models
 The main entry point for training a supervised model is [train.py](InnerEyeDataQuality/deep_learning/train.py). 
 The code requires you to provide a config file specifying the dataset to use, the training specification (batch size, scheduler etc...),
-which type of training, which augmentation to use ...
-
-#### Launch the Python training command
-Train the model using the command
+which type of training, which augmentation to use. To launch a training job use the following command:
 ```python
 python InnerEyeDataQuality/deep_learning/train.py  --config <path to config>
 ```
 
-#### Some important config arguments:
-All possible config arguments are defined in [model_config.py](InnerEyeDataQuality/configs/models/model_config.py). Here you will find a summary of the most important config arguments:
-* If you want to train a model with co_teaching, you will need to set `train.use_co_teaching: True` in your config.
-* If you want to finetune from a pretrained SSL checkpoint:
-    * You will need to set `train.use_self_supervision: True` to tell the code to load a pretrained checkpoint.
-    * You will need update the `train.self_supervision.checkpoints: [PATH_TO_SSL]` field with the checkpoints to use for initialization of your model. Note that if you want to train a co-teaching model in combination with SSL pretrained initialization your list of checkpoint needs to be of length 2. 
-    * You can also choose whether to freeze the encoder or not during finetuning with `train.self_supervision.freeze_encoder` field. 
-* If you want to train a model using ELR, you can set `train.use_elr: True`
+Please check the [Readme](InnerEyeDataQuality/configs/README.md) file to learn more about how to configure model training experiments.
 
-#### Off the shelf configurations
-
-For each of the dataset used in the experiments, we have defined configs to run training easily off the shelf, with the same parameters as in the experiments.
-
-##### CIFAR10H
-We provide configurations to run experiments on CIFAR10H with resp. 15% and 30% noise rate. 
-* Configs for 15% noise rate experiments can be found in [configs/models/cifar10h_noise_15](InnerEyeDataQuality/configs/models/cifar10h_noise_15). In detail this folder contains configs for
-    * vanilla resnet training: [InnerEyeDataQuality/configs/models/cifar10h_noise_15/resnet.yaml](InnerEyeDataQuality/configs/models/cifar10h_noise_15/resnet.yaml)
-    * co-teaching resnet training:  [InnerEyeDataQuality/configs/models/cifar10h_noise_15/resnet_co_teaching.yaml](InnerEyeDataQuality/configs/models/cifar10h_noise_15/resnet_co_teaching.yaml)
-    * SSL + linear head training: [InnerEyeDataQuality/configs/models/cifar10h_noise_15/resnet_self_supervision_v3.yaml](InnerEyeDataQuality/configs/models/cifar10h_noise_15/resnet_self_supervision_v3.yaml)
-* Configs for 30% noise rate experiments can be found in [configs/models/cifar10h_noise_30](InnerEyeDataQuality/configs/models/cifar10h_noise_30). In detail this folder contains configs for:
-    * vanilla resnet training: [InnerEyeDataQuality/configs/models/cifar10h_noise_30/resnet.yaml](InnerEyeDataQuality/configs/models/cifar10h_noise_30/resnet.yaml)
-    * co-teaching resnet training:  [InnerEyeDataQuality/configs/models/cifar10h_noise_30/resnet_co_teaching.yaml](InnerEyeDataQuality/configs/models/cifar10h_noise_30/resnet_co_teaching.yaml)
-    * SSL + linear head training: [InnerEyeDataQuality/configs/models/cifar10h_noise_30/resnet_self_supervision_v3.yaml](InnerEyeDataQuality/configs/models/cifar10h_noise_30/resnet_self_supervision_v3.yaml)
-    * ELR training: [InnerEyeDataQuality/configs/models/cifar10h_noise_30/resnet_elr.yaml](InnerEyeDataQuality/configs/models/cifar10h_noise_30/resnet_elr.yaml)
-* Examples of configs for models used in the model selection benchmark experiment can be found in the [configs/models/benchmark_3_idn](InnerEyeDataQuality/configs/models/benchmark_3_idn)
-
-##### Noisy Chest-Xray
-*Note:* To run any model on this dataset, you will need to first make sure you have the dataset ready onto your machine (see Benchmark datasets > Noisy Chest-Xray > Pre-requisite section).
-
-* With provide configurations corresponding to the experiments on the NoisyChestXray dataset with 13% noise rate in the [configs/models/cxr](InnerEyeDataQuality/configs/models/cxr) folder:
-    * Vanilla resnet training: [InnerEyeDataQuality/configs/models/cxr/resnet.yaml](InnerEyeDataQuality/configs/models/cxr/resnet.yaml)
-    * Co-teaching resnet training:  [InnerEyeDataQuality/configs/models/cxr/resnet_coteaching.yaml](InnerEyeDataQuality/configs/models/cxr/resnet_coteaching.yaml)
-    * Co-teaching from a pretrained SSL checkpoint: [InnerEyeDataQuality/configs/models/cxr/resnet_ssl_coteaching.yaml]([InnerEyeDataQuality/configs/models/cxr/resnet_ssl_coteaching.yaml])
-    
 ## Label cleaning simulation benchmark
 To run the label cleaning simulation you will need to run [main_simulation](InnerEyeDataQuality/main_simulation.py) with
 a list of selector configs in the `--config` arguments as well as a list of seeds to use for sampling in the `--seeds` arguments. A selector config will allow you to specify which
@@ -131,26 +96,7 @@ For example if you run the following command, the benchmark will be run 3 times 
 ```
 python InnerEyeDataQuality/main_simulation.py --config <path/config1> <path/config2> --seeds 1 2 3
 ```
-This will by default clean the training set associated to your config. If you wish to clean the validation set instead, please add the `--on-val-set` flag to your command.
-
-#### More details about the selector config
-Here is an example of a selector config, with details about each field:
-
-* `selector:`
-  * `type`: Which selector to use. There are several options available:
-    * `PosteriorBasedSelectorJoint`: Using the ranking function proposed in the manuscript CE(posteriors, labels) - H(posteriors)
-    * `PosteriorBasedSelector`: Using CE(posteriors, labels) as the ranking function
-    * `GraphBasedSelector`: Graph based selection of the next samples based on the embeddings of each sample.
-    * `BaldSelector`: Selection of the next sample with the BALD objective.
-  * `model_name`: The name that will be used for the legend of the simulation plot
-  * `model_config_path`: Path to the config file used to train the selection model.
-  * `use_active_relabelling`: Whether to turn on the active component of the active learning framework. If set to True, the model will be retrained regularly during the selection process.
-  * `output_directory`: Optional field where can specify the output directory to store the results in. 
-
-
-#### Off-the-shelf simulation configs
-* We provide the configs for various selectors for the CIFAR10H experiments in the [configs/selection/cifar10h_noise_15](InnerEyeDataQuality/configs/selection/cifar10h_noise_15) and in the [configs/selection/cifar10h_noise_30](InnerEyeDataQuality/configs/selection/cifar10h_noise_30) folders. 
-* And likewise for the NoisyChestXray dataset, you can find a set of selector configs in the [configs/selection/cxr](InnerEyeDataQuality/configs/selection/cxr) folder.
+This will by default clean the training set associated to your config. If you wish to clean the validation set instead, please add the `--on-val-set` flag to your command. Please check the [Readme](InnerEyeDataQuality/configs/README.md) file to learn more about how to configure the simulation benchmark for label cleaning.
 
 ## Model selection benchmark
 Likewise we provide the capability to run the model selection benchmark described in the paper. In more details, this script will first evaluate the model on the original noisy validation set. Then it will load the cleaned validation labels (coming from running one selector on the noisy validation dataset) and re-run evaluation on this cleaned dataset. The script will then report metrics for all models evaluated on both noisy and cleaned data. 
