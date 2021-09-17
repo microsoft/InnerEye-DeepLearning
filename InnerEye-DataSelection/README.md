@@ -10,7 +10,7 @@ In particular, this folder provides the tools for:
 1. Label noise robust training (e.g. co-teaching, ELR, self-supervised pretraining and finetuning capabilities)
 2. The label cleaning simulation benchmark proposed in the above mentioned manuscript. 
 3. The model selection benchmark.
-4. All the code related to our benchmark datasets "CIFAR10H" and "NoisyChestXray". 
+4. All the code related to proposed benchmark datasets "CIFAR10H" and "NoisyChestXray". 
 
 
 ## Installation:
@@ -31,8 +31,7 @@ pip install -e .
 ## Benchmark datasets:
 
 ### <ins>CIFAR10H</ins>
-The CIFAR10H dataset consists of samples taken from the CIFAR10 test set but all the samples have been labelled by multiple annotators.
-We use the CIFAR training set as our clean test set.
+The [CIFAR10H dataset](https://www.nature.com/articles/s41467-020-18946-z.pdf) consists of images taken from the original CIFAR10 test set, but all the images have been labelled by multiple annotators. We use the CIFAR10 training set as the clean test-set to evaluate our trained models.
 
 ### <ins>Noisy Chest-Xray</ins>
 The images released as part of the [Kaggle Challenge](https://www.kaggle.com/c/rsna-pneumonia-detection-challenge/), where originally released as part of the [NIH chest x-ray dataset](https://www.nih.gov/news-events/news-releases/nih-clinical-center-provides-one-largest-publicly-available-chest-x-ray-datasets-scientific-community). Before starting the competition, 30k images have been selected as the images for competitions. The labels for these images
@@ -55,30 +54,27 @@ In order to do so you will need to first download the following files:
 * Run `python InnerEyeDataQuality / datasets / noisy_cxr_benchmark_creation / create_noisy_chestxray_dataset.py`. This script will save the new dataset csv to `ROOT / InnerEyeDataQuality / datasets / noisy_chestxray_dataset.csv` as expected by [noisy_kaggle_cxr.py](InnerEyeDataQuality/datasets/noisy_kaggle_cxr.py)
 3. Update the `dataset_dir` field in the corresponding  model configs. 
 
-### Other chest X-ray datasets
-#### Full Kaggle Pneumonia Detection challenge dataset
-For our experiments, in particular for unsupervised pretraining we use the full Kaggle training set (stage 1) from the
+### <ins>Chest X-ray datasets for model pre-training</ins>
+#### Full Kaggle Pneumonia Detection challenge dataset:
+In a subset of experiments, for unsupervised pretraining of chest xray models, the code uses the Kaggle training set (stage 1) from the
 [Pneumonia Challenge](https://www.kaggle.com/c/rsna-pneumonia-detection-challenge). The dataset class for this dataset
 can be found in the [kaggle_cxr.py](InnerEyeDataQuality/datasets/kaggle_cxr.py) file. This dataset class loads the full 
 set with binary labels based on the bounding boxes provided for the competition.
 
-##### Pre-requisites for using this dataset
 1. The code will assume that the RSNA Pneumonia Challenge dataset is present on your machine. You will need to download it from the [Kaggle
 page](https://www.kaggle.com/c/rsna-pneumonia-detection-challenge/data?select=stage_2_train_images) first to the `dataset_dir` of your choice.
 2. Update the `dataset_dir` field in the corresponding  model configs. 
 
+#### NIH Chest-Xray dataset:
+In a subset of experiments, for unsupervised pretraining of chest xray models, the code uses [NIH Chest-Xray Dataset](https://www.nih.gov/news-events/news-releases/nih-clinical-center-provides-one-largest-publicly-available-chest-x-ray-datasets-scientific-community#:~:text=NIH%20Clinical%20Center%20provides%20one%20of%20the%20largest,disease.%20A%20chest%20x-ray%20identifies%20a%20lung%20mass.). 
 
-#### NIH Chest-Xray dataset
-For the pretraining of our chest xrays self-supervised models we used the full [NIH Chest-Xray Dataset](https://www.nih.gov/news-events/news-releases/nih-clinical-center-provides-one-largest-publicly-available-chest-x-ray-datasets-scientific-community#:~:text=NIH%20Clinical%20Center%20provides%20one%20of%20the%20largest,disease.%20A%20chest%20x-ray%20identifies%20a%20lung%20mass.). 
-
-##### Pre-requisites for using this dataset
 1. The code will assume that the NIH ChestXray dataset is present on your machine. You will need to download the data from its dedicated [Kaggle
 page](https://www.kaggle.com/nih-chest-xrays/data) to the `dataset_dir` of your choice.
 2. Update the `dataset_dir` field in the corresponding model configs. 
 
 ## Noise Robust Learning
 
-In this section, we provide details on how to train noise robust supervised models with our codebase. The code supports in particular Co-Teaching, Early Learning Regularization (ELR), finetuning of self-supervised (SSL) pretrained models. We also provide off-the-shelf configurations matching the experiment presented in our paper for the CIFAR10H and NoisyChestXray benchmark.
+In this section, we provide details on how to train noise robust supervised models with this repository. The code supports in particular Co-Teaching, Early Learning Regularization (ELR), finetuning of self-supervised (SSL) pretrained models. We also provide off-the-shelf configurations matching the experiment presented in the paper for the CIFAR10H and NoisyChestXray benchmark.
 
 ### Training noise robust supervised models
 The main entry point for training a supervised model is [train.py](InnerEyeDataQuality/deep_learning/train.py). 
@@ -102,7 +98,7 @@ All possible config arguments are defined in [model_config.py](InnerEyeDataQuali
 
 #### Off the shelf configurations
 
-For each of the dataset used in our experiments, we have defined configs to run training easily off the shelf, with the same parameters as in our experiments.
+For each of the dataset used in the experiments, we have defined configs to run training easily off the shelf, with the same parameters as in the experiments.
 
 ##### CIFAR10H
 We provide configurations to run experiments on CIFAR10H with resp. 15% and 30% noise rate. 
@@ -120,7 +116,7 @@ We provide configurations to run experiments on CIFAR10H with resp. 15% and 30% 
 ##### Noisy Chest-Xray
 *Note:* To run any model on this dataset, you will need to first make sure you have the dataset ready onto your machine (see Benchmark datasets > Noisy Chest-Xray > Pre-requisite section).
 
-* With provide configurations corresponding to our experiments on the NoisyChestXray dataset with 13% noise rate in the [configs/models/cxr](InnerEyeDataQuality/configs/models/cxr) folder:
+* With provide configurations corresponding to the experiments on the NoisyChestXray dataset with 13% noise rate in the [configs/models/cxr](InnerEyeDataQuality/configs/models/cxr) folder:
     * Vanilla resnet training: [InnerEyeDataQuality/configs/models/cxr/resnet.yaml](InnerEyeDataQuality/configs/models/cxr/resnet.yaml)
     * Co-teaching resnet training:  [InnerEyeDataQuality/configs/models/cxr/resnet_coteaching.yaml](InnerEyeDataQuality/configs/models/cxr/resnet_coteaching.yaml)
     * Co-teaching from a pretrained SSL checkpoint: [InnerEyeDataQuality/configs/models/cxr/resnet_ssl_coteaching.yaml]([InnerEyeDataQuality/configs/models/cxr/resnet_ssl_coteaching.yaml])
@@ -153,7 +149,7 @@ Here is an example of a selector config, with details about each field:
 
 
 #### Off-the-shelf simulation configs
-* We provide the configs for various selectors for our CIFAR10H experiments in the [configs/selection/cifar10h_noise_15](InnerEyeDataQuality/configs/selection/cifar10h_noise_15) and in the [configs/selection/cifar10h_noise_30](InnerEyeDataQuality/configs/selection/cifar10h_noise_30) folders. 
+* We provide the configs for various selectors for the CIFAR10H experiments in the [configs/selection/cifar10h_noise_15](InnerEyeDataQuality/configs/selection/cifar10h_noise_15) and in the [configs/selection/cifar10h_noise_30](InnerEyeDataQuality/configs/selection/cifar10h_noise_30) folders. 
 * And likewise for the NoisyChestXray dataset, you can find a set of selector configs in the [configs/selection/cxr](InnerEyeDataQuality/configs/selection/cxr) folder.
 
 ## Model selection benchmark
@@ -178,7 +174,7 @@ In this subfolder we also provide the code to train self-supervised models using
 [BYOL](https://proceedings.neurips.cc/paper/2020/file/f3ada80d5c4ee70142b17b8192b2958e-Paper.pdf). 
 
 ### General
-For the unsupervised training of our models, we rely on PyTorch Lightning and Pytorch Lightining bolts. The main entry point
+For the unsupervised training of the models, we rely on PyTorch Lightning and Pytorch Lightining bolts. The main entry point
 for model training is [InnerEyeDataQuality/deep_learning/self_supervised/main.py](InnerEyeDataQuality/deep_learning/self_supervised/main.py).
 You will also need to feed in a ssl model config file to specify which dataset to use etc.. All arguments available for the config are listed in [ssl_model_config.py](InnerEyeDataQuality/deep_learning/self_supervised/configs/ssl_model_config.py)
 
