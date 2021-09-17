@@ -17,7 +17,7 @@ from InnerEye.ML.SSL.datamodules_and_datasets.cxr_datasets import CheXpert, Covi
 from InnerEye.ML.SSL.datamodules_and_datasets.datamodules import CombinedDataModule, InnerEyeVisionDataModule
 from InnerEye.ML.SSL.datamodules_and_datasets.transforms_utils import InnerEyeCIFARLinearHeadTransform, \
     InnerEyeCIFARTrainTransform, \
-    get_cxr_ssl_transforms
+    get_ssl_transforms_from_config
 from InnerEye.ML.SSL.encoders import get_encoder_output_dim
 from InnerEye.ML.SSL.lightning_modules.byol.byol_module import BYOLInnerEye
 from InnerEye.ML.SSL.lightning_modules.simclr_module import SimCLRInnerEye
@@ -96,6 +96,7 @@ class SSLContainer(LightningContainer):
     learning_rate_linear_head_during_ssl_training = param.Number(default=1e-4,
                                                                  doc="Learning rate for linear head training during "
                                                                      "SSL training.")
+    drop_last = param.Boolean(default=True, doc="If True drops the last incomplete batch")
 
     def setup(self) -> None:
         from InnerEye.ML.SSL.lightning_containers.ssl_image_classifier import SSLClassifierContainer
@@ -166,6 +167,7 @@ class SSLContainer(LightningContainer):
                 f"Found {self.ssl_training_type.value}")
         model.hparams.update({'ssl_type': self.ssl_training_type.value,
                               "num_classes": self.data_module.num_classes})
+
         self.encoder_output_dim = get_encoder_output_dim(model, self.data_module)
         self.online_eval = SSLOnlineEvaluatorInnerEye(class_weights=self.data_module.class_weights,  # type: ignore
                                                       z_dim=self.encoder_output_dim,
@@ -192,7 +194,7 @@ class SSLContainer(LightningContainer):
         """
         Returns torch lightning data module for encoder or linear head
 
-        :param is_ssl_encoder_module: whether to return the data module for SSL training or for linear heard. If true,
+        :param is_ssl_encoder_module: whether to return the data module for SSL training or for linear head. If true,
         :return transforms with two views per sample (batch like (img_v1, img_v2, label)). If False, return only one
         view per sample but also return the index of the sample in the dataset (to make sure we don't use twice the same
         batch in one training epoch (batch like (index, img_v1, label), as classifier dataloader expected to be shorter
@@ -215,7 +217,8 @@ class SSLContainer(LightningContainer):
                                       data_dir=str(datamodule_args.dataset_path),
                                       batch_size=batch_size_per_gpu,
                                       num_workers=self.num_workers,
-                                      seed=self.random_seed)
+                                      seed=self.random_seed,
+                                      drop_last=self.drop_last)
         dm.prepare_data()
         dm.setup()
         return dm
@@ -229,8 +232,10 @@ class SSLContainer(LightningContainer):
         examples.
         :param dataset_name: name of the dataset, value has to be in SSLDatasetName, determines which transformation
         pipeline to return.
-        :param is_ssl_encoder_module: if True the transformation pipeline will yield two version of the image it is
-        applied on. If False, return only one transformation.
+        :param is_ssl_encoder_module: if True the transformation pipeline will yield two versions of the image it is
+        applied on and it applies the training transformations also at validation time. Note that if your transformation
+        does not contain any randomness, the pipeline will return two identical copies. If False, it will return only one
+        transformation.
         :return: training transformation pipeline and validation transformation pipeline.
         """
         if dataset_name in [SSLDatasetName.RSNAKaggleCXR.value,
@@ -238,16 +243,28 @@ class SSLContainer(LightningContainer):
                             SSLDatasetName.CheXpert.value,
                             SSLDatasetName.Covid.value]:
             assert augmentation_config is not None
-            train_transforms, val_transforms = get_cxr_ssl_transforms(augmentation_config,
-                                                                      return_two_views_per_sample=is_ssl_encoder_module,
-                                                                      use_training_augmentations_for_validation=is_ssl_encoder_module)
+            train_transforms, val_transforms = get_ssl_transforms_from_config(
+                augmentation_config,
+                return_two_views_per_sample=is_ssl_encoder_module,
+                use_training_augmentations_for_validation=is_ssl_encoder_module
+            )
         elif dataset_name in [SSLDatasetName.CIFAR10.value, SSLDatasetName.CIFAR100.value]:
             train_transforms = \
                 InnerEyeCIFARTrainTransform(32) if is_ssl_encoder_module else InnerEyeCIFARLinearHeadTransform(32)
             val_transforms = \
                 InnerEyeCIFARTrainTransform(32) if is_ssl_encoder_module else InnerEyeCIFARLinearHeadTransform(32)
+        elif augmentation_config:
+            train_transforms, val_transforms = get_ssl_transforms_from_config(
+                augmentation_config,
+                return_two_views_per_sample=is_ssl_encoder_module,
+                use_training_augmentations_for_validation=is_ssl_encoder_module,
+                expand_channels=False,
+            )
+            logging.warning(f"Dataset {dataset_name} unknown. The config will be consumed by "
+                            f"get_ssl_transforms() to create the augmentation pipeline, make sure "
+                            f"the transformations in your configs are compatible. ")
         else:
-            raise ValueError(f"Dataset {dataset_name} unknown.")
+            raise ValueError(f"Dataset {dataset_name} unknown and no config has been passed.")
 
         return train_transforms, val_transforms
 

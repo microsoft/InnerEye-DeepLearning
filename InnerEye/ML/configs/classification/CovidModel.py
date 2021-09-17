@@ -23,7 +23,8 @@ from InnerEye.ML.SSL.encoders import SSLEncoder
 from InnerEye.ML.SSL.lightning_containers.ssl_container import EncoderName
 from InnerEye.ML.SSL.lightning_modules.ssl_classifier_module import SSLClassifier
 from InnerEye.ML.SSL.utils import create_ssl_image_classifier, load_yaml_augmentation_config
-from InnerEye.ML.augmentations.transform_pipeline import create_cxr_transforms_from_config
+from InnerEye.ML.augmentations.transform_pipeline import create_transforms_from_config
+
 from InnerEye.ML.common import ModelExecutionMode
 
 from InnerEye.ML.configs.ssl.CXR_SSL_configs import path_linear_head_augmentation_cxr
@@ -137,9 +138,9 @@ class CovidModel(ScalarModelBase):
     def get_image_transform(self) -> ModelTransformsPerExecutionMode:
         config = load_yaml_augmentation_config(path_linear_head_augmentation_cxr)
         train_transforms = Compose(
-            [DicomPreparation(), create_cxr_transforms_from_config(config, apply_augmentations=True)])
+            [DicomPreparation(), create_transforms_from_config(config, apply_augmentations=True)])
         val_transforms = Compose(
-            [DicomPreparation(), create_cxr_transforms_from_config(config, apply_augmentations=False)])
+            [DicomPreparation(), create_transforms_from_config(config, apply_augmentations=False)])
 
         return ModelTransformsPerExecutionMode(train=train_transforms,
                                                val=val_transforms,
