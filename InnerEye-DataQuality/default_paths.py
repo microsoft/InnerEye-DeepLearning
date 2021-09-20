@@ -7,7 +7,7 @@ from pathlib import Path
 
 PROJECT_ROOT_DIR = Path(__file__).parent.resolve()
 INNEREYE_DQ_DIR = PROJECT_ROOT_DIR / "InnerEyeDataQuality"
-CIFAR10_ROOT_DIR = Path("~/.torch/datasets/CIFAR10")
+CIFAR10_ROOT_DIR = PROJECT_ROOT_DIR / "data" / "CIFAR10"
 
 EXPERIMENT_DIR = PROJECT_ROOT_DIR / "logs"
 FIGURE_DIR = EXPERIMENT_DIR / "figures"
