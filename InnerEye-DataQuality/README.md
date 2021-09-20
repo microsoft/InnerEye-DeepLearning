@@ -1,7 +1,5 @@
 # InnerEye-DataQuality
 
-TODO: Maybe name the root folder as `InnerEye-DataQuality` instead of DataSelection to make it consistent. And make the associated renaming in the files.
-
 ## Contents of this sub-repository:
 
 This folder contains all the source code associated to the manuscript ["Bernhardt et al.: Active label cleaning: Improving dataset quality under resource constraints"](https://arxiv.org/abs/2109.00574).
