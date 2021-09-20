@@ -7,6 +7,7 @@ import random
 import PIL
 import pytest
 import torch
+
 from torchvision.transforms import (
     CenterCrop,
     ColorJitter,
@@ -45,7 +46,6 @@ test_2d_image_as_ZCHW_tensor = test_2d_image_as_CHW_tensor.unsqueeze(0)
 
 test_4d_scan_as_tensor = torch.ones([5, 4, *image_size]) * 255.0
 test_4d_scan_as_tensor[..., 10:15, 10:20] = 1
-
 
 @pytest.mark.parametrize("use_different_transformation_per_channel", [True, False])
 def test_torchvision_on_various_input(
@@ -136,17 +136,19 @@ def test_custom_tf_on_various_input(
     )
 
 
-def test_create_transform_pipeline_from_config() -> None:
+@pytest.mark.parametrize("expand_channels", [True, False])
+def test_create_transform_pipeline_from_config(expand_channels: bool) -> None:
     """
     Tests that the pipeline returned by create_transform_pipeline_from_config returns the expected transformation.
     """
+
     transformation_pipeline = create_cxr_transforms_from_config(
-        cxr_augmentation_config, apply_augmentations=True
+        cxr_augmentation_config, apply_augmentations=True,
+        expand_channels=expand_channels
     )
     fake_cxr_as_array = np.ones([256, 256]) * 255.0
     fake_cxr_as_array[100:150, 100:200] = 1
-    fake_cxr_image = PIL.Image.fromarray(fake_cxr_as_array).convert("L")
-
+    
     all_transforms = [
         ExpandChannels(),
         RandomAffine(degrees=180, translate=(0, 0), shear=40),
@@ -160,23 +162,28 @@ def test_create_transform_pipeline_from_config() -> None:
         AddGaussianNoise(std=0.05, p_apply=0.5),
     ]
 
+    if expand_channels:
+        all_transforms.insert(0, ExpandChannels())
+        # expand channels is used for single-channel input images
+        fake_image = PIL.Image.fromarray(fake_cxr_as_array).convert("L")
+        # In the pipeline the image is converted to tensor before applying the transformations. Do the same here.
+        image = ToTensor()(fake_image).reshape([1, 1, 256, 256])
+    else:
+        fake_3d_array = np.dstack([fake_cxr_as_array, fake_cxr_as_array, fake_cxr_as_array])
+        fake_image = PIL.Image.fromarray(fake_3d_array.astype(np.uint8)).convert("RGB")
+        # In the pipeline the image is converted to tensor before applying the transformations. Do the same here.
+        image = ToTensor()(fake_image).reshape([1, 3, 256, 256])
+
     np.random.seed(3)
     torch.manual_seed(3)
     random.seed(3)
-
-    transformed_image = transformation_pipeline(fake_cxr_image)
+    transformed_image = transformation_pipeline(fake_image)
     assert isinstance(transformed_image, torch.Tensor)
-    # Expected pipeline
-    image = np.ones([256, 256]) * 255.0
-    image[100:150, 100:200] = 1
-    image = PIL.Image.fromarray(image).convert("L")
-    # In the pipeline the image is converted to tensor before applying the transformations. Do the same here.
-    image = ToTensor()(image).reshape([1, 1, 256, 256])
 
+    # Expected pipeline
     np.random.seed(3)
     torch.manual_seed(3)
     random.seed(3)
-
     expected_transformed = image
     for t in all_transforms:
         expected_transformed = t(expected_transformed)
@@ -187,11 +194,15 @@ def test_create_transform_pipeline_from_config() -> None:
 
     # Test the evaluation pipeline
     transformation_pipeline = create_cxr_transforms_from_config(
-        cxr_augmentation_config, apply_augmentations=False
+        cxr_augmentation_config, apply_augmentations=False,  
+        expand_channels=expand_channels,
     )
     transformed_image = transformation_pipeline(image)
     assert isinstance(transformed_image, torch.Tensor)
-    all_transforms = [ExpandChannels(), Resize(size=256), CenterCrop(size=224)]
+    all_transforms = [Resize(size=256), CenterCrop(size=224)]
+    if expand_channels:
+        all_transforms.insert(0, ExpandChannels())
+
     expected_transformed = image
     for t in all_transforms:
         expected_transformed = t(expected_transformed)
