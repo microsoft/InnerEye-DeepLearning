@@ -38,7 +38,7 @@ def train_ensemble(config: ConfigNode, num_runs: int) -> None:
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='TBD')
+    parser = argparse.ArgumentParser(description='Parser for model training.')
     parser.add_argument('--config', type=str, required=True,
                         help='Path to config file characterising trained CNN model/s')
     parser.add_argument('--num_runs', type=int, default=1, help='Number of runs (ensemble)')

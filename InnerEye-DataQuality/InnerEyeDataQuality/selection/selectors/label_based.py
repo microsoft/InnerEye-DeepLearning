@@ -26,7 +26,7 @@ class LabelBasedDecisionRule(Enum):
 
 class LabelDistributionBasedSampler(SampleSelector):
     """
-    TBD
+    Base class for sampler where the next sample is chosen based on a (predicted) label distribution.
     """
 
     def __init__(self,
