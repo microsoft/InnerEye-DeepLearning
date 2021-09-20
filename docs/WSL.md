@@ -73,11 +73,13 @@ find * -name '*.pyc' | xargs -d'\n' rm`
 - https://www.jetbrains.com/help/pycharm/using-wsl-as-a-remote-interpreter.html
 - You might need to reset all your firewall settings to make the debugger work with PyCharm. This can be done with these PowerShell commands (as Administrator):
 ```
-Remove-NetFirewallRule
 $myIp = (Ubuntu1804 run "cat /etc/resolv.conf | grep nameserver | cut -d' ' -f2")
 New-NetFirewallRule -DisplayName "WSL" -Direction Inbound  -LocalAddress $myIp -Action Allow
 ```
 - Then (re)start PyCharm. If asked whether to give it permission to communicate over domain, private and public networks, make sure all three are ticked.
+- If you are still struggling with the firewall rules, consider removing all your current firewall rules, by running
+  `Remove-NetFirewallRule` in the PowerShell. WARNING: This will remove all your present firewall rules, and you may
+  need to repeat the firewall setup for other programs that you have installed!
 
 ## Configure VSCode
 - https://code.visualstudio.com/docs/remote/wsl
