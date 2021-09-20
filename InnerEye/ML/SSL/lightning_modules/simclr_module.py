@@ -55,10 +55,22 @@ class SimCLRInnerEye(SimCLR):
         self.save_hyperparameters()
         self.encoder = SSLEncoder(encoder_name, use_7x7_first_conv_in_resnet)
         self.projection = _Projection(input_dim=self.encoder.get_output_feature_dim(), hidden_dim=2048, output_dim=128)
-        self.online_eval_optimizer: Optional[Optimizer] = None
+        # The optimizer for the linear head is managed by this module, so that its state can be stored in a checkpoint
+        # automatically by Lightning. The training for the linear head is outside of this module though.
+        self.automatic_optimization = False
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.encoder(x)
+
+    def training_step(self, batch: BatchType, batch_idx: int, optimizer_idx: int) -> T:
+        if optimizer_idx != 0:
+            return
+        optimizers = self.optimizers()
+        assert len(optimizers) == 2, "Expected to get 2 optimizers, one for the embedding and one for the linear head"
+        loss = self.shared_step(batch)
+        optimizers[0].zero_grad()
+        self.manual_backward(loss)
+        optimizers[0].step()
 
     def shared_step(self, batch: BatchType) -> T:
         batch = batch[SSLDataModuleType.ENCODER] if isinstance(batch, dict) else batch
@@ -78,10 +90,9 @@ class SimCLRInnerEye(SimCLR):
 
     def configure_optimizers(self) -> Tuple[List[Optimizer], List[_LRScheduler]]:
         base_optim, base_scheduler = super().configure_optimizers()
-        if self.online_eval_optimizer:
-            base_optim.append(self.online_eval_optimizer)
-            # When returning two optimizers, also create a second scheduler. Make that effectively use constant LR.
-            base_scheduler.append(StepLR(self.online_eval_optimizer, step_size=1, gamma=1.0))
+        base_optim.append(self.online_eval_optimizer)
+        # When returning two optimizers, also create a second scheduler. Make that effectively use constant LR.
+        base_scheduler.append(StepLR(self.online_eval_optimizer, step_size=1, gamma=1.0))
         return base_optim, base_scheduler
 
 

@@ -58,7 +58,9 @@ class BYOLInnerEye(pl.LightningModule):
         self.online_network = SiameseArm(encoder_name, use_7x7_first_conv_in_resnet)
         self.target_network = deepcopy(self.online_network)
         self.weight_callback = ByolMovingAverageWeightUpdate()
-        self.online_eval_optimizer: Optional[Optimizer] = None
+        # The optimizer for the linear head is managed by this module, so that its state can be stored in a checkpoint
+        # automatically by Lightning. The training for the linear head is outside of this module though.
+        self.automatic_optimization = False
 
     def on_train_batch_end(self, *args: Any, **kwargs: Any) -> None:
         # Add callback for user automatically since it's key to BYOL weight update
@@ -100,10 +102,16 @@ class BYOLInnerEye(pl.LightningModule):
 
         return loss
 
-    def training_step(self, batch: BatchType, batch_idx: int, **kwargs: Any) -> T:  # type: ignore
+    def training_step(self, batch: BatchType, batch_idx: int, optimizer_idx: int, **kwargs: Any) -> T:  # type: ignore
+        if optimizer_idx != 0:
+            return
         loss = self.shared_step(batch, batch_idx)
         self.log_dict({'byol/train/loss': loss, 'byol/tau': self.weight_callback.current_tau})
-        return loss
+        optimizers = self.optimizers()
+        assert len(optimizers) == 2, "Expected to get 2 optimizers, one for the embedding and one for the linear head"
+        optimizers[0].zero_grad()
+        self.manual_backward(loss)
+        optimizers[0].step()
 
     def validation_step(self, batch: BatchType, batch_idx: int, **kwargs: Any) -> T:  # type: ignore
         loss = self.shared_step(batch, batch_idx)
@@ -121,12 +129,9 @@ class BYOLInnerEye(pl.LightningModule):
         optimizer = Adam(parameters, lr=self.hparams.learning_rate, weight_decay=self.hparams.weight_decay)  # type: ignore
         scheduler = LinearWarmupCosineAnnealingLR(
             optimizer, warmup_epochs=self.hparams.warmup_epochs, max_epochs=self.hparams.max_epochs)   # type: ignore
-        optimizers = [optimizer]
-        schedulers = [scheduler]
-        if self.online_eval_optimizer:
-            optimizers.append(self.online_eval_optimizer)
-            # When returning two optimizers, also create a second scheduler. Make that effectively use constant LR.
-            schedulers.append(StepLR(self.online_eval_optimizer, step_size=1, gamma=1.0))
+        optimizers = [optimizer, self.online_eval_optimizer]
+        # When returning two optimizers, also create a second scheduler. Make that effectively use constant LR.
+        schedulers = [scheduler, StepLR(self.online_eval_optimizer, step_size=1, gamma=1.0)]
         return optimizers, schedulers
 
     def exclude_from_wt_decay(self,

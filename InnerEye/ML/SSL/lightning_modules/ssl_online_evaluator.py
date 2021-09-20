@@ -9,9 +9,9 @@ import pytorch_lightning as pl
 import torch
 from pl_bolts.callbacks.ssl_online import SSLOnlineEvaluator
 from pl_bolts.models.self_supervised.evaluator import SSLEvaluator
-from torchmetrics import Metric
 from torch import Tensor as T
 from torch.nn import functional as F
+from torchmetrics import Metric
 
 from InnerEye.ML.SSL.utils import SSLDataModuleType
 from InnerEye.ML.lightning_metrics import Accuracy05, AreaUnderPrecisionRecallCurve, AreaUnderRocCurve
@@ -44,9 +44,9 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
             if self.num_classes == 2 else [Accuracy05()]
         self.class_weights = class_weights
         self.non_linear_evaluator = SSLEvaluator(n_input=self.z_dim,
-                                                      n_classes=self.num_classes,
-                                                      p=self.drop_p,
-                                                      n_hidden=self.hidden_dim)
+                                                 n_classes=self.num_classes,
+                                                 p=self.drop_p,
+                                                 n_hidden=self.hidden_dim)
         self.optimizer = torch.optim.Adam(self.non_linear_evaluator.parameters(),
                                           lr=self.learning_rate,
                                           weight_decay=self.weight_decay)
@@ -57,7 +57,7 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
         """
         for metric in [*self.train_metrics, *self.val_metrics]:
             metric.to(device=pl_module.device)  # type: ignore
-        assert isinstance(pl_module.non_linear_evaluator, torch.nn.Module)
+        assert isinstance(self.non_linear_evaluator, torch.nn.Module)
         pl_module.non_linear_evaluator = self.non_linear_evaluator.to(pl_module.device)
 
     @staticmethod

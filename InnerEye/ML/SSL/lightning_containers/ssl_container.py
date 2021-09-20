@@ -169,13 +169,14 @@ class SSLContainer(LightningContainer):
                               "num_classes": self.data_module.num_classes})
 
         self.encoder_output_dim = get_encoder_output_dim(model, self.data_module)
-        self.online_eval = SSLOnlineEvaluatorInnerEye(class_weights=self.data_module.class_weights,  # type: ignore
-                                                      z_dim=self.encoder_output_dim,
-                                                      num_classes=self.data_module.num_classes,  # type: ignore
-                                                      dataset=self.linear_head_dataset_name.value,  # type: ignore
-                                                      drop_p=0.2,
-                                                      learning_rate=self.learning_rate_linear_head_during_ssl_training)
-        model.online_eval_optimizer = self.online_eval.optimizer
+        self.online_eval_callback = \
+            SSLOnlineEvaluatorInnerEye(class_weights=self.data_module.class_weights,  # type: ignore
+                                       z_dim=self.encoder_output_dim,
+                                       num_classes=self.data_module.num_classes,  # type: ignore
+                                       dataset=self.linear_head_dataset_name.value,  # type: ignore
+                                       drop_p=0.2,
+                                       learning_rate=self.learning_rate_linear_head_during_ssl_training)
+        model.online_eval_optimizer = self.online_eval_callback.optimizer
         return model
 
     def get_data_module(self) -> InnerEyeDataModuleTypes:
@@ -234,8 +235,8 @@ class SSLContainer(LightningContainer):
         pipeline to return.
         :param is_ssl_encoder_module: if True the transformation pipeline will yield two versions of the image it is
         applied on and it applies the training transformations also at validation time. Note that if your transformation
-        does not contain any randomness, the pipeline will return two identical copies. If False, it will return only one
-        transformation.
+        does not contain any randomness, the pipeline will return two identical copies. If False, it will return only
+        one transformation.
         :return: training transformation pipeline and validation transformation pipeline.
         """
         if dataset_name in [SSLDatasetName.RSNAKaggleCXR.value,
@@ -269,7 +270,7 @@ class SSLContainer(LightningContainer):
         return train_transforms, val_transforms
 
     def get_trainer_arguments(self) -> Dict[str, Any]:
-        trainer_kwargs: Dict[str, Any] = {"callbacks": self.online_eval}
+        trainer_kwargs: Dict[str, Any] = {"callbacks": self.online_eval_callback}
         if self.is_debug_model:
             trainer_kwargs.update({"limit_train_batches": 1, "limit_val_batches": 1})
         return trainer_kwargs

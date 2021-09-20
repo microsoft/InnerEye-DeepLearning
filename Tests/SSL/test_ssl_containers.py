@@ -127,8 +127,8 @@ def test_innereye_ssl_container_rsna() -> None:
         loaded_config, actual_run = runner.run()
     assert loaded_config is not None
     assert isinstance(loaded_config.model, BYOLInnerEye)
-    assert loaded_config.online_eval.dataset == SSLDatasetName.RSNAKaggleCXR.value
-    assert loaded_config.online_eval.num_classes == 2
+    assert loaded_config.online_eval_callback.dataset == SSLDatasetName.RSNAKaggleCXR.value
+    assert loaded_config.online_eval_callback.num_classes == 2
     assert loaded_config.ssl_training_dataset_name == SSLDatasetName.NIHCXR
     assert loaded_config.ssl_training_type == SSLTrainingType.BYOL
     assert loaded_config.encoder_output_dim == 1024  # DenseNet output size
