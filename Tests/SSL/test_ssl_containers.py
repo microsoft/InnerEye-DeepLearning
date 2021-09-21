@@ -80,9 +80,9 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
     assert loaded_config.num_epochs == 1
     assert loaded_config.recovery_checkpoint_save_interval == 200
     assert loaded_config.ssl_training_type == SSLTrainingType.SimCLR
-    assert loaded_config.online_eval.num_classes == 10
+    assert loaded_config.online_eval_callback.num_classes == 10
+    assert loaded_config.online_eval_callback.dataset == SSLDatasetName.CIFAR10.value
     assert loaded_config.ssl_training_dataset_name == SSLDatasetName.CIFAR10
-    assert loaded_config.online_eval.dataset == SSLDatasetName.CIFAR10.value
     assert not loaded_config.use_balanced_binary_loss_for_linear_head
     assert isinstance(loaded_config.model.encoder.cnn_model, ResNet)
     assert runner.ml_runner.storing_logger is not None
