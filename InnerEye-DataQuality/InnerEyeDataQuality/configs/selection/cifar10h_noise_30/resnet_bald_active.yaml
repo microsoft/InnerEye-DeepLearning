@@ -1,0 +1,6 @@
+selector:
+  type: ['BaldSelector']
+  model_name: 'BALD-MC-Active'
+  model_config_path: 'InnerEyeDataQuality/configs/models/cifar10h_noise_30/resnet_with_dropout.yaml'
+  use_active_relabelling: True
+
