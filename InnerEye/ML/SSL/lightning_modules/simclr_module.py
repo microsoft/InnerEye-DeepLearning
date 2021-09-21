@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -14,7 +14,7 @@ from torch.optim import Optimizer
 from torch.optim.lr_scheduler import StepLR, _LRScheduler
 
 from InnerEye.ML.SSL.encoders import SSLEncoder
-from InnerEye.ML.SSL.utils import SSLDataModuleType
+from InnerEye.ML.SSL.utils import SSLDataModuleType, manual_optimization_step
 
 SingleBatchType = Tuple[List, T]
 BatchType = Union[Dict[SSLDataModuleType, SingleBatchType], SingleBatchType]
@@ -65,12 +65,8 @@ class SimCLRInnerEye(SimCLR):
     def training_step(self, batch: BatchType, batch_idx: int, optimizer_idx: int) -> T:
         if optimizer_idx != 0:
             return
-        optimizers = self.optimizers()
-        assert len(optimizers) == 2, "Expected to get 2 optimizers, one for the embedding and one for the linear head"
         loss = self.shared_step(batch)
-        optimizers[0].zero_grad()
-        self.manual_backward(loss)
-        optimizers[0].step()
+        manual_optimization_step(self, loss)
 
     def shared_step(self, batch: BatchType) -> T:
         batch = batch[SSLDataModuleType.ENCODER] if isinstance(batch, dict) else batch
@@ -91,10 +87,4 @@ class SimCLRInnerEye(SimCLR):
     def configure_optimizers(self) -> Tuple[List[Optimizer], List[_LRScheduler]]:
         base_optim, base_scheduler = super().configure_optimizers()
         base_optim.append(self.online_eval_optimizer)
-        # When returning two optimizers, also create a second scheduler. Make that effectively use constant LR.
-        base_scheduler.append(StepLR(self.online_eval_optimizer, step_size=1, gamma=1.0))
         return base_optim, base_scheduler
-
-
-
-

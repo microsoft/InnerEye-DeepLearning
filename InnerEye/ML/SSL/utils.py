@@ -10,6 +10,7 @@ from typing import Any, Optional
 
 import torch
 from yacs.config import CfgNode
+from pytorch_lightning import LightningModule
 
 from InnerEye.ML.SSL import ssl_augmentation_config
 from InnerEye.ML.lightning_container import LightningModuleWithOptimizer
@@ -99,6 +100,23 @@ def create_ssl_image_classifier(num_classes: int,
                           class_weights=class_weights)
 
     return model
+
+
+def manual_optimization_step(pl: LightningModule, loss: torch.Tensor, optimizer_idx: int = 0) -> None:
+    """
+    Execute a manual optimization step in the given PL module, with the provided loss value. This will ONLY update
+    the optimizer with the given index.
+
+    :param pl: The module on which the optimization step should be run.
+    :param loss: The loss tensor.
+    :param optimizer_idx: The index of the optimizer where the optimization step should be taken.
+    """
+    optimizer = pl.optimizers()[optimizer_idx]
+    optimizer.zero_grad()
+    pl.manual_backward(loss)
+    optimizer.step()
+    if pl.trainer.is_last_batch:
+        pl.lr_schedulers()[optimizer_idx].step()
 
 
 def SSLModelLoader(ssl_class: Any, num_classes: int) -> Any:

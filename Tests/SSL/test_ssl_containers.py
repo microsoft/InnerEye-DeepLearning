@@ -58,13 +58,15 @@ def default_runner() -> Runner:
 
 def _compare_stored_metrics(runner: Runner, expected_metrics: Dict[str, float], abs: float = 1e-7) -> None:
     """
-    Checks if the StoringLogger in the given runner holds all the expected metrics as results of training, up to a
-    given absolute precision.
+    Checks if the StoringLogger in the given runner holds all the expected metrics as results of training
+    epoch 0, up to a given absolute precision.
 
     :param runner: The Innereye runner.
     :param expected_metrics: A dictionary with all metrics that are expected to be present.
     """
     assert runner.ml_runner.storing_logger is not None
+    print(f"Actual metrics in epoch 0: {runner.ml_runner.storing_logger.results[0]}")
+    print(f"Expected metrics: {expected_metrics}")
     for metric, expected in expected_metrics.items():
         actual = runner.ml_runner.storing_logger.results[0][metric]
         if math.isnan(expected):
@@ -103,6 +105,8 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
     assert loaded_config.ssl_training_dataset_name == SSLDatasetName.CIFAR10
     assert not loaded_config.use_balanced_binary_loss_for_linear_head
     assert isinstance(loaded_config.model.encoder.cnn_model, ResNet)
+
+    # Check the metrics that were recorded during training
     expected_metrics = {
         'ssl_online_evaluator/train/loss': 2.6143882274627686,
         'ssl_online_evaluator/train/online_AccuracyAtThreshold05': 0.0,
@@ -111,7 +115,14 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
         'ssl_online_evaluator/val/AccuracyAtThreshold05': 0.20000000298023224
     }
     _compare_stored_metrics(runner, expected_metrics)
+
+    # Check that the checkpoint contains both the optimizer for the embedding and for the linear head
     checkpoint_path = loaded_config.outputs_folder / "checkpoints" / "best_checkpoint.ckpt"
+    checkpoint = torch.load(checkpoint_path)
+    assert len(checkpoint["optimizer_states"]) == 2
+    assert len(checkpoint["lr_schedulers"]) == 2
+
+    # Now run the actual SSL classifier off the stored checkpoint
     args = common_test_args + ["--model=SSLClassifierCIFAR", f"--local_ssl_weights_path={checkpoint_path}"]
     with mock.patch("sys.argv", args):
         loaded_config, actual_run = default_runner().run()
