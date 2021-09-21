@@ -9,8 +9,8 @@ from pathlib import Path
 from typing import Any, Optional
 
 import torch
-from yacs.config import CfgNode
 from pytorch_lightning import LightningModule
+from yacs.config import CfgNode
 
 from InnerEye.ML.SSL import ssl_augmentation_config
 from InnerEye.ML.lightning_container import LightningModuleWithOptimizer
@@ -111,12 +111,27 @@ def manual_optimization_step(pl: LightningModule, loss: torch.Tensor, optimizer_
     :param loss: The loss tensor.
     :param optimizer_idx: The index of the optimizer where the optimization step should be taken.
     """
-    optimizer = pl.optimizers()[optimizer_idx]
+
+    def get_from_list_or_singleton(items: Any, message: str) -> Any:
+        """
+        Get an item with index optimizer_idx from the given list. If `items` is not a list, it is possible to retrieve
+        that very element with index 0. This is due to PL's handling of optimizers: self.optimizers() is a single
+        Optimizer object if only one is used, but a list if multiple are provided.
+        """
+        if not isinstance(items, list):
+            items = [items]
+        if optimizer_idx >= len(items):
+            raise ValueError(f"Requested to optimize for index {optimizer_idx}, but there are only {len(items)} "
+                             f"{message} available.")
+        return items[optimizer_idx]
+
+    optimizer = get_from_list_or_singleton(pl.optimizers(), "optimizers")
     optimizer.zero_grad()
     pl.manual_backward(loss)
     optimizer.step()
     if pl.trainer.is_last_batch:
-        pl.lr_schedulers()[optimizer_idx].step()
+        scheduler = get_from_list_or_singleton(pl.lr_schedulers(), "LR schedulers")
+        scheduler.step()
 
 
 def SSLModelLoader(ssl_class: Any, num_classes: int) -> Any:
