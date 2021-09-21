@@ -102,7 +102,7 @@ def create_lightning_trainer(container: LightningContainer,
                              resume_from_checkpoint: Optional[Path] = None,
                              num_nodes: int = 1,
                              **kwargs: Dict[str, Any]) -> \
-        Tuple[Trainer, Optional[StoringLogger]]:
+        Tuple[Trainer, StoringLogger]:
     """
     Creates a Pytorch Lightning Trainer object for the given model configuration. It creates checkpoint handlers
     and loggers. That includes a diagnostic logger for use in unit tests, that is also returned as the second
@@ -139,12 +139,8 @@ def create_lightning_trainer(container: LightningContainer,
     logging.info(f"Using {num_gpus} GPUs per node with accelerator '{accelerator}'")
     tensorboard_logger = TensorBoardLogger(save_dir=str(container.logs_folder), name="Lightning", version="")
     loggers = [tensorboard_logger, AzureMLLogger()]
-    storing_logger: Optional[StoringLogger]
-    if isinstance(container, InnerEyeContainer):
-        storing_logger = StoringLogger()
-        loggers.append(storing_logger)
-    else:
-        storing_logger = None
+    storing_logger = StoringLogger()
+    loggers.append(storing_logger)
     # Use 32bit precision when running on CPU. Otherwise, make it depend on use_mixed_precision flag.
     precision = 32 if num_gpus == 0 else 16 if container.use_mixed_precision else 32
     # The next two flags control the settings in torch.backends.cudnn.deterministic and torch.backends.cudnn.benchmark
@@ -209,7 +205,7 @@ def start_resource_monitor(config: LightningContainer) -> ResourceMonitor:
 
 def model_train(checkpoint_path: Optional[Path],
                 container: LightningContainer,
-                num_nodes: int = 1) -> Tuple[Trainer, Optional[StoringLogger]]:
+                num_nodes: int = 1) -> Tuple[Trainer, StoringLogger]:
     """
     The main training loop. It creates the Pytorch model based on the configuration options passed in,
     creates a Pytorch Lightning trainer, and trains the model.

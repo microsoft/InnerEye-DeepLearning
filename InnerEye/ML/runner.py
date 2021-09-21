@@ -133,6 +133,8 @@ class Runner:
         self.model_config: Optional[DeepLearningConfig] = None
         self.azure_config: AzureConfig = AzureConfig()
         self.lightning_container: LightningContainer = None  # type: ignore
+        # This field stores the MLRunner object that has been created in the most recent call to the run() method.
+        self.ml_runner: Optional[MLRunner] = None
 
     def parse_and_load_model(self) -> ParserResult:
         """
@@ -379,11 +381,11 @@ class Runner:
             # Set environment variables for multi-node training if needed. This function will terminate early
             # if it detects that it is not in a multi-node environment.
             set_environment_variables_for_multi_node()
-            ml_runner = self.create_ml_runner()
-            ml_runner.setup(azure_run_info)
-            ml_runner.start_logging_to_file()
+            self.ml_runner = self.create_ml_runner()
+            self.ml_runner.setup(azure_run_info)
+            self.ml_runner.start_logging_to_file()
             try:
-                ml_runner.run()
+                self.ml_runner.run()
             finally:
                 disable_logging_to_file()
 

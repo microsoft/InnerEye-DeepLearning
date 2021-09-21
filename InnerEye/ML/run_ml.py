@@ -16,6 +16,9 @@ import torch.multiprocessing
 from azureml._restclient.constants import RunStatus
 from azureml.core import Model, Run, model
 from azureml.data import FileDataset
+from health.azure.azure_util import ENVIRONMENT_VERSION, create_run_recovery_id, merge_conda_files
+from health.azure.datasets import get_or_create_dataset
+from health.azure.himl import AzureRunInfo
 from pytorch_lightning import LightningModule, seed_everything
 from pytorch_lightning.core.datamodule import LightningDataModule
 from torch.utils.data import DataLoader
@@ -43,6 +46,7 @@ from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, DeepLearningConf
     FINAL_ENSEMBLE_MODEL_FOLDER, FINAL_MODEL_FOLDER, ModelCategory, MultiprocessingStartMethod, load_checkpoint
 from InnerEye.ML.lightning_base import InnerEyeContainer
 from InnerEye.ML.lightning_container import InnerEyeInference, LightningContainer
+from InnerEye.ML.lightning_loggers import StoringLogger
 from InnerEye.ML.metrics import InferenceMetrics, InferenceMetricsForSegmentation
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
@@ -58,9 +62,6 @@ from InnerEye.ML.utils.run_recovery import RunRecovery
 from InnerEye.ML.visualizers import activation_maps
 from InnerEye.ML.visualizers.plot_cross_validation import \
     get_config_and_results_for_offline_runs, plot_cross_validation_from_files
-from health.azure.azure_util import ENVIRONMENT_VERSION, create_run_recovery_id, merge_conda_files
-from health.azure.datasets import get_or_create_dataset
-from health.azure.himl import AzureRunInfo
 
 ModelDeploymentHookSignature = Callable[[LightningContainer, AzureConfig, Model, ModelProcessing], Any]
 PostCrossValidationHookSignature = Callable[[ModelConfigBase, Path], None]
@@ -189,6 +190,7 @@ class MLRunner:
         self.model_deployment_hook = model_deployment_hook
         self.output_subfolder = output_subfolder
         self._has_setup_run = False
+        self.storing_logger: Optional[StoringLogger] = None
 
     def setup(self, azure_run_info: Optional[AzureRunInfo] = None) -> None:
         """
@@ -389,9 +391,10 @@ class MLRunner:
             # train a new model if required
             if self.azure_config.train:
                 with logging_section("Model training"):
-                    model_train(self.checkpoint_handler.get_recovery_or_checkpoint_path_train(),
-                                container=self.container,
-                                num_nodes=self.azure_config.num_nodes)
+                    _, storing_logger = model_train(self.checkpoint_handler.get_recovery_or_checkpoint_path_train(),
+                                                    container=self.container,
+                                                    num_nodes=self.azure_config.num_nodes)
+                self.storing_logger = storing_logger
                 # Since we have trained the model further, let the checkpoint_handler object know so it can handle
                 # checkpoints correctly.
                 self.checkpoint_handler.additional_training_done()

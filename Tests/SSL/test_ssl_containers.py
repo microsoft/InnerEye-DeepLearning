@@ -70,8 +70,9 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
         - training of image classifier for one epoch.
     """
     args = common_test_args + ["--model=CIFAR10SimCLR"]
+    runner = default_runner()
     with mock.patch("sys.argv", args):
-        loaded_config, actual_run = default_runner().run()
+        loaded_config, actual_run = runner.run()
     assert loaded_config is not None
     assert isinstance(loaded_config.model, SimCLRInnerEye)
     assert loaded_config.encoder_output_dim == 2048
@@ -84,6 +85,16 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
     assert loaded_config.online_eval.dataset == SSLDatasetName.CIFAR10.value
     assert not loaded_config.use_balanced_binary_loss_for_linear_head
     assert isinstance(loaded_config.model.encoder.cnn_model, ResNet)
+    assert runner.ml_runner.storing_logger is not None
+    expected_metrics = {
+        'ssl_online_evaluator/train/loss': 2.6143882274627686,
+         'ssl_online_evaluator/train/online_AccuracyAtThreshold05': 0.0,
+         'val_loss': 2.886892795562744,
+         'ssl_online_evaluator/val/loss': 2.2472469806671143,
+         'ssl_online_evaluator/val/AccuracyAtThreshold05': 0.20000000298023224
+    }
+    for metric, value in expected_metrics.items():
+        assert runner.ml_runner.storing_logger.results[0][metric] == pytest.approx(value, abs=1e-8)
     checkpoint_path = loaded_config.outputs_folder / "checkpoints" / "best_checkpoint.ckpt"
     args = common_test_args + ["--model=SSLClassifierCIFAR", f"--local_ssl_weights_path={checkpoint_path}"]
     with mock.patch("sys.argv", args):
