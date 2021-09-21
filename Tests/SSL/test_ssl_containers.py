@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import math
 from pathlib import Path
 from typing import Dict
 from unittest import mock
@@ -55,6 +56,23 @@ def default_runner() -> Runner:
                   yaml_config_file=fixed_paths.SETTINGS_YAML_FILE)
 
 
+def _compare_stored_metrics(runner: Runner, expected_metrics: Dict[str, float], abs: float = 1e-7) -> None:
+    """
+    Checks if the StoringLogger in the given runner holds all the expected metrics as results of training, up to a
+    given absolute precision.
+
+    :param runner: The Innereye runner.
+    :param expected_metrics: A dictionary with all metrics that are expected to be present.
+    """
+    assert runner.ml_runner.storing_logger is not None
+    for metric, expected in expected_metrics.items():
+        actual = runner.ml_runner.storing_logger.results[0][metric]
+        if math.isnan(expected):
+            assert math.isnan(actual), f"Expected NaN, but got: {actual}"
+        else:
+            assert actual == pytest.approx(expected, abs=abs)
+
+
 common_test_args = ["", "--is_debug_model=True", "--num_epochs=1", "--ssl_training_batch_size=10",
                     "--linear_head_batch_size=5",
                     "--num_workers=0"]
@@ -85,16 +103,14 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
     assert loaded_config.ssl_training_dataset_name == SSLDatasetName.CIFAR10
     assert not loaded_config.use_balanced_binary_loss_for_linear_head
     assert isinstance(loaded_config.model.encoder.cnn_model, ResNet)
-    assert runner.ml_runner.storing_logger is not None
     expected_metrics = {
         'ssl_online_evaluator/train/loss': 2.6143882274627686,
-         'ssl_online_evaluator/train/online_AccuracyAtThreshold05': 0.0,
-         'val_loss': 2.886892795562744,
-         'ssl_online_evaluator/val/loss': 2.2472469806671143,
-         'ssl_online_evaluator/val/AccuracyAtThreshold05': 0.20000000298023224
+        'ssl_online_evaluator/train/online_AccuracyAtThreshold05': 0.0,
+        'val_loss': 2.886892795562744,
+        'ssl_online_evaluator/val/loss': 2.2472469806671143,
+        'ssl_online_evaluator/val/AccuracyAtThreshold05': 0.20000000298023224
     }
-    for metric, value in expected_metrics.items():
-        assert runner.ml_runner.storing_logger.results[0][metric] == pytest.approx(value, abs=1e-8)
+    _compare_stored_metrics(runner, expected_metrics)
     checkpoint_path = loaded_config.outputs_folder / "checkpoints" / "best_checkpoint.ckpt"
     args = common_test_args + ["--model=SSLClassifierCIFAR", f"--local_ssl_weights_path={checkpoint_path}"]
     with mock.patch("sys.argv", args):
@@ -103,6 +119,7 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
     assert isinstance(loaded_config.model, SSLClassifier)
     assert loaded_config.model.class_weights is None
     assert loaded_config.model.num_classes == 10
+
 
 @pytest.mark.skipif(is_windows(), reason="Too slow on windows")
 def test_load_innereye_ssl_container_cifar10_cifar100_resnet_byol() -> None:
@@ -156,6 +173,18 @@ def test_innereye_ssl_container_rsna() -> None:
                SSLDataModuleType.ENCODER].augmentation_params.preprocess.center_crop_size == 224
     assert loaded_config.datamodule_args[SSLDataModuleType.ENCODER].augmentation_params.augmentation.use_random_crop
     assert loaded_config.datamodule_args[SSLDataModuleType.ENCODER].augmentation_params.augmentation.use_random_affine
+
+    expected_metrics = {
+        'ssl_online_evaluator/train/loss': 0.685592532157898,
+        'ssl_online_evaluator/train/online_AreaUnderRocCurve': 0.5,
+        'ssl_online_evaluator/train/online_AreaUnderPRCurve': 0.699999988079071,
+        'ssl_online_evaluator/train/online_AccuracyAtThreshold05': 0.4000000059604645,
+        'byol/val/loss': -0.07644838094711304,
+        'ssl_online_evaluator/val/loss': 0.6965796947479248,
+        'ssl_online_evaluator/val/AreaUnderRocCurve': math.nan,
+        'ssl_online_evaluator/val/AreaUnderPRCurve': math.nan,
+        'ssl_online_evaluator/val/AccuracyAtThreshold05': 0.0}
+    _compare_stored_metrics(runner, expected_metrics)
 
     # Check that we are able to load the checkpoint and create classifier model
     checkpoint_path = loaded_config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
