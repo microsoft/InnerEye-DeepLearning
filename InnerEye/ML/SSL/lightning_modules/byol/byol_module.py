@@ -108,12 +108,13 @@ class BYOLInnerEye(pl.LightningModule):
         loss = self.shared_step(batch, batch_idx)
         print(f"training step: batch_idx={batch_idx}, optimizer_idx={optimizer_idx}")
         self.log_dict({'byol/train/loss': loss, 'byol/tau': self.weight_callback.current_tau},
-                      on_epoch=True, sync_dist=True)
+                      on_epoch=True, sync_dist=True, add_dataloader_idx=True)
         manual_optimization_step(self, loss)
 
     def validation_step(self, batch: BatchType, batch_idx: int, **kwargs: Any) -> T:  # type: ignore
         loss = self.shared_step(batch, batch_idx)
-        self.log_dict({'byol/val/loss': loss})
+        self.log_dict({'byol/val/loss': loss},
+                      on_epoch=True, sync_dist=True, add_dataloader_idx=True)
         return loss
 
     def setup(self, *args: Any, **kwargs: Any) -> None:
