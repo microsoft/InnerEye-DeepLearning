@@ -12,6 +12,7 @@ from pytorch_lightning import LightningModule, Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.plugins import DDPPlugin
+from pytorch_lightning.utilities import rank_zero_only
 
 from InnerEye.Azure.azure_runner import ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK
 from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
@@ -94,6 +95,7 @@ class InnerEyeRecoveryCheckpointCallback(ModelCheckpoint):
                          mode="max",
                          save_last=False)
 
+    @rank_zero_only
     def on_train_epoch_end(self, trainer: Trainer, pl_module: LightningModule, unused: bool = None) -> None:
         pl_module.log(name="epoch", value=trainer.current_epoch)  # type: ignore
 
