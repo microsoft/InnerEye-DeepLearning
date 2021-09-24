@@ -1,0 +1,75 @@
+device: cuda
+cudnn:
+  benchmark: True
+  deterministic: True
+dataset:
+  name: CIFAR10IDN
+  num_samples: 10000
+  noise_rate: 0.4
+model:
+  type: cifar
+  name: resnet
+  init_mode: kaiming_fan_out
+  resnet:
+    depth: 50
+    initial_channels: 16
+    block_type: basic
+    apply_l2_norm: True
+train:
+  resume_epoch: 0
+  seed: 1
+  batch_size: 256
+  optimizer: sgd
+  base_lr: 0.05
+  momentum: 0.9
+  nesterov: True
+  weight_decay: 1e-4
+  output_dir: experiments/benchmark_3_idn/co_teaching_v5_res50
+  log_period: 100
+  checkpoint_period: 100
+  use_co_teaching: True
+  co_teaching_forget_rate: 0.38
+  co_teaching_num_gradual: 10
+  dataloader:
+    num_workers: 2
+    drop_last: False
+    pin_memory: False
+validation:
+  batch_size: 512
+  dataloader:
+    num_workers: 2
+    drop_last: False
+    pin_memory: False
+test:
+  batch_size: 512
+  dataloader:
+    num_workers: 2
+    pin_memory: False
+scheduler:
+  epochs: 120
+  type: multistep
+  milestones: [70, 100]
+  lr_decay: 0.1
+augmentation:
+  use_random_horizontal_flip: True
+  use_label_smoothing: False
+  use_random_affine: False
+  use_random_color: True
+  random_horizontal_flip:
+    prob: 0.5
+  random_affine:
+    max_angle: 15
+    max_horizontal_shift: 0.05
+    max_vertical_shift: 0.05
+    max_shear: 5
+  random_color:
+    brightness: 0.5
+    contrast: 0.5
+    saturation: 0.5
+
+  
+  
+  
+
+
+

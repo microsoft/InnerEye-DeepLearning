@@ -1,0 +1,6 @@
+selector:
+  type: ['PosteriorBasedSelectorJoint']
+  model_name: 'Coteaching'
+  model_config_path: 'InnerEyeDataQuality/configs/models/cifar10h_noise_30/resnet_co_teaching.yaml'
+  output_directory: 'outputs/cifar10h_30/coteaching'
+

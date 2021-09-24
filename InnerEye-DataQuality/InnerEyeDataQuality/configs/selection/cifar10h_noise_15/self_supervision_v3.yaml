@@ -1,0 +1,5 @@
+selector:
+  type: ['PosteriorBasedSelectorJoint']
+  model_name: 'Self-Supervision-Joint'
+  model_config_path: 'InnerEyeDataQuality/configs/models/cifar10h_noise_15/resnet_self_supervision_v3.yaml'
+

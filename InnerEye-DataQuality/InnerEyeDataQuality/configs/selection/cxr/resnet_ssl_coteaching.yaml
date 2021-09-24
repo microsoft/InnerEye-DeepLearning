@@ -1,0 +1,5 @@
+selector:
+  type: ['PosteriorBasedSelector']
+  model_name: 'SSL+Coteaching'
+  model_config_path: 'InnerEyeDataQuality/configs/models/cxr/resnet_ssl_coteaching.yaml'
+  use_active_relabelling: False

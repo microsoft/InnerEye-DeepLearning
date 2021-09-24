@@ -1,0 +1,16 @@
+dataset:
+  name: CIFAR10H
+  num_workers: 6
+train:
+  seed: 1
+  batch_size: 512
+  base_lr: 1e-3
+  output_dir: cifar10h/self_supervised
+  resume_from_last_checkpoint: False
+  self_supervision:
+    type: simclr
+    encoder_name: resnet101
+scheduler:
+  epochs: 2000
+preprocess:
+  resize: 32
