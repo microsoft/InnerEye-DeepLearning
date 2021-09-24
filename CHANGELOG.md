@@ -47,6 +47,7 @@ gets uploaded to AzureML, by skipping all test folders.
 
 ### Fixed
 - ([#537](https://github.com/microsoft/InnerEye-DeepLearning/pull/537)) Print warning if inference is disabled but comparison requested.
+- ([#567](https://github.com/microsoft/InnerEye-DeepLearning/pull/567)) fix pillow version.
 - ([#546](https://github.com/microsoft/InnerEye-DeepLearning/pull/546)) Environment and hello_world_model documentation updated
 - ([#525](https://github.com/microsoft/InnerEye-DeepLearning/pull/525)) Enable --store_dataset_sample
 - ([#495](https://github.com/microsoft/InnerEye-DeepLearning/pull/495)) Fix model comparison.
