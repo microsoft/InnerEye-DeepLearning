@@ -1,0 +1,50 @@
+steps:
+  - template: checkout.yml
+
+  - bash: |
+      conda env create --file InnerEye-DataQuality/environment.yml --name InnerEyeDataQuality
+      source activate InnerEyeDataQuality
+      echo Storing environment for later use by ComponentGovernance
+      pip freeze > requirements.txt
+      echo Environment has been created with these packages:
+      cat requirements.txt
+    failOnStderr: false # Conda env create does not have an option to suppress warnings generated in wheel.py
+    condition: succeeded()
+    displayName: Create conda environment
+  
+  - bash: |
+      source activate InnerEyeDataQuality
+      cd InnerEye-DataQuality
+      pytest --doctest-modules --junitxml=junit/test-results.xml --cov=. --cov-report=xml --cov-report=html -n 2 --dist=loadscope --verbose
+    failOnStderr: false
+    condition: succeededOrFailed()
+    displayName: Run pytest for DataSelection folder
+  
+  - task: PublishTestResults@2
+    inputs:
+      testResultsFiles: '**/test-*.xml'
+      testRunTitle: 'tests_on_$(Agent.OS)'
+    condition: succeededOrFailed()
+    displayName: Publish test results
+
+  - task: ComponentGovernanceComponentDetection@0
+    condition: succeeded()
+    inputs:
+      scanType: 'Register'
+      verbosity: 'Normal'
+      alertWarningLevel: 'High'
+      failOnAlert: false
+      failOnStderr: true
+
+  - task: PublishCodeCoverageResults@1
+    inputs:
+      codeCoverageTool: Cobertura
+      summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/coverage.xml'
+      reportDirectory: '$(System.DefaultWorkingDirectory)/**/htmlcov'
+    condition: succeededOrFailed()
+
+  - task: PublishBuildArtifacts@1
+    inputs:
+      PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+      ArtifactName: 'drop'
+      publishLocation: 'Container'

@@ -215,3 +215,10 @@ jobs:
           wait_for_completion: 'True'
           pytest_mark: ''
           max_run_duration: '30m'
+
+  # Now run the build for the Data Selection sub-folder
+  - job: BuildDataSelection
+    pool:
+      vmImage: 'ubuntu-18.04'
+    steps:
+      - template: build_data_quality.yaml
