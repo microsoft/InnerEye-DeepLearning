@@ -1,3 +1,6 @@
 [submodule "fastMRI"]
 	path = fastMRI
 	url = https://github.com/facebookresearch/fastMRI
+[submodule "stylegan2-ada-pytorch"]
+	path = stylegan2-ada-pytorch
+	url = https://github.com/NVlabs/stylegan2-ada-pytorch.git
