@@ -29,6 +29,7 @@ class StoringLogger(LightningLoggerBase):
     @rank_zero_only
     def log_metrics(self, metrics: DictStrFloat, step: Optional[int] = None) -> None:
         print(f"StoringLogger step={step}: {metrics}")
+        return
         epoch_name = "epoch"
         if epoch_name not in metrics:
             raise ValueError("Each of the logged metrics should have an 'epoch' key.")
