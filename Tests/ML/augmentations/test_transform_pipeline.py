@@ -7,7 +7,6 @@ import random
 import PIL
 import pytest
 import torch
-
 from torchvision.transforms import (
     CenterCrop,
     ColorJitter,
@@ -28,7 +27,7 @@ from InnerEye.ML.augmentations.image_transforms import (
 )
 from InnerEye.ML.augmentations.transform_pipeline import (
     ImageTransformationPipeline,
-    create_cxr_transforms_from_config,
+    create_transforms_from_config,
 )
 
 from Tests.SSL.test_data_modules import cxr_augmentation_config
@@ -46,6 +45,7 @@ test_2d_image_as_ZCHW_tensor = test_2d_image_as_CHW_tensor.unsqueeze(0)
 
 test_4d_scan_as_tensor = torch.ones([5, 4, *image_size]) * 255.0
 test_4d_scan_as_tensor[..., 10:15, 10:20] = 1
+
 
 @pytest.mark.parametrize("use_different_transformation_per_channel", [True, False])
 def test_torchvision_on_various_input(
@@ -141,16 +141,14 @@ def test_create_transform_pipeline_from_config(expand_channels: bool) -> None:
     """
     Tests that the pipeline returned by create_transform_pipeline_from_config returns the expected transformation.
     """
-
-    transformation_pipeline = create_cxr_transforms_from_config(
-        cxr_augmentation_config, apply_augmentations=True,
-        expand_channels=expand_channels
+    transformation_pipeline = create_transforms_from_config(
+        cxr_augmentation_config,
+        apply_augmentations=True,
+        expand_channels=expand_channels,
     )
     fake_cxr_as_array = np.ones([256, 256]) * 255.0
     fake_cxr_as_array[100:150, 100:200] = 1
-    
     all_transforms = [
-        ExpandChannels(),
         RandomAffine(degrees=180, translate=(0, 0), shear=40),
         RandomResizedCrop(scale=(0.4, 1.0), size=256),
         RandomHorizontalFlip(p=0.5),
@@ -169,7 +167,9 @@ def test_create_transform_pipeline_from_config(expand_channels: bool) -> None:
         # In the pipeline the image is converted to tensor before applying the transformations. Do the same here.
         image = ToTensor()(fake_image).reshape([1, 1, 256, 256])
     else:
-        fake_3d_array = np.dstack([fake_cxr_as_array, fake_cxr_as_array, fake_cxr_as_array])
+        fake_3d_array = np.dstack(
+            [fake_cxr_as_array, fake_cxr_as_array, fake_cxr_as_array]
+        )
         fake_image = PIL.Image.fromarray(fake_3d_array.astype(np.uint8)).convert("RGB")
         # In the pipeline the image is converted to tensor before applying the transformations. Do the same here.
         image = ToTensor()(fake_image).reshape([1, 3, 256, 256])
@@ -193,8 +193,9 @@ def test_create_transform_pipeline_from_config(expand_channels: bool) -> None:
     assert torch.isclose(expected_transformed, transformed_image).all()
 
     # Test the evaluation pipeline
-    transformation_pipeline = create_cxr_transforms_from_config(
-        cxr_augmentation_config, apply_augmentations=False,  
+    transformation_pipeline = create_transforms_from_config(
+        cxr_augmentation_config,
+        apply_augmentations=False,
         expand_channels=expand_channels,
     )
     transformed_image = transformation_pipeline(image)
