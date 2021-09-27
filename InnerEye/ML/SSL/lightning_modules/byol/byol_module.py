@@ -105,7 +105,6 @@ class BYOLInnerEye(pl.LightningModule):
         if optimizer_idx != 0:
             return
         loss = self.shared_step(batch, batch_idx)
-        print(f"training step: batch_idx={batch_idx}, optimizer_idx={optimizer_idx}")
         log_on_epoch(self, {'byol/train/loss': loss, 'byol/tau': self.weight_callback.current_tau})
         manual_optimization_step(self, loss)
 
