@@ -11,7 +11,7 @@ import torch.nn.functional as F
 from pl_bolts.models.self_supervised.simclr.simclr_module import SimCLR
 from torch import Tensor as T
 from torch.optim import Optimizer
-from torch.optim.lr_scheduler import StepLR, _LRScheduler
+from torch.optim.lr_scheduler import _LRScheduler
 
 from InnerEye.ML.SSL.encoders import SSLEncoder
 from InnerEye.ML.SSL.utils import SSLDataModuleType, manual_optimization_step
@@ -62,7 +62,7 @@ class SimCLRInnerEye(SimCLR):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.encoder(x)
 
-    def training_step(self, batch: BatchType, batch_idx: int, optimizer_idx: int) -> T:
+    def training_step(self, batch: BatchType, batch_idx: int, optimizer_idx: int) -> None:  # type: ignore
         if optimizer_idx != 0:
             return
         loss = self.shared_step(batch)

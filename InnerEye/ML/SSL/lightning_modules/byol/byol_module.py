@@ -101,7 +101,8 @@ class BYOLInnerEye(pl.LightningModule):
 
         return loss
 
-    def training_step(self, batch: BatchType, batch_idx: int, optimizer_idx: int, **kwargs: Any) -> T:  # type: ignore
+    def training_step(self, batch: BatchType, batch_idx: int, optimizer_idx: int,
+                      **kwargs: Any) -> None:  # type: ignore
         if optimizer_idx != 0:
             return
         loss = self.shared_step(batch, batch_idx)
@@ -121,7 +122,7 @@ class BYOLInnerEye(pl.LightningModule):
         # exclude certain parameters
         parameters = self.exclude_from_wt_decay(self.online_network.named_parameters(),
                                                 weight_decay=self.hparams.weight_decay)  # type: ignore
-        optimizer = Adam(parameters, lr=self.hparams.learning_rate,
+        optimizer = Adam(parameters, lr=self.hparams.learning_rate,  # type: ignore
                          weight_decay=self.hparams.weight_decay)  # type: ignore
         scheduler = LinearWarmupCosineAnnealingLR(
             optimizer, warmup_epochs=self.hparams.warmup_epochs, max_epochs=self.hparams.max_epochs)  # type: ignore

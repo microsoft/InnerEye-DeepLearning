@@ -97,7 +97,7 @@ class InnerEyeRecoveryCheckpointCallback(ModelCheckpoint):
 
     @rank_zero_only
     def on_train_epoch_end(self, trainer: Trainer, pl_module: LightningModule, unused: bool = None) -> None:
-        print(f"Checkpoint on_train_epoch_end epoch={trainer.current_epoch}")
+        print(f"Checkpoint on_train_epoch_end epoch={trainer.current_epoch}")  # type: ignore
         pl_module.log(name="epoch_finished", value=trainer.current_epoch)  # type: ignore
 
 

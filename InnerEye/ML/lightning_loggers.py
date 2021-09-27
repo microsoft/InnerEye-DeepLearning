@@ -10,7 +10,7 @@ from pytorch_lightning.utilities import rank_zero_only
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common.metrics_constants import TRAIN_PREFIX, VALIDATION_PREFIX
-from InnerEye.Common.type_annotations import DictStrFloat
+from InnerEye.Common.type_annotations import DictStrFloat, DictStrFloatOrFloatList
 
 
 class StoringLogger(LightningLoggerBase):
@@ -21,7 +21,7 @@ class StoringLogger(LightningLoggerBase):
 
     def __init__(self) -> None:
         super().__init__()
-        self.results: Dict[int, DictStrFloat] = {}
+        self.results: Dict[int, DictStrFloatOrFloatList] = {}
         self.hyperparams: Any = None
         # Fields to store diagnostics for unit testing
         self.train_diagnostics: List[Any] = []
@@ -40,14 +40,15 @@ class StoringLogger(LightningLoggerBase):
             for key, value in metrics.items():
                 if key in current_results:
                     logging.debug(f"StoringLogger: appending results for metric {key}")
-                    if isinstance(current_results[key], list):
-                        current_results[key].append(value)
+                    current_metrics = current_results[key]
+                    if isinstance(current_metrics, list):
+                        current_metrics.append(value)
                     else:
-                        current_results[key] = [current_results[key], value]
+                        current_results[key] = [current_metrics, value]
                 else:
                     current_results[key] = value
         else:
-            self.results[epoch] = metrics
+            self.results[epoch] = metrics  # type: ignore
 
     @rank_zero_only
     def log_hyperparams(self, params: Any) -> None:
@@ -85,6 +86,7 @@ class StoringLogger(LightningLoggerBase):
         filtered = {}
         for key, value in epoch_results.items():
             assert isinstance(key, str), f"All dictionary keys should be strings, but got: {type(key)}"
+            assert isinstance(value, float), f"All metrics should be floats, but got: {type(value)}"
             # Add the metric if either there is no prefix filter (prefix does not matter), or if the prefix
             # filter is supplied and really matches the metric name
             if (not prefix_filter) or key.startswith(prefix_filter):
@@ -113,7 +115,14 @@ class StoringLogger(LightningLoggerBase):
         :return: A list of floating point numbers, with one entry per entry in the the training or validation results.
         """
         full_metric_name = (TRAIN_PREFIX if is_training else VALIDATION_PREFIX) + metric_type
-        return [self.results[epoch][full_metric_name] for epoch in self.epochs]
+        result = []
+        for epoch in self.epochs:
+            value = self.results[epoch][full_metric_name]
+            if not isinstance(value, float):
+                raise ValueError(f"Expected a floating point value for metric {full_metric_name}, but got: "
+                                 f"{value}")
+            result.append(value)
+        return result
 
     def get_train_metric(self, metric_type: str) -> List[float]:
         """

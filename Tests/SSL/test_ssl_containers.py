@@ -64,15 +64,19 @@ def _compare_stored_metrics(runner: Runner, expected_metrics: Dict[str, float], 
     :param runner: The Innereye runner.
     :param expected_metrics: A dictionary with all metrics that are expected to be present.
     """
+    assert runner.ml_runner is not None
     assert runner.ml_runner.storing_logger is not None
     print(f"Actual metrics in epoch 0: {runner.ml_runner.storing_logger.results[0]}")
     print(f"Expected metrics: {expected_metrics}")
     for metric, expected in expected_metrics.items():
         actual = runner.ml_runner.storing_logger.results[0][metric]
-        if math.isnan(expected):
-            assert math.isnan(actual), f"Expected NaN, but got: {actual}"
+        if isinstance(actual, float):
+            if math.isnan(expected):
+                assert math.isnan(actual), f"Metric {metric}: Expected NaN, but got: {actual}"
+            else:
+                assert actual == pytest.approx(expected, abs=abs), f"Mismatch for metric {metric}"
         else:
-            assert actual == pytest.approx(expected, abs=abs)
+            assert actual == expected, f"Mismatch for metric {metric}"
 
 
 common_test_args = ["", "--is_debug_model=True", "--num_epochs=1", "--ssl_training_batch_size=10",

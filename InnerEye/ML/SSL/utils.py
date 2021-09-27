@@ -129,6 +129,7 @@ def manual_optimization_step(pl: LightningModule, loss: torch.Tensor, optimizer_
     optimizer.zero_grad()
     pl.manual_backward(loss)
     optimizer.step()
+    assert pl.trainer is not None, "No trainer has been set for this module yet?"
     if pl.trainer.is_last_batch:
         scheduler = get_from_list_or_singleton(pl.lr_schedulers(), "LR schedulers")
         scheduler.step()
