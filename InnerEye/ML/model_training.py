@@ -88,7 +88,7 @@ class InnerEyeRecoveryCheckpointCallback(ModelCheckpoint):
 
     def __init__(self, container: LightningContainer):
         super().__init__(dirpath=str(container.checkpoint_folder),
-                         monitor="epoch",
+                         monitor="epoch_finished",
                          filename=RECOVERY_CHECKPOINT_FILE_NAME + "_{epoch}",
                          period=container.recovery_checkpoint_save_interval,
                          save_top_k=container.recovery_checkpoints_save_last_k,
@@ -98,7 +98,7 @@ class InnerEyeRecoveryCheckpointCallback(ModelCheckpoint):
     @rank_zero_only
     def on_train_epoch_end(self, trainer: Trainer, pl_module: LightningModule, unused: bool = None) -> None:
         print(f"Checkpoint on_train_epoch_end epoch={trainer.current_epoch}")
-        pl_module.log(name="epoch", value=trainer.current_epoch)  # type: ignore
+        pl_module.log(name="epoch_finished", value=trainer.current_epoch)  # type: ignore
 
 
 def create_lightning_trainer(container: LightningContainer,
