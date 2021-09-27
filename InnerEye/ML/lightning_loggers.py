@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import logging
 from typing import Any, Dict, Iterable, List, Optional
 
 from pytorch_lightning.loggers import LightningLoggerBase
@@ -28,8 +29,7 @@ class StoringLogger(LightningLoggerBase):
 
     @rank_zero_only
     def log_metrics(self, metrics: DictStrFloat, step: Optional[int] = None) -> None:
-        print(f"StoringLogger step={step}: {metrics}")
-        return
+        logging.debug(f"StoringLogger step={step}: {metrics}")
         epoch_name = "epoch"
         if epoch_name not in metrics:
             raise ValueError("Each of the logged metrics should have an 'epoch' key.")
@@ -37,11 +37,15 @@ class StoringLogger(LightningLoggerBase):
         del metrics[epoch_name]
         if epoch in self.results:
             current_results = self.results[epoch]
-            overlapping_keys = set(metrics.keys()).intersection(current_results.keys())
-            if len(overlapping_keys) > 0:
-                raise ValueError(f"Unable to log metric with same name twice for epoch {epoch}: "
-                                 f"{', '.join(overlapping_keys)}")
-            current_results.update(metrics)
+            for key, value in metrics.items():
+                if key in current_results:
+                    logging.debug(f"StoringLogger: appending results for metric {key}")
+                    if isinstance(current_results[key], list):
+                        current_results[key].append(value)
+                    else:
+                        current_results[key] = [current_results[key], value]
+                else:
+                    current_results[key] = value
         else:
             self.results[epoch] = metrics
 
@@ -154,7 +158,7 @@ class AzureMLLogger(LightningLoggerBase):
 
     @rank_zero_only
     def log_metrics(self, metrics: Dict[str, float], step: Optional[int] = None) -> None:
-        print(f"AzureMLLogger step={step}: {metrics}")
+        logging.debug(f"AzureMLLogger step={step}: {metrics}")
         if self.is_azureml_run:
             for key, value in metrics.items():
                 RUN_CONTEXT.log(key, value)

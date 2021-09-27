@@ -359,3 +359,29 @@ def test_aggregate_and_create_subject_metrics_file(test_output_dirs: OutputFolde
         written_lines = pd.read_csv(outputs_folder / mode / SUBJECT_METRICS_FILE_NAME)
         expected_lines = pd.read_csv(outputs_folder / mode / "expected_metrics.csv")
         assert written_lines.equals(expected_lines)
+
+
+def test_storing_logger() -> None:
+    """
+    Test if the StoringLogger can correctly handle multiple metrics of the same name logged per epoch.
+    """
+    logger = StoringLogger()
+    key1 = "key"
+    key2 = "key2"
+    value1 = 3.14
+    value2 = 2.71
+    value3 = 100
+    assert value1 != value2
+    epoch = 1
+    # Add metrics in the same epoch in two calls, so that we test both the cases where the epoch is already present,
+    # and where not
+    logger.log_metrics({"epoch": 1, key1: value1})
+    logger.log_metrics({"epoch": 1, key2: value2})
+    # All results for epoch 1 should be collated into a single dictionary
+    assert logger.extract_by_prefix(epoch=epoch) == {key1: value1, key2: value2}
+    # When updating a metric that already exists, the result should not be a float anymore but a list.
+    logger.log_metrics({"epoch": epoch, key1: value3})
+    assert logger.extract_by_prefix(epoch=epoch) == {key1: [value1, value3], key2: value2}
+    # Add more metrics for key1, so that we also test the case that the results are already a list
+    logger.log_metrics({"epoch": epoch, key1: value3})
+    assert logger.extract_by_prefix(epoch=epoch) == {key1: [value1, value3, value3], key2: value2}
