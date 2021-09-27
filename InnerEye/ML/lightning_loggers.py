@@ -35,6 +35,9 @@ class StoringLogger(LightningLoggerBase):
             raise ValueError("Each of the logged metrics should have an 'epoch' key.")
         epoch = int(metrics[epoch_name])
         del metrics[epoch_name]
+        for key, value in metrics.items():
+            if isinstance(value, int):
+                metrics[key] = float(value)
         if epoch in self.results:
             current_results = self.results[epoch]
             for key, value in metrics.items():
