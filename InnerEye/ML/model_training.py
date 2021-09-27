@@ -143,7 +143,7 @@ def create_lightning_trainer(container: LightningContainer,
     tensorboard_logger = TensorBoardLogger(save_dir=str(container.logs_folder), name="Lightning", version="")
     loggers = [tensorboard_logger, AzureMLLogger()]
     storing_logger = StoringLogger()
-    # loggers.append(storing_logger)
+    loggers.append(storing_logger)
     # Use 32bit precision when running on CPU. Otherwise, make it depend on use_mixed_precision flag.
     precision = 32 if num_gpus == 0 else 16 if container.use_mixed_precision else 32
     # The next two flags control the settings in torch.backends.cudnn.deterministic and torch.backends.cudnn.benchmark
@@ -176,6 +176,8 @@ def create_lightning_trainer(container: LightningContainer,
                       accelerator=accelerator,
                       plugins=plugins,
                       max_epochs=container.num_epochs,
+                      limit_train_batches=container.pl_limit_train_batches or 1.0,
+                      limit_val_batches=container.pl_limit_val_batches or 1.0,
                       num_sanity_val_steps=container.pl_num_sanity_val_steps,
                       callbacks=callbacks,
                       logger=loggers,

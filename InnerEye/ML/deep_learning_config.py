@@ -590,6 +590,14 @@ class TrainerParams(param.Parameterized):
         param.Boolean(default=False,
                       doc="Controls the PyTorch Lightning flag 'find_unused_parameters' for the DDP plugin. "
                           "Setting it to True comes with a performance hit.")
+    pl_limit_train_batches: Optional[int] = \
+        param.Integer(default=None,
+                      doc="PyTorch Lightning trainer flag 'limit_train_batches': Limit the training dataset to the "
+                          "given number of batches.")
+    pl_limit_val_batches: Optional[int] = \
+        param.Integer(default=None,
+                      doc="PyTorch Lightning trainer flag 'limit_val_batches': Limit the validation dataset to the "
+                          "given number of batches.")
 
     @property
     def use_gpu(self) -> bool:
