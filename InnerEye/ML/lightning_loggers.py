@@ -154,6 +154,7 @@ class AzureMLLogger(LightningLoggerBase):
 
     @rank_zero_only
     def log_metrics(self, metrics: Dict[str, float], step: Optional[int] = None) -> None:
+        print(f"AzureMLLogger step={step}: {metrics}")
         if self.is_azureml_run:
             for key, value in metrics.items():
                 RUN_CONTEXT.log(key, value)
