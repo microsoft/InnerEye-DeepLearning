@@ -15,7 +15,7 @@ from InnerEye.Common.type_annotations import DictStrFloat
 
 class StoringLogger(LightningLoggerBase):
     """
-    A Pytorch Lightning logger that simply stores the metrics that are written to it.
+    A Pytorch Lightning logger that simply stores the metrics that are written to it, grouped by epoch.
     Used for diagnostic purposes in unit tests.
     """
 

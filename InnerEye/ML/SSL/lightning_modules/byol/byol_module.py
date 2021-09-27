@@ -13,11 +13,10 @@ from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
 from pytorch_lightning import Trainer
 from torch import Tensor as T
 from torch.optim import Adam
-from torch.optim.lr_scheduler import StepLR
 
 from InnerEye.ML.SSL.lightning_modules.byol.byol_models import SiameseArm
 from InnerEye.ML.SSL.lightning_modules.byol.byol_moving_average import ByolMovingAverageWeightUpdate
-from InnerEye.ML.SSL.utils import SSLDataModuleType, manual_optimization_step
+from InnerEye.ML.SSL.utils import SSLDataModuleType, log_on_epoch, manual_optimization_step
 
 SingleBatchType = Tuple[List, T]
 BatchType = Union[Dict[SSLDataModuleType, SingleBatchType], SingleBatchType]
@@ -107,14 +106,12 @@ class BYOLInnerEye(pl.LightningModule):
             return
         loss = self.shared_step(batch, batch_idx)
         print(f"training step: batch_idx={batch_idx}, optimizer_idx={optimizer_idx}")
-        self.log_dict({'byol/train/loss': loss, 'byol/tau': self.weight_callback.current_tau},
-                      on_epoch=True, on_step=False, sync_dist=True)
+        log_on_epoch(self, {'byol/train/loss': loss, 'byol/tau': self.weight_callback.current_tau})
         manual_optimization_step(self, loss)
 
     def validation_step(self, batch: BatchType, batch_idx: int, **kwargs: Any) -> T:  # type: ignore
         loss = self.shared_step(batch, batch_idx)
-        self.log_dict({'byol/val/loss': loss},
-                      on_epoch=True, on_step=False, sync_dist=True)
+        log_on_epoch(self, {'byol/val/loss': loss})
         return loss
 
     def setup(self, *args: Any, **kwargs: Any) -> None:

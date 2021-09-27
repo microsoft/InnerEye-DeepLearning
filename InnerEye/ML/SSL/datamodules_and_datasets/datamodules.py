@@ -136,6 +136,9 @@ class CombinedDataModule(LightningDataModule):
         """
         The train dataloaders
         """
+        # This code may be superseded in current versions of PL. Using this dictionary syntax will effectively
+        # use a CombinedLoader(dataloaders, mode="max_size_cycle"), similar to what we need to do explicitly for
+        # the validation data loader.
         dataloaders = {
             SSLDataModuleType.ENCODER: self.encoder_module.train_dataloader(),
             SSLDataModuleType.LINEAR_HEAD: self.linear_head_module.train_dataloader()}

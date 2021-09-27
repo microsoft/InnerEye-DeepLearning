@@ -13,7 +13,7 @@ from torch import Tensor as T
 from torch.nn import functional as F
 from torchmetrics import Metric
 
-from InnerEye.ML.SSL.utils import SSLDataModuleType
+from InnerEye.ML.SSL.utils import SSLDataModuleType, log_on_epoch
 from InnerEye.ML.lightning_metrics import Accuracy05, AreaUnderPrecisionRecallCurve, AreaUnderRocCurve
 
 BatchType = Union[Dict[SSLDataModuleType, Any], Any]
@@ -113,15 +113,16 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
         if ids_linear_head not in self.visited_ids:
             self.visited_ids.add(ids_linear_head)
             loss = self.shared_step(batch, pl_module, is_training=False)
-            pl_module.log('ssl_online_evaluator/val/loss', loss, on_step=False, on_epoch=True, sync_dist=False)
+            log_on_epoch(pl_module, {'ssl_online_evaluator/val/loss': loss})
             for metric in self.val_metrics:
-                pl_module.log(f"ssl_online_evaluator/val/{metric.name}", metric, on_epoch=True,
-                              on_step=False)  # type: ignore
+                log_on_epoch(pl_module, {"ssl_online_evaluator/val/{metric.name}": metric})
 
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx) -> None:  # type: ignore
         """
         Get and log training metrics, perform network update.
         """
+        # Similar code should also live in the encoder training.
+        # There is a silent assumption here that SSL data is larger than linear head data
         ids_linear_head = tuple(batch[SSLDataModuleType.LINEAR_HEAD][0].tolist())
         if ids_linear_head not in self.visited_ids:
             self.visited_ids.add(ids_linear_head)
@@ -131,7 +132,6 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
             self.optimizer.step()
 
             # log metrics
-            pl_module.log('ssl_online_evaluator/train/loss', loss)
+            log_on_epoch(pl_module, {'ssl_online_evaluator/train/loss': loss})
             for metric in self.train_metrics:
-                pl_module.log(f"ssl_online_evaluator/train/online_{metric.name}", metric, on_epoch=True,
-                              on_step=False)  # type: ignore
+                log_on_epoch(pl_module, {f"ssl_online_evaluator/train/online_{metric.name}": metric})

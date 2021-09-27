@@ -272,5 +272,6 @@ class SSLContainer(LightningContainer):
     def get_trainer_arguments(self) -> Dict[str, Any]:
         trainer_kwargs: Dict[str, Any] = {"callbacks": self.online_eval_callback}
         if self.is_debug_model:
-            trainer_kwargs.update({"limit_train_batches": 1, "limit_val_batches": 1})
+            self.pl_limit_train_batches = 1
+            self.pl_limit_val_batches = 1
         return trainer_kwargs
