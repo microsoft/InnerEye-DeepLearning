@@ -1,0 +1,6 @@
+selector:
+  type: ['PosteriorBasedSelectorJoint']
+  model_name: 'Vanilla-Active'
+  model_config_path: 'InnerEyeDataQuality/configs/models/cifar10h_noise_30/resnet.yaml'
+  use_active_relabelling: True
+

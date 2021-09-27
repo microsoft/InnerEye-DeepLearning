@@ -1,0 +1,6 @@
+selector:
+  type: ['PosteriorBasedSelectorJoint']
+  model_name: 'Self-Supervision-Active'
+  model_config_path: 'InnerEyeDataQuality/configs/models/cifar10h_noise_30/resnet_self_supervision_v3.yaml'
+  use_active_relabelling: True
+

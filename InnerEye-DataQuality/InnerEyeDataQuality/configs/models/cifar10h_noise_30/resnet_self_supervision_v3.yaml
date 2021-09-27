@@ -1,0 +1,64 @@
+device: cuda
+cudnn:
+  benchmark: True
+  deterministic: True
+dataset:
+  name: CIFAR10H
+  noise_temperature: 10.0
+  num_samples: 5000
+train:
+  resume_epoch: 0
+  seed: 2
+  batch_size: 256
+  optimizer: sgd
+  base_lr: 0.01
+  momentum: 0.9
+  nesterov: True
+  weight_decay: 1e-3
+  output_dir: experiments/cifar10h_noise_30/vanilla_self_supervision_v3
+  log_period: 100
+  checkpoint_period: 100
+  tanh_regularisation: 0.30
+  use_self_supervision: True
+  self_supervision:
+    checkpoints: ["logs/cifar10h/self_supervised/byol_seed_1/checkpoints/last.ckpt"]
+  dataloader:
+    num_workers: 2
+    drop_last: False
+    pin_memory: False
+validation:
+  batch_size: 512
+  dataloader:
+    num_workers: 2
+    drop_last: False
+    pin_memory: False
+test:
+  batch_size: 128
+  dataloader:
+    num_workers: 2
+    pin_memory: False
+scheduler:
+  epochs: 120
+  type: multistep
+  milestones: [90]
+  lr_decay: 0.1
+augmentation:
+  use_random_horizontal_flip: True
+  use_label_smoothing: True
+  use_random_affine: False
+  use_random_color: True
+  random_crop:
+    scale: (0.9, 1.0)
+  random_horizontal_flip:
+    prob: 0.5
+  random_color:
+    brightness: 0.5
+    contrast: 0.5
+    saturation: 0.5
+
+  
+  
+  
+
+
+
