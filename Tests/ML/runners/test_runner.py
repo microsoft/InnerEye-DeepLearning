@@ -357,7 +357,9 @@ def run_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
         if flag and model_proc == ModelProcessing.ENSEMBLE_CREATION:
             expected_upload_folder_count = expected_upload_folder_count + 1
             expected_name = get_best_epoch_results_path(mode, ModelProcessing.DEFAULT)
-            run.upload_folder.assert_any_call(name=str(expected_name), path=str(results_folder))
+            run.upload_folder.assert_any_call(name=str(expected_name),
+                                              path=str(results_folder),
+                                              datastore_name=None)
     if len(error):
         raise ValueError(error)
 

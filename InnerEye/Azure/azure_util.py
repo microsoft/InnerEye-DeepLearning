@@ -6,7 +6,7 @@ import logging
 import os
 import re
 from pathlib import Path
-from typing import Generator, List, Optional, Tuple
+from typing import Generator, List, Optional, Tuple, Union
 
 from azureml.core import Experiment, Run, Workspace, get_run
 from azureml.exceptions import UserErrorException
@@ -357,3 +357,14 @@ def step_up_directories(path: Path) -> Generator[Path, None, None]:
         if parent == path:
             break
         path = parent
+
+
+def run_upload_folder(run: Run, name: str, path: str, datastore_name: Optional[str] = None) -> Union[Tuple[dict, map], map]:
+    """
+    Wrap a call to run.upload_folder with extra checks to see if files already exist.
+
+    :param name: The name of the folder of files to upload.
+    :param path: The relative local path to the folder to upload.
+    :param datastore_name: Optional DataStore name
+    """
+    return run.upload_folder(name=name, path=path, datastore_name=datastore_name)

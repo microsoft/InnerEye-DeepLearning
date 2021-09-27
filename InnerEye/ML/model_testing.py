@@ -13,7 +13,8 @@ from typing import List, Optional, Tuple, Union
 import matplotlib.pyplot as plt
 import numpy as np
 
-from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, PARENT_RUN_CONTEXT
+from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, PARENT_RUN_CONTEXT, \
+    run_upload_folder
 from InnerEye.Common.common_util import BEST_EPOCH_FOLDER_NAME, METRICS_AGGREGATES_FILE, ModelProcessing, \
     SUBJECT_METRICS_FILE_NAME, get_best_epoch_results_path, is_linux, logging_section
 from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME
@@ -109,7 +110,7 @@ def segmentation_model_test(config: SegmentationModelBase,
         if model_proc == ModelProcessing.ENSEMBLE_CREATION:
             # For the upload, we want the path without the "OTHER_RUNS/ENSEMBLE" prefix.
             name = str(get_best_epoch_results_path(execution_mode, ModelProcessing.DEFAULT))
-            PARENT_RUN_CONTEXT.upload_folder(name=name, path=str(epoch_results_folder))
+            run_upload_folder(run=PARENT_RUN_CONTEXT, name=name, path=str(epoch_results_folder))
     return InferenceMetricsForSegmentation(execution_mode=execution_mode, metrics=result)
 
 

@@ -26,7 +26,7 @@ from InnerEye.Azure.azure_runner import ENV_OMPI_COMM_WORLD_RANK, get_git_tags
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, \
     EFFECTIVE_RANDOM_SEED_KEY_NAME, IS_ENSEMBLE_KEY_NAME, MODEL_ID_KEY_NAME, PARENT_RUN_CONTEXT, \
     PARENT_RUN_ID_KEY_NAME, RUN_CONTEXT, RUN_RECOVERY_FROM_ID_KEY_NAME, RUN_RECOVERY_ID_KEY_NAME, \
-    get_all_environment_files, is_offline_run_context
+    get_all_environment_files, is_offline_run_context, run_upload_folder
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import BASELINE_COMPARISONS_FOLDER, BASELINE_WILCOXON_RESULTS_FILE, \
     CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE, \
@@ -648,7 +648,7 @@ class MLRunner:
                 logging.info(f"Registering the model on the current run {run_to_register_on.id}")
             logging.info(f"Uploading files in {final_model_folder} with prefix '{artifacts_path}'")
             final_model_folder_relative = final_model_folder.relative_to(Path.cwd())
-            run_to_register_on.upload_folder(name=artifacts_path, path=str(final_model_folder_relative))
+            run_upload_folder(run=run_to_register_on, name=artifacts_path, path=str(final_model_folder_relative))
             # When registering the model on the run, we need to provide a relative path inside of the run's output
             # folder in `model_path`
             model = run_to_register_on.register_model(
@@ -861,7 +861,7 @@ class MLRunner:
                                            SCATTERPLOTS_SUBDIR_NAME,
                                            reports_folder]:
                         remove_file_or_directory(subdir)
-                PARENT_RUN_CONTEXT.upload_folder(name=BASELINE_COMPARISONS_FOLDER, path=str(other_runs_ensemble_dir))
+                run_upload_folder(run=PARENT_RUN_CONTEXT, name=BASELINE_COMPARISONS_FOLDER, path=str(other_runs_ensemble_dir))
             else:
                 logging.warning(f"Directory not found for upload: {other_runs_ensemble_dir}")
         remove_file_or_directory(other_runs_dir)
@@ -884,7 +884,7 @@ class MLRunner:
         if self.post_cross_validation_hook:
             self.post_cross_validation_hook(self.innereye_config, cross_val_results_root)
         # upload results to the parent run's outputs so that the files are visible inside the AzureML UI.
-        PARENT_RUN_CONTEXT.upload_folder(name=CROSSVAL_RESULTS_FOLDER, path=str(cross_val_results_root))
+        run_upload_folder(run=PARENT_RUN_CONTEXT, name=CROSSVAL_RESULTS_FOLDER, path=str(cross_val_results_root))
         if self.innereye_config.is_scalar_model:
             try:
                 aggregates = pd.read_csv(cross_val_results_root / METRICS_AGGREGATES_FILE)

@@ -14,7 +14,7 @@ from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.plugins import DDPPlugin
 
 from InnerEye.Azure.azure_runner import ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK
-from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
+from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context, run_upload_folder
 from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, change_working_directory
 from InnerEye.Common.resource_monitor import ResourceMonitor
 from InnerEye.ML.common import ModelExecutionMode, RECOVERY_CHECKPOINT_FILE_NAME, create_best_checkpoint
@@ -309,7 +309,7 @@ def model_train(checkpoint_path: Optional[Path],
     # Upload visualization directory to AML run context to be able to see it in the Azure UI.
     if isinstance(container, InnerEyeContainer):
         if container.config.max_batch_grad_cam > 0 and container.visualization_folder.exists():
-            RUN_CONTEXT.upload_folder(name=VISUALIZATION_FOLDER, path=str(container.visualization_folder))
+            run_upload_folder(run=RUN_CONTEXT, name=VISUALIZATION_FOLDER, path=str(container.visualization_folder))
 
     if resource_monitor:
         logging.info("Shutting down the resource monitor process.")
