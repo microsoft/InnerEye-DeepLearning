@@ -115,7 +115,7 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
             loss = self.shared_step(batch, pl_module, is_training=False)
             log_on_epoch(pl_module, {'ssl_online_evaluator/val/loss': loss})
             for metric in self.val_metrics:
-                log_on_epoch(pl_module, {"ssl_online_evaluator/val/{metric.name}": metric})
+                log_on_epoch(pl_module, {f"ssl_online_evaluator/val/{metric.name}": metric})
 
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx) -> None:  # type: ignore
         """
