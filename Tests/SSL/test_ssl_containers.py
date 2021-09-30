@@ -112,11 +112,13 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
 
     # Check the metrics that were recorded during training
     expected_metrics = {
-        'ssl_online_evaluator/train/loss': 2.6143882274627686,
+        'epoch_started': 0.0,
+        'simclr/train/loss': 2.953442335128784,
+        'simclr/val/loss': 2.8646411895751953,
+        'ssl_online_evaluator/train/loss': 2.285637378692627,
         'ssl_online_evaluator/train/online_AccuracyAtThreshold05': 0.0,
-        'val_loss': 2.886892795562744,
-        'ssl_online_evaluator/val/loss': 2.2472469806671143,
-        'ssl_online_evaluator/val/AccuracyAtThreshold05': 0.20000000298023224
+        'ssl_online_evaluator/val/loss': 2.2882637977600098,
+        'ssl_online_evaluator/val/AccuracyAtThreshold05': 0.0
     }
     _compare_stored_metrics(runner, expected_metrics)
 
@@ -124,7 +126,7 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
     checkpoint_path = loaded_config.outputs_folder / "checkpoints" / "best_checkpoint.ckpt"
     checkpoint = torch.load(checkpoint_path)
     assert len(checkpoint["optimizer_states"]) == 2
-    assert len(checkpoint["lr_schedulers"]) == 2
+    assert len(checkpoint["lr_schedulers"]) == 1
 
     # Now run the actual SSL classifier off the stored checkpoint
     args = common_test_args + ["--model=SSLClassifierCIFAR", f"--local_ssl_weights_path={checkpoint_path}"]
@@ -188,17 +190,20 @@ def test_innereye_ssl_container_rsna() -> None:
                SSLDataModuleType.ENCODER].augmentation_params.preprocess.center_crop_size == 224
     assert loaded_config.datamodule_args[SSLDataModuleType.ENCODER].augmentation_params.augmentation.use_random_crop
     assert loaded_config.datamodule_args[SSLDataModuleType.ENCODER].augmentation_params.augmentation.use_random_affine
-
     expected_metrics = {
-        'ssl_online_evaluator/train/loss': 0.685592532157898,
+        'epoch_started': 0.0,
+        'byol/train/loss': 0.00401744619011879,
+        'byol/tau': 0.9899999499320984,
+        'ssl_online_evaluator/train/loss': 0.6889733672142029,
         'ssl_online_evaluator/train/online_AreaUnderRocCurve': 0.5,
         'ssl_online_evaluator/train/online_AreaUnderPRCurve': 0.699999988079071,
         'ssl_online_evaluator/train/online_AccuracyAtThreshold05': 0.4000000059604645,
         'byol/val/loss': -0.07644838094711304,
-        'ssl_online_evaluator/val/loss': 0.6965796947479248,
+        'ssl_online_evaluator/val/loss': 0.69798344373703,
         'ssl_online_evaluator/val/AreaUnderRocCurve': math.nan,
         'ssl_online_evaluator/val/AreaUnderPRCurve': math.nan,
-        'ssl_online_evaluator/val/AccuracyAtThreshold05': 0.0}
+        'ssl_online_evaluator/val/AccuracyAtThreshold05': 0.0
+    }
     _compare_stored_metrics(runner, expected_metrics)
 
     # Check that we are able to load the checkpoint and create classifier model

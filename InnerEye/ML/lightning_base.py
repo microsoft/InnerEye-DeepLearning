@@ -383,7 +383,8 @@ class InnerEyeLightning(LightningModule):
         prefix = TRAIN_PREFIX if is_training else VALIDATION_PREFIX
         sync_dist = self.use_sync_dist if sync_dist_override is None else sync_dist_override
         log_on_epoch(self,
-                     metrics={prefix + metric_name: value},
+                     name=prefix + metric_name,
+                     value=value,
                      sync_dist=sync_dist,
                      reduce_fx=reduce_fx,
                      sync_dist_op=sync_dist_op)

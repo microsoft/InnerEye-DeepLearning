@@ -100,6 +100,9 @@ class SSLContainer(LightningContainer):
 
     def setup(self) -> None:
         from InnerEye.ML.SSL.lightning_containers.ssl_image_classifier import SSLClassifierContainer
+        if self.is_debug_model:
+            self.pl_limit_train_batches = 1
+            self.pl_limit_val_batches = 1
         self.total_num_gpus = self.num_gpus_per_node * self.num_nodes
         self._load_config()
         # If you're using the same data for training and linear head, allow the user to specify the dataset only
@@ -271,7 +274,4 @@ class SSLContainer(LightningContainer):
 
     def get_trainer_arguments(self) -> Dict[str, Any]:
         trainer_kwargs: Dict[str, Any] = {"callbacks": self.online_eval_callback}
-        if self.is_debug_model:
-            self.pl_limit_train_batches = 1
-            self.pl_limit_val_batches = 1
         return trainer_kwargs
