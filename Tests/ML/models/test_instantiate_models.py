@@ -10,6 +10,7 @@ import pytest
 
 from InnerEye.Common.common_util import logging_to_stdout, namespace_to_path
 from InnerEye.Common.output_directories import OutputFolderForTests
+from InnerEye.ML.configs.ssl.CXR_SSL_configs import NIH_RSNA_BYOL
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling, generate_and_print_model_summary
 from Tests.ML.configs.DummyModel import DummyModel
@@ -171,3 +172,15 @@ def test_run_model_with_invalid_trainer_arguments(test_output_dirs: OutputFolder
     with pytest.raises(Exception) as ex:
         model_train_unittest(config=None, dirs=test_output_dirs, lightning_container=container)
     assert "no_such_argument" in str(ex)
+
+
+def test_load_container_with_limit_batches() -> None:
+    """
+    Test if we can load a container and override the pl_limit_train_batches flag
+    """
+    runner = default_runner()
+    args = ["", "--model=NIH_RSNA_BYOL", "--pl_limit_train_batches=1"]
+    with mock.patch("sys.argv", args):
+        runner.parse_and_load_model()
+    assert isinstance(runner.lightning_container, NIH_RSNA_BYOL)
+    assert runner.lightning_container.pl_limit_train_batches == 1
