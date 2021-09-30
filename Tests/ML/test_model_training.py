@@ -7,11 +7,13 @@ import os
 import shutil
 from pathlib import Path
 from typing import Any, Dict, List
+from unittest import mock
 
 import h5py
 import numpy as np
 import pandas as pd
 import pytest
+import torch
 from torch.utils.data import DataLoader
 
 from InnerEye.Common import fixed_paths
@@ -26,7 +28,7 @@ from InnerEye.ML.config import MixtureLossComponent, SegmentationLoss
 from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
 from InnerEye.ML.dataset.sample import CroppedSample
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
-from InnerEye.ML.lightning_loggers import StoringLogger
+from InnerEye.ML.lightning_loggers import StoringLogger, log_on_epoch
 from InnerEye.ML.model_training import aggregate_and_create_subject_metrics_file
 from InnerEye.ML.models.losses.mixture import MixtureLoss
 from InnerEye.ML.utils.io_util import load_nifti_image
@@ -385,3 +387,64 @@ def test_storing_logger() -> None:
     # Add more metrics for key1, so that we also test the case that the results are already a list
     logger.log_metrics({"epoch": epoch, key1: value3})
     assert logger.extract_by_prefix(epoch=epoch) == {key1: [value1, value3, value3], key2: value2}
+
+
+def test_log_on_epoch() -> None:
+    """
+    Tests if the helper function to log metrics per epoch works.
+    """
+    module = mock.MagicMock()
+    module.trainer = None
+    with pytest.raises(AssertionError) as ex:
+        log_on_epoch(module, metrics={"foo": 1})
+    assert "No trainer is set" in str(ex)
+    module.trainer = mock.MagicMock()
+    module.trainer.world_size = 1
+    with pytest.raises(ValueError) as ex:
+        log_on_epoch(module, name="foo")
+    assert "'name' and 'value' must be provided" in str(ex)
+    with pytest.raises(ValueError) as ex:
+        log_on_epoch(module, value=1.0)
+    assert "'name' and 'value' must be provided" in str(ex)
+    foo_value = 1
+    metrics = {"bar": torch.tensor(2.0)}
+    module.device = 'cpu'
+    module.log_dict = mock.MagicMock()
+    log_on_epoch(module, name="foo", value=foo_value, metrics=metrics)
+    # Test if all metrics that are not tensors are converted to floating point tensors
+    actual_args = module.log_dict.call_args
+    actual_metrics = actual_args[0][0]
+    for metric_name in ["foo", "bar"]:
+        assert metric_name in actual_metrics, f"Metric missing: {metric_name}"
+        assert torch.is_tensor(actual_metrics[metric_name]), f"Metric {metric_name}: not a tensor"
+        assert actual_metrics[metric_name].dtype == torch.float, f"Metric {metric_name}: should be float tensor"
+    assert actual_metrics["foo"].item() == float(foo_value)
+    # Default arguments for the call to module.log
+    assert actual_args[1] == {'on_epoch': True,
+                              'on_step': False,
+                              'reduce_fx': torch.mean,
+                              'sync_dist': False,
+                              'sync_dist_op': 'mean'}, "Failed for world_size==1"
+    # Test if sync_dist is computed correctly from world size: world size is now 2, so sync_dist should be True
+    module.trainer.world_size = 2
+    log_on_epoch(module, metrics=metrics)
+    assert module.log_dict.call_args[1] == {'on_epoch': True,
+                                            'on_step': False,
+                                            'reduce_fx': torch.mean,
+                                            'sync_dist': True,
+                                            'sync_dist_op': 'mean'}, "Failed for world_size==2"
+    # Test if overrides for sync_dist and the other aggregation args are passed correctly
+    module.trainer.world_size = 2
+    log_on_epoch(module, metrics=metrics, reduce_fx="reduce", sync_dist=False, sync_dist_op="nothing")  # type: ignore
+    assert module.log_dict.call_args[1] == {'on_epoch': True,
+                                            'on_step': False,
+                                            'sync_dist': False,
+                                            'reduce_fx': "reduce",
+                                            'sync_dist_op': "nothing"}, "Failed for sync_dist==True"
+    module.trainer.world_size = 1
+    log_on_epoch(module, metrics=metrics, reduce_fx="reduce", sync_dist=True, sync_dist_op="nothing")  # type: ignore
+    assert module.log_dict.call_args[1] == {'on_epoch': True,
+                                            'on_step': False,
+                                            'sync_dist': True,
+                                            'reduce_fx': "reduce",
+                                            'sync_dist_op': "nothing"}, "Failed for sync_dist==True"

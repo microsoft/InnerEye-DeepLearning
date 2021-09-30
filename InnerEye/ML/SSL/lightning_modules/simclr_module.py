@@ -15,6 +15,7 @@ from torch.optim.lr_scheduler import _LRScheduler
 
 from InnerEye.ML.SSL.encoders import SSLEncoder
 from InnerEye.ML.SSL.utils import SSLDataModuleType, manual_optimization_step
+from InnerEye.ML.lightning_loggers import log_on_epoch
 
 SingleBatchType = Tuple[List, T]
 BatchType = Union[Dict[SSLDataModuleType, SingleBatchType], SingleBatchType]
@@ -66,7 +67,13 @@ class SimCLRInnerEye(SimCLR):
         if optimizer_idx != 0:
             return
         loss = self.shared_step(batch)
+        log_on_epoch(self, "simclr/train/loss", loss)
         manual_optimization_step(self, loss)
+
+    def validation_step(self, batch: BatchType, batch_idx: int) -> T:  # type: ignore
+        loss = self.shared_step(batch)
+        log_on_epoch(self, "simclr/val/loss", loss)
+        return loss
 
     def shared_step(self, batch: BatchType) -> T:
         batch = batch[SSLDataModuleType.ENCODER] if isinstance(batch, dict) else batch

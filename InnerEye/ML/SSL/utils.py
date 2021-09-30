@@ -6,7 +6,7 @@
 import logging
 from enum import Enum
 from pathlib import Path
-from typing import Any, Mapping, Optional
+from typing import Any, Optional
 
 import torch
 from pytorch_lightning import LightningModule
@@ -133,20 +133,6 @@ def manual_optimization_step(pl: LightningModule, loss: torch.Tensor, optimizer_
     if pl.trainer.is_last_batch:
         scheduler = get_from_list_or_singleton(pl.lr_schedulers(), "LR schedulers")
         scheduler.step()
-
-
-def log_on_epoch(module: LightningModule, dictionary: Mapping[str, Any]) -> None:
-    """
-    Write a dictionary with metrics to the loggers of the given module. The metrics in question are always logged
-    upon epoch completion, using the default aggregation function across GPUs (mean)
-    :param module: The PyTorch Lightning module where the metrics should be logged.
-    :param dictionary: A dictionary with metrics.
-    """
-    assert module.trainer is not None, "No trainer is set for this module."
-    module.log_dict(dictionary,
-                    on_epoch=True,
-                    on_step=False,
-                    sync_dist=module.trainer.world_size > 0)
 
 
 def SSLModelLoader(ssl_class: Any, num_classes: int) -> Any:

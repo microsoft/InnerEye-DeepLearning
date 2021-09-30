@@ -10,7 +10,7 @@ from torch.nn import functional as F
 from torchmetrics import Metric
 
 from InnerEye.ML.SSL.encoders import get_encoder_output_dim
-from InnerEye.ML.SSL.utils import log_on_epoch
+from InnerEye.ML.lightning_loggers import log_on_epoch
 from InnerEye.ML.dataset.scalar_sample import ScalarItem
 from InnerEye.ML.lightning_container import LightningModuleWithOptimizer
 from InnerEye.ML.lightning_metrics import Accuracy05, AreaUnderPrecisionRecallCurve, AreaUnderRocCurve
@@ -80,16 +80,16 @@ class SSLClassifier(LightningModuleWithOptimizer, DeviceAwareModule):
 
     def training_step(self, batch: Any, batch_id: int, *args: Any, **kwargs: Any) -> Any:  # type: ignore
         loss = self.shared_step(batch, True)
-        log_on_epoch(self, {"train/loss": loss})
+        log_on_epoch(self, "train/loss", loss)
         for metric in self.train_metrics:
-            log_on_epoch(self, {f"train/{metric.name}": metric})
+            log_on_epoch(self, f"train/{metric.name}", metric)
         return loss
 
     def validation_step(self, batch: Any, batch_id: int, *args: Any, **kwargs: Any) -> None:  # type: ignore
         loss = self.shared_step(batch, is_training=False)
-        log_on_epoch(self, {'val/loss': loss})
+        log_on_epoch(self, 'val/loss', loss)
         for metric in self.val_metrics:
-            log_on_epoch(self, {f"val/{metric.name}": metric})
+            log_on_epoch(self, f"val/{metric.name}", metric)
 
     def get_input_tensors(self, item: ScalarItem) -> List[torch.Tensor]:
         """

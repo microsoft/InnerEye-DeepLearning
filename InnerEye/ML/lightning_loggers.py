@@ -3,8 +3,12 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
-from typing import Any, Dict, Iterable, List, Optional
+import numbers
+import operator
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional
 
+import torch
+from pytorch_lightning import LightningModule
 from pytorch_lightning.loggers import LightningLoggerBase
 from pytorch_lightning.utilities import rank_zero_only
 
@@ -187,3 +191,51 @@ class AzureMLLogger(LightningLoggerBase):
 
     def version(self) -> int:
         return 0
+
+
+def log_on_epoch(module: LightningModule,
+                 name: Optional[str] = None,
+                 value: Optional[Any] = None,
+                 metrics: Optional[Mapping[str, Any]] = None,
+                 reduce_fx: Callable = torch.mean,
+                 sync_dist: Optional[bool] = None,
+                 sync_dist_op: Any = "mean") -> None:
+    """
+    Write a dictionary with metrics and/or an individual metric as a name/value pair to the loggers of the given module.
+    Metrics are always logged upon epoch completion.
+    The metrics in question first synchronized across GPUs if DDP with >1 node is used. Afterwards, they are aggregated
+    across all steps via the reduce_fx (default: mean).
+    Metrics that are fed in a plain numbers rather then tensors (for example, plain Python integers) are converted
+    to tensors before logging.
+
+    :param name: The name of the metric to log.
+    :param value: The actual value of the metric to log.
+    :param metrics: A dictionary with metrics to log.
+    :param module: The PyTorch Lightning module where the metrics should be logged.
+    :param sync_dist: If not None, use this value for the sync_dist argument to module.log. If None,
+    set it automatically depending on the use of DDP. Set this to False if you want to log metrics that are only
+    available on Rank 0 of a DDP job.
+    :param reduce_fx: The reduce function to apply to the per-step values, after synchronizing the tensors across GPUs.
+    Default: torch.mean
+    :param sync_dist_op: The reduce operation to use when synchronizing the tensors across GPUs. This must be
+    a value recognized by sync_ddp: Either 'None' to use 'sum' as aggregate, or 'mean' or 'avg'
+    """
+    assert module.trainer is not None, "No trainer is set for this module."
+    if operator.xor(name is None, value is None):
+        raise ValueError("Both or neither of 'name' and 'value' must be provided.")
+    sync_dist = module.trainer.world_size > 1 if sync_dist is None else sync_dist
+    metrics = metrics or {}
+    if name is not None:
+        metrics[name] = value
+    metrics_as_tensors = {
+        key: torch.tensor(value, dtype=torch.float, device=module.device)
+        if isinstance(value, numbers.Number)
+        else value
+        for key, value in metrics.items()
+    }
+    module.log_dict(metrics_as_tensors,
+                    on_epoch=True,
+                    on_step=False,
+                    sync_dist=sync_dist,
+                    reduce_fx=reduce_fx,
+                    sync_dist_op=sync_dist_op)
