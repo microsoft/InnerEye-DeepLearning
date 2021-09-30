@@ -12,7 +12,6 @@ from pytorch_lightning import LightningModule, Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.plugins import DDPPlugin
-from pytorch_lightning.utilities import rank_zero_only
 
 from InnerEye.Azure.azure_runner import ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK
 from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
@@ -22,7 +21,7 @@ from InnerEye.ML.common import ModelExecutionMode, RECOVERY_CHECKPOINT_FILE_NAME
 from InnerEye.ML.deep_learning_config import ARGS_TXT, VISUALIZATION_FOLDER
 from InnerEye.ML.lightning_base import InnerEyeContainer, InnerEyeLightning
 from InnerEye.ML.lightning_container import LightningContainer
-from InnerEye.ML.lightning_loggers import AzureMLLogger, StoringLogger
+from InnerEye.ML.lightning_loggers import AzureMLLogger, StoringLogger, log_on_epoch
 from InnerEye.ML.lightning_models import SUBJECT_OUTPUT_PER_RANK_PREFIX, ScalarLightning, \
     get_subject_output_file_per_rank
 
@@ -95,9 +94,9 @@ class InnerEyeRecoveryCheckpointCallback(ModelCheckpoint):
                          mode="max",
                          save_last=False)
 
-    @rank_zero_only
     def on_train_epoch_start(self, trainer: Trainer, pl_module: LightningModule, unused: bool = None) -> None:
-        pl_module.log(name="epoch_started", value=trainer.current_epoch)  # type: ignore
+        # The metric to monitor must be logged on all ranks in distributed training
+        log_on_epoch(pl_module, name="epoch_started", value=trainer.current_epoch, sync_dist=False)  # type: ignore
 
 
 def create_lightning_trainer(container: LightningContainer,
