@@ -205,7 +205,7 @@ def log_on_epoch(module: LightningModule,
     Metrics are always logged upon epoch completion.
     The metrics in question first synchronized across GPUs if DDP with >1 node is used. Afterwards, they are aggregated
     across all steps via the reduce_fx (default: mean).
-    Metrics that are fed in a plain numbers rather then tensors (for example, plain Python integers) are converted
+    Metrics that are fed in as plain numbers rather than tensors (for example, plain Python integers) are converted
     to tensors before logging.
 
     :param name: The name of the metric to log.
