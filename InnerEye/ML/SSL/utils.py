@@ -14,6 +14,7 @@ from yacs.config import CfgNode
 
 from InnerEye.ML.SSL import ssl_augmentation_config
 from InnerEye.ML.lightning_container import LightningModuleWithOptimizer
+from InnerEye.ML.lightning_loggers import log_on_epoch
 
 
 class SSLDataModuleType(Enum):
@@ -102,37 +103,62 @@ def create_ssl_image_classifier(num_classes: int,
     return model
 
 
+def get_from_list_or_singleton(items: Any, index: int, fail_if_out_of_range: bool = True) -> Any:
+    """
+    Get an item with given index from a list. If `items` is not a list, it is possible to retrieve
+    that very element with index 0. This is due to PL's handling of optimizers: self.optimizers() is a single
+    Optimizer object if only one is used, but a list if multiple are provided.
+
+    :param fail_if_out_of_range: If True, raise an IndexError if the given index is outside the bounds of the list.
+    If False, return None if the index is outside the bounds.
+    :param index: The index of the item to retrieve.
+    :param items: A list of items, or a single item.
+    """
+    if not isinstance(items, list):
+        items = [items]
+    if index < len(items):
+        return items[index]
+    if fail_if_out_of_range:
+        raise IndexError(f"Requested index {index}, but there are only {len(items)} items available.")
+    else:
+        return None
+
+
 def manual_optimization_step(pl: LightningModule, loss: torch.Tensor, optimizer_idx: int = 0) -> None:
     """
     Execute a manual optimization step in the given PL module, with the provided loss value. This will ONLY update
-    the optimizer with the given index.
+    the optimizer with the given index. At the end of an epoch (last batch), the learning rate scheduler will be
+    updated too.
 
     :param pl: The module on which the optimization step should be run.
     :param loss: The loss tensor.
     :param optimizer_idx: The index of the optimizer where the optimization step should be taken.
     """
 
-    def get_from_list_or_singleton(items: Any, message: str) -> Any:
-        """
-        Get an item with index optimizer_idx from the given list. If `items` is not a list, it is possible to retrieve
-        that very element with index 0. This is due to PL's handling of optimizers: self.optimizers() is a single
-        Optimizer object if only one is used, but a list if multiple are provided.
-        """
-        if not isinstance(items, list):
-            items = [items]
-        if optimizer_idx >= len(items):
-            raise ValueError(f"Requested to optimize for index {optimizer_idx}, but there are only {len(items)} "
-                             f"{message} available.")
-        return items[optimizer_idx]
-
-    optimizer = get_from_list_or_singleton(pl.optimizers(), "optimizers")
+    optimizer = get_from_list_or_singleton(pl.optimizers(), optimizer_idx)
     optimizer.zero_grad()
     pl.manual_backward(loss)
     optimizer.step()
     assert pl.trainer is not None, "No trainer has been set for this module yet?"
     if pl.trainer.is_last_batch:
-        scheduler = get_from_list_or_singleton(pl.lr_schedulers(), "LR schedulers")
-        scheduler.step()
+        # Try to get the LR scheduler for this optimizer. If there is no scheduler, just skip. This should
+        # account for cases where the second optimizer has a fixed LR and no scheduler.
+        scheduler = get_from_list_or_singleton(pl.lr_schedulers(), optimizer_idx, fail_if_out_of_range=False)
+        if scheduler is not None:
+            scheduler.step()
+
+
+def log_learning_rate(pl: LightningModule, prefix: str = "") -> None:
+    """
+    Logs the learning rate that the given module uses. If there are multiple learning rate schedulers, only the one
+    for scheduler [0] is logged.
+    :param pl: The module that contains the LR scheduler.
+    :param prefix: The prefix to use for logging the learning rate. The logged metric name is prefix + "learning_rate"
+    """
+    scheduler = get_from_list_or_singleton(pl.lr_schedulers(), 0, fail_if_out_of_range=False)
+    if scheduler is not None:
+        lr = scheduler.get_last_lr()[0]
+        log_on_epoch(pl, prefix + "learning_rate", lr, sync_dist=False)
 
 
 def SSLModelLoader(ssl_class: Any, num_classes: int) -> Any:
