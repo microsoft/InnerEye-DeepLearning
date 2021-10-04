@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Any, Optional
 
 import torch
-from pl_bolts.models.self_supervised.simclr.simclr_module import SyncFunction
 from pytorch_lightning import LightningModule
 from yacs.config import CfgNode
 
@@ -160,19 +159,6 @@ def log_learning_rate(pl: LightningModule, prefix: str = "") -> None:
     if scheduler is not None:
         lr = scheduler.get_last_lr()[0]
         log_on_epoch(pl, prefix + "learning_rate", lr, sync_dist=False)
-
-
-def mean_across_gpus(t: torch.Tensor) -> torch.Tensor:
-    """
-    Synchronizes the given tensor across all GPUs in distributed training, and then computes the mean across the
-    batch dimension. If the present code is not using distributed computing, the mean across the first (batch)
-    dimension is returned.
-    :param t: The tensor to synchronize
-    :return: The mean across the first (batch) dimension of the input tensor
-    """
-    if torch.distributed.is_available() and torch.distributed.is_initialized():
-        t = SyncFunction.apply(t)
-    return torch.mean(t, dim=0)
 
 
 def SSLModelLoader(ssl_class: Any, num_classes: int) -> Any:

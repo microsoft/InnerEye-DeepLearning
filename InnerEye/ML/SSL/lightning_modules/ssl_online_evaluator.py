@@ -13,7 +13,7 @@ from torch import Tensor as T
 from torch.nn import functional as F
 from torchmetrics import Metric
 
-from InnerEye.ML.SSL.utils import SSLDataModuleType, mean_across_gpus
+from InnerEye.ML.SSL.utils import SSLDataModuleType
 from InnerEye.ML.lightning_loggers import log_on_epoch
 from InnerEye.ML.lightning_metrics import Accuracy05, AreaUnderPrecisionRecallCurve, AreaUnderRocCurve
 
@@ -128,7 +128,6 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
         if ids_linear_head not in self.visited_ids:
             self.visited_ids.add(ids_linear_head)
             loss = self.shared_step(batch, pl_module, is_training=True)
-            loss = mean_across_gpus(loss)
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
