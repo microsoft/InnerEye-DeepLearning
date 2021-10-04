@@ -79,7 +79,7 @@ def split_recovery_id(id: str) -> Tuple[str, str]:
             raise ValueError("The recovery ID was not in the expected format: {}".format(id))
         return (match.group(1) or match.group(2)), id
 
-def fetch_run_using_mlflow( run_recovery_id: str):
+def fetch_run_using_mlflow(run_recovery_id: str):
     experiment, run = split_recovery_id(run_recovery_id)
     run_to_recover = MlflowClient().get_run(run)
     return run_to_recover

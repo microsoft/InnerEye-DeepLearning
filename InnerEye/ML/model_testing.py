@@ -109,7 +109,7 @@ def segmentation_model_test(config: SegmentationModelBase,
         logging.info(f"Mean Dice: {epoch_average_dice:4f}")
         if model_proc == ModelProcessing.ENSEMBLE_CREATION:
             # For the upload, we want the path without the "OTHER_RUNS/ENSEMBLE" prefix.
-            name = str(get_best_epoch_results_path(data_split, ModelProcessing.DEFAULT))
+            name = str(get_best_epoch_results_path(execution_mode, ModelProcessing.DEFAULT))
             # PARENT_RUN_CONTEXT.upload_folder(name=name, path=str(epoch_results_folder))
             MlflowClient().log_artifacts(PARENT_RUN_CONTEXT.info.run_id, local_dir=str(epoch_results_folder), artifact_path=name)
     return InferenceMetricsForSegmentation(execution_mode=execution_mode, metrics=result)
