@@ -28,7 +28,7 @@ from InnerEye.ML.config import MixtureLossComponent, SegmentationLoss
 from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
 from InnerEye.ML.dataset.sample import CroppedSample
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
-from InnerEye.ML.lightning_loggers import StoringLogger, log_on_epoch
+from InnerEye.ML.lightning_loggers import StoringLogger, log_learning_rate, log_on_epoch
 from InnerEye.ML.model_training import aggregate_and_create_subject_metrics_file
 from InnerEye.ML.models.losses.mixture import MixtureLoss
 from InnerEye.ML.utils.io_util import load_nifti_image
@@ -448,3 +448,42 @@ def test_log_on_epoch() -> None:
                                             'sync_dist': True,
                                             'reduce_fx': "reduce",
                                             'sync_dist_op': "nothing"}, "Failed for sync_dist==True"
+
+
+def test_log_learning_rate_singleton() -> None:
+    """
+    Test the method that logs learning rates, when there is a single LR scheduler.
+    """
+    module = mock.MagicMock()
+    module.lr_schedulers = mock.MagicMock(return_value=None)
+    with pytest.raises(ValueError) as ex:
+        log_learning_rate(module)
+        assert "can only be used during training" in str(ex)
+    scheduler = mock.MagicMock()
+    lr = 1.234
+    scheduler.get_last_lr = mock.MagicMock(return_value=[lr])
+    module.lr_schedulers = mock.MagicMock(return_value=scheduler)
+    with mock.patch("InnerEye.ML.lightning_loggers.log_on_epoch") as mock_log_on_epoch:
+        log_learning_rate(module)
+        assert mock_log_on_epoch.call_args[0] == (module,)
+        assert mock_log_on_epoch.call_args[1] == {'metrics': {'learning_rate': lr}}
+
+
+def test_log_learning_rate_multiple() -> None:
+    """
+    Test the method that logs learning rates, when there are multiple schedulers with non-scalar return values.
+    """
+    scheduler1 = mock.MagicMock()
+    lr1 = [1]
+    scheduler1.get_last_lr = mock.MagicMock(return_value=lr1)
+    scheduler2 = mock.MagicMock()
+    lr2 = [2, 3]
+    scheduler2.get_last_lr = mock.MagicMock(return_value=lr2)
+    module = mock.MagicMock()
+    module.lr_schedulers = mock.MagicMock(return_value=[scheduler1, scheduler2])
+    with mock.patch("InnerEye.ML.lightning_loggers.log_on_epoch") as mock_log_on_epoch:
+        log_learning_rate(module, name="foo")
+        assert mock_log_on_epoch.call_args[0] == (module,)
+        assert mock_log_on_epoch.call_args[1] == {'metrics': {'foo/0/0': lr1[0],
+                                                              'foo/1/0': lr2[0],
+                                                              'foo/1/1': lr2[1]}}

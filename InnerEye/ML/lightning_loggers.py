@@ -203,8 +203,8 @@ def log_on_epoch(module: LightningModule,
     """
     Write a dictionary with metrics and/or an individual metric as a name/value pair to the loggers of the given module.
     Metrics are always logged upon epoch completion.
-    The metrics in question first synchronized across GPUs if DDP with >1 node is used. Afterwards, they are aggregated
-    across all steps via the reduce_fx (default: mean).
+    The metrics in question first synchronized across GPUs if DDP with >1 node is used, using the sync_dist_op
+    (default: mean). Afterwards, they are aggregated across all steps via the reduce_fx (default: mean).
     Metrics that are fed in as plain numbers rather than tensors (for example, plain Python integers) are converted
     to tensors before logging, to enable synchronization across GPUs if needed.
 
@@ -218,7 +218,7 @@ def log_on_epoch(module: LightningModule,
     :param reduce_fx: The reduce function to apply to the per-step values, after synchronizing the tensors across GPUs.
     Default: torch.mean
     :param sync_dist_op: The reduce operation to use when synchronizing the tensors across GPUs. This must be
-    a value recognized by sync_ddp: Either 'None' to use 'sum' as aggregate, or 'mean' or 'avg'
+    a value recognized by sync_ddp: 'sum', 'mean', 'avg'
     """
     assert module.trainer is not None, "No trainer is set for this module."
     if operator.xor(name is None, value is None):
@@ -262,6 +262,6 @@ def log_learning_rate(module: LightningModule, name: str = "learning_rate") -> N
     logged = {}
     for i, scheduler in enumerate(schedulers):
         for j, lr_j in enumerate(scheduler.get_last_lr()):
-            full_name = name if singleton_lr else f"name/{i}/{j}"
+            full_name = name if singleton_lr else f"{name}/{i}/{j}"
             logged[full_name] = lr_j
     log_on_epoch(module, metrics=logged)
