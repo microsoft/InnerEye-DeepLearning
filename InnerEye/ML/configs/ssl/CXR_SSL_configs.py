@@ -36,6 +36,7 @@ class NIH_RSNA_BYOL(SSLContainer):
                          ssl_augmentation_config=path_encoder_augmentation_cxr,
                          extra_azure_dataset_ids=[RSNA_AZURE_DATASET_ID],
                          linear_head_augmentation_config=path_linear_head_augmentation_cxr)
+        self.pl_find_unused_parameters = True
 
 class NIH_RSNA_SimCLR(SSLContainer):
     def __init__(self) -> None:
@@ -52,6 +53,7 @@ class NIH_RSNA_SimCLR(SSLContainer):
                          ssl_augmentation_config=path_encoder_augmentation_cxr,
                          extra_azure_dataset_ids=[RSNA_AZURE_DATASET_ID],
                          linear_head_augmentation_config=path_linear_head_augmentation_cxr)
+        self.pl_find_unused_parameters = True
 
 
 class CXRImageClassifier(SSLClassifierContainer):
