@@ -16,8 +16,8 @@ from torch.optim import Adam
 
 from InnerEye.ML.SSL.lightning_modules.byol.byol_models import SiameseArm
 from InnerEye.ML.SSL.lightning_modules.byol.byol_moving_average import ByolMovingAverageWeightUpdate
-from InnerEye.ML.SSL.utils import SSLDataModuleType, log_learning_rate, manual_optimization_step
-from InnerEye.ML.lightning_loggers import log_on_epoch
+from InnerEye.ML.SSL.utils import SSLDataModuleType, manual_optimization_step
+from InnerEye.ML.lightning_loggers import log_learning_rate, log_on_epoch
 
 SingleBatchType = Tuple[List, T]
 BatchType = Union[Dict[SSLDataModuleType, SingleBatchType], SingleBatchType]
@@ -109,7 +109,7 @@ class BYOLInnerEye(pl.LightningModule):
         loss = self.shared_step(batch, batch_idx)
         log_on_epoch(self, metrics={'byol/train/loss': loss, 'byol/tau': self.weight_callback.current_tau})
         manual_optimization_step(self, loss)
-        log_learning_rate(self, prefix="byol/")
+        log_learning_rate(self, name="byol/learning_rate")
 
     def validation_step(self, batch: BatchType, batch_idx: int, **kwargs: Any) -> T:  # type: ignore
         loss = self.shared_step(batch, batch_idx)

@@ -14,7 +14,6 @@ from yacs.config import CfgNode
 
 from InnerEye.ML.SSL import ssl_augmentation_config
 from InnerEye.ML.lightning_container import LightningModuleWithOptimizer
-from InnerEye.ML.lightning_loggers import log_on_epoch
 
 
 class SSLDataModuleType(Enum):
@@ -146,19 +145,6 @@ def manual_optimization_step(pl: LightningModule, loss: torch.Tensor, optimizer_
         scheduler = get_from_list_or_singleton(pl.lr_schedulers(), optimizer_idx, fail_if_out_of_range=False)
         if scheduler is not None:
             scheduler.step()
-
-
-def log_learning_rate(pl: LightningModule, prefix: str = "") -> None:
-    """
-    Logs the learning rate that the given module uses. If there are multiple learning rate schedulers, only the one
-    for scheduler [0] is logged.
-    :param pl: The module that contains the LR scheduler.
-    :param prefix: The prefix to use for logging the learning rate. The logged metric name is prefix + "learning_rate"
-    """
-    scheduler = get_from_list_or_singleton(pl.lr_schedulers(), 0, fail_if_out_of_range=False)
-    if scheduler is not None:
-        lr = scheduler.get_last_lr()[0]
-        log_on_epoch(pl, prefix + "learning_rate", lr, sync_dist=False)
 
 
 def SSLModelLoader(ssl_class: Any, num_classes: int) -> Any:

@@ -14,9 +14,8 @@ from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 
 from InnerEye.ML.SSL.encoders import SSLEncoder
-from InnerEye.ML.SSL.utils import SSLDataModuleType, log_learning_rate, \
-    manual_optimization_step
-from InnerEye.ML.lightning_loggers import log_on_epoch
+from InnerEye.ML.SSL.utils import SSLDataModuleType, manual_optimization_step
+from InnerEye.ML.lightning_loggers import log_learning_rate, log_on_epoch
 
 SingleBatchType = Tuple[List, T]
 BatchType = Union[Dict[SSLDataModuleType, SingleBatchType], SingleBatchType]
@@ -69,8 +68,8 @@ class SimCLRInnerEye(SimCLR):
             return
         loss = self.shared_step(batch)
         log_on_epoch(self, "simclr/train/loss", loss)
+        log_learning_rate(self, name="simclr/learning_rate")
         manual_optimization_step(self, loss)
-        log_learning_rate(self, prefix="simclr/")
 
     def validation_step(self, batch: BatchType, batch_idx: int) -> T:  # type: ignore
         loss = self.shared_step(batch)

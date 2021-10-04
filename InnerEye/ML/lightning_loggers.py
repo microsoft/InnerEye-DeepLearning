@@ -206,7 +206,7 @@ def log_on_epoch(module: LightningModule,
     The metrics in question first synchronized across GPUs if DDP with >1 node is used. Afterwards, they are aggregated
     across all steps via the reduce_fx (default: mean).
     Metrics that are fed in as plain numbers rather than tensors (for example, plain Python integers) are converted
-    to tensors before logging.
+    to tensors before logging, to enable synchronization across GPUs if needed.
 
     :param name: The name of the metric to log.
     :param value: The actual value of the metric to log.
@@ -239,3 +239,29 @@ def log_on_epoch(module: LightningModule,
                     sync_dist=sync_dist,
                     reduce_fx=reduce_fx,
                     sync_dist_op=sync_dist_op)
+
+
+def log_learning_rate(module: LightningModule, name: str = "learning_rate") -> None:
+    """
+    Logs the learning rate(s) used by the given module. Multiple learning rate schedulers and/or multiple rates per
+    scheduler are supported. The learning rates are logged under the given name. If multiple scheduler and/or multiple
+    rates are used, a suffix like "/0/1" is added, to indicate the learning rate for scheduler 0, index 1, for example.
+    Learning rates are logged on epoch.
+
+    :param module: The module for which the learning rates should be logged.
+    :param name: The name to use when logging the learning rates.
+    """
+    schedulers = module.lr_schedulers()
+    if schedulers is None:
+        raise ValueError("Learning rate logging can only be used during training.")
+    single_scheduler = not isinstance(schedulers, list)
+    if single_scheduler:
+        schedulers = [schedulers]
+    lr_0 = schedulers[0].get_last_lr()
+    singleton_lr = single_scheduler and len(lr_0) == 1
+    logged = {}
+    for i, scheduler in enumerate(schedulers):
+        for j, lr_j in enumerate(scheduler.get_last_lr()):
+            full_name = name if singleton_lr else f"name/{i}/{j}"
+            logged[full_name] = lr_j
+    log_on_epoch(module, metrics=logged)
