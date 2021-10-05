@@ -75,9 +75,9 @@ class SSLContainer(LightningContainer):
                                                       "augmentations. Ignored for CIFAR10 example")
     ssl_training_dataset_name = param.ClassSelector(class_=SSLDatasetName, doc="The name of the dataset")
     ssl_training_batch_size = param.Integer(
-        doc="Total training batch size, will be divided across the number of gpus used for training. For example: if "
-            "you specify ssl_training_batch_size=1600 and use 4 nodes with 4 gpus each (i.e. total of 16 GPUs), "
-            "the code will provide a per-gpu batch size of 100")
+        doc="Training batch size per GPU. The effective batch size will be the number of GPUs times this number. "
+            "For example, if you specify ssl_training_batch_size=100 and use 4 nodes with 4 gpus each, "
+            "the effective batch size will be 1600.")
     ssl_training_type = param.ClassSelector(class_=SSLTrainingType, doc="Which algorithm to use for SSL training")
     ssl_encoder = param.ClassSelector(class_=EncoderName, doc="Which encoder to use for SSL")
     use_balanced_binary_loss_for_linear_head = param.Boolean(default=False,
@@ -210,16 +210,17 @@ class SSLContainer(LightningContainer):
         train_transforms, val_transforms = self._get_transforms(datamodule_args.augmentation_params,
                                                                 datamodule_args.dataset_name,
                                                                 is_ssl_encoder_module)
-        batch_size_per_gpu = datamodule_args.batch_size // self.total_num_gpus if self.total_num_gpus > 0 else \
-            datamodule_args.batch_size
-        logging.info(f"Batch size per gpu: {batch_size_per_gpu}")
+        batch_multiplier = self.total_num_gpus if self.total_num_gpus > 0 else 1
+        effective_batch_size = datamodule_args.batch_size * batch_multiplier
+        logging.info(f"Batch size per GPU: {datamodule_args.batch_size}")
+        logging.info(f"Effective batch size on {batch_multiplier} GPUs: {effective_batch_size}")
         dm = InnerEyeVisionDataModule(dataset_cls=self._SSLDataClassMappings[datamodule_args.dataset_name],
                                       return_index=not is_ssl_encoder_module,  # index is only needed for linear head
                                       train_transforms=train_transforms,
                                       val_split=0.1,
                                       val_transforms=val_transforms,
                                       data_dir=str(datamodule_args.dataset_path),
-                                      batch_size=batch_size_per_gpu,
+                                      batch_size=datamodule_args.batch_size,
                                       num_workers=self.num_workers,
                                       seed=self.random_seed,
                                       drop_last=self.drop_last)
