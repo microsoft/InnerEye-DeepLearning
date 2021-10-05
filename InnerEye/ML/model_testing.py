@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 from mlflow.tracking.client import MlflowClient
 import numpy as np
 
-from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, PARENT_RUN_CONTEXT
+from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, PARENT_RUN_CONTEXT, get_parent_run_or_default
 from InnerEye.Common.common_util import BEST_EPOCH_FOLDER_NAME, METRICS_AGGREGATES_FILE, ModelProcessing, \
     SUBJECT_METRICS_FILE_NAME, get_best_epoch_results_path, is_linux, logging_section
 from InnerEye.Common.fixed_paths import DEFAULT_RESULT_IMAGE_NAME
@@ -111,7 +111,7 @@ def segmentation_model_test(config: SegmentationModelBase,
             # For the upload, we want the path without the "OTHER_RUNS/ENSEMBLE" prefix.
             name = str(get_best_epoch_results_path(execution_mode, ModelProcessing.DEFAULT))
             # PARENT_RUN_CONTEXT.upload_folder(name=name, path=str(epoch_results_folder))
-            MlflowClient().log_artifacts(PARENT_RUN_CONTEXT.info.run_id, local_dir=str(epoch_results_folder), artifact_path=name)
+            MlflowClient().log_artifacts(get_parent_run_or_default().info.run_id, local_dir=str(epoch_results_folder), artifact_path=name)
     return InferenceMetricsForSegmentation(execution_mode=execution_mode, metrics=result)
 
 
