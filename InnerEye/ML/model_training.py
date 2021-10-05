@@ -297,7 +297,7 @@ def model_train(checkpoint_path: Optional[Path],
                 for mode in [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL]:
                     file = mode.value + "/" + get_subject_output_file_per_rank(rank)
                     # RUN_CONTEXT.download_file(name=TEMP_PREFIX + file, output_file_path=container.outputs_folder / file)
-                    MlflowClient().download_artifacts(RUN_CONTEXT.info.run_id, path=TEMP_PREFIX + file, dst_path=container.outputs_folder / file)
+                    MlflowClient().download_artifacts(RUN_CONTEXT.info.run_id, path=TEMP_PREFIX + file, dst_path=container.outputs_folder)
         # Concatenate all temporary file per execution mode
         aggregate_and_create_subject_metrics_file(container.outputs_folder)
 
