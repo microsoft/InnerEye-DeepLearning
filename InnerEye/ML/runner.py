@@ -33,6 +33,7 @@ from typing import Optional, Tuple
 
 from azureml._base_sdk_common import user_agent
 from azureml.core import Run
+from mlflow.tracking.client import MlflowClient
 
 from InnerEye.Azure import azure_util
 from InnerEye.Azure.azure_config import AzureConfig, ParserResult, SourceConfig
@@ -251,7 +252,8 @@ class Runner:
             # A build step will pick up that file and publish it to Azure DevOps.
             # If pytest_mark is set, this file must exist.
             logging.info("Downloading pytest result file.")
-            download_pytest_result(azure_run)
+            # download_pytest_result(azure_run)
+            download_pytest_result(MlflowClient().get_run(azure_run.id))
         else:
             logging.info("No pytest_mark present, hence not downloading the pytest result file.")
         # For PR builds where we wait for job completion, the job must have ended in a COMPLETED state.
