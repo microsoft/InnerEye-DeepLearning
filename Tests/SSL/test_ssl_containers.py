@@ -12,6 +12,7 @@ import pandas as pd
 import pytest
 import torch
 from pl_bolts.models.self_supervised.resnets import ResNet
+from torch.optim.lr_scheduler import _LRScheduler
 
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import is_windows
@@ -23,6 +24,7 @@ from InnerEye.ML.SSL.lightning_modules.simclr_module import SimCLRInnerEye
 from InnerEye.ML.SSL.lightning_modules.ssl_classifier_module import SSLClassifier
 from InnerEye.ML.SSL.utils import SSLDataModuleType, SSLTrainingType
 from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+from InnerEye.ML.configs.ssl.CIFAR_SSL_configs import CIFAR10BYOL, CIFAR10SimCLR
 from InnerEye.ML.configs.ssl.CXR_SSL_configs import CXRImageClassifier
 from InnerEye.ML.runner import Runner
 from Tests.ML.utils.test_io_util import write_test_dicom
@@ -220,3 +222,41 @@ def test_innereye_ssl_container_rsna() -> None:
     assert loaded_config.model.freeze_encoder
     assert torch.isclose(loaded_config.model.class_weights, torch.tensor([0.21, 0.79]), atol=1e-6).all()  # type: ignore
     assert loaded_config.model.num_classes == 2
+
+
+def test_simclr_lr_scheduler() -> None:
+    """
+    Test if the LR scheduler has the expected warmup behaviour.
+    """
+    num_samples = 100
+    batch_size = 20
+    gpus = 1
+    max_epochs = 10
+    warmup_epochs = 2
+    model = SimCLRInnerEye(encoder_name="resnet18", dataset_name="CIFAR10",
+                           gpus=gpus, num_samples=num_samples, batch_size=batch_size,
+                           max_epochs=max_epochs, warmup_epochs=warmup_epochs)
+    # The LR scheduler used here works per step. Scheduler computes the total number of steps, in this example that's 5
+    train_iters_per_epoch = num_samples / (batch_size * gpus)
+    assert model.train_iters_per_epoch == train_iters_per_epoch
+    # Mock a second optimizer that is normally created in the SSL container
+    linear_head_optimizer = mock.MagicMock()
+    model.online_eval_optimizer = linear_head_optimizer
+    # Retrieve the scheduler and iterate it
+    _, scheduler_list = model.configure_optimizers()
+    assert isinstance(scheduler_list[0], dict)
+    assert scheduler_list[0]["interval"] == "step"
+    scheduler = scheduler_list[0]["scheduler"]
+    assert isinstance(scheduler, _LRScheduler)
+    lr = []
+    for i in range(0, int(max_epochs * train_iters_per_epoch)):
+        scheduler.step()
+        lr.append(scheduler.get_last_lr()[0])
+    # The highest learning rate is expected after the warmup epochs
+    highest_lr = np.argmax(lr)
+    assert highest_lr == int(warmup_epochs * train_iters_per_epoch - 1)
+
+    for i in range(0, highest_lr):
+        assert lr[i] < lr[i+1], f"Not strictly monotonically increasing at index {i}"
+    for i in range(highest_lr, len(lr) - 1):
+        assert lr[i] > lr[i+1], f"Not strictly monotonically decreasing at index {i}"

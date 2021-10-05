@@ -126,25 +126,36 @@ def get_from_list_or_singleton(items: Any, index: int, fail_if_out_of_range: boo
 def manual_optimization_step(pl: LightningModule, loss: torch.Tensor, optimizer_idx: int = 0) -> None:
     """
     Execute a manual optimization step in the given PL module, with the provided loss value. This will ONLY update
-    the optimizer with the given index. At the end of an epoch (last batch), the learning rate scheduler will be
-    updated too.
+    the optimizer with the given index. The learning rate scheduler will be updated too, both when updates at step
+    and updates at epoch level are chosen.
 
     :param pl: The module on which the optimization step should be run.
     :param loss: The loss tensor.
     :param optimizer_idx: The index of the optimizer where the optimization step should be taken.
     """
-
     optimizer = get_from_list_or_singleton(pl.optimizers(), optimizer_idx)
     optimizer.zero_grad()
     pl.manual_backward(loss)
     optimizer.step()
     assert pl.trainer is not None, "No trainer has been set for this module yet?"
-    if pl.trainer.is_last_batch:
-        # Try to get the LR scheduler for this optimizer. If there is no scheduler, just skip. This should
-        # account for cases where the second optimizer has a fixed LR and no scheduler.
-        scheduler = get_from_list_or_singleton(pl.lr_schedulers(), optimizer_idx, fail_if_out_of_range=False)
-        if scheduler is not None:
+    # Read out the full information about the LR scheduler from the trainer object - at module level from
+    # pl.lr_schedulers() we don't see the update frequency
+    scheduler_dict = get_from_list_or_singleton(pl.trainer.lr_schedulers, optimizer_idx, fail_if_out_of_range=False)
+    # If there is no scheduler, just skip. This should account for cases where the second optimizer has a
+    # fixed LR and no scheduler.
+    if scheduler_dict is None:
+        return
+    if scheduler_dict["frequency"] != 1:
+        NotImplementedError(f"Updates every {scheduler_dict['frequency']} steps/epochs is not implemented.")
+    interval = scheduler_dict["interval"]
+    scheduler = scheduler_dict["scheduler"]
+    if interval == "step":
+        scheduler.step()
+    elif interval == "epoch":
+        if pl.trainer.is_last_batch:
             scheduler.step()
+    else:
+        raise ValueError(f"Update interval not recognized: {interval}")
 
 
 def SSLModelLoader(ssl_class: Any, num_classes: int) -> Any:
