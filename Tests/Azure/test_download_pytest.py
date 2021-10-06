@@ -17,6 +17,14 @@ from InnerEye.Common.output_directories import OutputFolderForTests
 from Tests.ML.util import get_default_azure_config
 
 
+def _clean_dir(dir):
+    for path in dir.iterdir():
+        if path.is_dir():
+            _clean_dir(path)
+            path.rmdir()
+        if path.is_file():
+            path.unlink()
+
 def test_download_pytest_file(test_output_dirs: OutputFolderForTests) -> None:
     output_dir = test_output_dirs.root_dir
     azure_config = get_default_azure_config()
@@ -29,22 +37,17 @@ def test_download_pytest_file(test_output_dirs: OutputFolderForTests) -> None:
             print("Found runs : " + str(len(runs)))
             raise ValueError(f"Expected to get exactly 1 run in experiment {experiment.name}")
         
-        mlflow.set_tracking_uri(workspace.get_mlflow_tracking_uri())
-        mlflow.set_experiment(experiment.name)
-        # return download_pytest_result(runs[0], output_dir)
-        if not os.path.exists(output_dir):
-            os.mkdir(output_dir)
-        return download_pytest_result(MlflowClient().get_run(runs[0].id), output_dir)
+        return download_pytest_result(runs[0], output_dir)
 
     # PR 49 is a recent successful build that generated a pytest file.
     # Run 6 in that experiment was canceled did not yet write the pytest file:
     with pytest.raises(ValueError) as ex:
         get_run_and_download_pytest("refs/pull/219/merge", 6)
-    print(str(ex))
     assert "No pytest result file" in str(ex)
     downloaded = get_run_and_download_pytest("refs/pull/219/merge", 7)
     assert downloaded is not None
     assert downloaded.exists()
     # Delete the file - it should be cleaned up with the test output directories though.
     # If the file remained, it would be uploaded as a test result file to Azure DevOps
-    downloaded.unlink()
+    _clean_dir(downloaded)
+

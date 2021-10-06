@@ -16,6 +16,7 @@ from azureml.core import Experiment, Run, Workspace, get_run
 from azureml.core.conda_dependencies import CondaDependencies
 from azureml.exceptions import UserErrorException
 from mlflow.tracking import MlflowClient
+import shutil
 
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME
@@ -157,7 +158,7 @@ def fetch_child_runs(run: Run, status: Optional[str] = None,
     # children_runs = list(run.get_children(tags=RUN_RECOVERY_ID_KEY_NAME))
     children_runs = list(MlflowClient().search_runs(
         run.info.experiment_id,
-        filter_string=f"tags.{RUN_RECOVERY_FROM_ID_KEY_NAME} = `""`"
+        filter_string=f"tags.{RUN_RECOVERY_FROM_ID_KEY_NAME} = ''"
     ))
     if 0 < expected_number_cross_validation_splits != len(children_runs):
         logging.warning(
@@ -366,9 +367,33 @@ def download_run_output_file(blob_path: Path,
     # destination = destination / blob_path.name
     logging.info(f"Downloading single file from run {run.info.run_id}: {blobs_prefix} -> {str(destination)}")
     try:
-        MlflowClient().download_artifacts(run.info.run_id, blobs_prefix, str(destination))
+        location = MlflowClient().download_artifacts(run.info.run_id, blobs_prefix, str(destination))
+        logging.info(f"Downloaded single file from run {run.info.run_id}: {blobs_prefix} -> {str(location)}")
+        shutil.copy2(location, str(destination))
+        logging.info(f"Copied single file from run {run.info.run_id}: {location} -> {str(destination)}")
     except Exception as ex:
         raise ValueError(f"Unable to download file '{blobs_prefix}' from run {run.info.run_id}") from ex    
+    return destination
+
+def download_aml_run_output_file(blob_path: Path,
+                             destination: Path,
+                             run: Run) -> Path:
+    """
+    Downloads a single file from the run's default output directory: DEFAULT_AML_UPLOAD_DIR ("outputs").
+    For example, if blobs_path = "foo/bar.csv", then the run result file "outputs/foo/bar.csv" will be downloaded
+    to <destination>/bar.csv (the directory will be stripped off).
+    :param blob_path: The name of the file to download.
+    :param run: The AzureML run to download the files from
+    :param destination: Local path to save the downloaded blob to.
+    :return: Destination path to the downloaded file(s)
+    """
+    blobs_prefix = str((fixed_paths.DEFAULT_AML_UPLOAD_DIR / blob_path).as_posix())
+    destination = destination / blob_path.name
+    logging.info(f"Downloading single file from run {run.id}: {blobs_prefix} -> {str(destination)}")
+    try:
+        run.download_file(blobs_prefix, str(destination), _validate_checksum=True)
+    except Exception as ex:
+        raise ValueError(f"Unable to download file '{blobs_prefix}' from run {run.id}") from ex 
     return destination
 
 

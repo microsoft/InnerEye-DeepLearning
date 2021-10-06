@@ -49,7 +49,7 @@ def download_pytest_result(run: Run, destination_folder: Path = Path.cwd()) -> P
     """
     logging.info(f"Downloading pytest result file: {PYTEST_RESULTS_FILE}")
     try:
-        return download_run_output_file(
+        return download_aml_run_output_file(
             PYTEST_RESULTS_FILE,
             destination=destination_folder,
             run=run)
