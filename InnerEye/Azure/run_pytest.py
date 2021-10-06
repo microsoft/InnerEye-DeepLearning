@@ -11,7 +11,7 @@ from azureml.core import Run
 
 # Test result file from running pytest inside the AzureML job. This file must have a prefix that
 # matches the string in the build definition build-pr.yml, in the TrainInAzureML job.
-from InnerEye.Azure.azure_util import download_run_output_file
+from InnerEye.Azure.azure_util import download_run_output_file, download_aml_run_output_file
 
 PYTEST_RESULTS_FILE = Path("test-results-on-azure-ml.xml")
 
