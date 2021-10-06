@@ -375,6 +375,7 @@ def download_run_output_file(blob_path: Path,
         shutil.copy2(location, str(destination))
         logging.info(f"Copied single file from run {run.info.run_id}: {location} -> {str(destination)}")
     except Exception as ex:
+        logging.info(f"Error downloading file {str(es)} ")
         raise ValueError(f"Unable to download file '{blobs_prefix}' from run {run.info.run_id}") from ex    
     return destination
 
