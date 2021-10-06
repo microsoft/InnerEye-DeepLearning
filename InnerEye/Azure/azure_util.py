@@ -369,7 +369,7 @@ def download_run_output_file(blob_path: Path,
     try:
         if not os.path.isdir(str(destination)):
             logging.info(f"Directory -> {str(destination)} does not exist creating it")
-            os.mkdir(str(destination))
+            os.makedirs(str(destination))
         location = MlflowClient().download_artifacts(run.info.run_id, blobs_prefix, str(destination))
         logging.info(f"Downloaded single file from run {run.info.run_id}: {blobs_prefix} -> {str(location)}")
         shutil.copy2(location, str(destination))
