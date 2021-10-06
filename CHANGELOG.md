@@ -13,6 +13,7 @@ created.
 ## Upcoming
 
 ### Added
+- ([#565](https://github.com/microsoft/InnerEye-DeepLearning/pull/565)) All `LightningContainer` models have two new commandline flags `pl_limit_train_batches` and `pl_limit_val_batches` to set the number of batches per epoch. Use this to speed up training (for example, when debugging)
 - ([#465](https://github.com/microsoft/InnerEye-DeepLearning/pull/465/)) Adding ability to run segmentation inference
 module on test data with partial ground truth files. (Also [522](https://github.com/microsoft/InnerEye-DeepLearning/pull/522).)
 - ([#502](https://github.com/microsoft/InnerEye-DeepLearning/pull/502)) More flags for fine control of when to run inference.
@@ -44,6 +45,7 @@ gets uploaded to AzureML, by skipping all test folders.
 - ([#554](https://github.com/microsoft/InnerEye-DeepLearning/pull/554)) Updated report in CovidModel. Set parameters
   in the config to run inference on both the validation and test sets by default.
 - ([#566](https://github.com/microsoft/InnerEye-DeepLearning/pull/566)) Update `hi-ml` dependency to `hi-ml-azure`.
+- ([#565](https://github.com/microsoft/InnerEye-DeepLearning/pull/565)) The semantics of the SSL parameter `ssl_training_batch_size` changed from "effective batch size" (across all GPUs) to "batch size per GPU"
 
 ### Fixed
 - ([#537](https://github.com/microsoft/InnerEye-DeepLearning/pull/537)) Print warning if inference is disabled but comparison requested.
@@ -69,6 +71,7 @@ in inference-only runs when using lightning containers.
   correctly in the SimCLR module
 - ([#558](https://github.com/microsoft/InnerEye-DeepLearning/pull/558)) Fix issue with the CovidModel config where model
   weights from a finetuning run were incompatible with the model architecture created for non-finetuning runs.
+- ([#565](https://github.com/microsoft/InnerEye-DeepLearning/pull/565)) Checkpoints from SSL training now contain both optimizers, hence restarts after low priority preemption will correctly continue training of the linear head.
 
 ### Removed
 
