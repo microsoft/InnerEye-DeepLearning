@@ -26,7 +26,6 @@ from InnerEye.ML.SSL.lightning_modules.ssl_online_evaluator import EVALUATOR_STA
     SSLOnlineEvaluatorInnerEye
 from InnerEye.ML.SSL.utils import SSLDataModuleType, SSLTrainingType
 from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
-from InnerEye.ML.configs.ssl.CIFAR_SSL_configs import CIFAR10BYOL, CIFAR10SimCLR
 from InnerEye.ML.configs.ssl.CXR_SSL_configs import CXRImageClassifier
 from InnerEye.ML.runner import Runner
 from Tests.ML.utils.test_io_util import write_test_dicom
@@ -264,6 +263,6 @@ def test_simclr_lr_scheduler() -> None:
     assert highest_lr == int(warmup_epochs * train_iters_per_epoch - 1)
 
     for i in range(0, highest_lr):
-        assert lr[i] < lr[i+1], f"Not strictly monotonically increasing at index {i}"
+        assert lr[i] < lr[i + 1], f"Not strictly monotonically increasing at index {i}"
     for i in range(highest_lr, len(lr) - 1):
-        assert lr[i] > lr[i+1], f"Not strictly monotonically decreasing at index {i}"
+        assert lr[i] > lr[i + 1], f"Not strictly monotonically decreasing at index {i}"

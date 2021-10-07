@@ -16,7 +16,7 @@ from torch.optim import Adam
 
 from InnerEye.ML.SSL.lightning_modules.byol.byol_models import SiameseArm
 from InnerEye.ML.SSL.lightning_modules.byol.byol_moving_average import ByolMovingAverageWeightUpdate
-from InnerEye.ML.SSL.utils import SSLDataModuleType, manual_optimization_step
+from InnerEye.ML.SSL.utils import SSLDataModuleType
 from InnerEye.ML.lightning_loggers import log_learning_rate, log_on_epoch
 
 SingleBatchType = Tuple[List, T]
