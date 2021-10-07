@@ -179,7 +179,6 @@ class SSLContainer(LightningContainer):
                                        dataset=self.linear_head_dataset_name.value,  # type: ignore
                                        drop_p=0.2,
                                        learning_rate=self.learning_rate_linear_head_during_ssl_training)
-        model.online_eval_optimizer = self.online_eval_callback.optimizer  # type: ignore
         return model
 
     def get_data_module(self) -> InnerEyeDataModuleTypes:

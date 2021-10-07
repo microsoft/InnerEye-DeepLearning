@@ -58,9 +58,6 @@ class BYOLInnerEye(pl.LightningModule):
         self.online_network = SiameseArm(encoder_name, use_7x7_first_conv_in_resnet)
         self.target_network = deepcopy(self.online_network)
         self.weight_callback = ByolMovingAverageWeightUpdate()
-        # The optimizer for the linear head is managed by this module, so that its state can be stored in a checkpoint
-        # automatically by Lightning. The training for the linear head is outside of this module though.
-        self.automatic_optimization = False
 
     def on_train_batch_end(self, *args: Any, **kwargs: Any) -> None:
         # Add callback for user automatically since it's key to BYOL weight update
@@ -102,14 +99,11 @@ class BYOLInnerEye(pl.LightningModule):
 
         return loss
 
-    def training_step(self, batch: BatchType, batch_idx: int, optimizer_idx: int,
-                      **kwargs: Any) -> None:  # type: ignore
-        if optimizer_idx != 0:
-            return
+    def training_step(self, batch: BatchType, batch_idx: int, **kwargs: Any) -> torch.Tensor:
         loss = self.shared_step(batch, batch_idx)
         log_on_epoch(self, metrics={'byol/train/loss': loss, 'byol/tau': self.weight_callback.current_tau})
-        manual_optimization_step(self, loss)
         log_learning_rate(self, name="byol/learning_rate")
+        return loss
 
     def validation_step(self, batch: BatchType, batch_idx: int, **kwargs: Any) -> T:  # type: ignore
         loss = self.shared_step(batch, batch_idx)
@@ -128,8 +122,7 @@ class BYOLInnerEye(pl.LightningModule):
                          weight_decay=self.hparams.weight_decay)  # type: ignore
         scheduler = LinearWarmupCosineAnnealingLR(
             optimizer, warmup_epochs=self.hparams.warmup_epochs, max_epochs=self.hparams.max_epochs)  # type: ignore
-        optimizers = [optimizer, self.online_eval_optimizer]
-        return optimizers, [scheduler]
+        return [optimizer], [scheduler]
 
     def exclude_from_wt_decay(self,
                               named_params: Iterator[Tuple[str, T]],

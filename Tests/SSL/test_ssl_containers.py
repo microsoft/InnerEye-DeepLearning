@@ -22,6 +22,8 @@ from InnerEye.ML.SSL.lightning_containers.ssl_container import EncoderName, SSLD
 from InnerEye.ML.SSL.lightning_modules.byol.byol_module import BYOLInnerEye
 from InnerEye.ML.SSL.lightning_modules.simclr_module import SimCLRInnerEye
 from InnerEye.ML.SSL.lightning_modules.ssl_classifier_module import SSLClassifier
+from InnerEye.ML.SSL.lightning_modules.ssl_online_evaluator import EVALUATOR_STATE_NAME, OPTIMIZER_STATE_NAME, \
+    SSLOnlineEvaluatorInnerEye
 from InnerEye.ML.SSL.utils import SSLDataModuleType, SSLTrainingType
 from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
 from InnerEye.ML.configs.ssl.CIFAR_SSL_configs import CIFAR10BYOL, CIFAR10SimCLR
@@ -128,8 +130,13 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
     # Check that the checkpoint contains both the optimizer for the embedding and for the linear head
     checkpoint_path = loaded_config.outputs_folder / "checkpoints" / "best_checkpoint.ckpt"
     checkpoint = torch.load(checkpoint_path)
-    assert len(checkpoint["optimizer_states"]) == 2
+    assert len(checkpoint["optimizer_states"]) == 1
     assert len(checkpoint["lr_schedulers"]) == 1
+    assert "callbacks" in checkpoint
+    assert SSLOnlineEvaluatorInnerEye in checkpoint["callbacks"]
+    callback_state = checkpoint["callbacks"][SSLOnlineEvaluatorInnerEye]
+    assert OPTIMIZER_STATE_NAME in callback_state
+    assert EVALUATOR_STATE_NAME in callback_state
 
     # Now run the actual SSL classifier off the stored checkpoint
     args = common_test_args + ["--model=SSLClassifierCIFAR", f"--local_ssl_weights_path={checkpoint_path}"]

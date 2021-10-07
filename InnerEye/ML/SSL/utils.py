@@ -82,14 +82,10 @@ def create_ssl_image_classifier(num_classes: int,
     logging.info(f"Loading pretrained {ssl_type} weights from:\n {pl_checkpoint_path}")
 
     if ssl_type == SSLTrainingType.BYOL.value or ssl_type == SSLTrainingType.BYOL:
-        # Here we need to indicate how many classes where used for linear evaluator at training time, to load the
-        # checkpoint (incl. linear evaluator) with strict = True
-        byol_module = SSLModelLoader(BYOLInnerEye, loaded_params["num_classes"]).load_from_checkpoint(
-            pl_checkpoint_path)
+        byol_module = BYOLInnerEye.load_from_checkpoint(pl_checkpoint_path)
         encoder = byol_module.target_network.encoder
     elif ssl_type == SSLTrainingType.SimCLR.value or ssl_type == SSLTrainingType.SimCLR:
-        simclr_module = SSLModelLoader(SimCLRInnerEye, loaded_params["num_classes"]).load_from_checkpoint(
-            pl_checkpoint_path)
+        simclr_module = SimCLRInnerEye.load_from_checkpoint(pl_checkpoint_path)
         encoder = simclr_module.encoder
     else:
         raise NotImplementedError(f"Unknown unsupervised model: {ssl_type}")
@@ -156,27 +152,3 @@ def manual_optimization_step(pl: LightningModule, loss: torch.Tensor, optimizer_
             scheduler.step()
     else:
         raise ValueError(f"Update interval not recognized: {interval}")
-
-
-def SSLModelLoader(ssl_class: Any, num_classes: int) -> Any:
-    """
-    This class is a helper class for SSL model loading from checkpoints with strict=True.
-    We cannot simply load the class directly via  do BYOLInnerEye().load_from_checkpoint("ckpt") with strict loading
-    because the checkpoint will contain the weights of the linear evaluator, but this one is defined outside of the
-    BYOLInnerEye class (as it is defined as a callback), hence we can only load the checkpoint if we manually re-add
-    the linear evaluator prior to loading.
-
-    :param ssl_class:   SSL object either BYOL or SimCLR.
-    :param num_classes: Number of target classes for the linear head.
-    """
-    from pl_bolts.models.self_supervised import SSLEvaluator
-    from InnerEye.ML.SSL.encoders import get_encoder_output_dim
-
-    class _wrap(ssl_class):  # type: ignore
-        def __init__(self, **kwargs: Any) -> None:
-            super().__init__(**kwargs)
-            self.non_linear_evaluator = SSLEvaluator(n_input=get_encoder_output_dim(self),
-                                                     n_classes=num_classes,
-                                                     n_hidden=None)
-
-    return _wrap
