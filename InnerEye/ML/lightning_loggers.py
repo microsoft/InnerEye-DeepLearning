@@ -25,25 +25,28 @@ class StoringLogger(LightningLoggerBase):
 
     def __init__(self) -> None:
         super().__init__()
-        self.results: Dict[int, DictStrFloatOrFloatList] = {}
+        self.results_per_epoch: Dict[int, DictStrFloatOrFloatList] = {}
         self.hyperparams: Any = None
         # Fields to store diagnostics for unit testing
         self.train_diagnostics: List[Any] = []
         self.val_diagnostics: List[Any] = []
+        self.results_without_epoch = []
 
     @rank_zero_only
     def log_metrics(self, metrics: DictStrFloat, step: Optional[int] = None) -> None:
         logging.debug(f"StoringLogger step={step}: {metrics}")
         epoch_name = "epoch"
         if epoch_name not in metrics:
-            raise ValueError("Each of the logged metrics should have an 'epoch' key.")
+            # Metrics without an "epoch" key are logged during testing, for example
+            self.results_without_epoch.append(metrics)
+            return
         epoch = int(metrics[epoch_name])
         del metrics[epoch_name]
         for key, value in metrics.items():
             if isinstance(value, int):
                 metrics[key] = float(value)
-        if epoch in self.results:
-            current_results = self.results[epoch]
+        if epoch in self.results_per_epoch:
+            current_results = self.results_per_epoch[epoch]
             for key, value in metrics.items():
                 if key in current_results:
                     logging.debug(f"StoringLogger: appending results for metric {key}")
@@ -55,7 +58,7 @@ class StoringLogger(LightningLoggerBase):
                 else:
                     current_results[key] = value
         else:
-            self.results[epoch] = metrics  # type: ignore
+            self.results_per_epoch[epoch] = metrics  # type: ignore
 
     @rank_zero_only
     def log_hyperparams(self, params: Any) -> None:
@@ -75,9 +78,9 @@ class StoringLogger(LightningLoggerBase):
         """
         Gets the epochs for which the present object holds any results.
         """
-        return self.results.keys()
+        return self.results_per_epoch.keys()
 
-    def extract_by_prefix(self, epoch: int, prefix_filter: str = "") -> DictStrFloat:
+    def extract_by_prefix(self, epoch: int, prefix_filter: str = "") -> DictStrFloatOrFloatList:
         """
         Reads the set of metrics for a given epoch, filters them to retain only those that have the given prefix,
         and returns the filtered ones. This is used to break a set
@@ -87,18 +90,17 @@ class StoringLogger(LightningLoggerBase):
         have a name starting with `prefix`, and strip off the prefix.
         :return: A metrics dictionary.
         """
-        epoch_results = self.results.get(epoch, None)
+        epoch_results = self.results_per_epoch.get(epoch, None)
         if epoch_results is None:
             raise KeyError(f"No results are stored for epoch {epoch}")
         filtered = {}
         for key, value in epoch_results.items():
             assert isinstance(key, str), f"All dictionary keys should be strings, but got: {type(key)}"
-            assert isinstance(value, float), f"All metrics should be floats, but got: {type(value)}"
             # Add the metric if either there is no prefix filter (prefix does not matter), or if the prefix
             # filter is supplied and really matches the metric name
             if (not prefix_filter) or key.startswith(prefix_filter):
                 stripped_key = key[len(prefix_filter):]
-                filtered[stripped_key] = value
+                filtered[stripped_key] = value  # type: ignore
         return filtered
 
     def to_metrics_dicts(self, prefix_filter: str = "") -> Dict[int, DictStrFloat]:
@@ -124,7 +126,7 @@ class StoringLogger(LightningLoggerBase):
         full_metric_name = (TRAIN_PREFIX if is_training else VALIDATION_PREFIX) + metric_type
         result = []
         for epoch in self.epochs:
-            value = self.results[epoch][full_metric_name]
+            value = self.results_per_epoch[epoch][full_metric_name]
             if not isinstance(value, float):
                 raise ValueError(f"Expected a floating point value for metric {full_metric_name}, but got: "
                                  f"{value}")

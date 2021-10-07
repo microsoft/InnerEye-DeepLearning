@@ -372,7 +372,7 @@ def test_storing_logger() -> None:
     key2 = "key2"
     value1 = 3.14
     value2 = 2.71
-    value3 = 100
+    value3 = 100.0
     assert value1 != value2
     epoch = 1
     # Add metrics in the same epoch in two calls, so that we test both the cases where the epoch is already present,
@@ -387,7 +387,12 @@ def test_storing_logger() -> None:
     # Add more metrics for key1, so that we also test the case that the results are already a list
     logger.log_metrics({"epoch": epoch, key1: value3})
     assert logger.extract_by_prefix(epoch=epoch) == {key1: [value1, value3, value3], key2: value2}
-
+    # Add metrics that don't have an epoch key: This happens for example during testing with trainer.test
+    other_metrics1 = {"foo": 1.0}
+    other_metrics2 = {"foo": 2.0}
+    logger.log_metrics(other_metrics1)
+    logger.log_metrics(other_metrics2)
+    assert logger.results_without_epoch == [other_metrics1, other_metrics2]
 
 def test_log_on_epoch() -> None:
     """

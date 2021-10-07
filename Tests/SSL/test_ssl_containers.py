@@ -70,10 +70,10 @@ def _compare_stored_metrics(runner: Runner, expected_metrics: Dict[str, float], 
     """
     assert runner.ml_runner is not None
     assert runner.ml_runner.storing_logger is not None
-    print(f"Actual metrics in epoch 0: {runner.ml_runner.storing_logger.results[0]}")
+    print(f"Actual metrics in epoch 0: {runner.ml_runner.storing_logger.results_per_epoch[0]}")
     print(f"Expected metrics: {expected_metrics}")
     for metric, expected in expected_metrics.items():
-        actual = runner.ml_runner.storing_logger.results[0][metric]
+        actual = runner.ml_runner.storing_logger.results_per_epoch[0][metric]
         if isinstance(actual, float):
             if math.isnan(expected):
                 assert math.isnan(actual), f"Metric {metric}: Expected NaN, but got: {actual}"

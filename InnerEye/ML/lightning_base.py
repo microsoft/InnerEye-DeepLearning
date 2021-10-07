@@ -314,7 +314,7 @@ class InnerEyeLightning(LightningModule):
         Training and Validation metrics.
         """
         if epoch >= 0:
-            if epoch in self.storing_logger.results:
+            if epoch in self.storing_logger.results_per_epoch:
                 for is_training, prefix in [(True, TRAIN_PREFIX), (False, VALIDATION_PREFIX)]:
                     metrics = self.storing_logger.extract_by_prefix(epoch, prefix)
                     self.store_epoch_results(metrics, epoch, is_training)

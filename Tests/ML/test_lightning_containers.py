@@ -75,7 +75,6 @@ def test_run_container_with_plain_lightning_in_situ(test_output_dirs: OutputFold
     """
     Test if we can train a plain Lightning model, without any additional methods defined, end-to-end.
     """
-    # FAILS
     runner = default_runner()
     local_dataset = test_output_dirs.root_dir / "dataset"
     local_dataset.mkdir()
