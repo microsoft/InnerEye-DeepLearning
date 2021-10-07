@@ -420,13 +420,13 @@ class MetricsDict:
                                               label=self.get_labels(hue=hue))
 
     @classmethod
-    def get_optimal_idx(cls, fpr: np.ndarray, tpr: np.ndarray) -> np.ndarray:
+    def get_optimal_idx(cls, fpr: np.ndarray, tpr: np.ndarray) -> int:
         """
         Given a list of FPR and TPR values corresponding to different thresholds, compute the index which corresponds
         to the optimal threshold.
         """
         optimal_idx = np.argmax(tpr - fpr)
-        return optimal_idx
+        return optimal_idx  # type: ignore
 
     def get_metrics_at_optimal_cutoff(self, hue: str = DEFAULT_HUE_KEY) -> Tuple:
         """
@@ -705,8 +705,8 @@ class ScalarMetricsDict(MetricsDict):
                 result[mode][epoch] = ScalarMetricsDict(is_classification_metrics=is_classification_metrics,
                                                         hues=hues)
             subjects = list(group[LoggingColumns.Patient.value].values)
-            predictions = group[LoggingColumns.ModelOutput.value].to_numpy(dtype=np.float)
-            labels = group[LoggingColumns.Label.value].to_numpy(dtype=np.float)
+            predictions = group[LoggingColumns.ModelOutput.value].to_numpy(dtype=np.float)  # type: ignore
+            labels = group[LoggingColumns.Label.value].to_numpy(dtype=np.float)  # type: ignore
             result[mode][epoch].add_predictions(subjects, predictions, labels, hue=hue)
 
         return result

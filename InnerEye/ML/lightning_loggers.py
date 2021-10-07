@@ -11,6 +11,7 @@ import torch
 from pytorch_lightning import LightningModule
 from pytorch_lightning.loggers import LightningLoggerBase
 from pytorch_lightning.utilities import rank_zero_only
+from torch.optim.lr_scheduler import _LRScheduler
 
 from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common.metrics_constants import TRAIN_PREFIX, VALIDATION_PREFIX
@@ -30,7 +31,7 @@ class StoringLogger(LightningLoggerBase):
         # Fields to store diagnostics for unit testing
         self.train_diagnostics: List[Any] = []
         self.val_diagnostics: List[Any] = []
-        self.results_without_epoch = []
+        self.results_without_epoch: List[DictStrFloat] = []
 
     @rank_zero_only
     def log_metrics(self, metrics: DictStrFloat, step: Optional[int] = None) -> None:
@@ -80,7 +81,7 @@ class StoringLogger(LightningLoggerBase):
         """
         return self.results_per_epoch.keys()
 
-    def extract_by_prefix(self, epoch: int, prefix_filter: str = "") -> DictStrFloatOrFloatList:
+    def extract_by_prefix(self, epoch: int, prefix_filter: str = "") -> DictStrFloat:
         """
         Reads the set of metrics for a given epoch, filters them to retain only those that have the given prefix,
         and returns the filtered ones. This is used to break a set
@@ -101,7 +102,7 @@ class StoringLogger(LightningLoggerBase):
             if (not prefix_filter) or key.startswith(prefix_filter):
                 stripped_key = key[len(prefix_filter):]
                 filtered[stripped_key] = value  # type: ignore
-        return filtered
+        return filtered  # type: ignore
 
     def to_metrics_dicts(self, prefix_filter: str = "") -> Dict[int, DictStrFloat]:
         """
@@ -228,7 +229,7 @@ def log_on_epoch(module: LightningModule,
     sync_dist = module.trainer.world_size > 1 if sync_dist is None else sync_dist
     metrics = metrics or {}
     if name is not None:
-        metrics[name] = value
+        metrics[name] = value  # type: ignore
     metrics_as_tensors = {
         key: torch.tensor(value, dtype=torch.float, device=module.device)
         if isinstance(value, numbers.Number)
@@ -259,10 +260,12 @@ def log_learning_rate(module: LightningModule, name: str = "learning_rate") -> N
     single_scheduler = not isinstance(schedulers, list)
     if single_scheduler:
         schedulers = [schedulers]
+    assert isinstance(schedulers[0], _LRScheduler)
     lr_0 = schedulers[0].get_last_lr()
     singleton_lr = single_scheduler and len(lr_0) == 1
     logged = {}
     for i, scheduler in enumerate(schedulers):
+        assert isinstance(scheduler, _LRScheduler)
         for j, lr_j in enumerate(scheduler.get_last_lr()):
             full_name = name if singleton_lr else f"{name}/{i}/{j}"
             logged[full_name] = lr_j

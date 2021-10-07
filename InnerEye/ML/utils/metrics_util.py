@@ -224,9 +224,9 @@ def r2_score(model_output: Union[torch.Tensor, np.ndarray], label: Union[torch.T
     Computes the coefficient of determination R2. Represents the proportion of variance explained
     by the (independent) variables in the model. R2 = 1 - Mean(SquaredErrors) / Variance(Labels)
     """
-    if torch.is_tensor(label):
+    if isinstance(label, torch.Tensor):
         label = label.detach().cpu().numpy()
-    if torch.is_tensor(model_output):
+    if isinstance(model_output, torch.Tensor):
         model_output = model_output.detach().cpu().numpy()
     return sklearn_r2_score(label, model_output)
 
@@ -256,14 +256,14 @@ def convert_input_and_label(model_output: Union[torch.Tensor, np.ndarray],
     Ensures that both model_output and label are tensors of dtype float32.
     :return a Tuple with model_output, label as float tensors.
     """
-    if not torch.is_tensor(model_output):
+    if not isinstance(model_output, torch.Tensor):
         model_output = torch.tensor(model_output)
-    if not torch.is_tensor(label):
+    if not isinstance(label, torch.Tensor):
         label = torch.tensor(label)
     return model_output.float(), label.float()
 
 
-def is_missing_ground_truth(ground_truth: np.array) -> bool:
+def is_missing_ground_truth(ground_truth: np.ndarray) -> bool:
     """
     calculate_metrics_per_class in metrics.py and plot_contours_for_all_classes in plotting.py both
     check whether there is ground truth missing using this simple check for NaN value at 0, 0, 0.

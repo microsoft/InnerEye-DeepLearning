@@ -271,7 +271,7 @@ def load_dicom_image(path: PathOrString) -> np.ndarray:
         else:
             raise ValueError("Unknown value for DICOM tag 0028,0103 PixelRepresentation")
     # Return a float array, we may resize this in load_3d_images_and_stack, and interpolation will not work on int
-    return pixels.astype(np.float)
+    return pixels.astype(np.float)  # type: ignore
 
 
 def load_hdf5_dataset_from_file(path_str: Path, dataset_name: str) -> np.ndarray:
@@ -371,7 +371,7 @@ def load_images_and_stack(files: Iterable[Path],
         if load_segmentation:
             # Segmentations are loaded as UInt8. Convert to one-hot encoding as late as possible,
             # that is only before feeding into the model
-            segmentations.append(from_numpy_crop_and_resize(image_and_segmentation.segmentations))
+            segmentations.append(from_numpy_crop_and_resize(image_and_segmentation.segmentations))  # type: ignore
 
     image_tensor = torch.stack(images, dim=0) if len(images) > 0 else torch.empty(0)
     segmentation_tensor = torch.stack(segmentations, dim=0) if len(segmentations) > 0 else torch.empty(0)
@@ -431,7 +431,7 @@ def load_labels_from_dataset_source(dataset_source: PatientDatasetSource, check_
     # label_list keeps track of missing ground truth channels
     for gt in dataset_source.ground_truth_channels:
         if gt is None:
-            label_list.append(np.full(image_size, np.NAN, ImageDataType))
+            label_list.append(np.full(image_size, np.NAN, ImageDataType))  # type: ignore
         else:
             label_list.append(load_image(gt, ImageDataType.SEGMENTATION.value).image)
     labels = np.stack(label_list)
@@ -496,7 +496,7 @@ def load_image(path: PathOrString, image_type: Optional[Type] = float) -> ImageW
             return ImageWithHeader(image, header)
     elif is_png(path):
         import imageio
-        image = imageio.imread(path).astype(np.float)
+        image = imageio.imread(path).astype(np.float)  # type: ignore
         header = get_unit_image_header()
         return ImageWithHeader(image, header)
     raise ValueError(f"Invalid file type {path}")
@@ -677,11 +677,12 @@ def store_as_nifti(image: np.ndarray,
         else:
             image = (image + 1) * 255
 
-    image = sitk.GetImageFromArray(image.astype(image_type))
-    image.SetSpacing(sitk.VectorDouble(reverse_tuple_float3(header.spacing)))  # Spacing needs to be X Y Z
-    image.SetOrigin(header.origin)
-    image.SetDirection(header.direction)
-    sitk.WriteImage(image, str(file_name))
+    itk_image = sitk.GetImageFromArray(image.astype(image_type))
+    # Spacing needs to be X Y Z
+    itk_image.SetSpacing(sitk.VectorDouble(reverse_tuple_float3(header.spacing)))
+    itk_image.SetOrigin(header.origin)
+    itk_image.SetDirection(header.direction)
+    sitk.WriteImage(itk_image, str(file_name))
     return Path(file_name)
 
 
@@ -763,7 +764,7 @@ def create_dicom_series(folder: Path, size: TupleInt3, spacing: TupleFloat3) -> 
     :param spacing: Final image spacing, as (column spacing, row spacing, slice spacing) (in mm).
     :return: The test data, a 3d ndarray of floats in the range [0, 1000.0).
     """
-    data = np.random.uniform(high=1000, size=size).astype(np.float)
+    data = np.random.uniform(high=1000, size=size).astype(np.float)  # type: ignore
     image = sitk.GetImageFromArray(data)
     image.SetSpacing(spacing)
 

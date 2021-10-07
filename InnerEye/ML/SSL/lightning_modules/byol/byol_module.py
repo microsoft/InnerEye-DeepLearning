@@ -99,7 +99,7 @@ class BYOLInnerEye(pl.LightningModule):
 
         return loss
 
-    def training_step(self, batch: BatchType, batch_idx: int, **kwargs: Any) -> torch.Tensor:
+    def training_step(self, batch: BatchType, batch_idx: int, **kwargs: Any) -> torch.Tensor:  # type: ignore
         loss = self.shared_step(batch, batch_idx)
         log_on_epoch(self, metrics={'byol/train/loss': loss, 'byol/tau': self.weight_callback.current_tau})
         log_learning_rate(self, name="byol/learning_rate")

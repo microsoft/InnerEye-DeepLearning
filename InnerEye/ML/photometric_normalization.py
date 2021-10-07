@@ -107,7 +107,7 @@ class PhotometricNormalization(Transform3D[Sample]):
             image_out = CTRange.transform(data=image, output_range=self.output_range,
                                           level=self.level, window=self.window, use_gpu=self.use_gpu)
         elif self.norm_method == PhotometricNormalizationMethod.TrimmedNorm:
-            image_out, status = normalize_trim(image, mask,
+            image_out, status = normalize_trim(image, mask,  # type: ignore
                                                self.output_range, self.sharpen, self.trim_percentiles,
                                                self.debug_mode)
             self.status_of_most_recent_call = status
@@ -120,7 +120,7 @@ class PhotometricNormalization(Transform3D[Sample]):
         return image_out
 
 
-def simple_norm(image_in: np.ndarray, mask: np.ndarray, debug_mode: bool = False) -> np.array:
+def simple_norm(image_in: np.ndarray, mask: np.ndarray, debug_mode: bool = False) -> np.ndarray:
     """
     Normalizes a single image to have mean 0 and standard deviation 1
 
@@ -160,7 +160,7 @@ def normalize_trim(image: np.ndarray,
                    output_range: Tuple[float, float] = (-1.0, 1.0),
                    sharpen: float = 1.9,
                    trim_percentiles: Tuple[float, float] = (2.0, 98.0),
-                   debug_mode: bool = False) -> np.array:
+                   debug_mode: bool = False) -> np.ndarray:
     """
     Normalizes a single image to have mean 0 and standard deviation 1
     Normalising occurs after percentile thresholds have been applied to strip out extreme values
@@ -258,7 +258,7 @@ def mri_window(image_in: np.ndarray,
                output_range: Tuple[float, float] = (-1.0, 1.0),
                sharpen: float = 1.9,
                tail: Union[List[float], float] = 1.0,
-               debug_mode: bool = False) -> Tuple[np.array, str]:
+               debug_mode: bool = False) -> Tuple[np.ndarray, str]:
     """
     This function takes an MRI Image,  removes to first peak of values (air). Then a window range is found centered
     around the mean of the remaining values and with a range controlled by the standard deviation and the sharpen
@@ -290,7 +290,7 @@ def mri_window(image_in: np.ndarray,
             in_mask = False
         else:
             maflat = mask.flatten()
-            in_mask = mask > 0
+            in_mask = mask > 0  # type: ignore
         # Find Otsu's threshold for the values of the input image
         threshold = threshold_otsu(imflat)
         # Find window level
@@ -309,8 +309,8 @@ def mri_window(image_in: np.ndarray,
             if mask is None:
                 no_thresh = np.sum(imflat < threshold)
                 no_high = np.sum(imout == output_range[1])
-                pc_thresh = no_thresh / np.numel(imflat) * 100
-                pc_high = no_high / np.numel(imflat) * 100
+                pc_thresh = no_thresh / np.numel(imflat) * 100  # type: ignore
+                pc_high = no_high / np.numel(imflat) * 100  # type: ignore
             else:
                 no_thresh = np.sum(imflat[maflat == 1] < threshold)
                 no_high = np.sum(imout == output_range[1])

@@ -400,17 +400,17 @@ def test_log_on_epoch() -> None:
     """
     module = mock.MagicMock()
     module.trainer = None
-    with pytest.raises(AssertionError) as ex:
+    with pytest.raises(AssertionError) as ex1:
         log_on_epoch(module, metrics={"foo": 1})
-    assert "No trainer is set" in str(ex)
+    assert "No trainer is set" in str(ex1)
     module.trainer = mock.MagicMock()
     module.trainer.world_size = 1
-    with pytest.raises(ValueError) as ex:
+    with pytest.raises(ValueError) as ex2:
         log_on_epoch(module, name="foo")
-    assert "'name' and 'value' must be provided" in str(ex)
-    with pytest.raises(ValueError) as ex:
+    assert "'name' and 'value' must be provided" in str(ex2)
+    with pytest.raises(ValueError) as ex3:
         log_on_epoch(module, value=1.0)
-    assert "'name' and 'value' must be provided" in str(ex)
+    assert "'name' and 'value' must be provided" in str(ex3)
     foo_value = 1
     metrics = {"bar": torch.tensor(2.0)}
     module.device = 'cpu'

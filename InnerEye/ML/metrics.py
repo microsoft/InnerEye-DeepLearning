@@ -12,7 +12,7 @@ from typing import List, Optional, Sequence, Set
 
 import SimpleITK as sitk
 import numpy as np
-from numpy.core.numeric import NaN
+from numpy.core.numeric import NaN  # type: ignore
 import torch
 import torch.nn.functional as F
 from azureml.core import Run

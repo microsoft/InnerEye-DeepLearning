@@ -62,7 +62,3 @@ class SSLClassifierContainer(SSLContainer):
         if self.use_balanced_binary_loss_for_linear_head:
             self.data_module.class_weights = self.data_module.compute_class_weights()
         return self.data_module
-
-    def get_trainer_arguments(self) -> Dict[str, Any]:
-        trained_kwargs = {}
-        return trained_kwargs
