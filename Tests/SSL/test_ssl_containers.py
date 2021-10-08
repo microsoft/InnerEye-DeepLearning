@@ -117,13 +117,14 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
     expected_metrics = {
         'epoch_started': 0.0,
         'simclr/train/loss': 2.953442335128784,
-        'simclr/val/loss': 2.8646411895751953,
         'simclr/learning_rate': 0.0,
         'ssl_online_evaluator/train/loss': 2.285637378692627,
         'ssl_online_evaluator/train/online_AccuracyAtThreshold05': 0.0,
+        'simclr/val/loss': 2.8646411895751953,
         'ssl_online_evaluator/val/loss': 2.2882637977600098,
         'ssl_online_evaluator/val/AccuracyAtThreshold05': 0.0
     }
+
     _compare_stored_metrics(runner, expected_metrics)
 
     # Check that the checkpoint contains both the optimizer for the embedding and for the linear head
