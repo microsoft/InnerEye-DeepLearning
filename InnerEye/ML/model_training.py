@@ -7,6 +7,7 @@ import os
 import sys
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple, TypeVar
+from mlflow.tracking import MlflowClient
 
 from pytorch_lightning import LightningModule, Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
@@ -63,7 +64,8 @@ def upload_output_file_as_temp(file_path: Path, outputs_folder: Path) -> None:
     :param outputs_folder: The root folder that contains all training outputs.
     """
     upload_name = TEMP_PREFIX + str(file_path.relative_to(outputs_folder))
-    RUN_CONTEXT.upload_file(upload_name, path_or_stream=str(file_path))
+    # RUN_CONTEXT.upload_file(upload_name, path_or_stream=str(file_path))
+    MlflowClient().log_artifactartifact_path(RUN_CONTEXT.info.run_id, artifact_path=upload_name, local_path=str(file_path))
 
 
 def write_args_file(config: Any, outputs_folder: Path) -> None:
@@ -300,7 +302,9 @@ def model_train(checkpoint_path: Optional[Path],
             for rank in range(world_size):
                 for mode in [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL]:
                     file = mode.value + "/" + get_subject_output_file_per_rank(rank)
-                    RUN_CONTEXT.download_file(name=TEMP_PREFIX + file, output_file_path=container.outputs_folder / file)
+                    Run.get_context().download_file(name=TEMP_PREFIX + file, output_file_path=container.outputs_folder / file)
+                    # TODO : Create method from mlflow which mimic run.download_files
+                    # RUN_CONTEXT.download_file(name=TEMP_PREFIX + file, output_file_path=container.outputs_folder / file)
         # Concatenate all temporary file per execution mode
         aggregate_and_create_subject_metrics_file(container.outputs_folder)
 
@@ -309,14 +313,17 @@ def model_train(checkpoint_path: Optional[Path],
     # Upload visualization directory to AML run context to be able to see it in the Azure UI.
     if isinstance(container, InnerEyeContainer):
         if container.config.max_batch_grad_cam > 0 and container.visualization_folder.exists():
-            RUN_CONTEXT.upload_folder(name=VISUALIZATION_FOLDER, path=str(container.visualization_folder))
+            RUN_CONTEXT.log_artifacts(artifact_path=VISUALIZATION_FOLDER, local_path=str(container.visualization_folder))
+            # RUN_CONTEXT.upload_folder(name=VISUALIZATION_FOLDER, path=str(container.visualization_folder))
 
     if resource_monitor:
         logging.info("Shutting down the resource monitor process.")
         if is_azureml_run:
             for gpu_name, metrics_per_gpu in resource_monitor.read_aggregate_metrics().items():
                 # Log as a table, with GPU being the first column
-                RUN_CONTEXT.log_row("GPU utilization", GPU=gpu_name, **metrics_per_gpu)
+                # TODO: Find mlfow equivalent of it.
+                # RUN_CONTEXT.log_row("GPU utilization", GPU=gpu_name, **metrics_per_gpu)
+                Run.get_context().log_row("GPU utilization", GPU=gpu_name, **metrics_per_gpu)
         resource_monitor.kill()
 
     return trainer, storing_logger

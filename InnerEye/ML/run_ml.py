@@ -7,6 +7,7 @@ import logging
 import os
 import shutil
 import time
+import mlflow
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
@@ -16,6 +17,7 @@ import torch.multiprocessing
 from azureml._restclient.constants import RunStatus
 from azureml.core import Model, Run, model
 from azureml.data import FileDataset
+from mlflow.tracking import MlflowClient
 from pytorch_lightning import LightningModule, seed_everything
 from pytorch_lightning.core.datamodule import LightningDataModule
 from torch.utils.data import DataLoader
@@ -344,7 +346,8 @@ class MLRunner:
         Set metadata for the run
         """
         assert PARENT_RUN_CONTEXT, "This function should only be called in a Hyperdrive run."
-        run_tags_parent = PARENT_RUN_CONTEXT.get_tags()
+        # run_tags_parent = PARENT_RUN_CONTEXT.get_tags()
+        run_tags_parent = PARENT_RUN_CONTEXT.data.tags
         git_tags = get_git_tags(self.azure_config)
         tags_to_copy = [
             "tag",
@@ -361,7 +364,9 @@ class MLRunner:
         new_tags[RUN_RECOVERY_ID_KEY_NAME] = create_run_recovery_id(run=RUN_CONTEXT)
         new_tags[CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY] = str(self.container.cross_validation_split_index)
         new_tags[EFFECTIVE_RANDOM_SEED_KEY_NAME] = str(self.container.get_effective_random_seed())
-        RUN_CONTEXT.set_tags(new_tags)
+        # RUN_CONTEXT.set_tags(new_tags)
+        
+        MlflowClient().set_tags(new_tags)
 
     def run(self) -> None:
         """
@@ -396,7 +401,9 @@ class MLRunner:
                 # checkpoints correctly.
                 self.checkpoint_handler.additional_training_done()
                 # log the number of epochs used for model training
-                RUN_CONTEXT.log(name="Train epochs", value=self.container.num_epochs)
+                # RUN_CONTEXT.log(name="Train epochs", value=self.container.num_epochs)
+                if RUN_CONTEXT:
+                    MlflowClient().log_metric(RUN_CONTEXT.info.run_id ,"Train epochs", self.container.num_epochs)
             elif isinstance(self.container, InnerEyeContainer):
                 self.innereye_config.write_dataset_files()
                 self.create_activation_maps()
@@ -612,17 +619,21 @@ class MLRunner:
         :returns Tuple element 1: AML model object, or None if no model could be registered.
         Tuple element 2: The result of running the model_deployment_hook, or None if no hook was supplied.
         """
+        mlflow_client = MlflowClient()
         if self.is_offline_run:
             raise ValueError("Cannot register models when InnerEye is running outside of AzureML.")
 
         if not checkpoint_paths:
             raise ValueError("Model registration failed: No checkpoints found")
 
-        split_index = RUN_CONTEXT.get_tags().get(CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, None)
+        # split_index = RUN_CONTEXT.get_tags().get(CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, None)
+        split_index = RUN_CONTEXT.data.tags.get(CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, None)
         if split_index == DEFAULT_CROSS_VALIDATION_SPLIT_INDEX:
-            RUN_CONTEXT.tag(IS_ENSEMBLE_KEY_NAME, str(model_proc == ModelProcessing.ENSEMBLE_CREATION))
+            # RUN_CONTEXT.tag(IS_ENSEMBLE_KEY_NAME, str(model_proc == ModelProcessing.ENSEMBLE_CREATION))
+            mlflow_client.set_tag(RUN_CONTEXT.info.run_id, IS_ENSEMBLE_KEY_NAME, str(model_proc == ModelProcessing.ENSEMBLE_CREATION))
         elif PARENT_RUN_CONTEXT is not None:
-            RUN_CONTEXT.tag(PARENT_RUN_ID_KEY_NAME, str(PARENT_RUN_CONTEXT.id))
+            # RUN_CONTEXT.tag(PARENT_RUN_ID_KEY_NAME, str(PARENT_RUN_CONTEXT.id))
+            mlflow_client.set_tag(RUN_CONTEXT.info.run_id, PARENT_RUN_ID_KEY_NAME, str(PARENT_RUN_CONTEXT.id))
 
         with logging_section(f"Registering {model_proc.value} model"):
             # The files for the final model can't live in the outputs folder. If they do: when registering the model,
@@ -642,33 +653,46 @@ class MLRunner:
             # register it the model on the parent run.
             if PARENT_RUN_CONTEXT and model_proc == ModelProcessing.ENSEMBLE_CREATION:
                 run_to_register_on = PARENT_RUN_CONTEXT
-                logging.info(f"Registering the model on the parent run {run_to_register_on.id}")
+                logging.info(f"Registering the model on the parent run {run_to_register_on.info.run_id}")
             else:
                 run_to_register_on = RUN_CONTEXT
-                logging.info(f"Registering the model on the current run {run_to_register_on.id}")
+                logging.info(f"Registering the model on the current run {run_to_register_on.info.run_id}")
             logging.info(f"Uploading files in {final_model_folder} with prefix '{artifacts_path}'")
             final_model_folder_relative = final_model_folder.relative_to(Path.cwd())
-            run_to_register_on.upload_folder(name=artifacts_path, path=str(final_model_folder_relative))
+            # run_to_register_on.upload_folder(name=artifacts_path, path=str(final_model_folder_relative))
+            mlflow_client.log_artifacts(run_to_register_on.info.run_id, artifact_path=artifacts_path, local_dir=str(final_model_folder_relative))
             # When registering the model on the run, we need to provide a relative path inside of the run's output
             # folder in `model_path`
-            model = run_to_register_on.register_model(
-                model_name=self.container.model_name,
-                model_path=artifacts_path,
-                tags=RUN_CONTEXT.get_tags()
+            # model = run_to_register_on.register_model(
+            #     model_name=self.container.model_name,
+            #     model_path=artifacts_path,
+            #     # tags=RUN_CONTEXT.get_tags()
+            #     tags=RUN_CONTEXT.data.tags
+            # )
+
+            # TODO: Check how to add tags to models
+            model = mlflow.register_model(
+                "runs:/{}/{}".format(run_to_register_on.info.run_id, artifacts_path),
+                self.container.model_name
             )
+
             # Add the name of the Python environment as a model tag, because we need it when running inference
             # on the model. We could add that as an immutable property, but with tags we have the option to modify
             # to a custom environment later.
-            python_environment = RUN_CONTEXT.get_environment()
+            # TODO: Mflflow equivalent of run.get_environment
+            # python_environment = RUN_CONTEXT.get_environment()
+            python_environment = Run.get_context().get_environment()
             assert python_environment.version == ENVIRONMENT_VERSION, \
                 f"Expected all Python environments to have version '{ENVIRONMENT_VERSION}', but got: " \
                 f"'{python_environment.version}"
-            model.add_tags({PYTHON_ENVIRONMENT_NAME: python_environment.name})
+            # model.add_tags({PYTHON_ENVIRONMENT_NAME: python_environment.name})
             # update the run's tags with the registered model information
-            run_to_register_on.tag(MODEL_ID_KEY_NAME, model.id)
+            # run_to_register_on.tag(MODEL_ID_KEY_NAME, model.id)
+            mlflow_client.set_tag(run_to_register_on.info.run_id, MODEL_ID_KEY_NAME, model.name)
 
             deployment_result = None
-            logging.info(f"Registered {model_proc.value} model: {model.name}, with Id: {model.id}")
+            # logging.info(f"Registered {model_proc.value} model: {model.name}, with Id: {model.id}")
+            logging.info(f"Registered {model_proc.value} model: {model.name}, with version: {model.version}")
             # create a version of the model for deployment if the hook is provided
             if self.model_deployment_hook is not None:
                 deployment_result = self.model_deployment_hook(
@@ -861,7 +885,8 @@ class MLRunner:
                                            SCATTERPLOTS_SUBDIR_NAME,
                                            reports_folder]:
                         remove_file_or_directory(subdir)
-                PARENT_RUN_CONTEXT.upload_folder(name=BASELINE_COMPARISONS_FOLDER, path=str(other_runs_ensemble_dir))
+                MlflowClient().log_artifacts(PARENT_RUN_CONTEXT.info.run_id, artifact_path=BASELINE_COMPARISONS_FOLDER, local_path=str(other_runs_ensemble_dir))
+                # PARENT_RUN_CONTEXT.upload_folder(name=BASELINE_COMPARISONS_FOLDER, path=str(other_runs_ensemble_dir))
             else:
                 logging.warning(f"Directory not found for upload: {other_runs_ensemble_dir}")
         remove_file_or_directory(other_runs_dir)
@@ -871,7 +896,7 @@ class MLRunner:
             plot_cross_validation, unroll_aggregate_metrics
         # perform aggregation as cross val splits are now ready
         plot_crossval_config = crossval_config_from_model_config(self.innereye_config)
-        plot_crossval_config.run_recovery_id = PARENT_RUN_CONTEXT.tags[RUN_RECOVERY_ID_KEY_NAME]
+        plot_crossval_config.run_recovery_id = PARENT_RUN_CONTEXT.data.tags[RUN_RECOVERY_ID_KEY_NAME]
         plot_crossval_config.outputs_directory = self.innereye_config.outputs_folder
         plot_crossval_config.azure_config = self.azure_config
         cross_val_results_root = plot_cross_validation(plot_crossval_config)
@@ -884,13 +909,15 @@ class MLRunner:
         if self.post_cross_validation_hook:
             self.post_cross_validation_hook(self.innereye_config, cross_val_results_root)
         # upload results to the parent run's outputs so that the files are visible inside the AzureML UI.
-        PARENT_RUN_CONTEXT.upload_folder(name=CROSSVAL_RESULTS_FOLDER, path=str(cross_val_results_root))
+        # PARENT_RUN_CONTEXT.upload_folder(name=CROSSVAL_RESULTS_FOLDER, path=str(cross_val_results_root))
+        MlflowClient().log_aritfacts(PARENT_RUN_CONTEXT.info.run_id, local_path=str(cross_val_results_root), aritfact_path=CROSSVAL_RESULTS_FOLDER)
         if self.innereye_config.is_scalar_model:
             try:
                 aggregates = pd.read_csv(cross_val_results_root / METRICS_AGGREGATES_FILE)
                 unrolled_aggregate_metrics = unroll_aggregate_metrics(aggregates)
                 for m in unrolled_aggregate_metrics:
-                    PARENT_RUN_CONTEXT.log(m.metric_name, m.metric_value)
+                    # PARENT_RUN_CONTEXT.log(m.metric_name, m.metric_value)
+                    MlflowClient().log_metric(PARENT_RUN_CONTEXT.info.run_id, m.metric_name, m.metric_value)
             except Exception as ex:
                 print_exception(ex, "Unable to log metrics to Hyperdrive parent run.", logger_fn=logging.warning)
         return cross_val_results_root

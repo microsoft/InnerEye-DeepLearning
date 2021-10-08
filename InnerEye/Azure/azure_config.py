@@ -11,12 +11,13 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import param
+import os
 from azureml.core import Run, ScriptRunConfig, Workspace
 from azureml.core.authentication import InteractiveLoginAuthentication, ServicePrincipalAuthentication
 from azureml.train.hyperdrive import HyperDriveConfig
 from git import Repo
 
-from InnerEye.Azure.azure_util import fetch_run, is_offline_run_context
+from InnerEye.Azure.azure_util import fetch_run, fetch_run_using_mlflow, is_offline_run_context, get_run_context_or_default
 from InnerEye.Azure.secrets_handling import SecretsHandling, read_all_settings
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.generic_parsing import GenericConfig
@@ -193,7 +194,8 @@ class AzureConfig(GenericConfig):
         """
         if self._workspace:
             return self._workspace
-        run_context = Run.get_context()
+        # run_context = Run.get_context()
+        run_context  = get_run_context_or_default()
         if is_offline_run_context(run_context):
             if self.subscription_id and self.resource_group:
                 service_principal_auth = self.get_service_principal_auth()
@@ -206,7 +208,8 @@ class AzureConfig(GenericConfig):
                 raise ValueError("The values for 'subscription_id' and 'resource_group' were not found. "
                                  "Was the Azure setup completed?")
         else:
-            self._workspace = run_context.experiment.workspace
+            # TODO : Revisit this part for remote and local runs
+            self._workspace = Run.get_context().experiment.workspace
         return self._workspace
 
     def get_service_principal_auth(self) -> Optional[Union[InteractiveLoginAuthentication,
@@ -235,8 +238,8 @@ class AzureConfig(GenericConfig):
         Gets an instantiated Run object for a given run recovery ID (format experiment_name:run_id).
         :param run_recovery_id: A run recovery ID (format experiment_name:run_id)
         """
-        return fetch_run(workspace=self.get_workspace(), run_recovery_id=run_recovery_id)
-
+        # return fetch_run(workspace=self.get_workspace(), run_recovery_id=run_recovery_id)
+        return fetch_run_using_mlflow(run_recovery_id=run_recovery_id)
 
 @dataclass
 class SourceConfig:

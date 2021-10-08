@@ -5,11 +5,13 @@
 import logging
 import os
 import re
+import shutil
 from pathlib import Path
 from typing import Generator, List, Optional, Tuple
 
 from azureml.core import Experiment, Run, Workspace, get_run
 from azureml.exceptions import UserErrorException
+from mlflow.tracking import MlflowClient
 
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME
@@ -32,9 +34,12 @@ AZUREML_RUN_FOLDER_PREFIX = "dcid."
 AZUREML_RUN_FOLDER = "azureml/ExperimentRun/" + AZUREML_RUN_FOLDER_PREFIX
 
 # Global variables for the Run context, to avoid repeated HTTP calls to get it.
-RUN_CONTEXT = Run.get_context()
+# RUN_CONTEXT = Run.get_context()
+RUN_ID = os.environ.get("MLFLOW_RUN_ID", None)
+RUN_CONTEXT = MlflowClient().get_run(RUN_ID) if RUN_ID else None 
 # The Run context of the Hyperdrive parent run. This must be cached to avoid issues with the AzureML SDK,
 # which creates worker pools for each call to .parent.
+PARENT_RUN_CONTEXT = None
 PARENT_RUN_CONTEXT = getattr(RUN_CONTEXT, "parent", None)
 
 INNEREYE_SDK_NAME = "innereye"
@@ -61,6 +66,12 @@ def split_recovery_id(id: str) -> Tuple[str, str]:
         if not match:
             raise ValueError("The recovery ID was not in the expected format: {}".format(id))
         return (match.group(1) or match.group(2)), id
+
+
+def fetch_run_using_mlflow(run_recovery_id: str):
+    experiment, run = split_recovery_id(run_recovery_id)
+    run_to_recover = MlflowClient().get_run(run)
+    return run_to_recover
 
 
 def fetch_run(workspace: Workspace, run_recovery_id: str) -> Run:
@@ -128,12 +139,17 @@ def fetch_child_runs(run: Run, status: Optional[str] = None,
     retrieved by AML is lower than the expected number of splits, we try to retrieve them manually.
     """
     if is_ensemble_run(run):
-        run_recovery_id = run.get_tags().get(RUN_RECOVERY_FROM_ID_KEY_NAME, None)
+        # run_recovery_id = run.get_tags().get(RUN_RECOVERY_FROM_ID_KEY_NAME, None)
+        run_recovery_id = run.data.tags.get(RUN_RECOVERY_FROM_ID_KEY_NAME, None)
         if run_recovery_id:
-            run = fetch_run(run.experiment.workspace, run_recovery_id)
-        elif PARENT_RUN_CONTEXT:
-            run = PARENT_RUN_CONTEXT
-    children_runs = list(run.get_children(tags=RUN_RECOVERY_ID_KEY_NAME))
+            run = fetch_run_using_mlflow(run_recovery_id)
+        elif get_parent_run_or_default():
+            run = get_parent_run_or_default()
+    # children_runs = list(run.get_children(tags=RUN_RECOVERY_ID_KEY_NAME))
+    children_runs = list(MlflowClient().search_runs(
+        run.info.experiment_id,
+        filter_string=f"tags.{RUN_RECOVERY_FROM_ID_KEY_NAME} = ''"
+    ))
     if 0 < expected_number_cross_validation_splits != len(children_runs):
         if 0 < expected_number_cross_validation_splits != len(children_runs):
             logging.warning(
@@ -141,15 +157,18 @@ def fetch_child_runs(run: Run, status: Optional[str] = None,
                 f"Fetched only: {len(children_runs)} runs. Now trying to fetch them manually.")
             run_ids_to_evaluate = [f"{create_run_recovery_id(run)}_{i}"
                                    for i in range(expected_number_cross_validation_splits)]
-            children_runs = [fetch_run(run.experiment.workspace, id) for id in run_ids_to_evaluate]
+            # children_runs = [fetch_run(run.experiment.workspace, id) for id in run_ids_to_evaluate]
+            children_runs = [fetch_run_using_mlflow(id) for id in run_ids_to_evaluate]
     if status is not None:
+        # TODO: Need to check if status matches what mflow has
         children_runs = [child_run for child_run in children_runs if child_run.get_status() == status]
     return children_runs
 
 
 def is_ensemble_run(run: Run) -> bool:
     """Checks if the run was an ensemble of multiple models"""
-    return run.get_tags().get(IS_ENSEMBLE_KEY_NAME) == 'True'
+    # return run.get_tags().get(IS_ENSEMBLE_KEY_NAME) == 'True'
+    return run.data.tags.get(IS_ENSEMBLE_KEY_NAME) == 'True'
 
 
 def to_azure_friendly_string(x: Optional[str]) -> Optional[str]:
@@ -178,7 +197,8 @@ def is_offline_run_context(run_context: Run) -> bool:
     :param run_context: Context of the run to check
     :return:
     """
-    return not hasattr(run_context, 'experiment')
+    # return not hasattr(run_context, 'experiment')
+    return run_context is None
 
 
 def get_run_context_or_default(run: Optional[Run] = None) -> Run:
@@ -187,7 +207,8 @@ def get_run_context_or_default(run: Optional[Run] = None) -> Run:
     :param run: Run to retrieve context for. If None, retrieve ocntext of current run.
     :return: Run context
     """
-    return run if run else Run.get_context()
+    # return run if run else Run.get_context()
+    return run if run else RUN_CONTEXT
 
 
 def get_cross_validation_split_index(run: Run) -> int:
@@ -199,7 +220,8 @@ def get_cross_validation_split_index(run: Run) -> int:
     if is_offline_run_context(run):
         return DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
     else:
-        return int(run.get_tags().get(CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX))
+        # return int(run.get_tags().get(CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX))
+        return int(run.data.tags.get(CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX))
 
 
 def is_cross_validation_child_run(run: Run) -> bool:
@@ -253,10 +275,40 @@ def tag_values_all_distinct(runs: List[Run], tag: str) -> bool:
 
 
 def is_parent_run(run: Run) -> bool:
-    return PARENT_RUN_CONTEXT and run.id == PARENT_RUN_CONTEXT.id
+    # return PARENT_RUN_CONTEXT and run.id == PARENT_RUN_CONTEXT.id
+    return PARENT_RUN_CONTEXT and run.info.run_id == PARENT_RUN_CONTEXT.info.run_id
 
 
 def download_run_output_file(blob_path: Path,
+                             destination: Path,
+                             run: Run) -> Path:
+    """
+    Downloads a single file from the run's default output directory: DEFAULT_AML_UPLOAD_DIR ("outputs").
+    For example, if blobs_path = "foo/bar.csv", then the run result file "outputs/foo/bar.csv" will be downloaded
+    to <destination>/bar.csv (the directory will be stripped off).
+    :param blob_path: The name of the file to download.
+    :param run: The AzureML run to download the files from
+    :param destination: Local path to save the downloaded blob to.
+    :return: Destination path to the downloaded file(s)
+    """
+    blobs_prefix = str((fixed_paths.DEFAULT_AML_UPLOAD_DIR / blob_path).as_posix())
+    # destination = destination / blob_path.name
+    logging.info(f"Downloading single file from run {run.info.run_id}: {blobs_prefix} -> {str(destination)}")
+    try:
+        if not os.path.isdir(str(destination)):
+            logging.info(f"Directory -> {str(destination)} does not exist creating it")
+            os.makedirs(str(destination))
+        location = MlflowClient().download_artifacts(run.info.run_id, blobs_prefix, str(destination))
+        logging.info(f"Downloaded single file from run {run.info.run_id}: {blobs_prefix} -> {str(location)}")
+        shutil.copy2(location, str(destination))
+        logging.info(f"Copied single file from run {run.info.run_id}: {location} -> {str(destination)}")
+    except Exception as ex:
+        logging.info(f"Error downloading file {str(ex)} ")
+        raise ValueError(f"Unable to download file '{blobs_prefix}' from run {run.info.run_id}") from ex    
+    return destination
+
+
+def download_aml_run_output_file(blob_path: Path,
                              destination: Path,
                              run: Run) -> Path:
     """
@@ -278,6 +330,7 @@ def download_run_output_file(blob_path: Path,
     return destination
 
 
+# TODO : Need to migrate to mlflow download files
 def download_run_outputs_by_prefix(blobs_prefix: Path,
                                    destination: Path,
                                    run: Run) -> None:
@@ -318,7 +371,8 @@ def get_comparison_baseline_paths(outputs_folder: Path,
                                   blob_path: Path, run: Run,
                                   dataset_csv_file_name: str) -> \
         Tuple[Optional[Path], Optional[Path]]:
-    run_rec_id = run.id
+    # run_rec_id = run.id
+    run_rec_id = run.info.run_id
     # We usually find dataset.csv in the same directory as metrics.csv, but we sometimes
     # have to look higher up.
     comparison_dataset_path: Optional[Path] = None
@@ -357,3 +411,16 @@ def step_up_directories(path: Path) -> Generator[Path, None, None]:
         if parent == path:
             break
         path = parent
+
+
+def get_parent_run_or_default():
+    """
+    Returns parent run of the current run.
+    :return: Parent run
+    """
+    global PARENT_RUN_CONTEXT
+    parent_run_id = RUN_CONTEXT.data.tags.get("mlflow.parentRunId", None)
+    if not PARENT_RUN_CONTEXT and parent_run_id:
+        PARENT_RUN_CONTEXT = MlflowClient().get_run(parent_run_id)
+
+    return PARENT_RUN_CONTEXT

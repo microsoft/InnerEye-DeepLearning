@@ -11,6 +11,10 @@ from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common.metrics_constants import TRAIN_PREFIX, VALIDATION_PREFIX
 from InnerEye.Common.type_annotations import DictStrFloat
 
+import time
+from mlflow.tracking import MlflowClient
+from mlflow.entities import Metric
+
 
 class StoringLogger(LightningLoggerBase):
     """
@@ -153,8 +157,10 @@ class AzureMLLogger(LightningLoggerBase):
     @rank_zero_only
     def log_metrics(self, metrics: Dict[str, float], step: Optional[int] = None) -> None:
         if self.is_azureml_run:
-            for key, value in metrics.items():
-                RUN_CONTEXT.log(key, value)
+            metrics = [Metric(key=k, value=v, timestamp=int(time.time() * 1000), step=0) for k, v in metrics.items()]
+            MlflowClient().log_batch(RUN_CONTEXT.info.run_id, metrics=metrics)
+            # for key, value in metrics.items():
+            #     RUN_CONTEXT.log_metrics(key, value)
 
     @rank_zero_only
     def log_hyperparams(self, params: Any) -> None:

@@ -47,7 +47,7 @@ class RunRecovery:
         # download checkpoints for the child runs in the root of the parent
         child_runs_checkpoints_roots: List[Path] = []
         for child in child_runs:
-            if child.id == RUN_CONTEXT.id:
+            if child.id == RUN_CONTEXT.info.run_id:
                 # We expect to find the file(s) we need in config.checkpoint_folder
                 child_dst = config.checkpoint_folder
             else:

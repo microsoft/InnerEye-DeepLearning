@@ -11,6 +11,7 @@ from torch.nn import MSELoss
 from torch.nn.parameter import Parameter
 from torch.optim.rmsprop import RMSprop
 
+from mlflow.tracking import MlflowClient
 from InnerEye.Azure.azure_util import RUN_CONTEXT
 from InnerEye.Common import common_util
 from InnerEye.Common.metrics_constants import LoggingColumns
@@ -235,7 +236,9 @@ def generate_and_print_model_summary(config: ModelConfigBase, model: DeviceAware
         summary = model.summarizer  # type: ignore
     else:
         raise ValueError("Don't know how to generate a summary for this type of model?")
-    RUN_CONTEXT.log(LoggingColumns.NumTrainableParameters, summary.n_trainable_params)
+    # RUN_CONTEXT.log(LoggingColumns.NumTrainableParameters, summary.n_trainable_params)
+    if RUN_CONTEXT:
+        MlflowClient().log_metric(RUN_CONTEXT.info.run_id, LoggingColumns.NumTrainableParameters.value, summary.n_trainable_params)
     random_state.restore_random_state()
     # Move model back to CPU, to not mess with where Lightning expects things.
     model.cpu()

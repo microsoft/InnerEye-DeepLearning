@@ -222,7 +222,7 @@ class PlotCrossValidationConfig(GenericConfig):
         # Just copy the provided path in the outputs directory to the destination.
         if not destination.exists():
             destination.mkdir(parents=True)
-        if run is None or RUN_CONTEXT.id == run.id or is_parent_run(run) or is_offline_run_context(run):
+        if run is None or RUN_CONTEXT.info.run_id == run.info.run_id or is_parent_run(run) or is_offline_run_context(run):
             if run is None:
                 assert self.local_run_results is not None, "Local run results must be set in unit testing"
                 local_src = Path(self.local_run_results)

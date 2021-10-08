@@ -76,7 +76,11 @@ class InferenceMetricsForSegmentation(InferenceMetrics):
         """
         run_context = get_run_context_or_default(run_context)
 
-        run_context.log_table(name=self.get_metrics_log_key(), value={
+        # run_context.log_table(name=self.get_metrics_log_key(), value={
+        #     "Dice": self.metrics
+        # })
+        # TODO: Find Mlflow equivalent of AML log_table
+        Run.get_context().log_table(name=self.get_metrics_log_key(), value={
             "Dice": self.metrics
         })
 
