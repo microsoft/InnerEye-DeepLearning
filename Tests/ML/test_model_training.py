@@ -394,6 +394,7 @@ def test_storing_logger() -> None:
     logger.log_metrics(other_metrics2)
     assert logger.results_without_epoch == [other_metrics1, other_metrics2]
 
+
 def test_log_on_epoch() -> None:
     """
     Tests if the helper function to log metrics per epoch works.

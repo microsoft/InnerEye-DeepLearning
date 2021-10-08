@@ -260,13 +260,11 @@ def log_learning_rate(module: LightningModule, name: str = "learning_rate") -> N
     single_scheduler = not isinstance(schedulers, list)
     if single_scheduler:
         schedulers = [schedulers]
-    assert isinstance(schedulers[0], _LRScheduler)
-    lr_0 = schedulers[0].get_last_lr()
+    lr_0 = schedulers[0].get_last_lr()  # type: ignore
     singleton_lr = single_scheduler and len(lr_0) == 1
     logged = {}
     for i, scheduler in enumerate(schedulers):
-        assert isinstance(scheduler, _LRScheduler)
-        for j, lr_j in enumerate(scheduler.get_last_lr()):
+        for j, lr_j in enumerate(scheduler.get_last_lr()):  # type: ignore
             full_name = name if singleton_lr else f"{name}/{i}/{j}"
             logged[full_name] = lr_j
     log_on_epoch(module, metrics=logged)
