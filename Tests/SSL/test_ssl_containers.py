@@ -59,7 +59,7 @@ def default_runner() -> Runner:
                   yaml_config_file=fixed_paths.SETTINGS_YAML_FILE)
 
 
-def _compare_stored_metrics(runner: Runner, expected_metrics: Dict[str, float], abs: float = 1e-7) -> None:
+def _compare_stored_metrics(runner: Runner, expected_metrics: Dict[str, float], abs: float = 1e-5) -> None:
     """
     Checks if the StoringLogger in the given runner holds all the expected metrics as results of training
     epoch 0, up to a given absolute precision.
