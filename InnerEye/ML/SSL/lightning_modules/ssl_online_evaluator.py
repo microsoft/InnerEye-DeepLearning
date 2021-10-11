@@ -131,9 +131,9 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
             old_mode = self.non_linear_evaluator.training
             self.non_linear_evaluator.eval()
             loss = self.shared_step(batch, pl_module, is_training=False)
-            log_on_epoch(pl_module, 'ssl_online_evaluator/val/loss', loss)
+            log_on_epoch(pl_module, 'ssl_online_evaluator/val/loss', loss, sync_dist=False)
             for metric in self.val_metrics:
-                log_on_epoch(pl_module, f"ssl_online_evaluator/val/{metric.name}", metric)
+                log_on_epoch(pl_module, f"ssl_online_evaluator/val/{metric.name}", metric, sync_dist=False)
             self.non_linear_evaluator.train(old_mode)
 
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx) -> None:  # type: ignore
@@ -151,6 +151,6 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
             self.optimizer.step()
 
             # log metrics
-            log_on_epoch(pl_module, 'ssl_online_evaluator/train/loss', loss)
+            log_on_epoch(pl_module, 'ssl_online_evaluator/train/loss', loss, sync_dist=False)
             for metric in self.train_metrics:
-                log_on_epoch(pl_module, f"ssl_online_evaluator/train/online_{metric.name}", metric)
+                log_on_epoch(pl_module, f"ssl_online_evaluator/train/online_{metric.name}", metric, sync_dist=False)

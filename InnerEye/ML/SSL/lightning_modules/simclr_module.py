@@ -59,13 +59,13 @@ class SimCLRInnerEye(SimCLR):
 
     def training_step(self, batch: BatchType, batch_idx: int) -> torch.Tensor:
         loss = self.shared_step(batch)
-        log_on_epoch(self, "simclr/train/loss", loss)
+        log_on_epoch(self, "simclr/train/loss", loss, sync_dist=False)
         log_learning_rate(self, name="simclr/learning_rate")
         return loss
 
     def validation_step(self, batch: BatchType, batch_idx: int) -> T:  # type: ignore
         loss = self.shared_step(batch)
-        log_on_epoch(self, "simclr/val/loss", loss)
+        log_on_epoch(self, "simclr/val/loss", loss, sync_dist=False)
         return loss
 
     def shared_step(self, batch: BatchType) -> T:
