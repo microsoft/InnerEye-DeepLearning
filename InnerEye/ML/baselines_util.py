@@ -13,6 +13,7 @@ from typing import Dict, List, Optional, Tuple
 import matplotlib.pyplot as plt
 import pandas as pd
 from azureml.core import Run
+from mlflow.tracking.client import MlflowClient
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_util import AZUREML_RUN_FOLDER_PREFIX, PARENT_RUN_CONTEXT, RUN_CONTEXT, \
@@ -177,8 +178,8 @@ def get_comparison_baselines(outputs_folder: Path, azure_config: AzureConfig,
                 comparison_dataset_path.exists() and comparison_metrics_path.exists():
             comparison_baselines.append(ComparisonBaseline(
                 comparison_name,
-                pd.read_csv(comparison_dataset_path),
-                pd.read_csv(comparison_metrics_path),
+                pd.read_csv(comparison_dataset_path, engine='python'), # TODO: Why does it fail if engine is not passed
+                pd.read_csv(comparison_metrics_path, engine='python'),
                 run_rec_id))
         else:
             raise ValueError(f"could not find comparison data for run {run_rec_id}")
@@ -238,7 +239,11 @@ def compare_folder_contents(expected_folder: Path,
     if run and is_offline_run_context(run):
         logging.warning("Skipping file comparison because the given run context is an AzureML offline run.")
         return []
-    files_in_run: List[str] = run.get_file_names() if run else []
+    # files_in_run: List[str] = run.get_file_names() if run else []
+
+    mflow_client = MlflowClient()
+    files_in_run: List[str] = mflow_client.list_artifacts(run.info.run_id) if run else []
+
     temp_folder = Path(tempfile.mkdtemp()) if run else None
     for file in expected_folder.rglob("*"):
         # rglob also returns folders, skip those
@@ -251,7 +256,9 @@ def compare_folder_contents(expected_folder: Path,
         elif temp_folder is not None and run is not None:
             actual_file = temp_folder / file_relative
             if file_relative in files_in_run:
-                run.download_file(name=str(file_relative), output_file_path=str(actual_file))
+                # run.download_file(name=str(file_relative), output_file_path=str(actual_file))
+                if not file_relative.is_dir:
+                    run.download_file(name=str(file_relative.path), output_file_path=str(actual_file))
         else:
             raise ValueError("One of the two arguments run, actual_folder must be provided.")
         message = compare_files(expected=file, actual=actual_file) if actual_file.exists() else MISSING_FILE

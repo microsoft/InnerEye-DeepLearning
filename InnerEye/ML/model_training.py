@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple, TypeVar
 from mlflow.tracking import MlflowClient
+from azureml.core import Run
 
 from pytorch_lightning import LightningModule, Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
@@ -65,7 +66,7 @@ def upload_output_file_as_temp(file_path: Path, outputs_folder: Path) -> None:
     """
     upload_name = TEMP_PREFIX + str(file_path.relative_to(outputs_folder))
     # RUN_CONTEXT.upload_file(upload_name, path_or_stream=str(file_path))
-    MlflowClient().log_artifactartifact_path(RUN_CONTEXT.info.run_id, artifact_path=upload_name, local_path=str(file_path))
+    MlflowClient().log_artifact(RUN_CONTEXT.info.run_id, artifact_path=upload_name, local_path=str(file_path))
 
 
 def write_args_file(config: Any, outputs_folder: Path) -> None:

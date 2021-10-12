@@ -77,7 +77,7 @@ class RunRecovery:
         :return: run recovery information
         """
         if fetch_child_runs(run):
-            raise ValueError(f"AzureML run {run.id} has child runs, this method does not support those.")
+            raise ValueError(f"AzureML run {run.info.run_id} has child runs, this method does not support those.")
 
         destination_folder = config.checkpoint_folder / subfolder if subfolder else config.checkpoint_folder
 
