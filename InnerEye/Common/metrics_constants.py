@@ -102,6 +102,7 @@ class MetricType(Enum):
     # Common metrics
     SECONDS_PER_BATCH = "SecondsPerBatch"
     SECONDS_PER_EPOCH = "SecondsPerEpoch"
+    EXCESS_BATCH_LOADING_TIME = "TotalExcessLoadingTimeSeconds"
     SUBJECT_COUNT = "SubjectCount"
     LEARNING_RATE = "LearningRate"
 

@@ -32,10 +32,6 @@ from InnerEye.ML.utils.metrics_util import (binary_classification_accuracy, mean
 from InnerEye.ML.utils.ml_util import check_size_matches
 from InnerEye.ML.utils.sequence_utils import get_masked_model_outputs_and_labels
 
-MAX_ITEM_LOAD_TIME_SEC = 0.5
-MAX_LOAD_TIME_WARNINGS = 3
-MAX_LOAD_TIME_EPOCHS = 5
-
 
 @dataclass(frozen=True)
 class InferenceMetrics:
@@ -81,20 +77,35 @@ class InferenceMetricsForSegmentation(InferenceMetrics):
         })
 
 
-@dataclass
 class EpochTimers:
     """
     Contains all information necessary to compute the IO metrics: Epoch times, batch times, loading times.
     """
-    epoch_start_time: float = time.time()
-    epoch_end_time: float = time.time()
-    batch_start_time: float = time.time()
-    num_load_time_warnings: int = 0
-    num_load_time_exceeded: int = 0
-    total_extra_load_time: float = 0.0
-    total_load_time: float = 0.0
-    num_batches: int = 0
-    load_time_warning_epochs: Set[int] = field(default_factory=set)
+
+    def __init__(self,
+                 max_item_load_time_seconds: float = 0.5,
+                 max_load_time_warnings: int = 3,
+                 max_load_time_epochs: int = 5
+                 ) -> None:
+        """
+        Creates a new instance of the class.
+        :param max_item_load_time_seconds: The maximum expected loading time for a minibatch (given in seconds).
+        If the loading time exceeds this threshold, a warning is printed.
+        :param max_load_time_warnings: The maximum number of warnings that will be printed per epoch.
+        :param max_load_time_epochs: The maximum number of epochs where warnings about the loading time are printed.
+        """
+        self.max_item_load_time_seconds = max_item_load_time_seconds
+        self.max_load_time_warnings = max_load_time_warnings
+        self.max_load_time_epochs = max_load_time_epochs
+        self.epoch_start_time: float = time.time()
+        self.epoch_end_time: float = time.time()
+        self.batch_start_time: float = time.time()
+        self.num_load_time_warnings: int = 0
+        self.num_load_time_exceeded: int = 0
+        self.total_extra_load_time: float = 0.0
+        self.total_load_time: float = 0.0
+        self.num_batches: int = 0
+        self.load_time_warning_epochs: Set[int] = set()
 
     def reset(self) -> None:
         """
@@ -128,15 +139,20 @@ class EpochTimers:
     def should_warn_in_this_epoch(self) -> bool:
         """
         Returns True if warnings about loading time should be printed in the present epoch. Returns False if
-        this warning has been printed already in more than MAX_LOAD_TIME_EPOCHS epochs.
+        this warning has been printed already in more than self.max_load_time_epochs epochs.
         :return:
         """
-        return len(self.load_time_warning_epochs) <= MAX_LOAD_TIME_EPOCHS
+        return len(self.load_time_warning_epochs) <= self.max_load_time_epochs
 
     def batch_start(self, batch_index: int, epoch: int, message_prefix: str) -> float:
         """
-        Called when a minibatch of data has been loaded. This computes the time it took to load the minibatch,
-        and adds it to the internal bookkeeping.
+        Called when a minibatch of data has been loaded. This computes the time it took to load the minibatch
+        (computed between now and the end of the previous minibatch)
+        and adds it to the internal bookkeeping. If the minibatch loading time exceeds a threshold, then warnings
+        are printed (unless too many warnings have been printed already)
+        :param message_prefix: A prefix string that is added to all diagnostic output.
+        :param epoch: The index of the current epoch.
+        :param batch_index: The index of the current minibatch.
         :return: The time it took to load the minibatch, in seconds.
         """
         item_finish_time = time.time()
@@ -146,15 +162,15 @@ class EpochTimers:
         # are spawned. Later, the load time should be zero.
         if batch_index == 0:
             logging.info(f"{message_prefix}: Loaded the first minibatch of data in {item_load_time:0.2f} sec.")
-        elif item_load_time > MAX_ITEM_LOAD_TIME_SEC:
+        elif item_load_time > self.max_item_load_time_seconds:
             self.load_time_warning_epochs.add(epoch)
             self.num_load_time_exceeded += 1
             self.total_extra_load_time += item_load_time
-            if self.num_load_time_warnings < MAX_LOAD_TIME_WARNINGS and self.should_warn_in_this_epoch:
+            if self.num_load_time_warnings < self.max_load_time_warnings and self.should_warn_in_this_epoch:
                 logging.warning(f"{message_prefix}: Loading minibatch {batch_index} took {item_load_time:0.2f} sec. "
                                 "This can mean that there are not enough data loader worker processes, or that there "
                                 "is a performance problem in loading. This warning will be printed at most "
-                                f"{MAX_LOAD_TIME_WARNINGS} times in at most {MAX_LOAD_TIME_EPOCHS} epochs.")
+                                f"{self.max_load_time_warnings} times in at most {self.max_load_time_epochs} epochs.")
                 self.num_load_time_warnings += 1
         return item_load_time
 

@@ -25,7 +25,7 @@ from InnerEye.ML.deep_learning_config import DatasetParams, DeepLearningConfig, 
     WorkflowParams
 from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.lightning_loggers import StoringLogger
-from InnerEye.ML.metrics import EpochTimers, MAX_ITEM_LOAD_TIME_SEC, store_epoch_metrics
+from InnerEye.ML.metrics import EpochTimers, store_epoch_metrics
 from InnerEye.ML.metrics_dict import DataframeLogger
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.utils import model_util
@@ -203,7 +203,9 @@ class InnerEyeContainer(LightningContainer):
 
 class BatchTimeCallback(Callback):
     """
-    This class provides tools to measure batch loading time and other diagnostic information.
+    This callback provides tools to measure batch loading time and other diagnostic information.
+    It prints alerts if the batch loading time is over a threshold for several epochs.
+    All logging will only happen on rank 0.
     """
 
     def __init__(self) -> None:
@@ -212,18 +214,16 @@ class BatchTimeCallback(Callback):
         self.val_timers = EpochTimers()
 
     def on_fit_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
+        """
+        This is called at the start of training. It stores the model that is being trained, because it will be used
+        later to log values.
+        """
         self.module = pl_module
-        self.logger = trainer.logger
 
     def on_train_epoch_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
         self.train_timers.reset()
 
     def on_validation_epoch_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
-        """
-        Stores the state of all random number generators, and resets them all to a fixed seed. This is done to ensure
-        that any randomization when loading validation data is consistent during training. In particular, this ensures
-        that drawing random patches for segmentation model training is giving a validation set that does not fluctuate.
-        """
         self.val_timers.reset()
         # In Lightning, the validation epoch is running "inside" the training. If we get here, it means that training
         # is done for this epoch, even though the on_training_epoch hook has not yet been called.
@@ -279,6 +279,35 @@ class BatchTimeCallback(Callback):
                                 ) -> None:
         self.batch_end(is_training=False)
 
+    def batch_start(self, batch_idx: int, is_training: bool) -> None:
+        """
+        Shared code to keep track of minibatch loading times. This is only done on rank zero.
+        :param batch_idx: The index of the current minibatch.
+        :param is_training: If true, this has been called from `on_train_batch_start`, otherwise it has been called from
+        `on_validation_batch_start`.
+        """
+        timers = self.get_timers(is_training=is_training)
+        epoch = self.module.current_epoch
+        message_prefix = f"Epoch {epoch} {'training' if is_training else 'validation'}"
+        timers.batch_start(batch_index=batch_idx, epoch=epoch, message_prefix=message_prefix)
+
+    def batch_end(self, is_training: bool) -> None:
+        """
+        Shared code to keep track of IO-related metrics when loading a minibatch.
+        :param is_training: If true, this has been called from `on_train_batch_end`, otherwise it has been called from
+        `on_validation_batch_end`.
+        """
+        timers = self.get_timers(is_training=is_training)
+        batch_time = timers.batch_end()
+        self.log_metric(MetricType.SECONDS_PER_BATCH.value,
+                        value=batch_time,
+                        is_training=is_training)
+        self.log_metric(MetricType.SECONDS_PER_BATCH.value + " max",
+                        value=batch_time,
+                        is_training=is_training,
+                        reduce_max=True)
+
+    @rank_zero_only
     def write_and_log_epoch_time(self, is_training: bool) -> None:
         """
         Reads the IO timers for either the training or validation epoch, writes them to the console, and logs the
@@ -293,45 +322,36 @@ class BatchTimeCallback(Callback):
                      f"for data took {timers.total_load_time:0.2f} sec total.")
         if timers.num_load_time_exceeded > 0 and timers.should_warn_in_this_epoch:
             logging.warning("The dataloaders were not fast enough to always supply the next batch in less than "
-                            f"{MAX_ITEM_LOAD_TIME_SEC}sec.")
+                            f"{timers.max_item_load_time_seconds}sec.")
             logging.warning(
                 f"In this epoch, {timers.num_load_time_exceeded} out of {timers.num_batches} batches exceeded the load "
                 f"time threshold. Total loading time for the slow batches was {timers.total_extra_load_time:0.2f}sec.")
         # This metric is only written at rank zero, and hence must not be synchronized across workers. If attempted,
         # training will get stuck.
-        self.log_metric(MetricType.SECONDS_PER_EPOCH, value=epoch_time_seconds, is_training=is_training)
+        self.log_metric(MetricType.SECONDS_PER_EPOCH.value,
+                        value=epoch_time_seconds,
+                        is_training=is_training)
+        self.log_metric(MetricType.EXCESS_BATCH_LOADING_TIME.value,
+                        value=timers.total_extra_load_time,
+                        is_training=is_training)
 
-    def log_metric(self, metric_type: MetricType, value: float, is_training: bool) -> None:
+    @rank_zero_only
+    def log_metric(self, name_suffix: str, value: float, is_training: bool, reduce_max: bool = False) -> None:
+        """
+        Write a metric given as a name/value pair to the currently trained module. The full name of the metric is
+        composed of a fixed prefix "timing/", followed by either "train/" or "val/", and then the given suffix.
+        :param name_suffix: The suffix for the logged metric name.
+        :param value: The value to log.
+        :param is_training: If True, use "train/" in the metric name, otherwise "val/"
+        :param reduce_max: If True, use torch.max as the aggregation function for the logged values. If False, use
+        torch.mean
+        """
         # Metrics are only written at rank 0, and hence must not be synchronized. Trying to synchronize will
         # block training.
         prefix = TRAIN_PREFIX if is_training else VALIDATION_PREFIX
-        self.module.log(name=prefix + metric_type.value, value=value,
-                        on_step=False, on_epoch=True, sync_dist=False)
-
-    @rank_zero_only
-    def batch_start(self, batch_idx: int, is_training: bool) -> None:
-        """
-        Shared code to keep track of IO-related metrics when loading a minibatch. This is only done on rank zero.
-        :param batch_idx: The index of the current minibatch.
-        :param is_training: If true, this has been called from `on_train_batch_start`, otherwise it has been called from
-        `on_validation_batch_start`.
-        :return:
-        """
-        timers = self.get_timers(is_training=is_training)
-        epoch = self.module.current_epoch
-        message_prefix = f"Epoch {epoch} {'training' if is_training else 'validation'}"
-        timers.batch_start(batch_index=batch_idx, epoch=epoch, message_prefix=message_prefix)
-
-    @rank_zero_only
-    def batch_end(self, is_training: bool) -> None:
-        """
-        Shared code to keep track of IO-related metrics when loading a minibatch.
-        :param is_training: If true, this has been called from `on_train_batch_end`, otherwise it has been called from
-        `on_validation_batch_end`.
-        """
-        timers = self.get_timers(is_training=is_training)
-        batch_time = timers.batch_end()
-        self.log_metric(MetricType.SECONDS_PER_BATCH, value=batch_time, is_training=is_training)
+        self.module.log(name="timing/" + prefix + name_suffix, value=value,
+                        on_step=False, on_epoch=True, sync_dist=False,
+                        reduce_fx=max if reduce_max else torch.mean)
 
     def get_timers(self, is_training: bool) -> EpochTimers:
         """

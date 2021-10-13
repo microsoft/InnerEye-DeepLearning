@@ -17,7 +17,7 @@ from torch.utils.data import DataLoader
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, is_windows, logging_to_stdout
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
-from InnerEye.Common.metrics_constants import MetricType, TrackedMetrics, VALIDATION_PREFIX
+from InnerEye.Common.metrics_constants import MetricType, TRAIN_PREFIX, TrackedMetrics, VALIDATION_PREFIX
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, CHECKPOINT_SUFFIX, DATASET_CSV_FILE_NAME, \
     ModelExecutionMode, \
@@ -114,6 +114,15 @@ def _test_model_train(output_dirs: OutputFolderForTests,
 
     model_training_result, _ = model_train_unittest(train_config, dirs=output_dirs)
     assert isinstance(model_training_result, StoringLogger)
+    for epoch, epoch_results in model_training_result.results.items():
+        for prefix in [TRAIN_PREFIX, VALIDATION_PREFIX]:
+            for metric_type in [MetricType.SECONDS_PER_EPOCH.value,
+                                MetricType.SECONDS_PER_BATCH.value,
+                                MetricType.EXCESS_BATCH_LOADING_TIME.value,
+                                MetricType.SECONDS_PER_BATCH.value + " max"]:
+                expected = "timing/" + prefix + metric_type
+                assert expected in epoch_results, f"Expected {expected} in results for epoch {epoch}"
+                assert epoch_results[expected] > 0.0, "Time should be > 0"
 
     actual_train_losses = model_training_result.get_train_metric(MetricType.LOSS.value)
     actual_val_losses = model_training_result.get_val_metric(MetricType.LOSS.value)
