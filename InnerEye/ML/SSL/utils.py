@@ -48,6 +48,7 @@ def create_ssl_encoder(encoder_name: str, use_7x7_first_conv_in_resnet: bool = T
         encoder = resnet18(return_all_feature_maps=False, first_conv=use_7x7_first_conv_in_resnet)
     elif encoder_name == 'resnet50':
         encoder = resnet50(return_all_feature_maps=False, first_conv=use_7x7_first_conv_in_resnet)
+        encoder.conv1 = torch.nn.Conv2d(4, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
     elif encoder_name == 'resnet101':
         encoder = resnet101(return_all_feature_maps=False, first_conv=use_7x7_first_conv_in_resnet)
     elif encoder_name == 'densenet121':
@@ -55,6 +56,8 @@ def create_ssl_encoder(encoder_name: str, use_7x7_first_conv_in_resnet: bool = T
             raise ValueError("You set use_7x7_first_conv_in_resnet to False (non-default) but you requested a "
                              "DenseNet121 encoder.")
         encoder = DenseNet121Encoder()
+        encoder.densenet_features[0] = torch.nn.Conv2d(4, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3),
+                                                       bias=False)
     else:
         raise ValueError("Unknown model type")
     return encoder

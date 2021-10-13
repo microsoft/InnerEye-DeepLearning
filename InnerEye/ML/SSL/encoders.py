@@ -75,7 +75,7 @@ def get_encoder_output_dim(pl_module: Union[pl.LightningModule, torch.nn.Module]
         batch = iter(dataloader).next()  # type: ignore
         x, _ = SSLOnlineEvaluatorInnerEye.to_device(batch, device)
     else:
-        x = torch.rand((1, 3, 256, 256)).to(device)
+        x = torch.rand((1, 4, 256, 256)).to(device)
 
     # Extract the number of output feature dimensions
     with torch.no_grad():
