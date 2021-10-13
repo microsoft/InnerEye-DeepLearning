@@ -206,6 +206,11 @@ class BatchTimeCallback(Callback):
     This callback provides tools to measure batch loading time and other diagnostic information.
     It prints alerts if the batch loading time is over a threshold for several epochs.
     All logging will only happen on rank 0.
+
+    The loading time for a minibatch is estimated by the difference between the start time of a minibatch and the
+    end time of the previous minibatch. It will consequently also include other operations that happen between the
+    end of a batch and the start of the next one. For example, computationally expensive callbacks could also
+    drive up this time.
     """
 
     def __init__(self) -> None:
