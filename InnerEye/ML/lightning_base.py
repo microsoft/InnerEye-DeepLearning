@@ -360,13 +360,13 @@ class BatchTimeCallback(Callback):
 
     def get_timers(self, is_training: bool) -> EpochTimers:
         """
-        Gets the object that holds all IO-related metrics and timers, for either the validation or the training epoch.
+        Gets the object that holds all metrics and timers, for either the validation or the training epoch.
         """
         return self.train_timers if is_training else self.val_timers
 
     def reset_timers(self) -> None:
         """
-        Resets all timers and counters for IO-related metrics, for both the validation and the training epoch.
+        Resets all timers and counters, for both the validation and the training epoch.
         """
         self.train_timers.reset()
         self.val_timers.reset()
