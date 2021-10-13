@@ -165,7 +165,6 @@ class SegmentationLightning(InnerEyeLightning):
         for name, value in voxel_count.compute_all():
             self.log(name, value)
         voxel_count.reset()
-        super().training_or_validation_epoch_end(is_training=is_training)
 
 
 def get_subject_output_file_per_rank(rank: int) -> str:
@@ -292,7 +291,6 @@ class ScalarLightning(InnerEyeLightning):
                     metric.reset()
         logger = self.train_subject_outputs_logger if is_training else self.val_subject_outputs_logger  # type: ignore
         logger.flush()
-        super().training_or_validation_epoch_end(is_training)
 
     def transfer_batch_to_device(self, batch: Any, device: torch.device) -> Any:  # type: ignore
         """

@@ -602,7 +602,6 @@ class TrainerParams(param.Parameterized):
         from InnerEye.ML.utils.ml_util import is_gpu_available
         return is_gpu_available()
 
-    @property
     def num_gpus_per_node(self) -> int:
         """
         Computes the number of gpus to use for each node: either the number of gpus available on the device

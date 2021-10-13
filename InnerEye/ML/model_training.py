@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Tuple, TypeVar
 
 from pytorch_lightning import LightningModule, Trainer, seed_everything
-from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.callbacks import GPUStatsMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.plugins import DDPPlugin
 
@@ -19,7 +19,7 @@ from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, change_workin
 from InnerEye.Common.resource_monitor import ResourceMonitor
 from InnerEye.ML.common import ModelExecutionMode, RECOVERY_CHECKPOINT_FILE_NAME, create_best_checkpoint
 from InnerEye.ML.deep_learning_config import ARGS_TXT, VISUALIZATION_FOLDER
-from InnerEye.ML.lightning_base import InnerEyeContainer, InnerEyeLightning
+from InnerEye.ML.lightning_base import BatchTimeCallback, InnerEyeContainer, InnerEyeLightning
 from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.lightning_loggers import AzureMLLogger, StoringLogger
 from InnerEye.ML.lightning_models import SUBJECT_OUTPUT_PER_RANK_PREFIX, ScalarLightning, \
@@ -113,18 +113,7 @@ def create_lightning_trainer(container: LightningContainer,
     :param kwargs: Any additional keyowrd arguments will be passed to the constructor of Trainer.
     :return: A tuple [Trainer object, diagnostic logger]
     """
-    # For now, stick with the legacy behaviour of always saving only the last epoch checkpoint. For large segmentation
-    # models, this still appears to be the best way of choosing them because validation loss on the relatively small
-    # training patches is not stable enough. Going by the validation loss somehow works for the Prostate model, but
-    # not for the HeadAndNeck model.
-    last_checkpoint_callback = ModelCheckpoint(dirpath=str(container.checkpoint_folder), save_last=True, save_top_k=0)
-
-    # Recovery checkpoints: {epoch} will turn into a string like "epoch=1"
-    # Store 1 recovery checkpoint every recovery_checkpoint_save_interval epochs, keep the last
-    # recovery_checkpoints_save_last_k.
-    recovery_checkpoint_callback = InnerEyeRecoveryCheckpointCallback(container)
-
-    num_gpus = container.num_gpus_per_node
+    num_gpus = container.num_gpus_per_node()
     effective_num_gpus = num_gpus * num_nodes
     # Accelerator should be "ddp" when running large models in AzureML (when using DDP_spawn, we get out of GPU memory).
     if effective_num_gpus > 1:
@@ -157,9 +146,26 @@ def create_lightning_trainer(container: LightningContainer,
     else:
         deterministic = False
         benchmark = True
-    # If the users provides additional callbacks via get_trainer_arguments (for custom
-    # containers
-    callbacks = [last_checkpoint_callback, recovery_checkpoint_callback]
+
+    # For now, stick with the legacy behaviour of always saving only the last epoch checkpoint. For large segmentation
+    # models, this still appears to be the best way of choosing them because validation loss on the relatively small
+    # training patches is not stable enough. Going by the validation loss somehow works for the Prostate model, but
+    # not for the HeadAndNeck model.
+    last_checkpoint_callback = ModelCheckpoint(dirpath=str(container.checkpoint_folder), save_last=True, save_top_k=0)
+    # Recovery checkpoints: {epoch} will turn into a string like "epoch=1"
+    # Store 1 recovery checkpoint every recovery_checkpoint_save_interval epochs, keep the last
+    # recovery_checkpoints_save_last_k.
+    recovery_checkpoint_callback = InnerEyeRecoveryCheckpointCallback(container)
+    callbacks = [
+        last_checkpoint_callback,
+        recovery_checkpoint_callback,
+        BatchTimeCallback()
+    ]
+    # TODO: Add a flag for that.
+    if num_gpus > 0:
+        logging.info("Adding monitoring for GPU utilization")
+        callbacks.append(GPUStatsMonitor(intra_step_time=True, inter_step_time=True))
+    # Add the additional callbacks that were specified in get_trainer_arguments for LightningContainers
     if "callbacks" in kwargs:
         callbacks.append(kwargs.pop("callbacks"))  # type: ignore
     is_azureml_run = not is_offline_run_context(RUN_CONTEXT)
@@ -186,6 +192,7 @@ def create_lightning_trainer(container: LightningContainer,
                       precision=precision,
                       sync_batchnorm=True,
                       terminate_on_nan=container.detect_anomaly,
+                      profiler="simple",
                       resume_from_checkpoint=str(resume_from_checkpoint) if resume_from_checkpoint else None,
                       **kwargs)
     return trainer, storing_logger
