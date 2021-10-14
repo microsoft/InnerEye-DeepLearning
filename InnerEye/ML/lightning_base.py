@@ -304,7 +304,7 @@ class BatchTimeCallback(Callback):
         """
         timers = self.get_timers(is_training=is_training)
         batch_time = timers.batch_end()
-        self.log_metric(MetricType.SECONDS_PER_BATCH.value,
+        self.log_metric(MetricType.SECONDS_PER_BATCH.value + " avg",
                         value=batch_time,
                         is_training=is_training)
         self.log_metric(MetricType.SECONDS_PER_BATCH.value + " max",

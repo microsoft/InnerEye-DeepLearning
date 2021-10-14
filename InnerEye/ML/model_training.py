@@ -21,7 +21,7 @@ from InnerEye.ML.common import ModelExecutionMode, RECOVERY_CHECKPOINT_FILE_NAME
 from InnerEye.ML.deep_learning_config import ARGS_TXT, VISUALIZATION_FOLDER
 from InnerEye.ML.lightning_base import BatchTimeCallback, InnerEyeContainer, InnerEyeLightning
 from InnerEye.ML.lightning_container import LightningContainer
-from InnerEye.ML.lightning_loggers import AzureMLLogger, StoringLogger
+from InnerEye.ML.lightning_loggers import AzureMLLogger, AzureMLProgressBar, StoringLogger
 from InnerEye.ML.lightning_models import SUBJECT_OUTPUT_PER_RANK_PREFIX, ScalarLightning, \
     get_subject_output_file_per_rank
 
@@ -167,14 +167,20 @@ def create_lightning_trainer(container: LightningContainer,
         callbacks.append(GPUStatsMonitor(intra_step_time=True, inter_step_time=True))
     # Add the additional callbacks that were specified in get_trainer_arguments for LightningContainers
     if "callbacks" in kwargs:
-        callbacks.append(kwargs.pop("callbacks"))  # type: ignore
+        more_callbacks = kwargs.pop("callbacks")
+        if isinstance(more_callbacks, list):
+            callbacks.extend(more_callbacks)  # type: ignore
+        else:
+            callbacks.append(more_callbacks)  # type: ignore
     is_azureml_run = not is_offline_run_context(RUN_CONTEXT)
     progress_bar_refresh_rate = container.pl_progress_bar_refresh_rate
-    if progress_bar_refresh_rate is None and is_azureml_run:
-        # When running in AzureML, the default progress bar clutters the output files with thousands of lines.
-        progress_bar_refresh_rate = 50
-        logging.info(f"The progress bar refresh rate is not set. Using a default of {progress_bar_refresh_rate}. "
-                     f"To change, modify the pl_progress_bar_refresh_rate field of the container.")
+    if is_azureml_run:
+        if progress_bar_refresh_rate is None:
+            # When running in AzureML, the default progress bar clutters the output files with thousands of lines.
+            progress_bar_refresh_rate = 50
+            logging.info(f"The progress bar refresh rate is not set. Using a default of {progress_bar_refresh_rate}. "
+                         f"To change, modify the pl_progress_bar_refresh_rate field of the container.")
+        callbacks.append(AzureMLProgressBar(refresh_rate=progress_bar_refresh_rate))
     # Read out additional model-specific args here.
     # We probably want to keep essential ones like numgpu and logging.
     trainer = Trainer(default_root_dir=str(container.outputs_folder),
