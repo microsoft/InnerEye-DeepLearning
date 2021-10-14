@@ -179,18 +179,36 @@ class AzureMLLogger(LightningLoggerBase):
         return 0
 
 
+PROGRESS_STAGE_TRAIN = "Training"
+PROGRESS_STAGE_VAL = "Validation"
+PROGRESS_STAGE_TEST = "Testing"
+PROGRESS_STAGE_PREDICT = "Prediction"
+
+
 class AzureMLProgressBar(ProgressBarBase):
     """
     A PL progress bar that works better in AzureML. It prints timestamps for each message, and works well with a setup
     where there is no direct access to the console.
     """
-    def __init__(self, refresh_rate: Optional[int] = 1):
+
+    def __init__(self,
+                 refresh_rate: int = 50,
+                 write_to_logging_info: bool = False
+                 ):
+        """
+        Creates a new AzureML progress bar.
+        :param refresh_rate: The number of steps after which the progress should be printed out.
+        :param write_to_logging_info: If True, the progress information will be printed via logging.info. If False,
+        it will be printed to stdout via print.
+        """
         super().__init__()
-        self._refresh_rate = refresh_rate or 1
+        self._refresh_rate = refresh_rate
         self._enabled = True
         self.stage = ""
         self.stage_start_time = 0.0
         self.max_batch_count = 0
+        self.progress_print_fn = logging.info if write_to_logging_info else print
+        self.flush_fn = None if write_to_logging_info else sys.stdout.flush
 
     @property
     def refresh_rate(self) -> int:
@@ -213,68 +231,85 @@ class AzureMLProgressBar(ProgressBarBase):
     def on_fit_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
         self.module = pl_module
 
-    def on_train_epoch_start(self, trainer, pl_module):
+    def on_train_epoch_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
         super().on_train_epoch_start(trainer, pl_module)
-        self.start_stage("Training", self.total_train_batches)
+        self.start_stage(PROGRESS_STAGE_TRAIN, self.total_train_batches)
 
-    def on_validation_epoch_start(self, trainer, pl_module):
+    def on_validation_epoch_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
         super().on_validation_epoch_start(trainer, pl_module)
-        self.start_stage("Validation", self.total_val_batches)
+        self.start_stage(PROGRESS_STAGE_VAL, self.total_val_batches)
 
-    def on_test_epoch_start(self, trainer, pl_module):
+    def on_test_epoch_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
         super().on_test_epoch_start(trainer, pl_module)
-        self.start_stage("Testing", self.total_test_batches)
+        self.start_stage(PROGRESS_STAGE_TEST, self.total_test_batches)
 
-    def on_predict_epoch_start(self, trainer, pl_module):
+    def on_predict_epoch_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
         super().on_predict_epoch_start(trainer, pl_module)
-        self.start_stage("Prediction", self.total_predict_batches)
+        self.start_stage(PROGRESS_STAGE_PREDICT, self.total_predict_batches)
 
-    def start_stage(self, stage: str, max_batch_count: int):
+    def start_stage(self, stage: str, max_batch_count: int) -> None:
+        """
+        Sets the information that a new stage of the PL loop is starting. The stage will be available in
+        self.stage, max_batch_count in self.max_batch_count. The time when this method was called is recorded in
+        self.stage_start_time
+        :param stage: The string name of the stage that has just started.
+        :param max_batch_count: The total number of batches that need to be processed in this stage.
+        """
         self.stage = stage
         self.max_batch_count = max_batch_count
         self.stage_start_time = time.time()
 
-    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx):
+    def on_train_batch_end(self, trainer: Trainer, pl_module: LightningModule, outputs: Any, batch: Any,
+                           batch_idx: int, dataloader_idx: int) -> None:
         super().on_train_batch_end(trainer, pl_module, outputs, batch, batch_idx, dataloader_idx)
-        self.update_progress(batches_processed = self.train_batch_idx)
+        self.update_progress(batches_processed=self.train_batch_idx)
 
-    def on_validation_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx):
+    def on_validation_batch_end(self, trainer: Trainer, pl_module: LightningModule, outputs: Any, batch: Any,
+                                batch_idx: int, dataloader_idx: int) -> None:
         super().on_validation_batch_end(trainer, pl_module, outputs, batch, batch_idx, dataloader_idx)
-        self.update_progress(batches_processed = self.val_batch_idx)
+        self.update_progress(batches_processed=self.val_batch_idx)
 
-    def on_test_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx):
+    def on_test_batch_end(self, trainer: Trainer, pl_module: LightningModule, outputs: Any, batch: Any,
+                          batch_idx: int, dataloader_idx: int) -> None:
         super().on_test_batch_end(trainer, pl_module, outputs, batch, batch_idx, dataloader_idx)
-        self.update_progress(batches_processed = self.test_batch_idx)
+        self.update_progress(batches_processed=self.test_batch_idx)
 
-    def on_predict_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx):
+    def on_predict_batch_end(self, trainer: Trainer, pl_module: LightningModule, outputs: Any, batch: Any,
+                             batch_idx: int, dataloader_idx: int) -> None:
         super().on_predict_batch_end(trainer, pl_module, outputs, batch, batch_idx, dataloader_idx)
-        self.update_progress(batches_processed = self.predict_batch_idx)
+        self.update_progress(batches_processed=self.predict_batch_idx)
 
     def update_progress(self, batches_processed: int):
+        """
+        Writes progress information once the refresh interval is full.
+        :param batches_processed: The number of batches that have been processed for the current stage.
+        """
         should_update = self.is_enabled and \
                         (batches_processed % self.refresh_rate == 0 or batches_processed == self.max_batch_count)
         if not should_update:
             return
         prefix = f"{self.stage}"
-        if self.stage in ["Training", "Validation"]:
-             prefix += f" epoch {self.module.current_epoch}"
-        if self.stage == "Training":
+        if self.stage in [PROGRESS_STAGE_TRAIN, PROGRESS_STAGE_VAL]:
+            prefix += f" epoch {self.module.current_epoch}"
+        if self.stage == PROGRESS_STAGE_TRAIN:
             prefix += f" (step {self.module.global_step})"
         prefix += ": "
         if math.isinf(self.max_batch_count):
             # Can't print out per-cent progress or time estimates if the data is infinite
-            logging.info(f"{prefix}{batches_processed} batches completed")
+            message = f"{prefix}{batches_processed} batches completed"
         else:
             fraction_completed = batches_processed / self.max_batch_count
             percent_completed = int(fraction_completed * 100)
             time_elapsed = time.time() - self.stage_start_time
-            estimated_epoch_time = time_elapsed / fraction_completed
+            estimated_epoch_duration = time_elapsed / fraction_completed
 
             def to_minutes(time_sec: float) -> str:
                 minutes = int(time_sec / 60)
                 seconds = int(time_sec % 60)
                 return f"{minutes:02}:{seconds:02}"
 
-            logging.info(f"{prefix}{batches_processed:4}/{self.max_batch_count} ({percent_completed:3}%) completed. "
-                         f"{to_minutes(time_elapsed)} done, epoch expected to take {to_minutes(estimated_epoch_time)}")
-        sys.stdout.flush()
+            message = (f"{prefix}{batches_processed:4}/{self.max_batch_count} ({percent_completed:3}%) completed. "
+                       f"{to_minutes(time_elapsed)} elapsed, total epoch time ~ {to_minutes(estimated_epoch_duration)}")
+        self.progress_print_fn(message)
+        if self.flush_fn:
+            self.flush_fn()
