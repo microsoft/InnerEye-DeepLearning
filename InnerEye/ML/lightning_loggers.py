@@ -228,15 +228,12 @@ class AzureMLProgressBar(ProgressBarBase):
     def enable(self) -> None:
         self._enabled = True
 
-    def on_fit_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
-        self.module = pl_module
-
     def on_train_epoch_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
         super().on_train_epoch_start(trainer, pl_module)
         self.start_stage(PROGRESS_STAGE_TRAIN, self.total_train_batches)
 
-    def on_validation_epoch_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
-        super().on_validation_epoch_start(trainer, pl_module)
+    def on_validation_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
+        super().on_validation_start(trainer, pl_module)
         self.start_stage(PROGRESS_STAGE_VAL, self.total_val_batches)
 
     def on_test_epoch_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
@@ -290,13 +287,13 @@ class AzureMLProgressBar(ProgressBarBase):
             return
         prefix = f"{self.stage}"
         if self.stage in [PROGRESS_STAGE_TRAIN, PROGRESS_STAGE_VAL]:
-            prefix += f" epoch {self.module.current_epoch}"
+            prefix += f" epoch {self.trainer.current_epoch}"
         if self.stage == PROGRESS_STAGE_TRAIN:
-            prefix += f" (step {self.module.global_step})"
+            prefix += f" (step {self.trainer.lightning_module.global_step})"
         prefix += ": "
         if math.isinf(self.max_batch_count):
             # Can't print out per-cent progress or time estimates if the data is infinite
-            message = f"{prefix}{batches_processed} batches completed"
+            message = f"{prefix}{batches_processed:4} batches completed"
         else:
             fraction_completed = batches_processed / self.max_batch_count
             percent_completed = int(fraction_completed * 100)
