@@ -70,20 +70,21 @@ def test_progress_bar() -> None:
     # Messages in testing
     bar.on_test_epoch_start(None, None)  # type: ignore
     assert bar.stage == PROGRESS_STAGE_TEST
-    bar.on_test_batch_end(None, None, None, None, None, None)  # type: ignore
-    bar.on_test_batch_end(None, None, None, None, None, None)  # type: ignore
-    assert bar.test_batch_idx == 2
+    test_count = 2
+    for _ in range(test_count):
+        bar.on_test_batch_end(None, None, None, None, None, None)  # type: ignore
+    assert bar.test_batch_idx == test_count
     assert "Testing:" in messages[-1]
-    assert "2/20 ( 10%)" in messages[-1]
+    assert f"{test_count}/20 ( 10%)" in messages[-1]
     # Messages in prediction
     bar.on_predict_epoch_start(None, None)  # type: ignore
     assert bar.stage == PROGRESS_STAGE_PREDICT
-    bar.on_predict_batch_end(None, None, None, None, None, None)  # type: ignore
-    bar.on_predict_batch_end(None, None, None, None, None, None)  # type: ignore
-    bar.on_predict_batch_end(None, None, None, None, None, None)  # type: ignore
-    assert bar.predict_batch_idx == 3
+    predict_count = 3
+    for _ in range(predict_count):
+        bar.on_predict_batch_end(None, None, None, None, None, None)  # type: ignore
+    assert bar.predict_batch_idx == predict_count
     assert "Prediction:" in messages[-1]
-    assert "3/30 ( 10%)" in messages[-1]
+    assert f"{predict_count}/30 ( 10%)" in messages[-1]
     # Test behaviour when a batch count is infinity
     bar.max_batch_count = math.inf
     bar.on_predict_batch_end(None, None, None, None, None, None)  # type: ignore
