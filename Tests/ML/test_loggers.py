@@ -7,11 +7,11 @@ import math
 from typing import List
 from unittest import mock
 
-from InnerEye.ML.lightning_loggers import AzureMLProgressBar, PROGRESS_STAGE_PREDICT, PROGRESS_STAGE_TEST, \
-    PROGRESS_STAGE_TRAIN, \
-    PROGRESS_STAGE_VAL
-from InnerEye.ML.metrics import EpochTimers
 from _pytest.logging import LogCaptureFixture
+
+from InnerEye.ML.lightning_loggers import (AzureMLProgressBar, PROGRESS_STAGE_PREDICT, PROGRESS_STAGE_TEST,
+                                           PROGRESS_STAGE_TRAIN, PROGRESS_STAGE_VAL)
+from InnerEye.ML.metrics import EpochTimers
 
 
 def test_progress_bar_enable() -> None:
@@ -137,7 +137,7 @@ def test_epoch_timers(caplog: LogCaptureFixture) -> None:
     assert timer.num_load_time_exceeded == 1
     assert epoch in timer.load_time_warning_epochs
     message = caplog.messages[-1]
-    assert f"prefix: Loading minibatch { batch_index} took" in message
+    assert f"prefix: Loading minibatch {batch_index} took" in message
     assert f"This message will be printed at most {timer.max_load_time_warnings} times"
     assert timer.num_load_time_warnings > 0
 
