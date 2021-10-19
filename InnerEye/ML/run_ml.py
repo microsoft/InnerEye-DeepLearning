@@ -682,9 +682,12 @@ class MLRunner:
             # TODO: Mflflow equivalent of run.get_environment
             # python_environment = RUN_CONTEXT.get_environment()
             python_environment = Run.get_context().get_environment()
-            assert python_environment.version == ENVIRONMENT_VERSION, \
-                f"Expected all Python environments to have version '{ENVIRONMENT_VERSION}', but got: " \
-                f"'{python_environment.version}"
+
+            # TODO: Checking with EMS team about it
+            # assert python_environment.version == ENVIRONMENT_VERSION, \
+            #     f"Expected all Python environments to have version '{ENVIRONMENT_VERSION}', but got: " \
+            #     f"'{python_environment.version}"
+            
             # model.add_tags({PYTHON_ENVIRONMENT_NAME: python_environment.name})
             # update the run's tags with the registered model information
             # run_to_register_on.tag(MODEL_ID_KEY_NAME, model.id)

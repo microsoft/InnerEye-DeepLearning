@@ -305,7 +305,30 @@ def download_run_output_file(blob_path: Path,
     except Exception as ex:
         logging.info(f"Error downloading file {str(ex)} ")
         raise ValueError(f"Unable to download file '{blobs_prefix}' from run {run.info.run_id}") from ex    
-    return destination
+    return destination / blob_path.name
+
+
+# def download_run_output_file(blob_path: Path,
+#                              destination: Path,
+#                              run: Run) -> Path:
+#     """
+#     Downloads a single file from the run's default output directory: DEFAULT_AML_UPLOAD_DIR ("outputs").
+#     For example, if blobs_path = "foo/bar.csv", then the run result file "outputs/foo/bar.csv" will be downloaded
+#     to <destination>/bar.csv (the directory will be stripped off).
+#     :param blob_path: The name of the file to download.
+#     :param run: The AzureML run to download the files from
+#     :param destination: Local path to save the downloaded blob to.
+#     :return: Destination path to the downloaded file(s)
+#     """
+#     blobs_prefix = str((fixed_paths.DEFAULT_AML_UPLOAD_DIR / blob_path).as_posix())
+#     destination = destination / blob_path.name
+#     logging.info(f"Downloading single file from run {run.id}: {blobs_prefix} -> {str(destination)}")
+#     try:
+#         run.download_file(blobs_prefix, str(destination), _validate_checksum=True)
+#     except Exception as ex:
+#         raise ValueError(f"Unable to download file '{blobs_prefix}' from run {run.id}") from ex
+#     return destination
+
 
 
 def download_aml_run_output_file(blob_path: Path,

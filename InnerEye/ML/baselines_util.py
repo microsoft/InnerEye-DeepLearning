@@ -241,8 +241,12 @@ def compare_folder_contents(expected_folder: Path,
         return []
     # files_in_run: List[str] = run.get_file_names() if run else []
 
-    mflow_client = MlflowClient()
-    files_in_run: List[str] = mflow_client.list_artifacts(run.info.run_id) if run else []
+    mlflow_client = MlflowClient()
+    files_in_run: List[str] = mlflow_client.list_artifacts(run.info.run_id) if run else [] # TODO : Raise bug since list artifacts is not returning proper result
+    
+    # For debugging purpose
+    if files_in_run:
+        logging.info(str(files_in_run))
 
     temp_folder = Path(tempfile.mkdtemp()) if run else None
     for file in expected_folder.rglob("*"):
@@ -255,10 +259,14 @@ def compare_folder_contents(expected_folder: Path,
             actual_file = actual_folder / file_relative
         elif temp_folder is not None and run is not None:
             actual_file = temp_folder / file_relative
-            if file_relative in files_in_run:
-                # run.download_file(name=str(file_relative), output_file_path=str(actual_file))
-                if not file_relative.is_dir:
-                    run.download_file(name=str(file_relative.path), output_file_path=str(actual_file))
+            try:
+                mlflow_client.download_artifacts(run.info.run_id, path=file_relative, dst_path=temp_folder)
+            except Exception as ex:
+                logging.info(f"Failed to download artifact {file_relative}")
+            # Uncomment once log_artifacts is fixed
+            # if file_relative in files_in_run:
+            #     # run.download_file(name=str(file_relative), output_file_path=str(actual_file))
+            #     mlflow_client.download_artifacts(run.info.run_id, path=file_relative, dst_path=temp_folder)
         else:
             raise ValueError("One of the two arguments run, actual_folder must be provided.")
         message = compare_files(expected=file, actual=actual_file) if actual_file.exists() else MISSING_FILE
@@ -294,6 +302,9 @@ def compare_folders_and_run_outputs(expected: Path, actual: Path) -> None:
             if actual_folder is None and run_to_compare is None:
                 raise ValueError(f"The set of expected test results in {expected} contains a folder "
                                  f"{subfolder}, but there is no (parent) run to compare against.")
+            
+            logging.info(f"Comparing folder {folder}")
+            logging.info(f"Actual folder {actual_folder}")
             new_messages = compare_folder_contents(folder, actual_folder=actual_folder, run=run_to_compare)
             if new_messages:
                 messages.append(f"Issues in {message_prefix}:")
