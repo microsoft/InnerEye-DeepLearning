@@ -226,10 +226,10 @@ class BatchTimeCallback(Callback):
         self.module = pl_module
 
     def on_train_epoch_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
-        self.train_timers.reset()
+        self.train_timers.epoch_start()
 
     def on_validation_epoch_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
-        self.val_timers.reset()
+        self.val_timers.epoch_start()
         # In Lightning, the validation epoch is running "inside" the training. If we get here, it means that training
         # is done for this epoch, even though the on_training_epoch hook has not yet been called.
         self.train_timers.epoch_end()
@@ -327,7 +327,7 @@ class BatchTimeCallback(Callback):
                      f"for data took {timers.total_load_time:0.2f} sec total.")
         if timers.num_load_time_exceeded > 0 and timers.should_warn_in_this_epoch:
             logging.warning("The dataloaders were not fast enough to always supply the next batch in less than "
-                            f"{timers.max_item_load_time_seconds}sec.")
+                            f"{timers.max_item_load_time_seconds:0.2f}sec.")
             logging.warning(
                 f"In this epoch, {timers.num_load_time_exceeded} out of {timers.num_batches} batches exceeded the load "
                 f"time threshold. Total loading time for the slow batches was {timers.total_extra_load_time:0.2f}sec.")
@@ -363,13 +363,6 @@ class BatchTimeCallback(Callback):
         Gets the object that holds all metrics and timers, for either the validation or the training epoch.
         """
         return self.train_timers if is_training else self.val_timers
-
-    def reset_timers(self) -> None:
-        """
-        Resets all timers and counters, for both the validation and the training epoch.
-        """
-        self.train_timers.reset()
-        self.val_timers.reset()
 
 
 class InnerEyeLightning(LightningModule):
