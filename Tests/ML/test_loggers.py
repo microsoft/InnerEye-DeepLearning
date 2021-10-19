@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import logging
 import math
 from typing import List
 from unittest import mock
@@ -9,6 +10,8 @@ from unittest import mock
 from InnerEye.ML.lightning_loggers import AzureMLProgressBar, PROGRESS_STAGE_PREDICT, PROGRESS_STAGE_TEST, \
     PROGRESS_STAGE_TRAIN, \
     PROGRESS_STAGE_VAL
+from InnerEye.ML.metrics import EpochTimers
+from _pytest.logging import LogCaptureFixture
 
 
 def test_progress_bar_enable() -> None:
@@ -91,3 +94,60 @@ def test_progress_bar() -> None:
     assert bar.predict_batch_idx == 4
     assert "4 batches completed" in messages[-1]
 
+
+def test_epoch_timers(caplog: LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO)
+    batch_index = 123
+    epoch = 24
+    timer = EpochTimers(max_item_load_time_seconds=100)
+    assert timer.total_load_time == 0.0
+
+    # First batch should always generate a message
+    timer.batch_start(batch_index=0, epoch=epoch, message_prefix="prefix")
+    assert timer.total_load_time > 0.0
+    message = caplog.messages[-1]
+    assert "prefix: Loaded the first minibatch of data in" in message
+    old_num_batches = timer.num_batches
+    old_batch_start_time = timer.batch_start_time
+    timer.batch_end()
+    assert timer.num_batches == old_num_batches + 1
+    assert timer.batch_start_time > old_batch_start_time
+
+    # Second minibatch should only generate a message if above load time threshold. Set threshold very high
+    old_num_messages = len(caplog.messages)
+    old_total_load_time = timer.total_load_time
+    timer.max_item_load_time_seconds = 10.0
+    assert timer.num_load_time_exceeded == 0
+    timer.batch_start(batch_index=batch_index, epoch=epoch, message_prefix="prefix")
+    # This should be updated in any case
+    assert timer.total_load_time > old_total_load_time
+    # But this batch should not be recognized as having gone over the threshold
+    assert timer.num_load_time_exceeded == 0
+    assert len(timer.load_time_warning_epochs) == 0
+    assert len(caplog.messages) == old_num_messages
+    assert timer.num_load_time_warnings == 0
+
+    # Third minibatch considered as above threshold: set threshold to 0 for that
+    old_total_load_time = timer.total_load_time
+    timer.max_item_load_time_seconds = 0.0
+    timer.batch_start(batch_index=batch_index, epoch=epoch, message_prefix="prefix")
+    # This should be updated in any case
+    assert timer.total_load_time > old_total_load_time
+    # Batch should not be recognized as having gone over the threshold
+    assert timer.num_load_time_exceeded == 1
+    assert epoch in timer.load_time_warning_epochs
+    message = caplog.messages[-1]
+    assert f"prefix: Loading minibatch { batch_index} took" in message
+    assert f"This message will be printed at most {timer.max_load_time_warnings} times"
+    assert timer.num_load_time_warnings > 0
+
+    # Epoch end time should be stored
+    assert timer.total_epoch_time == 0.0
+    old_epoch_end_time = timer.epoch_end_time
+    timer.epoch_end()
+    assert timer.epoch_end_time > old_epoch_end_time
+    assert timer.total_epoch_time > 0.0
+
+    timer.reset()
+    assert timer.total_load_time == 0.0
+    assert timer.num_load_time_warnings == 0

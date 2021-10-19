@@ -81,6 +81,14 @@ class EpochTimers:
     """
     Contains all information necessary to compute the IO metrics: Epoch times, batch times, loading times.
     """
+    epoch_start_time: float = 0.0
+    epoch_end_time: float = 0.0
+    batch_start_time: float = 0.0
+    num_load_time_warnings: int = 0
+    num_load_time_exceeded: int = 0
+    total_extra_load_time: float = 0.0
+    total_load_time: float = 0.0
+    num_batches: int = 0
 
     def __init__(self,
                  max_item_load_time_seconds: float = 0.5,
@@ -97,15 +105,8 @@ class EpochTimers:
         self.max_item_load_time_seconds = max_item_load_time_seconds
         self.max_load_time_warnings = max_load_time_warnings
         self.max_load_time_epochs = max_load_time_epochs
-        self.epoch_start_time: float = time.time()
-        self.epoch_end_time: float = time.time()
-        self.batch_start_time: float = time.time()
-        self.num_load_time_warnings: int = 0
-        self.num_load_time_exceeded: int = 0
-        self.total_extra_load_time: float = 0.0
-        self.total_load_time: float = 0.0
-        self.num_batches: int = 0
         self.load_time_warning_epochs: Set[int] = set()
+        self.reset()
 
     def reset(self) -> None:
         """
