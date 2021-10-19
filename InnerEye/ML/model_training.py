@@ -19,11 +19,12 @@ from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, change_workin
 from InnerEye.Common.resource_monitor import ResourceMonitor
 from InnerEye.ML.common import ModelExecutionMode, RECOVERY_CHECKPOINT_FILE_NAME, create_best_checkpoint
 from InnerEye.ML.deep_learning_config import ARGS_TXT, VISUALIZATION_FOLDER
-from InnerEye.ML.lightning_base import BatchTimeCallback, InnerEyeContainer, InnerEyeLightning
+from InnerEye.ML.lightning_base import InnerEyeContainer, InnerEyeLightning
 from InnerEye.ML.lightning_container import LightningContainer
-from InnerEye.ML.lightning_loggers import AzureMLLogger, AzureMLProgressBar, StoringLogger
+from InnerEye.ML.lightning_loggers import StoringLogger
 from InnerEye.ML.lightning_models import SUBJECT_OUTPUT_PER_RANK_PREFIX, ScalarLightning, \
     get_subject_output_file_per_rank
+from health_ml.utils import AzureMLLogger, AzureMLProgressBar, BatchTimeCallback
 
 TEMP_PREFIX = "temp/"
 
