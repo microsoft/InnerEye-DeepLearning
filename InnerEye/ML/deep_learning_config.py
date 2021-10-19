@@ -218,7 +218,7 @@ class WorkflowParams(param.Parameterized):
                       doc="If set, enable/disable full image inference on test set after ensemble training.")
     weights_url: List[str] = param.List(default=[], class_=str,
                                         doc="If provided, a set of urls from which checkpoints will be downloaded"
-                                                "and used for inference.")
+                                            "and used for inference.")
     local_weights_path: List[Path] = param.List(default=[], class_=Path,
                                                 doc="A list of checkpoints paths to use for inference, "
                                                     "when the job is running outside Azure.")
@@ -590,6 +590,16 @@ class TrainerParams(param.Parameterized):
         param.Boolean(default=False,
                       doc="Controls the PyTorch Lightning flag 'find_unused_parameters' for the DDP plugin. "
                           "Setting it to True comes with a performance hit.")
+    monitor_gpu: bool = param.Boolean(default=False,
+                                      doc="If True, add the GPUStatsMonitor callback to the Lightning trainer object. "
+                                          "This will write GPU utilization metrics every 50 batches by default.")
+    monitor_loading: bool = param.Boolean(default=True,
+                                          doc="If True, add the BatchTimeCallback callback to the Lightning trainer "
+                                              "object. This will monitor how long individual batches take to load.")
+    pl_profiler: Optional[str] = \
+        param.String(default=None,
+                     doc="The value to use for the 'profiler' argument for the Lightning trainer. "
+                         "Set to either 'simple', 'advanced', or 'pytorch'")
 
     @property
     def use_gpu(self) -> bool:

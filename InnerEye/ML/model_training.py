@@ -159,10 +159,10 @@ def create_lightning_trainer(container: LightningContainer,
     callbacks = [
         last_checkpoint_callback,
         recovery_checkpoint_callback,
-        BatchTimeCallback()
     ]
-    # TODO: Add a flag for that.
-    if num_gpus > 0:
+    if container.monitor_loading:
+        callbacks.append(BatchTimeCallback())
+    if num_gpus > 0 and container.monitor_gpu:
         logging.info("Adding monitoring for GPU utilization")
         callbacks.append(GPUStatsMonitor(intra_step_time=True, inter_step_time=True))
     # Add the additional callbacks that were specified in get_trainer_arguments for LightningContainers
@@ -197,7 +197,7 @@ def create_lightning_trainer(container: LightningContainer,
                       precision=precision,
                       sync_batchnorm=True,
                       terminate_on_nan=container.detect_anomaly,
-                      profiler="simple",
+                      profiler=container.pl_profiler,
                       resume_from_checkpoint=str(resume_from_checkpoint) if resume_from_checkpoint else None,
                       **kwargs)
     return trainer, storing_logger
