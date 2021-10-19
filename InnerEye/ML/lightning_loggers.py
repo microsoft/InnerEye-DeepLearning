@@ -167,7 +167,13 @@ class AzureMLLogger(LightningLoggerBase):
 
     @rank_zero_only
     def log_hyperparams(self, params: Any) -> None:
-        pass
+        # Convert from Namespace to dictionary
+        params = self._convert_params(params)
+        # Convert nested dictionaries to folder-like structure
+        params = self._flatten_dict(params)
+        # Convert anything that is not a primitive type to str
+        params = self._sanitize_params(params)
+        RUN_CONTEXT.log_table("hyperparams", params)
 
     def experiment(self) -> Any:
         return None
