@@ -107,7 +107,8 @@ def add_submodules_to_path() -> None:
     innereye_root = repository_root_directory()
     folders_to_add = [(innereye_root, "InnerEye"),
                       (innereye_root / "fastMRI", "fastmri"),
-                      (innereye_root / "hi-ml" / "src", "health")]
+                      (innereye_root / "hi-ml" / "hi-ml-azure" / "src", "health"),
+                      (innereye_root / "hi-ml" / "hi-ml" / "src", "health")]
     for (folder, subfolder_that_must_exist) in folders_to_add:
         if (folder / subfolder_that_must_exist).is_dir():
             folder_str = str(folder)
