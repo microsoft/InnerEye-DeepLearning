@@ -402,7 +402,7 @@ def test_cross_validation_for_lighting_container_models_is_supported() -> None:
     with mock.patch("sys.argv", [""] + args_list):
         runner = Runner(project_root=fixed_paths.repository_root_directory(),
                         yaml_config_file=fixed_paths.SETTINGS_YAML_FILE)
-        with mock.patch("health.azure.himl.submit_run", return_value=mock_run) as create_and_submit_experiment_patch:
+        with mock.patch("health_azure.himl.submit_run", return_value=mock_run) as create_and_submit_experiment_patch:
             with pytest.raises(SystemExit):
                 runner.run()
             assert runner.lightning_container.model_name == 'HelloContainer'

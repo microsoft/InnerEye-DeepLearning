@@ -22,12 +22,13 @@ if (innereye_root / "InnerEye").is_dir():
         print(f"Adding InnerEye folder to sys.path: {innereye_root_str}")
         sys.path.insert(0, innereye_root_str)
 from InnerEye.Common import fixed_paths
+
 fixed_paths.add_submodules_to_path()
 
 from azureml._base_sdk_common import user_agent
 from azureml.core import Run, ScriptRunConfig
-from health.azure.himl import AzureRunInfo, submit_to_azure_if_needed
-from health.azure.azure_util import create_run_recovery_id, merge_conda_files, to_azure_friendly_string
+from health_azure import AzureRunInfo, submit_to_azure_if_needed
+from health_azure.utils import create_run_recovery_id, merge_conda_files, to_azure_friendly_string
 import matplotlib
 
 from InnerEye.Azure.tensorboard_monitor import AMLTensorBoardMonitorConfig, monitor
@@ -244,7 +245,6 @@ class Runner:
         input_datasets = create_dataset_configs(self.azure_config,
                                                 all_azure_dataset_ids=self.lightning_container.all_azure_dataset_ids(),
                                                 all_dataset_mountpoints=self.lightning_container.all_dataset_mountpoints())
-
 
         def after_submission_hook(azure_run: Run) -> None:
             """

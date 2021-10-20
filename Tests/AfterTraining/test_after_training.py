@@ -20,7 +20,7 @@ import numpy as np
 import pytest
 from azureml._restclient.constants import RunStatus
 from azureml.core import Model, Run
-from health.azure.himl import RUN_RECOVERY_FILE
+from health_azure.himl import RUN_RECOVERY_FILE
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_util import MODEL_ID_KEY_NAME, download_run_output_file, download_run_outputs_by_prefix, \

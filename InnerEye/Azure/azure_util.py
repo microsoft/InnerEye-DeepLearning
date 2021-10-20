@@ -13,7 +13,7 @@ from azureml.exceptions import UserErrorException
 
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME
-from health.azure.azure_util import create_run_recovery_id
+from health_azure.utils import create_run_recovery_id
 
 DEFAULT_CROSS_VALIDATION_SPLIT_INDEX = -1
 EXPERIMENT_RUN_SEPARATOR = ":"

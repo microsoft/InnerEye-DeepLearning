@@ -15,7 +15,7 @@ from InnerEye.ML.config import PhotometricNormalizationMethod, SegmentationModel
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.runner import Runner
 from Tests.ML.configs.DummyModel import DummyModel
-from health.azure.himl import AzureRunInfo
+from health_azure import AzureRunInfo
 
 
 @pytest.mark.parametrize("is_container", [True, False])

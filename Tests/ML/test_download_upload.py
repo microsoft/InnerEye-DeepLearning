@@ -25,7 +25,7 @@ from Tests.AfterTraining.test_after_training import FALLBACK_ENSEMBLE_RUN, FALLB
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.configs.lightning_test_containers import DummyContainerWithDatasets
 from Tests.ML.util import get_default_azure_config
-from health.azure.himl import AzureRunInfo
+from health_azure import AzureRunInfo
 
 logging_to_stdout(logging.DEBUG)
 

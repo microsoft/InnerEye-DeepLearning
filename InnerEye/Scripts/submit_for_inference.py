@@ -19,7 +19,7 @@ from InnerEye.Common.fixed_paths import DEFAULT_DATA_FOLDER, DEFAULT_RESULT_IMAG
     DEFAULT_TEST_IMAGE_NAME, DEFAULT_TEST_ZIP_NAME, ENVIRONMENT_YAML_FILE_NAME, PYTHON_ENVIRONMENT_NAME, \
     RUN_SCORING_SCRIPT, SCORE_SCRIPT, SETTINGS_YAML_FILE, repository_root_directory
 from InnerEye.Common.generic_parsing import GenericConfig
-from health.azure.himl import create_run_configuration, submit_run
+from health_azure import create_run_configuration, submit_run
 
 
 class SubmitForInferenceConfig(GenericConfig):
