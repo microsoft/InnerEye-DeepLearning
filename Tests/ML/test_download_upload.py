@@ -164,7 +164,7 @@ def _test_mount_for_lightning_container(test_output_dirs: OutputFolderForTests,
             runner.setup(azure_run_info=AzureRunInfo(input_datasets=path_from_aml,
                                                      output_datasets=[],
                                                      run=None,
-                                                     is_running_in_azure=False,
+                                                     is_running_in_azure_ml=False,
                                                      output_folder=Path(),
                                                      logs_folder=Path()
                                                      ))
