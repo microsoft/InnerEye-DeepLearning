@@ -39,7 +39,7 @@ def test_regression_test(test_output_dirs: OutputFolderForTests) -> None:
     container.local_dataset = test_output_dirs.root_dir
     container.regression_test_folder = Path(str(uuid.uuid4().hex))
     runner = MLRunner(container=container)
-    runner.setup(use_mount_or_download_dataset=False)
+    runner.setup()
     with pytest.raises(ValueError) as ex:
         runner.run()
     assert "Folder with expected files does not exist" in str(ex)

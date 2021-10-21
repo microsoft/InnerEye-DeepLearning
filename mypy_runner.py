@@ -37,7 +37,7 @@ def run_mypy(files: List[str], mypy_executable_path: str) -> int:
         else:
             print("Skipping.")
         if mypy_args:
-            command = [mypy_executable_path, "--config=mypy.ini", *mypy_args]
+            command = [mypy_executable_path, "--install-types", "--non-interactive", "--config=mypy.ini", *mypy_args]
             # We pipe stdout and then print it, otherwise lines can appear in the wrong order in builds.
             process = subprocess.run(command)
             return_code = max(return_code, process.returncode)

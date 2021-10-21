@@ -16,7 +16,7 @@ from InnerEye.ML.SSL.datamodules_and_datasets.cifar_datasets import InnerEyeCIFA
 from InnerEye.ML.SSL.datamodules_and_datasets.cxr_datasets import RSNAKaggleCXR
 from InnerEye.ML.SSL.datamodules_and_datasets.datamodules import CombinedDataModule, InnerEyeVisionDataModule
 from InnerEye.ML.SSL.datamodules_and_datasets.transforms_utils import InnerEyeCIFARLinearHeadTransform, \
-    InnerEyeCIFARTrainTransform, get_cxr_ssl_transforms
+    InnerEyeCIFARTrainTransform, get_ssl_transforms_from_config
 from InnerEye.ML.SSL.lightning_containers.ssl_container import SSLContainer, SSLDatasetName
 from InnerEye.ML.SSL.utils import SSLDataModuleType, load_yaml_augmentation_config
 from InnerEye.ML.configs.ssl.CXR_SSL_configs import path_encoder_augmentation_cxr
@@ -32,8 +32,8 @@ def test_weights_innereye_module() -> None:
     """
     Tests if weights in CXR data module are correctly initialized
     """
-    transforms = get_cxr_ssl_transforms(cxr_augmentation_config,
-                                        return_two_views_per_sample=True)
+    transforms = get_ssl_transforms_from_config(cxr_augmentation_config,
+                                                return_two_views_per_sample=True)
     data_module = InnerEyeVisionDataModule(dataset_cls=RSNAKaggleCXR,
                                            return_index=False,
                                            train_transforms=transforms[0],
@@ -70,7 +70,8 @@ def test_innereye_vision_module() -> None:
                                            data_dir=None,
                                            batch_size=5,
                                            shuffle=False,
-                                           num_workers=0)
+                                           num_workers=0,
+                                           drop_last=True)
     data_module.prepare_data()
     data_module.setup()
     assert len(data_module.dataset_train) == 45000
@@ -179,8 +180,8 @@ def test_combined_data_module() -> None:
     """
     Tests the behavior of CombinedDataModule
     """
-    _, val_transform = get_cxr_ssl_transforms(cxr_augmentation_config,
-                                              return_two_views_per_sample=False)
+    _, val_transform = get_ssl_transforms_from_config(cxr_augmentation_config,
+                                                      return_two_views_per_sample=False)
 
     # Datamodule expected to have 12 training batches - 3 val
     long_data_module = InnerEyeVisionDataModule(dataset_cls=RSNAKaggleCXR,

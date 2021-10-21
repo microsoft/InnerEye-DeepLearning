@@ -13,18 +13,13 @@ from typing import Any, Optional
 from _pytest.monkeypatch import MonkeyPatch
 from pytorch_lightning import LightningDataModule, LightningModule
 
-from InnerEye.Common.common_util import add_folder_to_sys_path_if_needed
 from InnerEye.ML.configs.other.fastmri_varnet import VarNetWithImageLogging
 from InnerEye.ML.lightning_container import LightningContainer
-
-add_folder_to_sys_path_if_needed("fastMRI")
-
+from fastMRI.tests.create_temp_data import create_temp_data
 from fastmri.data import SliceDataset
 from fastmri.data.subsample import create_mask_for_mask_type
 from fastmri.data.transforms import VarNetDataTransform
 from fastmri.pl_modules import FastMriDataModule
-# This import can fail if written as "from tests.create_temp_data, even though fastMRI is already in the path.
-from fastMRI.tests.create_temp_data import create_temp_data
 
 
 class FastMriRandomData(FastMriDataModule):

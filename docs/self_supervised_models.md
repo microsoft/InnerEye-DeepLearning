@@ -117,21 +117,29 @@ with the following available arguments:
 * `random_seed`: seed for the run,
 * `num_epochs`: number of epochs to train for.
 
+In case you wish to first test your model locally, here some optional arguments that can be useful:
+* `local_dataset`: path to local dataset, if passed the azure dataset will be ignored
+* `is_debug_model`: if True it will only run on the first batch of each epoch
+* `drop_last`: if False (True by default) it will keep the last batch also if incomplete
+
 ### Creating your own datamodules:
 
 To use this code with your own data, you will need to:
 
-1. Create a dataset class that reads your new dataset, inheriting from both `VisionDataset`
+1. Define your own Lightening Container that inherits from `SSLContainer` as described in the paragraph above.
+2. Create a dataset class that reads your new dataset, inheriting from both `VisionDataset`
    and `InnerEyeDataClassBaseWithReturnIndex`. See for example how we constructed `RSNAKaggleCXR`
    class. WARNING: the first positional argument of your dataset class constructor MUST be the data directory ("root"),
    as VisionDataModule expects this in the prepare_data step.
-2. Add a member to the `SSLDatasetName` Enum with your new dataset and update the `_SSLDataClassMappings` member of the
-   class so that the code knows which data class to associate to your new dataset name.
-3. Update the `_get_transforms` methods to add the transform specific to your new dataset. To simplify this step, we
-   have defined a series of standard transforms parametrized by an augmentation yaml file in `SSL/transforms_utils.py` (
-   see next paragraph for more details). You could for example construct a transform pipeline similar to the one created
-   with `get_cxr_ssl_transforms` for our CXR examples.
-4. Update all necessary parameters in the model config (cf. previous paragraph)
+3. In your own container update the `_SSLDataClassMappings` member of the class so that the code knows which data class 
+   to associate to your new dataset name.
+4. Create a yaml configuration file that contains the augmentations specific to your dataset. The yaml file will be 
+   consumed by the `create_transforms_from_config` function defined in the 
+   `InnerEye.ML.augmentations.transform_pipeline` module (see next paragraph for more details). Alternatively, overwrite
+   the `_get_transforms` method. To simplify this step, we have defined a series of standard operations in 
+   `SSL/transforms_utils.py` . You could for example construct a transform pipeline similar to the one created
+   inside `create_transform_from_config` inside your own method.
+5. Update all necessary parameters in the model config (cf. previous paragraph)
 
 Once all these steps are updated, the code in the base SSLContainer class will take care of creating the corresponding
 datamodules for SSL training and linear head monitoring.

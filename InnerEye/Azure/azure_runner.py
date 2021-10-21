@@ -4,37 +4,25 @@
 #  ------------------------------------------------------------------------------------------
 import argparse
 import getpass
-import hashlib
 import logging
 import os
-import signal
 import sys
 from argparse import ArgumentError, ArgumentParser, Namespace
 from datetime import date
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from azureml.core import Environment, Experiment, Run, ScriptRunConfig
-from azureml.core.runconfig import MpiConfiguration, RunConfiguration
-from azureml.core.workspace import WORKSPACE_DEFAULT_BLOB_STORE_NAME
-from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
-
-from InnerEye.Azure import azure_util
-from InnerEye.Azure.azure_config import AzureConfig, ParserResult, SourceConfig
-from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, RUN_RECOVERY_FROM_ID_KEY_NAME, \
-    RUN_RECOVERY_ID_KEY_NAME, is_offline_run_context, merge_conda_dependencies
+from InnerEye.Azure.azure_config import AzureConfig, ParserResult
+from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, RUN_RECOVERY_FROM_ID_KEY_NAME
 from InnerEye.Azure.secrets_handling import read_all_settings
-from InnerEye.Azure.tensorboard_monitor import AMLTensorBoardMonitorConfig, monitor
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
+from health_azure import DatasetConfig
 
 SLEEP_TIME_SECONDS = 30
 
-RUN_RECOVERY_FILE = "most_recent_run.txt"
-# The version to use when creating an AzureML Python environment. We create all environments with a unique hashed
-# name, hence version will always be fixed
-ENVIRONMENT_VERSION = "1"
+DEFAULT_DOCKER_BASE_IMAGE = "mcr.microsoft.com/azureml/openmpi3.1.2-cuda10.2-cudnn8-ubuntu18.04"
 
 # Environment variables used for multi-node training
 ENV_AZ_BATCHAI_MPI_MASTER_NODE = "AZ_BATCHAI_MPI_MASTER_NODE"
@@ -45,47 +33,6 @@ ENV_OMPI_COMM_WORLD_RANK = "OMPI_COMM_WORLD_RANK"
 ENV_NODE_RANK = "NODE_RANK"
 ENV_GLOBAL_RANK = "GLOBAL_RANK"
 ENV_LOCAL_RANK = "LOCAL_RANK"
-
-
-def submit_to_azureml(azure_config: AzureConfig,
-                      source_config: SourceConfig,
-                      all_azure_dataset_ids: List[str],
-                      all_dataset_mountpoints: List[str]) -> Run:
-    """
-    The main entry point when submitting the runner script to AzureML.
-    It creates an AzureML workspace if needed, submits an experiment using the code
-    as specified in source_config, and waits for completion if needed.
-    :param azure_config: azure related configurations to setup valid workspace
-    :param source_config: The information about which code should be submitted, and which arguments should be used.
-    :param all_azure_dataset_ids: The name of all datasets on blob storage that will be used for this run.
-    :param all_dataset_mountpoints: When using mounted datasets in AzureML, these are the per-dataset mount points.
-    The list must have the same length as all_azure_dataset_ids.
-    """
-    azure_run: Optional[Run] = None
-
-    # When running as part of the PR build, jobs frequently get interrupted by new pushes to the repository.
-    # In this case, we'd like to cancel the current AzureML run before exiting, to reduce cost.
-    # However, at present, this does NOT work, the SIGINT is not propagated through.
-    def interrupt_handler(signal: int, _: Any) -> None:
-        logging.info('Process interrupted via signal {}'.format(str(signal)))
-        if azure_run:
-            logging.info('Trying to terminate the AzureML job now.')
-            azure_run.cancel()
-        sys.exit(0)
-
-    for s in [signal.SIGINT, signal.SIGTERM]:
-        signal.signal(s, interrupt_handler)
-    # create train/test experiment
-    script_run_config = create_run_config(azure_config, source_config, all_azure_dataset_ids, all_dataset_mountpoints)
-    commandline_args = " ".join(source_config.script_params)
-    azure_run = create_and_submit_experiment(azure_config, script_run_config, commandline_args=commandline_args)
-
-    if azure_config.wait_for_completion:
-        # We want the job output to be visible on the console, but the program should not exit if the
-        # job fails because we need to download the pytest result file.
-        azure_run.wait_for_completion(show_output=True, raise_on_error=False)
-
-    return azure_run
 
 
 def get_git_tags(azure_config: AzureConfig) -> Dict[str, str]:
@@ -107,27 +54,25 @@ def get_git_tags(azure_config: AzureConfig) -> Dict[str, str]:
     }
 
 
-def set_run_tags(run: Run, azure_config: AzureConfig, commandline_args: str) -> None:
+def additional_run_tags(azure_config: AzureConfig, commandline_args: str) -> Dict[str, str]:
     """
-    Set metadata for the run
-    :param run: Run to set metadata for.
+    Gets the set of tags that will be added to the AzureML run as metadata, like git status and user name.
     :param azure_config: The configurations for the present AzureML job
     :param commandline_args: A string that holds all commandline arguments that were used for the present run.
     """
     git_information = get_git_tags(azure_config)
-    run.set_tags({
+    return {
         "tag": azure_config.tag,
         "model_name": azure_config.model,
         "execution_mode": ModelExecutionMode.TRAIN.value if azure_config.train else ModelExecutionMode.TEST.value,
-        RUN_RECOVERY_ID_KEY_NAME: azure_util.create_run_recovery_id(run=run),
         RUN_RECOVERY_FROM_ID_KEY_NAME: azure_config.run_recovery_id,
         "build_number": str(azure_config.build_number),
         "build_user": azure_config.build_user,
         "build_user_email": azure_config.build_user_email,
         **git_information,
         "commandline_args": commandline_args,
-        CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY: -1,
-    })
+        CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY: "-1",
+    }
 
 
 def create_experiment_name(azure_config: AzureConfig) -> str:
@@ -144,136 +89,19 @@ def create_experiment_name(azure_config: AzureConfig) -> str:
     return branch or getpass.getuser() + f"_local_branch_{date.today().strftime('%Y%m')}"
 
 
-def create_and_submit_experiment(azure_config: AzureConfig,
-                                 script_run_config: ScriptRunConfig,
-                                 commandline_args: str) -> Run:
-    """
-    Creates an AzureML experiment in the workspace and submits it for execution.
-    :param azure_config: azure related configurations to setup a valid workspace.
-    :param script_run_config: The configuration for the script that should be run inside of AzureML.
-    :param commandline_args: A string with all commandline arguments that were provided to the runner. These are only
-    used to set a tag on the submitted AzureML run.
-    :returns: Run object for the submitted AzureML run
-    """
-    workspace = azure_config.get_workspace()
-    experiment_name = create_experiment_name(azure_config)
-    exp = Experiment(workspace=workspace, name=azure_util.to_azure_friendly_string(experiment_name))
-
-    # submit a training/testing run associated with the experiment
-    run: Run = exp.submit(script_run_config)
-
-    if is_offline_run_context(run):
-        # This codepath will only be executed in unit tests, when exp.submit is mocked.
-        return run
-
-    # Set metadata for the run.
-    set_run_tags(run, azure_config, commandline_args=commandline_args)
-
-    print("\n==============================================================================")
-    print(f"Successfully queued new run {run.id} in experiment: {exp.name}")
-
-    if azure_config.run_recovery_id:
-        print(f"\nRecovered from: {azure_config.run_recovery_id}")
-
-    recovery_id = azure_util.create_run_recovery_id(run)
-    recovery_file = Path(RUN_RECOVERY_FILE)
-    if recovery_file.exists():
-        recovery_file.unlink()
-    recovery_file.write_text(recovery_id)
-
-    print("Experiment URL: {}".format(exp.get_portal_url()))
-    print("Run URL: {}".format(run.get_portal_url()))
-    print("If this run fails, re-start runner.py and supply these additional arguments: "
-          f"--run_recovery_id={recovery_id}")
-    print(f"The run recovery ID has been written to this file: {recovery_file}")
-    print("==============================================================================")
-    if azure_config.tensorboard and azure_config.azureml:
-        print("Starting TensorBoard now because you specified --tensorboard")
-        monitor(monitor_config=AMLTensorBoardMonitorConfig(run_ids=[run.id]), azure_config=azure_config)
-    else:
-        print(f"To monitor this run locally using TensorBoard, run the script: "
-              f"InnerEye/Azure/tensorboard_monitor.py --run_ids={run.id}")
-        print("==============================================================================")
-    return run
-
-
-def get_or_create_python_environment(azure_config: AzureConfig,
-                                     source_config: SourceConfig,
-                                     environment_name: str = "",
-                                     register_environment: bool = True) -> Environment:
-    """
-    Creates a description for the Python execution environment in AzureML, based on the Conda environment
-    definition files that are specified in `source_config`. If such environment with this Conda environment already
-    exists, it is retrieved, otherwise created afresh.
-    :param azure_config: azure related configurations to use for model scale-out behaviour
-    :param source_config: configurations for model execution, such as name and execution mode
-    :param environment_name: If specified, try to retrieve the existing Python environment with this name. If that
-    is not found, create one from the Conda files provided. This parameter is meant to be used when running
-    inference for an existing model.
-    :param register_environment: If True, the Python environment will be registered in the AzureML workspace. If
-    False, it will only be created, but not registered. Use this for unit testing.
-    """
-    # Merge the project-specific dependencies with the packages that InnerEye itself needs. This should not be
-    # necessary if the innereye package is installed. It is necessary when working with an outer project and
-    # InnerEye as a git submodule and submitting jobs from the local machine.
-    # In case of version conflicts, the package version in the outer project is given priority.
-    conda_dependencies, merged_yaml = merge_conda_dependencies(source_config.conda_dependencies_files)  # type: ignore
-    if azure_config.pip_extra_index_url:
-        # When an extra-index-url is supplied, swap the order in which packages are searched for.
-        # This is necessary if we need to consume packages from extra-index that clash with names of packages on
-        # pypi
-        conda_dependencies.set_pip_option(f"--index-url {azure_config.pip_extra_index_url}")
-        conda_dependencies.set_pip_option("--extra-index-url https://pypi.org/simple")
-    env_variables = {
-        "AZUREML_OUTPUT_UPLOAD_TIMEOUT_SEC": str(source_config.upload_timeout_seconds),
-        # Occasionally uploading data during the run takes too long, and makes the job fail. Default is 300.
-        "AZUREML_RUN_KILL_SIGNAL_TIMEOUT_SEC": "900",
-        "MKL_SERVICE_FORCE_INTEL": "1",
-        # Switching to a new software stack in AML for mounting datasets
-        "RSLEX_DIRECT_VOLUME_MOUNT": "true",
-        "RSLEX_DIRECT_VOLUME_MOUNT_MAX_CACHE_SIZE": "1",
-        **(source_config.environment_variables or {})
-    }
-    base_image = "mcr.microsoft.com/azureml/openmpi3.1.2-cuda10.2-cudnn8-ubuntu18.04"
-    # Create a name for the environment that will likely uniquely identify it. AzureML does hashing on top of that,
-    # and will re-use existing environments even if they don't have the same name.
-    # Hashing should include everything that can reasonably change. Rely on hashlib here, because the built-in
-    # hash function gives different results for the same string in different python instances.
-    hash_string = "\n".join([merged_yaml, azure_config.docker_shm_size, base_image, str(env_variables)])
-    sha1 = hashlib.sha1(hash_string.encode("utf8"))
-    overall_hash = sha1.hexdigest()[:32]
-    unique_env_name = f"InnerEye-{overall_hash}"
-    try:
-        env_name_to_find = environment_name or unique_env_name
-        env = Environment.get(azure_config.get_workspace(), name=env_name_to_find, version=ENVIRONMENT_VERSION)
-        logging.info(f"Using existing Python environment '{env.name}'.")
-        return env
-    except Exception:
-        logging.info(f"Python environment '{unique_env_name}' does not yet exist, creating and registering it.")
-    env = Environment(name=unique_env_name)
-    env.docker.enabled = True
-    env.docker.shm_size = azure_config.docker_shm_size
-    env.python.conda_dependencies = conda_dependencies
-    env.docker.base_image = base_image
-    env.environment_variables = env_variables
-    if register_environment:
-        env.register(azure_config.get_workspace())
-    return env
-
-
-def create_dataset_consumptions(azure_config: AzureConfig,
-                                all_azure_dataset_ids: List[str],
-                                all_dataset_mountpoints: List[str]) -> List[DatasetConsumptionConfig]:
+def create_dataset_configs(azure_config: AzureConfig,
+                           all_azure_dataset_ids: List[str],
+                           all_dataset_mountpoints: List[str]) -> List[DatasetConfig]:
     """
     Sets up all the dataset consumption objects for the datasets provided. Datasets that have an empty name will be
     skipped.
     :param azure_config: azure related configurations to use for model scale-out behaviour
     :param all_azure_dataset_ids: The name of all datasets on blob storage that will be used for this run.
     :param all_dataset_mountpoints: When using the datasets in AzureML, these are the per-dataset mount points.
-    :return: A list of DatasetConsumptionConfig, in the same order as datasets were provided in all_azure_dataset_ids,
+    :return: A list of DatasetConfig objects, in the same order as datasets were provided in all_azure_dataset_ids,
     omitting datasets with an empty name.
     """
-    dataset_consumptions: List[DatasetConsumptionConfig] = []
+    datasets: List[DatasetConfig] = []
     if len(all_dataset_mountpoints) > 0:
         if len(all_azure_dataset_ids) != len(all_dataset_mountpoints):
             raise ValueError(f"The number of dataset mount points ({len(all_dataset_mountpoints)}) "
@@ -282,64 +110,14 @@ def create_dataset_consumptions(azure_config: AzureConfig,
         all_dataset_mountpoints = [""] * len(all_azure_dataset_ids)
     for i, (dataset_id, mount_point) in enumerate(zip(all_azure_dataset_ids, all_dataset_mountpoints)):
         if dataset_id:
-            dataset_consumption = azure_config.get_dataset_consumption(dataset_id, i, mount_point)
-            dataset_consumptions.append(dataset_consumption)
+            datasets.append(DatasetConfig(name=dataset_id,
+                                          target_folder=mount_point,
+                                          use_mounting=azure_config.use_dataset_mount,
+                                          datastore=azure_config.azureml_datastore))
         elif mount_point:
             raise ValueError(f"Inconsistent setup: Dataset name at index {i} is empty, but a mount point has "
                              f"been provided ('{mount_point}')")
-    return dataset_consumptions
-
-
-def create_run_config(azure_config: AzureConfig,
-                      source_config: SourceConfig,
-                      all_azure_dataset_ids: List[str],
-                      all_dataset_mountpoints: List[str],
-                      environment_name: str = "") -> ScriptRunConfig:
-    """
-    Creates a configuration to run the InnerEye training script in AzureML.
-    :param azure_config: azure related configurations to use for model scale-out behaviour
-    :param source_config: configurations for model execution, such as name and execution mode
-    :param all_azure_dataset_ids: The name of all datasets on blob storage that will be used for this run.
-    :param all_dataset_mountpoints: When using the datasets in AzureML, these are the per-dataset mount points.
-    :param environment_name: If specified, try to retrieve the existing Python environment with this name. If that
-    is not found, create one from the Conda files provided in `source_config`. This parameter is meant to be used
-    when running inference for an existing model.
-    :return: The configured script run.
-    """
-    dataset_consumptions = create_dataset_consumptions(azure_config, all_azure_dataset_ids, all_dataset_mountpoints)
-    # AzureML seems to sometimes expect the entry script path in Linux format, hence convert to posix path
-    entry_script_relative_path = source_config.entry_script.relative_to(source_config.root_folder).as_posix()
-    logging.info(f"Entry script {entry_script_relative_path} ({source_config.entry_script} relative to "
-                 f"source directory {source_config.root_folder})")
-    max_run_duration = None
-    if azure_config.max_run_duration:
-        max_run_duration = run_duration_string_to_seconds(azure_config.max_run_duration)
-    workspace = azure_config.get_workspace()
-    run_config = RunConfiguration(
-        script=entry_script_relative_path,
-        arguments=source_config.script_params,
-    )
-    run_config.environment = get_or_create_python_environment(azure_config, source_config,
-                                                              environment_name=environment_name)
-    run_config.target = azure_config.cluster
-    run_config.max_run_duration_seconds = max_run_duration
-    if azure_config.num_nodes > 1:
-        distributed_job_config = MpiConfiguration(node_count=azure_config.num_nodes)
-        run_config.mpi = distributed_job_config
-        run_config.framework = "Python"
-        run_config.communicator = "IntelMpi"
-        run_config.node_count = distributed_job_config.node_count
-    if len(dataset_consumptions) > 0:
-        run_config.data = {dataset.name: dataset for dataset in dataset_consumptions}
-    # Use blob storage for storing the source, rather than the FileShares section of the storage account.
-    run_config.source_directory_data_store = workspace.datastores.get(WORKSPACE_DEFAULT_BLOB_STORE_NAME).name
-    script_run_config = ScriptRunConfig(
-        source_directory=str(source_config.root_folder),
-        run_config=run_config,
-    )
-    if azure_config.hyperdrive:
-        script_run_config = source_config.hyperdrive_config_func(script_run_config)  # type: ignore
-    return script_run_config
+    return datasets
 
 
 def create_runner_parser(model_config_class: type = None) -> argparse.ArgumentParser:

@@ -25,6 +25,7 @@ from Tests.AfterTraining.test_after_training import FALLBACK_ENSEMBLE_RUN, FALLB
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.configs.lightning_test_containers import DummyContainerWithDatasets
 from Tests.ML.util import get_default_azure_config
+from health_azure import AzureRunInfo
 
 logging_to_stdout(logging.DEBUG)
 
@@ -89,26 +90,27 @@ def test_download_azureml_dataset(test_output_dirs: OutputFolderForTests) -> Non
     # creation may need access to the dataset.
     with pytest.raises(ValueError) as ex:
         runner.setup()
-    assert ex.value.args[0] == "The model must contain either local_dataset or azure_dataset_id."
+    assert ex.value.args[0] == "Expecting that a dataset is available here."
     runner.project_root = test_output_dirs.root_dir
 
     # Pointing the model to a dataset folder that does not exist should raise an Exception
     fake_folder = runner.project_root / "foo"
     runner.container.local_dataset = fake_folder
     with pytest.raises(FileNotFoundError):
-        runner.mount_or_download_dataset(runner.container.azure_dataset_id, runner.container.local_dataset)
+        runner.download_or_use_existing_dataset(runner.container.azure_dataset_id, runner.container.local_dataset)
 
     # If the local dataset folder exists, mount_or_download_dataset should not do anything.
     fake_folder.mkdir()
-    local_dataset = runner.mount_or_download_dataset(runner.container.azure_dataset_id, runner.container.local_dataset)
+    local_dataset = runner.download_or_use_existing_dataset(runner.container.azure_dataset_id,
+                                                            runner.container.local_dataset)
     assert local_dataset == fake_folder
 
     # Pointing the model to a dataset in Azure should trigger a download
     runner.container.local_dataset = None
     runner.container.azure_dataset_id = dataset_name
     with logging_section("Starting download"):
-        result_path = runner.mount_or_download_dataset(runner.container.azure_dataset_id,
-                                                       runner.container.local_dataset)
+        result_path = runner.download_or_use_existing_dataset(runner.container.azure_dataset_id,
+                                                              runner.container.local_dataset)
     # Download goes into <project_root> / "datasets" / "test_dataset"
     expected_path = runner.project_root / fixed_paths.DATASETS_DIR_NAME / dataset_name
     assert result_path == expected_path
@@ -116,10 +118,10 @@ def test_download_azureml_dataset(test_output_dirs: OutputFolderForTests) -> Non
     dataset_csv = Path(result_path) / DATASET_CSV_FILE_NAME
     assert dataset_csv.is_file()
     # Check that each individual file in the dataset is present
-    for folder in [1, *range(10, 20)]:
+    for folder in [1, 10]:
         sub_folder = result_path / str(folder)
         sub_folder.is_dir()
-        for file in ["ct", "esophagus", "heart", "lung_l", "lung_r", "spinalcord"]:
+        for file in ["esophagus", "heart", "lung_l", "lung_r", "spinalcord"]:
             f = (sub_folder / file).with_suffix(".nii.gz")
             assert f.is_file()
 
@@ -156,17 +158,23 @@ def _test_mount_for_lightning_container(test_output_dirs: OutputFolderForTests,
 
     with mock.patch("InnerEye.ML.run_ml.MLRunner.is_offline_run", is_offline_run):
         with mock.patch("InnerEye.ML.run_ml.download_dataset", return_value=download_path):
-            with mock.patch("InnerEye.ML.run_ml.try_to_mount_input_dataset", return_value=mount_path):
-                runner = MLRunner(config, container=container,
-                                  azure_config=None, project_root=test_output_dirs.root_dir)
-                runner.setup()
-                return runner.container
+            runner = MLRunner(config, container=container,
+                              azure_config=None, project_root=test_output_dirs.root_dir)
+            path_from_aml: List[Optional[Path]] = [None] if is_offline_run else [mount_path]
+            runner.setup(azure_run_info=AzureRunInfo(input_datasets=path_from_aml,
+                                                     output_datasets=[],
+                                                     run=None,
+                                                     is_running_in_azure_ml=False,
+                                                     output_folder=Path(),
+                                                     logs_folder=Path()
+                                                     ))
+            return runner.container
 
 
 @pytest.mark.parametrize(("is_lightning_model", "expected_error"),
                          [
                              # A built-in InnerEye model must have either local dataset or azure dataset provided.
-                             (False, "The model must contain either local_dataset or azure_dataset_id"),
+                             (False, "Expecting that a dataset is available here."),
                              # ... but this is OK for Lightning container models. A Lightning container could simply
                              # download its data from the web before training.
                              (True, "")

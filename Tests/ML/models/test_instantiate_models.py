@@ -7,11 +7,9 @@ from typing import List
 from unittest import mock
 
 import pytest
-from azureml.core import Run
 
 from InnerEye.Common.common_util import logging_to_stdout, namespace_to_path
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling, generate_and_print_model_summary
 from Tests.ML.configs.DummyModel import DummyModel
@@ -28,7 +26,8 @@ def find_models() -> List[str]:
     path = namespace_to_path(ModelConfigLoader.get_default_search_module())
     folders = [path / "segmentation", path / "classification", path / "regression"]
     names = [str(f.stem) for folder in folders for f in folder.glob("*.py") if folder.exists()]
-    return [name for name in names if not (name.endswith("Base") or name.endswith("Paper")) and not name.startswith("__")]
+    return [name for name in names if
+            not (name.endswith("Base") or name.endswith("Paper")) and not name.startswith("__")]
 
 
 def test_any_models_found() -> None:
@@ -126,27 +125,6 @@ def test_config_loader_on_lightning_container() -> None:
 
 class MockDatasetConsumption:
     name = "dummy"
-
-
-@pytest.mark.parametrize("container_name", ["DummyContainerWithAzureDataset",
-                                            "DummyContainerWithoutDataset",
-                                            "DummyContainerWithLocalDataset",
-                                            "DummyContainerWithAzureAndLocalDataset"])
-def test_submit_container_to_azureml(container_name: str) -> None:
-    """
-    Test if we can get the config loader to load a Lightning container model, and get it through the AzureML
-    submission process.
-    """
-    runner = default_runner()
-    mock_run = Run.get_context()
-    args = ["", f"--model={container_name}", "--azureml=True", "--model_configs_namespace=Tests.ML.configs"]
-    with mock.patch("sys.argv", args):
-        with mock.patch("InnerEye.Azure.azure_config.AzureConfig.get_dataset_consumption",
-                        return_value=MockDatasetConsumption):
-            with mock.patch("azureml.core.Experiment.submit", return_value=mock_run):
-                loaded_config, actual_run = runner.run()
-    assert actual_run == mock_run
-    assert isinstance(runner.lightning_container, LightningContainer)
 
 
 def test_load_container_with_arguments() -> None:

@@ -14,7 +14,6 @@ from functools import wraps
 from pathlib import Path
 from typing import Any, Callable, Generator, Iterable, List, Optional, Union
 
-from InnerEye.Common import fixed_paths
 from InnerEye.Common.fixed_paths import repository_root_directory
 from InnerEye.Common.type_annotations import PathOrString
 from InnerEye.ML.common import ModelExecutionMode
@@ -24,7 +23,6 @@ MAX_PATH_LENGTH = 260
 # convert string to None if an empty string or whitespace is provided
 empty_string_to_none = lambda x: None if (x is None or len(x.strip()) == 0) else x
 string_to_path = lambda x: None if (x is None or len(x.strip()) == 0) else Path(x)
-
 
 SUBJECT_METRICS_FILE_NAME = "metrics.csv"
 EPOCH_METRICS_FILE_NAME = "epoch_metrics.csv"
@@ -390,20 +388,6 @@ def remove_file_or_directory(pth: Path) -> None:
         pth.unlink()
 
 
-def add_folder_to_sys_path_if_needed(folder_under_repo_root: str) -> None:
-    """
-    Checks if the Python paths in sys.path already contain the given folder, which is expected to be relative
-    to the repository root. If that folder is not yet in sys.path, add it.
-    """
-    full_folder = repository_root_directory() / folder_under_repo_root
-    for path_str in sys.path:
-        path = Path(path_str)
-        if path == full_folder:
-            return
-    print(f"Adding {full_folder} to sys.path")
-    sys.path.append(str(full_folder))
-
-
 @contextmanager
 def change_working_directory(path_or_str: PathOrString) -> Generator:
     """
@@ -414,16 +398,3 @@ def change_working_directory(path_or_str: PathOrString) -> Generator:
     os.chdir(new_path)
     yield
     os.chdir(old_path)
-
-
-@contextmanager
-def append_to_amlignore(lines_to_append: List[str]) -> Generator:
-    """
-    Context manager that appends lines to the .amlignore file, and reverts to the previous contents after.
-    """
-    amlignore = fixed_paths.repository_root_directory(".amlignore")
-    old_contents = amlignore.read_text()
-    new_contents = old_contents.splitlines() + lines_to_append
-    amlignore.write_text("\n".join(new_contents))
-    yield
-    amlignore.write_text(old_contents)

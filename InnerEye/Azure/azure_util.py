@@ -5,19 +5,15 @@
 import logging
 import os
 import re
-import tempfile
 from pathlib import Path
 from typing import Generator, List, Optional, Tuple
 
-import conda_merge
-import ruamel.yaml
-from azureml._restclient.constants import RunStatus
 from azureml.core import Experiment, Run, Workspace, get_run
-from azureml.core.conda_dependencies import CondaDependencies
 from azureml.exceptions import UserErrorException
 
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME
+from health_azure.utils import create_run_recovery_id
 
 DEFAULT_CROSS_VALIDATION_SPLIT_INDEX = -1
 EXPERIMENT_RUN_SEPARATOR = ":"
@@ -43,16 +39,6 @@ PARENT_RUN_CONTEXT = getattr(RUN_CONTEXT, "parent", None)
 
 INNEREYE_SDK_NAME = "innereye"
 INNEREYE_SDK_VERSION = "1.0"
-
-
-def create_run_recovery_id(run: Run) -> str:
-    """
-   Creates an recovery id for a run so it's checkpoints could be recovered for training/testing
-
-   :param run: an instantiated run.
-   :return: recovery id for a given run in format: [experiment name]:[run id]
-   """
-    return str(run.experiment.name + EXPERIMENT_RUN_SEPARATOR + run.id)
 
 
 def split_recovery_id(id: str) -> Tuple[str, str]:
@@ -149,12 +135,13 @@ def fetch_child_runs(run: Run, status: Optional[str] = None,
             run = PARENT_RUN_CONTEXT
     children_runs = list(run.get_children(tags=RUN_RECOVERY_ID_KEY_NAME))
     if 0 < expected_number_cross_validation_splits != len(children_runs):
-        logging.warning(
-            f"The expected number of child runs was {expected_number_cross_validation_splits}."
-            f"Fetched only: {len(children_runs)} runs. Now trying to fetch them manually.")
-        run_ids_to_evaluate = [f"{create_run_recovery_id(run)}_{i}"
-                               for i in range(expected_number_cross_validation_splits)]
-        children_runs = [fetch_run(run.experiment.workspace, id) for id in run_ids_to_evaluate]
+        if 0 < expected_number_cross_validation_splits != len(children_runs):
+            logging.warning(
+                f"The expected number of child runs was {expected_number_cross_validation_splits}."
+                f"Fetched only: {len(children_runs)} runs. Now trying to fetch them manually.")
+            run_ids_to_evaluate = [f"{create_run_recovery_id(run)}_{i}"
+                                   for i in range(expected_number_cross_validation_splits)]
+            children_runs = [fetch_run(run.experiment.workspace, id) for id in run_ids_to_evaluate]
     if status is not None:
         children_runs = [child_run for child_run in children_runs if child_run.get_status() == status]
     return children_runs
@@ -237,53 +224,6 @@ def strip_prefix(string: str, prefix: str) -> str:
     return string
 
 
-def _log_conda_dependencies_stats(conda: CondaDependencies, message_prefix: str) -> None:
-    """
-    Write number of conda and pip packages to logs.
-    :param conda: A conda dependencies object
-    :param message_prefix: A message to prefix to the log string.
-    """
-    conda_packages_count = len(list(conda.conda_packages))
-    pip_packages_count = len(list(conda.pip_packages))
-    logging.info(f"{message_prefix}: {conda_packages_count} conda packages, {pip_packages_count} pip packages")
-    logging.debug("  Conda packages:")
-    for p in conda.conda_packages:
-        logging.debug(f"    {p}")
-    logging.debug("  Pip packages:")
-    for p in conda.pip_packages:
-        logging.debug(f"    {p}")
-
-
-def merge_conda_files(files: List[Path], result_file: Path) -> None:
-    """
-    Merges the given Conda environment files using the conda_merge package, and writes the merged file to disk.
-    :param files: The Conda environment files to read.
-    :param result_file: The location where the merge results should be written.
-    """
-    # This code is a slightly modified version of conda_merge. That code can't be re-used easily
-    # it defaults to writing to stdout
-    env_definitions = [conda_merge.read_file(str(f)) for f in files]
-    unified_definition = {}
-    NAME = "name"
-    CHANNELS = "channels"
-    DEPENDENCIES = "dependencies"
-    name = conda_merge.merge_names(env.get(NAME) for env in env_definitions)
-    if name:
-        unified_definition[NAME] = name
-    try:
-        channels = conda_merge.merge_channels(env.get(CHANNELS) for env in env_definitions)
-    except conda_merge.MergeError:
-        logging.error("Failed to merge channel priorities.")
-        raise
-    if channels:
-        unified_definition[CHANNELS] = channels
-    deps = conda_merge.merge_dependencies(env.get(DEPENDENCIES) for env in env_definitions)
-    if deps:
-        unified_definition[DEPENDENCIES] = deps
-    with result_file.open("w") as f:
-        ruamel.yaml.dump(unified_definition, f, indent=2, default_flow_style=False)
-
-
 def get_all_environment_files(project_root: Path) -> List[Path]:
     """
     Returns a list of all Conda environment files that should be used. This is firstly the InnerEye conda file,
@@ -297,27 +237,6 @@ def get_all_environment_files(project_root: Path) -> List[Path]:
     if innereye_yaml != project_yaml:
         files.append(project_yaml)
     return files
-
-
-def merge_conda_dependencies(files: List[Path]) -> Tuple[CondaDependencies, str]:
-    """
-    Creates a CondaDependencies object from the Conda environments specified in one or more files.
-    The resulting object contains the union of the Conda and pip packages in the files, where merging
-    is done via the conda_merge package.
-    :param files: The Conda environment files to read.
-    :return: Tuple of (CondaDependencies object that contains packages from all the files,
-    string contents of the merge Conda environment)
-    """
-    for file in files:
-        _log_conda_dependencies_stats(CondaDependencies(file), f"Conda environment in {file}")
-    temp_merged_file = tempfile.NamedTemporaryFile(delete=False)
-    merged_file_path = Path(temp_merged_file.name)
-    merge_conda_files(files, result_file=merged_file_path)
-    merged_dependencies = CondaDependencies(temp_merged_file.name)
-    _log_conda_dependencies_stats(merged_dependencies, "Merged Conda environment")
-    merged_file_contents = merged_file_path.read_text()
-    temp_merged_file.close()
-    return merged_dependencies, merged_file_contents
 
 
 def tag_values_all_distinct(runs: List[Run], tag: str) -> bool:
@@ -395,26 +314,6 @@ def is_running_on_azure_agent() -> bool:
     return bool(os.environ.get("AGENT_OS", None))
 
 
-def is_run_and_child_runs_completed(run: Run) -> bool:
-    """
-    Checks if the given run has successfully completed. If the run has child runs, it also checks if the child runs
-    completed successfully.
-    :param run: The AzureML run to check.
-    :return: True if the run and all child runs completed successfully.
-    """
-
-    def is_completed(run: Run) -> bool:
-        status = run.get_status()
-        if run.status == RunStatus.COMPLETED:
-            return True
-        logging.info(f"Run {run.id} in experiment {run.experiment.name} finished with status {status}.")
-        return False
-
-    runs = list(run.get_children())
-    runs.append(run)
-    return all(is_completed(run) for run in runs)
-
-
 def get_comparison_baseline_paths(outputs_folder: Path,
                                   blob_path: Path, run: Run,
                                   dataset_csv_file_name: str) -> \
@@ -458,43 +357,3 @@ def step_up_directories(path: Path) -> Generator[Path, None, None]:
         if parent == path:
             break
         path = parent
-
-
-def remove_arg(arg: str, args: List[str]) -> List[str]:
-    """
-    Remove an argument from a list of arguments. The argument list is assumed to contain
-    elements of the form:
-    "-a", "--arg1", "--arg2", "value2", or "--arg3=value"
-    If there is an item matching "--arg" then it will be removed from the list.
-
-    :param arg: Argument to look for.
-    :param args: List of arguments to scan.
-    :return: List of arguments with --arg removed, if present.
-    """
-    arg_opt = f"--{arg}"
-    no_arg_opt = f"--no-{arg}"
-    retained_args = []
-    i = 0
-    while i < len(args):
-        arg = args[i]
-        if arg.startswith(arg_opt):
-            if len(arg) == len(arg_opt):
-                # The commandline argument is "--arg", with something possibly following: This can either be
-                # "--arg_opt value" or "--arg_opt --some_other_param"
-                if i < (len(args) - 1):
-                    # If the next argument starts with a "-" then assume that it does not belong to the --arg
-                    # argument. If there is no "-", assume it belongs to the --arg_opt argument, and skip both
-                    if not args[i + 1].startswith("-"):
-                        i = i + 1
-            elif arg[len(arg_opt)] == "=":
-                # The commandline argument is "--arg=value": Continue with next arg
-                pass
-            else:
-                # The argument list contains an argument like "--arg_other_param": Keep that.
-                retained_args.append(arg)
-        elif arg == no_arg_opt:
-            pass
-        else:
-            retained_args.append(arg)
-        i = i + 1
-    return retained_args

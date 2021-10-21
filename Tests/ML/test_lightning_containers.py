@@ -9,9 +9,9 @@ from unittest import mock
 
 import pandas as pd
 import pytest
-from pytorch_lightning import LightningModule
 from azureml.core import ScriptRunConfig
 from azureml.train.hyperdrive.runconfig import HyperDriveConfig
+from pytorch_lightning import LightningModule
 
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import ModelExecutionMode
@@ -21,9 +21,10 @@ from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.run_ml import MLRunner
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.configs.lightning_test_containers import DummyContainerWithAzureDataset, DummyContainerWithHooks, DummyContainerWithModel, \
-    DummyContainerWithPlainLightning
+from Tests.ML.configs.lightning_test_containers import (DummyContainerWithAzureDataset, DummyContainerWithHooks,
+                                                        DummyContainerWithModel, DummyContainerWithPlainLightning)
 from Tests.ML.util import default_runner
+from health_azure import AzureRunInfo
 
 
 def test_run_container_in_situ(test_output_dirs: OutputFolderForTests) -> None:
@@ -36,8 +37,7 @@ def test_run_container_in_situ(test_output_dirs: OutputFolderForTests) -> None:
     args = ["", "--model=DummyContainerWithModel", "--model_configs_namespace=Tests.ML.configs",
             f"--output_to={test_output_dirs.root_dir}", f"--local_dataset={local_dataset}"]
     with mock.patch("sys.argv", args):
-        loaded_config, actual_run = runner.run()
-    assert actual_run is None
+        runner.run()
     assert isinstance(runner.lightning_container, DummyContainerWithModel)
     # Test if the outputs folder is relative to the folder that we specified via the commandline
     runner.lightning_container.outputs_folder.relative_to(test_output_dirs.root_dir)
@@ -81,8 +81,7 @@ def test_run_container_with_plain_lightning_in_situ(test_output_dirs: OutputFold
     args = ["", "--model=DummyContainerWithPlainLightning", "--model_configs_namespace=Tests.ML.configs",
             f"--output_to={test_output_dirs.root_dir}", f"--local_dataset={local_dataset}"]
     with mock.patch("sys.argv", args):
-        loaded_config, actual_run = runner.run()
-    assert actual_run is None
+        runner.run()
     assert isinstance(runner.lightning_container, DummyContainerWithPlainLightning)
     # Test if the outputs folder is relative to the folder that we specified via the commandline
     runner.lightning_container.outputs_folder.relative_to(test_output_dirs.root_dir)
@@ -143,8 +142,8 @@ def test_run_fastmri_container(test_output_dirs: OutputFolderForTests) -> None:
             f"--output_to={test_output_dirs.root_dir}",
             "--model_configs_namespace=Tests.ML.configs"]
     with mock.patch("sys.argv", args):
-        loaded_config, actual_run = runner.run()
-    assert actual_run is None
+        loaded_config, run_info = runner.run()
+    assert isinstance(run_info, AzureRunInfo)
     from Tests.ML.configs.fastmri_random import FastMriOnRandomData
     assert isinstance(runner.lightning_container, FastMriOnRandomData)
 

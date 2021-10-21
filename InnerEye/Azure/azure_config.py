@@ -6,20 +6,17 @@ from __future__ import annotations
 
 import getpass
 import logging
-import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import param
-from azureml.core import Dataset, Datastore, Run, ScriptRunConfig, Workspace
+from azureml.core import Run, ScriptRunConfig, Workspace
 from azureml.core.authentication import InteractiveLoginAuthentication, ServicePrincipalAuthentication
-from azureml.data import FileDataset
-from azureml.data.dataset_consumption_config import DatasetConsumptionConfig
 from azureml.train.hyperdrive import HyperDriveConfig
 from git import Repo
 
-from InnerEye.Azure.azure_util import fetch_run, is_offline_run_context, remove_arg
+from InnerEye.Azure.azure_util import fetch_run, is_offline_run_context
 from InnerEye.Azure.secrets_handling import SecretsHandling, read_all_settings
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.generic_parsing import GenericConfig
@@ -240,64 +237,6 @@ class AzureConfig(GenericConfig):
         """
         return fetch_run(workspace=self.get_workspace(), run_recovery_id=run_recovery_id)
 
-    def get_or_create_dataset(self, azure_dataset_id: str) -> FileDataset:
-        """
-        Looks in the AzureML datastore for a dataset of the given name. If there is no such dataset, a dataset is
-        created and registered, assuming that the files are in a folder that has the same name as the dataset.
-        For example, if azure_dataset_id is 'foo', then the 'foo' dataset should be pointing to the folder
-        <container_root>/datasets/foo/
-        """
-        if not self.azureml_datastore:
-            raise ValueError("No value set for 'azureml_datastore' (name of the datastore in the AzureML workspace)")
-        if not azure_dataset_id:
-            raise ValueError("No dataset ID provided.")
-        workspace = self.get_workspace()
-        logging.info(f"Retrieving datastore '{self.azureml_datastore}' from AzureML workspace {workspace.name}")
-        datastore = Datastore.get(workspace, self.azureml_datastore)
-        try:
-            logging.info(f"Trying to retrieve AzureML Dataset '{azure_dataset_id}'")
-            azureml_dataset = Dataset.get_by_name(workspace, name=azure_dataset_id)
-            logging.info("Dataset found.")
-        except:
-            logging.info(f"Dataset does not yet exist, creating a new one from data in folder '{azure_dataset_id}'")
-            # Ensure that there is a / at the end of the file path, otherwise folder that share a prefix could create
-            # trouble (for example, folders foo and foo_bar exist, and I'm trying to create a dataset from "foo")
-            azureml_dataset = Dataset.File.from_files(path=(datastore, azure_dataset_id + "/"))
-            logging.info("Registering the dataset for future use.")
-            azureml_dataset.register(workspace, name=azure_dataset_id)
-        return azureml_dataset
-
-    def get_dataset_consumption(self,
-                                azure_dataset_id: str,
-                                dataset_index: int,
-                                mountpoint: str) -> DatasetConsumptionConfig:
-        """
-        Creates a configuration for using an AzureML dataset inside of an AzureML run. This will make the AzureML
-        dataset with given name available as a named input, using INPUT_DATA_KEY as the key.
-        :param mountpoint: The path at which the dataset should be made available.
-        :param azure_dataset_id: The name of the dataset in blob storage to be used for this run. This can be an empty
-        string to not use any datasets.
-        :param dataset_index: suffix for the dataset name, dataset name will be set to INPUT_DATA_KEY_idx
-        """
-        status = f"Dataset {azure_dataset_id} (index {dataset_index}) will be "
-        azureml_dataset = self.get_or_create_dataset(azure_dataset_id=azure_dataset_id)
-        if not azureml_dataset:
-            raise ValueError(f"AzureML dataset {azure_dataset_id} could not be found or created.")
-        named_input = azureml_dataset.as_named_input(f"{INPUT_DATA_KEY}_{dataset_index}")
-        path_on_compute = mountpoint or None
-        if self.use_dataset_mount:
-            status += "mounted at "
-            result = named_input.as_mount(path_on_compute)
-        else:
-            status += "downloaded to "
-            result = named_input.as_download(path_on_compute)
-        if path_on_compute:
-            status += f"{path_on_compute}."
-        else:
-            status += "a randomly chosen folder."
-        logging.info(status)
-        return result
-
 
 @dataclass
 class SourceConfig:
@@ -312,13 +251,6 @@ class SourceConfig:
     hyperdrive_config_func: Optional[Callable[[ScriptRunConfig], HyperDriveConfig]] = None
     upload_timeout_seconds: int = 36000
     environment_variables: Optional[Dict[str, str]] = None
-
-    def set_script_params_except_submit_flag(self) -> None:
-        """
-        Populates the script_param field of the present object from the arguments in sys.argv, with the exception
-        of the "azureml" flag.
-        """
-        self.script_params = remove_arg(AZURECONFIG_SUBMIT_TO_AZUREML, sys.argv[1:])
 
 
 @dataclass

@@ -29,6 +29,7 @@ class InnerEyeVisionDataModule(VisionDataModule):
                  num_workers: int = 6,
                  batch_size: int = 32,
                  seed: int = 42,
+                 drop_last: bool = True,
                  *args: Any, **kwargs: Any) -> None:
         """
         Wrapper around VisionDatamodule to load torchvision dataset into a pytorch-lightning module.
@@ -42,16 +43,17 @@ class InnerEyeVisionDataModule(VisionDataModule):
         :param val_transforms: transforms to use at validation time
         :param data_dir: data directory where to find the data
         :param val_split: proportion of training dataset to use for validation
-        :param num_workers: number of processes for dataloaders.
-        :param batch_size: batch size for training & validation.
+        :param num_workers: number of processes for dataloaders
+        :param batch_size: batch size for training & validation
         :param seed: random seed for dataset splitting
+        :param drop_last: bool, if true it drops the last incomplete batch
         """
         data_dir = data_dir if data_dir is not None else os.getcwd()
         super().__init__(data_dir=data_dir,
                          val_split=val_split,
                          num_workers=num_workers,
                          batch_size=batch_size,
-                         drop_last=True,
+                         drop_last=drop_last,
                          train_transforms=train_transforms,
                          val_transforms=val_transforms,
                          seed=seed,
