@@ -1,11 +1,11 @@
 variables:
   tenant_id: '72f988bf-86f1-41af-91ab-2d7cd011db47'
-  subscription_id: ''
+  subscription_id: 'a85ceddd-892e-4637-ae4b-67d15ddf5f2b'
   application_id: ''
   azureml_datastore: 'innereyedatasets'
   resource_group: 'InnerEye-DeepLearning'
   docker_shm_size: '440g'
   workspace_name: 'InnerEye-DeepLearning'
-  cluster: 'training-nd24'
+  cluster: 'training-nc12'
   model_configs_namespace: ''
   extra_code_directory: ''
