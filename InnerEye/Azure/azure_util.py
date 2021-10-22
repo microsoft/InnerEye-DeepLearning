@@ -148,7 +148,7 @@ def fetch_child_runs(run: Run, status: Optional[str] = None,
     # children_runs = list(run.get_children(tags=RUN_RECOVERY_ID_KEY_NAME))
     children_runs = list(MlflowClient().search_runs(
         run.info.experiment_id,
-        filter_string=f"tags.{RUN_RECOVERY_FROM_ID_KEY_NAME} = '' and tags.mlflow.parentRunId = {run.info.run_id}"
+        filter_string=f"tags.{RUN_RECOVERY_FROM_ID_KEY_NAME} = '' and tags.mlflow.parentRunId = '{run.info.run_id}'"
     ))
     if 0 < expected_number_cross_validation_splits != len(children_runs):
         if 0 < expected_number_cross_validation_splits != len(children_runs):
