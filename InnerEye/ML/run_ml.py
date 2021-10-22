@@ -37,7 +37,7 @@ from InnerEye.Common.common_util import BASELINE_COMPARISONS_FOLDER, BASELINE_WI
     OTHER_RUNS_SUBDIR_NAME, SCATTERPLOTS_SUBDIR_NAME, SUBJECT_METRICS_FILE_NAME, \
     change_working_directory, get_best_epoch_results_path, is_windows, logging_section, logging_to_file, \
     print_exception, remove_file_or_directory
-from InnerEye.Common.fixed_paths import INNEREYE_PACKAGE_NAME, LOG_FILE_NAME, PYTHON_ENVIRONMENT_NAME
+from InnerEye.Common.fixed_paths import INNEREYE_PACKAGE_NAME, PYTHON_ENVIRONMENT_NAME
 from InnerEye.Common.type_annotations import PathOrString
 from InnerEye.ML.baselines_util import compare_folders_and_run_outputs
 from InnerEye.ML.common import ModelExecutionMode
@@ -299,15 +299,6 @@ class MLRunner:
             return self.innereye_config.__class__.__module__
         else:
             return self.container.__class__.__module__
-
-    def start_logging_to_file(self) -> None:
-        """
-        Set up logging of stdout stream to a file. This is only done on rank zero in distributed training.
-        """
-        if is_global_rank_zero():
-            if self.container is None:
-                self.setup()
-            logging_to_file(self.container.logs_folder / LOG_FILE_NAME)
 
     def is_offline_cross_val_parent_run(self) -> bool:
         """

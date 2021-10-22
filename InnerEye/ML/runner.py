@@ -381,11 +381,7 @@ class Runner:
             set_environment_variables_for_multi_node()
             ml_runner = self.create_ml_runner()
             ml_runner.setup(azure_run_info)
-            ml_runner.start_logging_to_file()
-            try:
-                ml_runner.run()
-            finally:
-                disable_logging_to_file()
+            ml_runner.run()
 
     def create_ml_runner(self) -> MLRunner:
         """
