@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple, TypeVar
 
+from health_azure.utils import is_global_rank_zero, is_local_rank_zero
 from pytorch_lightning import LightningModule, Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
@@ -28,31 +29,6 @@ from InnerEye.ML.lightning_models import SUBJECT_OUTPUT_PER_RANK_PREFIX, ScalarL
 TEMP_PREFIX = "temp/"
 
 T = TypeVar('T')
-
-
-def is_global_rank_zero() -> bool:
-    """
-    Tries to guess if the current process is running as DDP rank zero, before the training has actually started,
-    by looking at environment variables.
-    :return: True if the current process is global rank 0.
-    """
-    # When doing multi-node training, this indicates which node the present job is on. This is set in
-    # set_environment_variables_for_multi_node
-    node_rank = os.getenv(ENV_NODE_RANK, "0")
-    return is_local_rank_zero() and node_rank == "0"
-
-
-def is_local_rank_zero() -> bool:
-    """
-    Tries to guess if the current process is running as DDP local rank zero (i.e., the process that is responsible for
-    GPU 0 on each node).
-    :return: True if the current process is local rank 0.
-    """
-    # The per-node jobs for rank zero do not have any of the rank-related environment variables set. PL will
-    # set them only once starting its child processes.
-    global_rank = os.getenv(ENV_GLOBAL_RANK)
-    local_rank = os.getenv(ENV_LOCAL_RANK)
-    return global_rank is None and local_rank is None
 
 
 def upload_output_file_as_temp(file_path: Path, outputs_folder: Path) -> None:

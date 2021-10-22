@@ -28,7 +28,8 @@ fixed_paths.add_submodules_to_path()
 from azureml._base_sdk_common import user_agent
 from azureml.core import Run, ScriptRunConfig
 from health_azure import AzureRunInfo, submit_to_azure_if_needed
-from health_azure.utils import create_run_recovery_id, merge_conda_files, to_azure_friendly_string
+from health_azure.utils import create_run_recovery_id, is_global_rank_zero, is_local_rank_zero, merge_conda_files, \
+    to_azure_friendly_string
 import matplotlib
 
 from InnerEye.Azure.tensorboard_monitor import AMLTensorBoardMonitorConfig, monitor
@@ -50,7 +51,6 @@ from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.lightning_base import InnerEyeContainer
 from InnerEye.ML.model_config_base import ModelConfigBase
-from InnerEye.ML.model_training import is_global_rank_zero, is_local_rank_zero
 from InnerEye.ML.run_ml import MLRunner, ModelDeploymentHookSignature, PostCrossValidationHookSignature
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.lightning_container import LightningContainer

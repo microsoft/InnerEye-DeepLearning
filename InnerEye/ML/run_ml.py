@@ -16,6 +16,9 @@ import torch.multiprocessing
 from azureml._restclient.constants import RunStatus
 from azureml.core import Model, Run, model
 from azureml.data import FileDataset
+from health_azure import AzureRunInfo
+from health_azure.datasets import get_or_create_dataset
+from health_azure.utils import ENVIRONMENT_VERSION, create_run_recovery_id, is_global_rank_zero, merge_conda_files
 from pytorch_lightning import LightningModule, seed_everything
 from pytorch_lightning.core.datamodule import LightningDataModule
 from torch.utils.data import DataLoader
@@ -47,7 +50,7 @@ from InnerEye.ML.metrics import InferenceMetrics, InferenceMetricsForSegmentatio
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
 from InnerEye.ML.model_testing import model_test
-from InnerEye.ML.model_training import create_lightning_trainer, is_global_rank_zero, model_train
+from InnerEye.ML.model_training import create_lightning_trainer, model_train
 from InnerEye.ML.reports.notebook_report import generate_classification_crossval_notebook, \
     generate_classification_multilabel_notebook, generate_classification_notebook, generate_segmentation_notebook, \
     get_ipynb_report_name, reports_folder
@@ -58,9 +61,6 @@ from InnerEye.ML.utils.run_recovery import RunRecovery
 from InnerEye.ML.visualizers import activation_maps
 from InnerEye.ML.visualizers.plot_cross_validation import \
     get_config_and_results_for_offline_runs, plot_cross_validation_from_files
-from health_azure.utils import ENVIRONMENT_VERSION, create_run_recovery_id, merge_conda_files
-from health_azure.datasets import get_or_create_dataset
-from health_azure import AzureRunInfo
 
 ModelDeploymentHookSignature = Callable[[LightningContainer, AzureConfig, Model, ModelProcessing], Any]
 PostCrossValidationHookSignature = Callable[[ModelConfigBase, Path], None]
@@ -301,9 +301,13 @@ class MLRunner:
             return self.container.__class__.__module__
 
     def start_logging_to_file(self) -> None:
-        if self.container is None:
-            self.setup()
-        logging_to_file(self.container.logs_folder / LOG_FILE_NAME)
+        """
+        Set up logging of stdout stream to a file. This is only done on rank zero in distributed training.
+        """
+        if is_global_rank_zero():
+            if self.container is None:
+                self.setup()
+            logging_to_file(self.container.logs_folder / LOG_FILE_NAME)
 
     def is_offline_cross_val_parent_run(self) -> bool:
         """
