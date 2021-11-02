@@ -36,7 +36,6 @@ DEFAULT_RESULT_ZIP_DICOM_NAME = "segmentation.dcm.zip"
 DEFAULT_AML_LOGS_DIR = "azureml-logs"
 
 DEFAULT_LOGS_DIR_NAME = "logs"
-LOG_FILE_NAME = "stdout.txt"
 
 DEFAULT_MODEL_SUMMARIES_DIR_PATH = Path(DEFAULT_LOGS_DIR_NAME) / "model_summaries"
 # The folder at the project root directory that holds datasets for local execution.

@@ -18,7 +18,7 @@ from InnerEye.Common.fixed_paths import PRIVATE_SETTINGS_FILE, PROJECT_SECRETS_F
     repository_root_directory
 from Tests.AfterTraining.test_after_training import FALLBACK_ENSEMBLE_RUN, get_most_recent_run, get_most_recent_run_id
 from Tests.ML.util import get_default_workspace
-from health.azure.azure_util import is_run_and_child_runs_completed
+from health_azure.utils import is_run_and_child_runs_completed
 
 
 def test_os_path_to_azure_friendly_container_path() -> None:

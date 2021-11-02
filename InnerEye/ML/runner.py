@@ -22,12 +22,14 @@ if (innereye_root / "InnerEye").is_dir():
         print(f"Adding InnerEye folder to sys.path: {innereye_root_str}")
         sys.path.insert(0, innereye_root_str)
 from InnerEye.Common import fixed_paths
+
 fixed_paths.add_submodules_to_path()
 
 from azureml._base_sdk_common import user_agent
 from azureml.core import Run, ScriptRunConfig
-from health.azure.himl import AzureRunInfo, submit_to_azure_if_needed
-from health.azure.azure_util import create_run_recovery_id, merge_conda_files, to_azure_friendly_string
+from health_azure import AzureRunInfo, submit_to_azure_if_needed
+from health_azure.utils import create_run_recovery_id, is_global_rank_zero, is_local_rank_zero, merge_conda_files, \
+    to_azure_friendly_string
 import matplotlib
 
 from InnerEye.Azure.tensorboard_monitor import AMLTensorBoardMonitorConfig, monitor
@@ -49,7 +51,6 @@ from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.lightning_base import InnerEyeContainer
 from InnerEye.ML.model_config_base import ModelConfigBase
-from InnerEye.ML.model_training import is_global_rank_zero, is_local_rank_zero
 from InnerEye.ML.run_ml import MLRunner, ModelDeploymentHookSignature, PostCrossValidationHookSignature
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.lightning_container import LightningContainer
@@ -245,7 +246,6 @@ class Runner:
                                                 all_azure_dataset_ids=self.lightning_container.all_azure_dataset_ids(),
                                                 all_dataset_mountpoints=self.lightning_container.all_dataset_mountpoints())
 
-
         def after_submission_hook(azure_run: Run) -> None:
             """
             A function that will be called right after job submission.
@@ -381,11 +381,7 @@ class Runner:
             set_environment_variables_for_multi_node()
             ml_runner = self.create_ml_runner()
             ml_runner.setup(azure_run_info)
-            ml_runner.start_logging_to_file()
-            try:
-                ml_runner.run()
-            finally:
-                disable_logging_to_file()
+            ml_runner.run()
 
     def create_ml_runner(self) -> MLRunner:
         """

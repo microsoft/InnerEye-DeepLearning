@@ -20,7 +20,7 @@ import numpy as np
 import pytest
 from azureml._restclient.constants import RunStatus
 from azureml.core import Model, Run
-from health.azure.himl import RUN_RECOVERY_FILE
+from health_azure.himl import RUN_RECOVERY_FILE
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_util import MODEL_ID_KEY_NAME, download_run_output_file, download_run_outputs_by_prefix, \
@@ -506,7 +506,6 @@ def test_model_inference_on_single_run(test_output_dirs: OutputFolderForTests) -
     azure_config.train = False
     ml_runner = MLRunner(container=container, azure_config=azure_config, project_root=test_output_dirs.root_dir)
     ml_runner.setup()
-    ml_runner.start_logging_to_file()
     ml_runner.run()
 
     inference_files = [container.outputs_folder / file for file in files_to_check]

@@ -24,7 +24,7 @@ from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.configs.lightning_test_containers import (DummyContainerWithAzureDataset, DummyContainerWithHooks,
                                                         DummyContainerWithModel, DummyContainerWithPlainLightning)
 from Tests.ML.util import default_runner
-from health.azure.himl import AzureRunInfo
+from health_azure import AzureRunInfo
 
 
 def test_run_container_in_situ(test_output_dirs: OutputFolderForTests) -> None:

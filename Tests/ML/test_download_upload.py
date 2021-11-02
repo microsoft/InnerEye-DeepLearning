@@ -25,7 +25,7 @@ from Tests.AfterTraining.test_after_training import FALLBACK_ENSEMBLE_RUN, FALLB
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.configs.lightning_test_containers import DummyContainerWithDatasets
 from Tests.ML.util import get_default_azure_config
-from health.azure.himl import AzureRunInfo
+from health_azure import AzureRunInfo
 
 logging_to_stdout(logging.DEBUG)
 
@@ -164,7 +164,7 @@ def _test_mount_for_lightning_container(test_output_dirs: OutputFolderForTests,
             runner.setup(azure_run_info=AzureRunInfo(input_datasets=path_from_aml,
                                                      output_datasets=[],
                                                      run=None,
-                                                     is_running_in_azure=False,
+                                                     is_running_in_azure_ml=False,
                                                      output_folder=Path(),
                                                      logs_folder=Path()
                                                      ))
