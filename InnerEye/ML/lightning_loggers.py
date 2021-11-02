@@ -9,7 +9,7 @@ from pytorch_lightning.loggers import LightningLoggerBase
 from pytorch_lightning.utilities import rank_zero_only
 
 from InnerEye.Common.metrics_constants import TRAIN_PREFIX, VALIDATION_PREFIX
-from InnerEye.Common.type_annotations import DictStrFloat
+from InnerEye.Common.type_annotations import DictStrFloat, DictStrFloatOrFloatList
 
 
 class StoringLogger(LightningLoggerBase):
