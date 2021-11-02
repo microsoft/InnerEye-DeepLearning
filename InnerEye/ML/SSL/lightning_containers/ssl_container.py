@@ -103,6 +103,7 @@ class SSLContainer(LightningContainer):
         if self.is_debug_model:
             self.pl_limit_train_batches = 1
             self.pl_limit_val_batches = 1
+        self.pl_find_unused_parameters = True
         self.total_num_gpus = self.num_gpus_per_node() * self.num_nodes
         self._load_config()
         # If you're using the same data for training and linear head, allow the user to specify the dataset only
