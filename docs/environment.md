@@ -202,8 +202,9 @@ and that costs 20min per run.
 * There is already code in `InnerEye.Common.fixed_paths.add_submodules_to_path` that will pick up the submodules and
   add them to `sys.path`.
 
-Once you are done testing your changes, remove the entry for `hi-ml` from `.gitmodules` and execute these steps 
-from the repository root:
+Once you are done testing your changes:
+* Remove the entry for `hi-ml` from `.gitmodules` 
+* Execute these steps from the repository root:
 ```shell
 git submodule deinit -f hi-ml
 rmdir hi-ml
