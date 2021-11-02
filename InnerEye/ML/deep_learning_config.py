@@ -218,7 +218,7 @@ class WorkflowParams(param.Parameterized):
                       doc="If set, enable/disable full image inference on test set after ensemble training.")
     weights_url: List[str] = param.List(default=[], class_=str,
                                         doc="If provided, a set of urls from which checkpoints will be downloaded"
-                                                "and used for inference.")
+                                            "and used for inference.")
     local_weights_path: List[Path] = param.List(default=[], class_=Path,
                                                 doc="A list of checkpoints paths to use for inference, "
                                                     "when the job is running outside Azure.")
@@ -590,6 +590,14 @@ class TrainerParams(param.Parameterized):
         param.Boolean(default=False,
                       doc="Controls the PyTorch Lightning flag 'find_unused_parameters' for the DDP plugin. "
                           "Setting it to True comes with a performance hit.")
+    pl_limit_train_batches: Optional[int] = \
+        param.Integer(default=None,
+                      doc="PyTorch Lightning trainer flag 'limit_train_batches': Limit the training dataset to the "
+                          "given number of batches.")
+    pl_limit_val_batches: Optional[int] = \
+        param.Integer(default=None,
+                      doc="PyTorch Lightning trainer flag 'limit_val_batches': Limit the validation dataset to the "
+                          "given number of batches.")
 
     @property
     def use_gpu(self) -> bool:
@@ -602,15 +610,16 @@ class TrainerParams(param.Parameterized):
         from InnerEye.ML.utils.ml_util import is_gpu_available
         return is_gpu_available()
 
-    @property
     def num_gpus_per_node(self) -> int:
         """
         Computes the number of gpus to use for each node: either the number of gpus available on the device
         or restrict it to max_num_gpu, whichever is smaller. Returns 0 if running on a CPU device.
         """
         import torch
-        num_gpus = torch.cuda.device_count() if self.use_gpu else 0
-        logging.info(f"Number of available GPUs: {num_gpus}")
+        available_gpus = torch.cuda.device_count()
+        num_gpus = available_gpus if self.use_gpu else 0
+        message_suffix = "" if self.use_gpu else ", but not using them because use_gpu == False"
+        logging.info(f"Number of available GPUs: {available_gpus}{message_suffix}")
         if 0 <= self.max_num_gpus < num_gpus:
             num_gpus = self.max_num_gpus
             logging.info(f"Restricting the number of GPUs to {num_gpus}")

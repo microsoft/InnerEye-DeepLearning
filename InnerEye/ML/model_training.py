@@ -63,7 +63,7 @@ class InnerEyeRecoveryCheckpointCallback(ModelCheckpoint):
 
     def __init__(self, container: LightningContainer):
         super().__init__(dirpath=str(container.checkpoint_folder),
-                         monitor="epoch",
+                         monitor="epoch_started",
                          filename=RECOVERY_CHECKPOINT_FILE_NAME + "_{epoch}",
                          period=container.recovery_checkpoint_save_interval,
                          save_top_k=container.recovery_checkpoints_save_last_k,
@@ -71,7 +71,7 @@ class InnerEyeRecoveryCheckpointCallback(ModelCheckpoint):
                          save_last=False)
 
     def on_train_epoch_end(self, trainer: Trainer, pl_module: LightningModule, unused: bool = None) -> None:
-        pl_module.log(name="epoch", value=trainer.current_epoch)  # type: ignore
+        pl_module.log(name="epoch_started", value=trainer.current_epoch)  # type: ignore
 
 
 def create_lightning_trainer(container: LightningContainer,
@@ -100,7 +100,7 @@ def create_lightning_trainer(container: LightningContainer,
     # recovery_checkpoints_save_last_k.
     recovery_checkpoint_callback = InnerEyeRecoveryCheckpointCallback(container)
 
-    num_gpus = container.num_gpus_per_node
+    num_gpus = container.num_gpus_per_node()
     effective_num_gpus = num_gpus * num_nodes
     # Accelerator should be "ddp" when running large models in AzureML (when using DDP_spawn, we get out of GPU memory).
     if effective_num_gpus > 1:
@@ -153,6 +153,8 @@ def create_lightning_trainer(container: LightningContainer,
                       accelerator=accelerator,
                       plugins=plugins,
                       max_epochs=container.num_epochs,
+                      limit_train_batches=container.pl_limit_train_batches or 1.0,
+                      limit_val_batches=container.pl_limit_val_batches or 1.0,
                       num_sanity_val_steps=container.pl_num_sanity_val_steps,
                       callbacks=callbacks,
                       logger=loggers,

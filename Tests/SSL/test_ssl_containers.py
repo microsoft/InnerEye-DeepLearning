@@ -20,6 +20,8 @@ from InnerEye.ML.SSL.lightning_containers.ssl_container import EncoderName, SSLD
 from InnerEye.ML.SSL.lightning_modules.byol.byol_module import BYOLInnerEye
 from InnerEye.ML.SSL.lightning_modules.simclr_module import SimCLRInnerEye
 from InnerEye.ML.SSL.lightning_modules.ssl_classifier_module import SSLClassifier
+from InnerEye.ML.SSL.lightning_modules.ssl_online_evaluator import EVALUATOR_STATE_NAME, OPTIMIZER_STATE_NAME, \
+    SSLOnlineEvaluatorInnerEye
 from InnerEye.ML.SSL.utils import SSLDataModuleType, SSLTrainingType
 from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
 from InnerEye.ML.configs.ssl.CXR_SSL_configs import CXRImageClassifier
@@ -84,7 +86,18 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
     assert loaded_config.online_eval.dataset == SSLDatasetName.CIFAR10.value
     assert not loaded_config.use_balanced_binary_loss_for_linear_head
     assert isinstance(loaded_config.model.encoder.cnn_model, ResNet)
+    # Check that the checkpoint contains both the optimizer for the embedding and for the linear head
     checkpoint_path = loaded_config.outputs_folder / "checkpoints" / "best_checkpoint.ckpt"
+    checkpoint = torch.load(checkpoint_path)
+    assert len(checkpoint["optimizer_states"]) == 1
+    assert len(checkpoint["lr_schedulers"]) == 1
+    assert "callbacks" in checkpoint
+    assert SSLOnlineEvaluatorInnerEye in checkpoint["callbacks"]
+    callback_state = checkpoint["callbacks"][SSLOnlineEvaluatorInnerEye]
+    assert OPTIMIZER_STATE_NAME in callback_state
+    assert EVALUATOR_STATE_NAME in callback_state
+
+    # Now run the actual SSL classifier off the stored checkpoint
     args = common_test_args + ["--model=SSLClassifierCIFAR", f"--local_ssl_weights_path={checkpoint_path}"]
     with mock.patch("sys.argv", args):
         loaded_config, actual_run = default_runner().run()
@@ -92,6 +105,7 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
     assert isinstance(loaded_config.model, SSLClassifier)
     assert loaded_config.model.class_weights is None
     assert loaded_config.model.num_classes == 10
+
 
 @pytest.mark.skipif(is_windows(), reason="Too slow on windows")
 def test_load_innereye_ssl_container_cifar10_cifar100_resnet_byol() -> None:

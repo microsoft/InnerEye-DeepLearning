@@ -9,14 +9,17 @@ import pytorch_lightning as pl
 import torch
 from pl_bolts.callbacks.ssl_online import SSLOnlineEvaluator
 from pl_bolts.models.self_supervised.evaluator import SSLEvaluator
-from torchmetrics import Metric
 from torch import Tensor as T
 from torch.nn import functional as F
+from torchmetrics import Metric
 
 from InnerEye.ML.SSL.utils import SSLDataModuleType
 from InnerEye.ML.lightning_metrics import Accuracy05, AreaUnderPrecisionRecallCurve, AreaUnderRocCurve
 
 BatchType = Union[Dict[SSLDataModuleType, Any], Any]
+
+OPTIMIZER_STATE_NAME = "evaluator_optimizer"
+EVALUATOR_STATE_NAME = "evaluator_weights"
 
 
 class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
@@ -43,6 +46,23 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
                                           Accuracy05()] \
             if self.num_classes == 2 else [Accuracy05()]
         self.class_weights = class_weights
+
+    def on_save_checkpoint(self,
+                           trainer: pl.Trainer,
+                           pl_module: pl.LightningModule,
+                           checkpoint: Dict[str, Any]) -> Dict[str, Any]:
+        # Each callback gets its own state dictionary, that are fed back in during load
+        return {
+            OPTIMIZER_STATE_NAME: self.optimizer.state_dict(),
+            EVALUATOR_STATE_NAME: pl_module.non_linear_evaluator.state_dict()
+        }
+
+    def on_load_checkpoint(self,
+                           trainer: pl.Trainer,
+                           pl_module: pl.LightningModule,
+                           callback_state: Dict[str, Any]) -> None:
+        self.optimizer.load_state_dict(callback_state[OPTIMIZER_STATE_NAME])
+        pl_module.non_linear_evaluator.load_state_dict(callback_state[EVALUATOR_STATE_NAME])
 
     def on_pretrain_routine_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
         """
