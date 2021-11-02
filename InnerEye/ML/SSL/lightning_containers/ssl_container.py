@@ -92,7 +92,7 @@ class SSLContainer(LightningContainer):
                                                               "augmentations")
     linear_head_dataset_name = param.ClassSelector(class_=SSLDatasetName,
                                                    doc="Name of the dataset to use for the linear head training")
-    linear_head_batch_size = param.Integer(default=256, doc="Batch size for linear head tuning")
+    linear_head_batch_size = param.Integer(default=16, doc="Batch size for linear head tuning")
     learning_rate_linear_head_during_ssl_training = param.Number(default=1e-4,
                                                                  doc="Learning rate for linear head training during "
                                                                      "SSL training.")
