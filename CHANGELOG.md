@@ -77,6 +77,8 @@ in inference-only runs when using lightning containers.
 
 ### Removed
 
+- ([#577](https://github.com/microsoft/InnerEye-DeepLearning/pull/577)) Removing the monitoring of batch loading time,
+  use the `BatchTimeCallback` from `hi-ml` instead
 - ([#542](https://github.com/microsoft/InnerEye-DeepLearning/pull/542)) Removed Windows test leg from build pipeline.
 - ([#509](https://github.com/microsoft/InnerEye-DeepLearning/pull/509)) Parameters `local_weights_path` and
   `weights_url` can no longer be used to initialize a training run, only inference runs.
