@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Tuple, Union
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from health_ml.utils import log_learning_rate, log_on_epoch
 from pl_bolts.models.self_supervised.simclr.simclr_module import SimCLR
 from torch import Tensor as T
 
@@ -57,6 +58,17 @@ class SimCLRInnerEye(SimCLR):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.encoder(x)
 
+    def training_step(self, batch: BatchType, batch_idx: int) -> torch.Tensor:
+        loss = self.shared_step(batch)
+        log_on_epoch(self, "simclr/train/loss", loss, sync_dist=False)
+        log_learning_rate(self, name="simclr/learning_rate")
+        return loss
+
+    def validation_step(self, batch: BatchType, batch_idx: int) -> T:  # type: ignore
+        loss = self.shared_step(batch)
+        log_on_epoch(self, "simclr/val/loss", loss, sync_dist=False)
+        return loss
+
     def shared_step(self, batch: BatchType) -> T:
         batch = batch[SSLDataModuleType.ENCODER] if isinstance(batch, dict) else batch
 
@@ -72,6 +84,3 @@ class SimCLRInnerEye(SimCLR):
         loss = self.nt_xent_loss(z1, z2, self.temperature)
 
         return loss
-
-
-
