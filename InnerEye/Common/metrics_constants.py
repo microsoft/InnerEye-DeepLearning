@@ -6,8 +6,6 @@ from enum import Enum, unique
 # String prefixes when writing training or validation set metrics to a logger
 from typing import Union
 
-from health_ml.utils import BatchTimeCallback
-
 TRAIN_PREFIX = "train/"
 VALIDATION_PREFIX = "val/"
 
