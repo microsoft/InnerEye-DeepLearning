@@ -3,7 +3,6 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from enum import Enum, unique
-
 # String prefixes when writing training or validation set metrics to a logger
 from typing import Union
 

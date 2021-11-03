@@ -12,6 +12,7 @@ import h5py
 import numpy as np
 import pandas as pd
 import pytest
+from health_ml.utils import BatchTimeCallback
 from torch.utils.data import DataLoader
 
 from InnerEye.Common import fixed_paths
