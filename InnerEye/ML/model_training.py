@@ -6,10 +6,9 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple, TypeVar
+from typing import Any, Dict, List, Optional, Tuple, TypeVar
 
-from health_azure.utils import is_global_rank_zero, is_local_rank_zero
-from pytorch_lightning import LightningModule, Trainer, seed_everything
+from pytorch_lightning import Callback, LightningModule, Trainer, seed_everything
 from pytorch_lightning.callbacks import GPUStatsMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.plugins import DDPPlugin
@@ -25,6 +24,7 @@ from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.lightning_loggers import StoringLogger
 from InnerEye.ML.lightning_models import SUBJECT_OUTPUT_PER_RANK_PREFIX, ScalarLightning, \
     get_subject_output_file_per_rank
+from health_azure.utils import is_global_rank_zero, is_local_rank_zero
 from health_ml.utils import AzureMLLogger, AzureMLProgressBar, BatchTimeCallback
 
 TEMP_PREFIX = "temp/"
@@ -129,7 +129,7 @@ def create_lightning_trainer(container: LightningContainer,
     # Store 1 recovery checkpoint every recovery_checkpoint_save_interval epochs, keep the last
     # recovery_checkpoints_save_last_k.
     recovery_checkpoint_callback = InnerEyeRecoveryCheckpointCallback(container)
-    callbacks = [
+    callbacks: List[Callback] = [
         last_checkpoint_callback,
         recovery_checkpoint_callback,
     ]

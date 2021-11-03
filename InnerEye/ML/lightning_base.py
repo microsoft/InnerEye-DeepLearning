@@ -262,7 +262,7 @@ class InnerEyeLightning(LightningModule):
         # Write out all the metrics that have been accumulated in the StoringLogger in the previous epoch.
         # Metrics for the very last epoch are written in on_train_end
         self.read_epoch_results_from_logger_and_store(epoch=self.current_epoch - 1)
-        self.training_or_validation_epoch_end(is_training=True)
+        self.training_or_validation_epoch_end(is_training=True)  # type: ignore
 
     def on_validation_epoch_start(self) -> None:
         """
@@ -285,7 +285,7 @@ class InnerEyeLightning(LightningModule):
         # reset the random state for training, so that we get continue from where we were before the validation step.
         assert self.random_state is not None
         self.random_state.restore_random_state()
-        self.training_or_validation_epoch_end(is_training=False)
+        self.training_or_validation_epoch_end(is_training=False)  # type: ignore
 
     @rank_zero_only
     def on_train_end(self) -> None:

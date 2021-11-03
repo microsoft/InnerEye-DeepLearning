@@ -6,16 +6,15 @@ from __future__ import annotations
 
 import logging
 import math
-import time
-from dataclasses import dataclass, field
-from typing import List, Optional, Sequence, Set
+from dataclasses import dataclass
+from typing import List, Optional, Sequence
 
 import SimpleITK as sitk
 import numpy as np
-from numpy.core.numeric import NaN
 import torch
 import torch.nn.functional as F
 from azureml.core import Run
+from numpy.core.numeric import NaN
 
 from InnerEye.Azure.azure_util import get_run_context_or_default
 from InnerEye.Common.metrics_constants import LoggingColumns, MetricType
@@ -27,8 +26,8 @@ from InnerEye.ML.metrics_dict import (DataframeLogger, INTERNAL_TO_LOGGING_COLUM
 from InnerEye.ML.scalar_config import ScalarLoss
 from InnerEye.ML.utils.image_util import binaries_from_multi_label_array, is_binary_array
 from InnerEye.ML.utils.io_util import reverse_tuple_float3
-from InnerEye.ML.utils.metrics_util import (binary_classification_accuracy, mean_absolute_error,
-                                            r2_score, is_missing_ground_truth)
+from InnerEye.ML.utils.metrics_util import (binary_classification_accuracy, is_missing_ground_truth,
+                                            mean_absolute_error, r2_score)
 from InnerEye.ML.utils.ml_util import check_size_matches
 from InnerEye.ML.utils.sequence_utils import get_masked_model_outputs_and_labels
 
@@ -272,9 +271,6 @@ def store_epoch_metrics(metrics: DictStrFloat,
             hue_suffix = "/" + tokens[1]
         else:
             raise ValueError(f"Expected key to have format 'metric_name[/optional_suffix_for_hue]', got {key}")
-
-        if metric_name == MetricType.SECONDS_PER_BATCH.value or metric_name == MetricType.SECONDS_PER_EPOCH.value:
-            continue
         if metric_name in INTERNAL_TO_LOGGING_COLUMN_NAMES.keys():
             logger_row[INTERNAL_TO_LOGGING_COLUMN_NAMES[metric_name].value + hue_suffix] = value
         else:

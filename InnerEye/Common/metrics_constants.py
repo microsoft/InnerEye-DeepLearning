@@ -7,6 +7,8 @@ from enum import Enum, unique
 # String prefixes when writing training or validation set metrics to a logger
 from typing import Union
 
+from health_ml.utils import BatchTimeCallback
+
 TRAIN_PREFIX = "train/"
 VALIDATION_PREFIX = "val/"
 
@@ -45,8 +47,6 @@ class LoggingColumns(Enum):
     AccuracyAtThreshold05 = "accuracy_at_threshold_05"
     Loss = "loss"
     CrossEntropy = "cross_entropy"
-    SecondsPerEpoch = "seconds_per_epoch"
-    SecondsPerBatch = "seconds_per_batch"
     AreaUnderRocCurve = "area_under_roc_curve"
     AreaUnderPRCurve = "area_under_pr_curve"
     CrossValidationSplitIndex = "cross_validation_split_index"
@@ -100,9 +100,6 @@ class MetricType(Enum):
     EXPLAINED_VAR = "ExplainedVariance"
 
     # Common metrics
-    SECONDS_PER_BATCH = "SecondsPerBatch"
-    SECONDS_PER_EPOCH = "SecondsPerEpoch"
-    EXCESS_BATCH_LOADING_TIME = "TotalExcessLoadingTimeSeconds"
     SUBJECT_COUNT = "SubjectCount"
     LEARNING_RATE = "LearningRate"
 
@@ -115,8 +112,6 @@ INTERNAL_TO_LOGGING_COLUMN_NAMES = {
     MetricType.LOSS.value: LoggingColumns.Loss,
     MetricType.ACCURACY_AT_THRESHOLD_05.value: LoggingColumns.AccuracyAtThreshold05,
     MetricType.CROSS_ENTROPY.value: LoggingColumns.CrossEntropy,
-    MetricType.SECONDS_PER_BATCH.value: LoggingColumns.SecondsPerBatch,
-    MetricType.SECONDS_PER_EPOCH.value: LoggingColumns.SecondsPerEpoch,
     MetricType.AREA_UNDER_ROC_CURVE.value: LoggingColumns.AreaUnderRocCurve,
     MetricType.AREA_UNDER_PR_CURVE.value: LoggingColumns.AreaUnderPRCurve,
     MetricType.SUBJECT_COUNT.value: LoggingColumns.SubjectCount,

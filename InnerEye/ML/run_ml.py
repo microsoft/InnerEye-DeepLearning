@@ -43,6 +43,7 @@ from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, DeepLearningConf
     FINAL_ENSEMBLE_MODEL_FOLDER, FINAL_MODEL_FOLDER, ModelCategory, MultiprocessingStartMethod, load_checkpoint
 from InnerEye.ML.lightning_base import InnerEyeContainer
 from InnerEye.ML.lightning_container import InnerEyeInference, LightningContainer
+from InnerEye.ML.lightning_loggers import StoringLogger
 from InnerEye.ML.metrics import InferenceMetrics, InferenceMetricsForSegmentation
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
