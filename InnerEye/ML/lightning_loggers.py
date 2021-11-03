@@ -2,14 +2,14 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import logging
 from typing import Any, Dict, Iterable, List, Optional
 
 from pytorch_lightning.loggers import LightningLoggerBase
 from pytorch_lightning.utilities import rank_zero_only
 
-from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common.metrics_constants import TRAIN_PREFIX, VALIDATION_PREFIX
-from InnerEye.Common.type_annotations import DictStrFloat
+from InnerEye.Common.type_annotations import DictStrFloat, DictStrFloatOrFloatList
 
 
 class StoringLogger(LightningLoggerBase):
@@ -20,28 +20,40 @@ class StoringLogger(LightningLoggerBase):
 
     def __init__(self) -> None:
         super().__init__()
-        self.results: Dict[int, DictStrFloat] = {}
+        self.results_per_epoch: Dict[int, DictStrFloatOrFloatList] = {}
         self.hyperparams: Any = None
         # Fields to store diagnostics for unit testing
         self.train_diagnostics: List[Any] = []
         self.val_diagnostics: List[Any] = []
+        self.results_without_epoch: List[DictStrFloat] = []
 
     @rank_zero_only
     def log_metrics(self, metrics: DictStrFloat, step: Optional[int] = None) -> None:
+        logging.debug(f"StoringLogger step={step}: {metrics}")
         epoch_name = "epoch"
         if epoch_name not in metrics:
-            raise ValueError("Each of the logged metrics should have an 'epoch' key.")
+            # Metrics without an "epoch" key are logged during testing, for example
+            self.results_without_epoch.append(metrics)
+            return
         epoch = int(metrics[epoch_name])
         del metrics[epoch_name]
-        if epoch in self.results:
-            current_results = self.results[epoch]
-            overlapping_keys = set(metrics.keys()).intersection(current_results.keys())
-            if len(overlapping_keys) > 0:
-                raise ValueError(f"Unable to log metric with same name twice for epoch {epoch}: "
-                                 f"{', '.join(overlapping_keys)}")
-            current_results.update(metrics)
+        for key, value in metrics.items():
+            if isinstance(value, int):
+                metrics[key] = float(value)
+        if epoch in self.results_per_epoch:
+            current_results = self.results_per_epoch[epoch]
+            for key, value in metrics.items():
+                if key in current_results:
+                    logging.debug(f"StoringLogger: appending results for metric {key}")
+                    current_metrics = current_results[key]
+                    if isinstance(current_metrics, list):
+                        current_metrics.append(value)
+                    else:
+                        current_results[key] = [current_metrics, value]
+                else:
+                    current_results[key] = value
         else:
-            self.results[epoch] = metrics
+            self.results_per_epoch[epoch] = metrics  # type: ignore
 
     @rank_zero_only
     def log_hyperparams(self, params: Any) -> None:
@@ -61,7 +73,7 @@ class StoringLogger(LightningLoggerBase):
         """
         Gets the epochs for which the present object holds any results.
         """
-        return self.results.keys()
+        return self.results_per_epoch.keys()
 
     def extract_by_prefix(self, epoch: int, prefix_filter: str = "") -> DictStrFloat:
         """
@@ -73,7 +85,7 @@ class StoringLogger(LightningLoggerBase):
         have a name starting with `prefix`, and strip off the prefix.
         :return: A metrics dictionary.
         """
-        epoch_results = self.results.get(epoch, None)
+        epoch_results = self.results_per_epoch.get(epoch, None)
         if epoch_results is None:
             raise KeyError(f"No results are stored for epoch {epoch}")
         filtered = {}
@@ -83,8 +95,8 @@ class StoringLogger(LightningLoggerBase):
             # filter is supplied and really matches the metric name
             if (not prefix_filter) or key.startswith(prefix_filter):
                 stripped_key = key[len(prefix_filter):]
-                filtered[stripped_key] = value
-        return filtered
+                filtered[stripped_key] = value  # type: ignore
+        return filtered  # type: ignore
 
     def to_metrics_dicts(self, prefix_filter: str = "") -> Dict[int, DictStrFloat]:
         """
@@ -107,7 +119,14 @@ class StoringLogger(LightningLoggerBase):
         :return: A list of floating point numbers, with one entry per entry in the the training or validation results.
         """
         full_metric_name = (TRAIN_PREFIX if is_training else VALIDATION_PREFIX) + metric_type
-        return [self.results[epoch][full_metric_name] for epoch in self.epochs]
+        result = []
+        for epoch in self.epochs:
+            value = self.results_per_epoch[epoch][full_metric_name]
+            if not isinstance(value, float):
+                raise ValueError(f"Expected a floating point value for metric {full_metric_name}, but got: "
+                                 f"{value}")
+            result.append(value)
+        return result
 
     def get_train_metric(self, metric_type: str) -> List[float]:
         """
@@ -138,33 +157,3 @@ class StoringLogger(LightningLoggerBase):
         Gets the full set of validation metrics that the logger stores, as a list of dictionaries per epoch.
         """
         return list(self.to_metrics_dicts(prefix_filter=VALIDATION_PREFIX).values())
-
-
-class AzureMLLogger(LightningLoggerBase):
-    """
-    A Pytorch Lightning logger that stores metrics in the current AzureML run. If the present run is not
-    inside AzureML, nothing gets logged.
-    """
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.is_azureml_run = not is_offline_run_context(RUN_CONTEXT)
-
-    @rank_zero_only
-    def log_metrics(self, metrics: Dict[str, float], step: Optional[int] = None) -> None:
-        if self.is_azureml_run:
-            for key, value in metrics.items():
-                RUN_CONTEXT.log(key, value)
-
-    @rank_zero_only
-    def log_hyperparams(self, params: Any) -> None:
-        pass
-
-    def experiment(self) -> Any:
-        return None
-
-    def name(self) -> Any:
-        return ""
-
-    def version(self) -> int:
-        return 0

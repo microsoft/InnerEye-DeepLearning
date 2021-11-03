@@ -69,8 +69,6 @@ def test_train_classification_model(class_name: str, test_output_dirs: OutputFol
     val_results_per_epoch = model_training_result.val_results_per_epoch()
     assert len(train_results_per_epoch) == config.num_epochs
     assert len(val_results_per_epoch) == config.num_epochs
-    assert len(train_results_per_epoch[0]) >= 11
-    assert len(val_results_per_epoch[0]) >= 11
 
     for metric in [MetricType.ACCURACY_AT_THRESHOLD_05,
                    MetricType.ACCURACY_AT_OPTIMAL_THRESHOLD,
@@ -78,8 +76,6 @@ def test_train_classification_model(class_name: str, test_output_dirs: OutputFol
                    MetricType.AREA_UNDER_ROC_CURVE,
                    MetricType.CROSS_ENTROPY,
                    MetricType.LOSS,
-                   MetricType.SECONDS_PER_BATCH,
-                   MetricType.SECONDS_PER_EPOCH,
                    MetricType.SUBJECT_COUNT]:
         assert metric.value in train_results_per_epoch[0], f"{metric.value} not in training"
         assert metric.value in val_results_per_epoch[0], f"{metric.value} not in validation"
@@ -193,7 +189,6 @@ def test_train_classification_multilabel_model(test_output_dirs: OutputFolderFor
             assert f'{metric.value}/{class_name}' in train_results_per_epoch[0], f"{metric.value} not in training"
             assert f'{metric.value}/{class_name}' in val_results_per_epoch[0], f"{metric.value} not in validation"
     for metric in [MetricType.LOSS,
-                   MetricType.SECONDS_PER_EPOCH,
                    MetricType.SUBJECT_COUNT]:
         assert metric.value in train_results_per_epoch[0], f"{metric.value} not in training"
         assert metric.value in val_results_per_epoch[0], f"{metric.value} not in validation"

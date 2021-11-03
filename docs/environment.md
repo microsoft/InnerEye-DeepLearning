@@ -197,18 +197,18 @@ as a submodule, rather than a package from pypi. Any change to the package will 
 and that costs 20min per run.
 
 * In the repository root, run `git submodule add https://github.com/microsoft/hi-ml`
-* In PyCharm's project browser, mark the folder `hi-ml/src` as Sources Root
-* Remove the entry for the `hi-ml` package from `environment.yml`
-* Modify the start of `InnerEye/ML/runner.py` to look like this:
-```python
-print(f"Starting InnerEye runner at {sys.argv[0]}")
-innereye_root = Path(__file__).absolute().parent.parent.parent
-if (innereye_root / "InnerEye").is_dir():
-    innereye_root_str = str(innereye_root)
-    if innereye_root_str not in sys.path:
-        print(f"Adding InnerEye folder to sys.path: {innereye_root_str}")
-        sys.path.insert(0, innereye_root_str)
-    sys.path.append(str(innereye_root / "hi-ml" / "src"))
+* In PyCharm's project browser, mark the folders `hi-ml/hi-ml/src` and `hi-ml/hi-ml-azure/src` as Sources Root
+* Remove the entry for the `hi-ml` and `hi-ml-azure` packages from `environment.yml`
+* There is already code in `InnerEye.Common.fixed_paths.add_submodules_to_path` that will pick up the submodules and
+  add them to `sys.path`.
+
+Once you are done testing your changes:
+* Remove the entry for `hi-ml` from `.gitmodules` 
+* Execute these steps from the repository root:
+```shell
+git submodule deinit -f hi-ml
+rm -rf hi-ml
+rm -rf .git/modules/hi-ml
 ```
 
 Alternatively, you can consume a developer version of `hi-ml` from `test.pypi`:

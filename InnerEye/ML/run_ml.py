@@ -43,6 +43,7 @@ from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, DeepLearningConf
     FINAL_ENSEMBLE_MODEL_FOLDER, FINAL_MODEL_FOLDER, ModelCategory, MultiprocessingStartMethod, load_checkpoint
 from InnerEye.ML.lightning_base import InnerEyeContainer
 from InnerEye.ML.lightning_container import InnerEyeInference, LightningContainer
+from InnerEye.ML.lightning_loggers import StoringLogger
 from InnerEye.ML.metrics import InferenceMetrics, InferenceMetricsForSegmentation
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
@@ -188,6 +189,7 @@ class MLRunner:
         self.post_cross_validation_hook = post_cross_validation_hook
         self.model_deployment_hook = model_deployment_hook
         self.output_subfolder = output_subfolder
+        self.storing_logger: Optional[StoringLogger] = None
         self._has_setup_run = False
 
     def setup(self, azure_run_info: Optional[AzureRunInfo] = None) -> None:
@@ -384,9 +386,10 @@ class MLRunner:
             # train a new model if required
             if self.azure_config.train:
                 with logging_section("Model training"):
-                    model_train(self.checkpoint_handler.get_recovery_or_checkpoint_path_train(),
-                                container=self.container,
-                                num_nodes=self.azure_config.num_nodes)
+                    _, storing_logger = model_train(self.checkpoint_handler.get_recovery_or_checkpoint_path_train(),
+                                                    container=self.container,
+                                                    num_nodes=self.azure_config.num_nodes)
+                    self.storing_logger = storing_logger
                 # Since we have trained the model further, let the checkpoint_handler object know so it can handle
                 # checkpoints correctly.
                 self.checkpoint_handler.additional_training_done()

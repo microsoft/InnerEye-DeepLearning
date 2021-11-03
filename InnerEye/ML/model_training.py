@@ -6,11 +6,10 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple, TypeVar
+from typing import Any, Dict, List, Optional, Tuple, TypeVar
 
-from health_azure.utils import is_global_rank_zero, is_local_rank_zero
-from pytorch_lightning import LightningModule, Trainer, seed_everything
-from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning import Callback, LightningModule, Trainer, seed_everything
+from pytorch_lightning.callbacks import GPUStatsMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.plugins import DDPPlugin
 
@@ -22,9 +21,11 @@ from InnerEye.ML.common import ModelExecutionMode, RECOVERY_CHECKPOINT_FILE_NAME
 from InnerEye.ML.deep_learning_config import ARGS_TXT, VISUALIZATION_FOLDER
 from InnerEye.ML.lightning_base import InnerEyeContainer, InnerEyeLightning
 from InnerEye.ML.lightning_container import LightningContainer
-from InnerEye.ML.lightning_loggers import AzureMLLogger, StoringLogger
+from InnerEye.ML.lightning_loggers import StoringLogger
 from InnerEye.ML.lightning_models import SUBJECT_OUTPUT_PER_RANK_PREFIX, ScalarLightning, \
     get_subject_output_file_per_rank
+from health_azure.utils import is_global_rank_zero, is_local_rank_zero
+from health_ml.utils import AzureMLLogger, AzureMLProgressBar, BatchTimeCallback
 
 TEMP_PREFIX = "temp/"
 
@@ -78,7 +79,7 @@ def create_lightning_trainer(container: LightningContainer,
                              resume_from_checkpoint: Optional[Path] = None,
                              num_nodes: int = 1,
                              **kwargs: Dict[str, Any]) -> \
-        Tuple[Trainer, Optional[StoringLogger]]:
+        Tuple[Trainer, StoringLogger]:
     """
     Creates a Pytorch Lightning Trainer object for the given model configuration. It creates checkpoint handlers
     and loggers. That includes a diagnostic logger for use in unit tests, that is also returned as the second
@@ -89,17 +90,6 @@ def create_lightning_trainer(container: LightningContainer,
     :param kwargs: Any additional keyowrd arguments will be passed to the constructor of Trainer.
     :return: A tuple [Trainer object, diagnostic logger]
     """
-    # For now, stick with the legacy behaviour of always saving only the last epoch checkpoint. For large segmentation
-    # models, this still appears to be the best way of choosing them because validation loss on the relatively small
-    # training patches is not stable enough. Going by the validation loss somehow works for the Prostate model, but
-    # not for the HeadAndNeck model.
-    last_checkpoint_callback = ModelCheckpoint(dirpath=str(container.checkpoint_folder), save_last=True, save_top_k=0)
-
-    # Recovery checkpoints: {epoch} will turn into a string like "epoch=1"
-    # Store 1 recovery checkpoint every recovery_checkpoint_save_interval epochs, keep the last
-    # recovery_checkpoints_save_last_k.
-    recovery_checkpoint_callback = InnerEyeRecoveryCheckpointCallback(container)
-
     num_gpus = container.num_gpus_per_node()
     effective_num_gpus = num_gpus * num_nodes
     # Accelerator should be "ddp" when running large models in AzureML (when using DDP_spawn, we get out of GPU memory).
@@ -115,12 +105,8 @@ def create_lightning_trainer(container: LightningContainer,
     logging.info(f"Using {num_gpus} GPUs per node with accelerator '{accelerator}'")
     tensorboard_logger = TensorBoardLogger(save_dir=str(container.logs_folder), name="Lightning", version="")
     loggers = [tensorboard_logger, AzureMLLogger()]
-    storing_logger: Optional[StoringLogger]
-    if isinstance(container, InnerEyeContainer):
-        storing_logger = StoringLogger()
-        loggers.append(storing_logger)
-    else:
-        storing_logger = None
+    storing_logger = StoringLogger()
+    loggers.append(storing_logger)
     # Use 32bit precision when running on CPU. Otherwise, make it depend on use_mixed_precision flag.
     precision = 32 if num_gpus == 0 else 16 if container.use_mixed_precision else 32
     # The next two flags control the settings in torch.backends.cudnn.deterministic and torch.backends.cudnn.benchmark
@@ -133,18 +119,42 @@ def create_lightning_trainer(container: LightningContainer,
     else:
         deterministic = False
         benchmark = True
-    # If the users provides additional callbacks via get_trainer_arguments (for custom
-    # containers
-    callbacks = [last_checkpoint_callback, recovery_checkpoint_callback]
+
+    # For now, stick with the legacy behaviour of always saving only the last epoch checkpoint. For large segmentation
+    # models, this still appears to be the best way of choosing them because validation loss on the relatively small
+    # training patches is not stable enough. Going by the validation loss somehow works for the Prostate model, but
+    # not for the HeadAndNeck model.
+    last_checkpoint_callback = ModelCheckpoint(dirpath=str(container.checkpoint_folder), save_last=True, save_top_k=0)
+    # Recovery checkpoints: {epoch} will turn into a string like "epoch=1"
+    # Store 1 recovery checkpoint every recovery_checkpoint_save_interval epochs, keep the last
+    # recovery_checkpoints_save_last_k.
+    recovery_checkpoint_callback = InnerEyeRecoveryCheckpointCallback(container)
+    callbacks: List[Callback] = [
+        last_checkpoint_callback,
+        recovery_checkpoint_callback,
+    ]
+    if container.monitor_loading:
+        callbacks.append(BatchTimeCallback())
+    if num_gpus > 0 and container.monitor_gpu:
+        logging.info("Adding monitoring for GPU utilization")
+        callbacks.append(GPUStatsMonitor(intra_step_time=True, inter_step_time=True))
+    # Add the additional callbacks that were specified in get_trainer_arguments for LightningContainers
     if "callbacks" in kwargs:
-        callbacks.append(kwargs.pop("callbacks"))  # type: ignore
+        more_callbacks = kwargs.pop("callbacks")
+        if isinstance(more_callbacks, list):
+            callbacks.extend(more_callbacks)  # type: ignore
+        else:
+            callbacks.append(more_callbacks)  # type: ignore
     is_azureml_run = not is_offline_run_context(RUN_CONTEXT)
     progress_bar_refresh_rate = container.pl_progress_bar_refresh_rate
-    if progress_bar_refresh_rate is None and is_azureml_run:
-        # When running in AzureML, the default progress bar clutters the output files with thousands of lines.
-        progress_bar_refresh_rate = 50
-        logging.info(f"The progress bar refresh rate is not set. Using a default of {progress_bar_refresh_rate}. "
-                     f"To change, modify the pl_progress_bar_refresh_rate field of the container.")
+    if is_azureml_run:
+        if progress_bar_refresh_rate is None:
+            progress_bar_refresh_rate = 50
+            logging.info(f"The progress bar refresh rate is not set. Using a default of {progress_bar_refresh_rate}. "
+                         f"To change, modify the pl_progress_bar_refresh_rate field of the container.")
+        callbacks.append(AzureMLProgressBar(refresh_rate=progress_bar_refresh_rate,
+                                            write_to_logging_info=True,
+                                            print_timestamp=False))
     # Read out additional model-specific args here.
     # We probably want to keep essential ones like numgpu and logging.
     trainer = Trainer(default_root_dir=str(container.outputs_folder),
@@ -164,6 +174,7 @@ def create_lightning_trainer(container: LightningContainer,
                       precision=precision,
                       sync_batchnorm=True,
                       terminate_on_nan=container.detect_anomaly,
+                      profiler=container.pl_profiler,
                       resume_from_checkpoint=str(resume_from_checkpoint) if resume_from_checkpoint else None,
                       **kwargs)
     return trainer, storing_logger
@@ -187,7 +198,7 @@ def start_resource_monitor(config: LightningContainer) -> ResourceMonitor:
 
 def model_train(checkpoint_path: Optional[Path],
                 container: LightningContainer,
-                num_nodes: int = 1) -> Tuple[Trainer, Optional[StoringLogger]]:
+                num_nodes: int = 1) -> Tuple[Trainer, StoringLogger]:
     """
     The main training loop. It creates the Pytorch model based on the configuration options passed in,
     creates a Pytorch Lightning trainer, and trains the model.

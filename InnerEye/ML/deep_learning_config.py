@@ -598,6 +598,16 @@ class TrainerParams(param.Parameterized):
         param.Integer(default=None,
                       doc="PyTorch Lightning trainer flag 'limit_val_batches': Limit the validation dataset to the "
                           "given number of batches.")
+    pl_profiler: Optional[str] = \
+        param.String(default=None,
+                     doc="The value to use for the 'profiler' argument for the Lightning trainer. "
+                         "Set to either 'simple', 'advanced', or 'pytorch'")
+    monitor_gpu: bool = param.Boolean(default=False,
+                                      doc="If True, add the GPUStatsMonitor callback to the Lightning trainer object. "
+                                          "This will write GPU utilization metrics every 50 batches by default.")
+    monitor_loading: bool = param.Boolean(default=True,
+                                          doc="If True, add the BatchTimeCallback callback to the Lightning trainer "
+                                              "object. This will monitor how long individual batches take to load.")
 
     @property
     def use_gpu(self) -> bool:
