@@ -13,6 +13,9 @@ created.
 ## Upcoming
 
 ### Added
+- ([#577](https://github.com/microsoft/InnerEye-DeepLearning/pull/577)) Commandline switch `monitor_gpu` to monitor 
+  GPU utilization via Lightning's `GpuStatsMonitor`, switch `monitor_loading` to check batch loading times via
+  `BatchTimeCallback`, and `pl_profiler` to turn on the Lightning profiler (`simple`, `advanced`, or `pytorch`)
 - ([#544](https://github.com/microsoft/InnerEye-DeepLearning/pull/544)) Add documentation for segmentation model evaluation.
 - ([#465](https://github.com/microsoft/InnerEye-DeepLearning/pull/465/)) Adding ability to run segmentation inference
 module on test data with partial ground truth files. (Also [522](https://github.com/microsoft/InnerEye-DeepLearning/pull/522).)
@@ -77,6 +80,8 @@ in inference-only runs when using lightning containers.
 
 ### Removed
 
+- ([#577](https://github.com/microsoft/InnerEye-DeepLearning/pull/577)) Removing the monitoring of batch loading time,
+  use the `BatchTimeCallback` from `hi-ml` instead
 - ([#542](https://github.com/microsoft/InnerEye-DeepLearning/pull/542)) Removed Windows test leg from build pipeline.
 - ([#509](https://github.com/microsoft/InnerEye-DeepLearning/pull/509)) Parameters `local_weights_path` and
   `weights_url` can no longer be used to initialize a training run, only inference runs.

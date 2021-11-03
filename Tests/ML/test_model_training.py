@@ -12,12 +12,13 @@ import h5py
 import numpy as np
 import pandas as pd
 import pytest
+from health_ml.utils import BatchTimeCallback
 from torch.utils.data import DataLoader
 
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, is_windows, logging_to_stdout
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
-from InnerEye.Common.metrics_constants import MetricType, TrackedMetrics, VALIDATION_PREFIX
+from InnerEye.Common.metrics_constants import MetricType, TRAIN_PREFIX, TrackedMetrics, VALIDATION_PREFIX
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, CHECKPOINT_SUFFIX, DATASET_CSV_FILE_NAME, \
     ModelExecutionMode, \
@@ -114,6 +115,20 @@ def _test_model_train(output_dirs: OutputFolderForTests,
 
     model_training_result, _ = model_train_unittest(train_config, dirs=output_dirs)
     assert isinstance(model_training_result, StoringLogger)
+    # Check that all metrics from the BatchTimeCallback are present
+    for epoch, epoch_results in model_training_result.results_per_epoch.items():
+        for prefix in [TRAIN_PREFIX, VALIDATION_PREFIX]:
+            for metric_type in [BatchTimeCallback.EPOCH_TIME,
+                                BatchTimeCallback.BATCH_TIME + " avg",
+                                BatchTimeCallback.BATCH_TIME + " max",
+                                BatchTimeCallback.EXCESS_LOADING_TIME]:
+                expected = BatchTimeCallback.METRICS_PREFIX + prefix + metric_type
+                assert expected in epoch_results, f"Expected {expected} in results for epoch {epoch}"
+                # Excess loading time can be zero because that only measure batches over the threshold
+                if metric_type != BatchTimeCallback.EXCESS_LOADING_TIME:
+                    value = epoch_results[expected]
+                    assert isinstance(value, float)
+                    assert value > 0.0, f"Time for {expected} should be > 0"
 
     actual_train_losses = model_training_result.get_train_metric(MetricType.LOSS.value)
     actual_val_losses = model_training_result.get_val_metric(MetricType.LOSS.value)
@@ -191,12 +206,6 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     assert sampling_folder.is_dir()
     assert train_config.show_patch_sampling > 0
     assert len(list(sampling_folder.rglob("*.png"))) == 3 * train_config.show_patch_sampling
-
-    # Time per epoch: Test that we have all these times logged.
-    model_training_result.get_train_metric(MetricType.SECONDS_PER_EPOCH.value)
-    model_training_result.get_val_metric(MetricType.SECONDS_PER_EPOCH.value)
-    model_training_result.get_val_metric(MetricType.SECONDS_PER_BATCH.value)
-    model_training_result.get_train_metric(MetricType.SECONDS_PER_BATCH.value)
 
     # # Test for saving of example images
     assert train_config.example_images_folder.is_dir() if train_config.store_dataset_sample else True
@@ -359,3 +368,35 @@ def test_aggregate_and_create_subject_metrics_file(test_output_dirs: OutputFolde
         written_lines = pd.read_csv(outputs_folder / mode / SUBJECT_METRICS_FILE_NAME)
         expected_lines = pd.read_csv(outputs_folder / mode / "expected_metrics.csv")
         assert written_lines.equals(expected_lines)
+
+
+def test_storing_logger() -> None:
+    """
+    Test if the StoringLogger can correctly handle multiple metrics of the same name logged per epoch.
+    """
+    logger = StoringLogger()
+    key1 = "key"
+    key2 = "key2"
+    value1 = 3.14
+    value2 = 2.71
+    value3 = 100.0
+    assert value1 != value2
+    epoch = 1
+    # Add metrics in the same epoch in two calls, so that we test both the cases where the epoch is already present,
+    # and where not
+    logger.log_metrics({"epoch": 1, key1: value1})
+    logger.log_metrics({"epoch": 1, key2: value2})
+    # All results for epoch 1 should be collated into a single dictionary
+    assert logger.extract_by_prefix(epoch=epoch) == {key1: value1, key2: value2}
+    # When updating a metric that already exists, the result should not be a float anymore but a list.
+    logger.log_metrics({"epoch": epoch, key1: value3})
+    assert logger.extract_by_prefix(epoch=epoch) == {key1: [value1, value3], key2: value2}
+    # Add more metrics for key1, so that we also test the case that the results are already a list
+    logger.log_metrics({"epoch": epoch, key1: value3})
+    assert logger.extract_by_prefix(epoch=epoch) == {key1: [value1, value3, value3], key2: value2}
+    # Add metrics that don't have an epoch key: This happens for example during testing with trainer.test
+    other_metrics1 = {"foo": 1.0}
+    other_metrics2 = {"foo": 2.0}
+    logger.log_metrics(other_metrics1)
+    logger.log_metrics(other_metrics2)
+    assert logger.results_without_epoch == [other_metrics1, other_metrics2]

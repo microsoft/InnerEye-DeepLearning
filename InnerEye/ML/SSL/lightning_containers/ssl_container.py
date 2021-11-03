@@ -100,7 +100,7 @@ class SSLContainer(LightningContainer):
 
     def setup(self) -> None:
         from InnerEye.ML.SSL.lightning_containers.ssl_image_classifier import SSLClassifierContainer
-        self.total_num_gpus = self.num_gpus_per_node * self.num_nodes
+        self.total_num_gpus = self.num_gpus_per_node() * self.num_nodes
         self._load_config()
         # If you're using the same data for training and linear head, allow the user to specify the dataset only
         # once. Or if you are doing just finetuning of linear head, the user should be able to specify dataset via
