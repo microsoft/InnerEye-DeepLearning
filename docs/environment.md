@@ -207,7 +207,7 @@ Once you are done testing your changes:
 * Execute these steps from the repository root:
 ```shell
 git submodule deinit -f hi-ml
-rmdir hi-ml
+rm -rf hi-ml
 rm -rf .git/modules/hi-ml
 ```
 
