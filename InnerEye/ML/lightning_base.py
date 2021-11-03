@@ -3,7 +3,6 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
-import numbers
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
@@ -35,6 +34,7 @@ from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot, set_random_seed, validate_dataset_paths
 from InnerEye.ML.utils.model_util import generate_and_print_model_summary
 from InnerEye.ML.visualizers.patch_sampling import visualize_random_crops_for_dataset
+from health_ml.utils import log_on_epoch
 
 
 class TrainAndValDataLightning(LightningDataModule):
@@ -324,20 +324,19 @@ class InnerEyeLightning(LightningModule):
         :param name: The name of the metric to log
         :param value: The value of the metric. This can be a tensor, floating point value, or a Metric class.
         :param is_training: If true, give the metric a "train/" prefix, otherwise a "val/" prefix.
-        :param reduce_fx: The reduce function to apply after synchronizing the tensors across GPUs.
+        :param reduce_fx: The reduce function to apply to step values. Default: torch.mean
         :param sync_dist_op: The reduce operation to use when synchronizing the tensors across GPUs. This must be
         a value recognized by sync_ddp: Either 'None' to use 'sum' as aggregate, or 'mean' or 'avg'
         """
         metric_name = name if isinstance(name, str) else name.value
-        if isinstance(value, numbers.Number):
-            value = torch.tensor(value, dtype=torch.float, device=self.device)
         prefix = TRAIN_PREFIX if is_training else VALIDATION_PREFIX
         sync_dist = self.use_sync_dist if sync_dist_override is None else sync_dist_override
-        self.log(prefix + metric_name, value,
-                 sync_dist=sync_dist,
-                 on_step=False, on_epoch=True,
-                 reduce_fx=reduce_fx,
-                 sync_dist_op=sync_dist_op)
+        log_on_epoch(self,
+                     name=prefix + metric_name,
+                     value=value,
+                     sync_dist=sync_dist,
+                     reduce_fx=reduce_fx,
+                     sync_dist_op=sync_dist_op)
 
     def store_epoch_results(self, metrics: DictStrFloat, epoch: int, is_training: bool) -> None:
         """
