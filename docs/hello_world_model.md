@@ -7,7 +7,7 @@ We have created this file to demonstrate how to:
 1. Configure the UNet3D implemented in this package
 1. Configure Azure HyperDrive based parameter search
 
-* This model can be trained from the commandline, from the root of the repo: `python InnerEye/runner.py --model=HelloWorld`
+* This model can be trained from the commandline, from the root of the repo: `python InnerEye/ML/runner.py --model=HelloWorld`
 * If you want to test your AzureML workspace with the HelloWorld model:
     * Make sure your AzureML workspace has been set up. You should have inside the folder InnerEye a settings.yml file
       that specifies the datastore, the resource group, and the workspace on which to run
