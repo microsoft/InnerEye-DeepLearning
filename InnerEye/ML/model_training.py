@@ -92,22 +92,21 @@ def create_lightning_trainer(container: LightningContainer,
     """
     num_gpus = container.num_gpus_per_node()
     effective_num_gpus = num_gpus * num_nodes
+    strategy = None
     if effective_num_gpus == 0:
         accelerator = "cpu"
         devices = 1
-        plugins = []
         message = "CPU"
     else:
         accelerator = "gpu"
         devices = num_gpus
-        plugins = []
         message = f"{devices} GPU"
         if effective_num_gpus > 1:
             # Accelerator should be "ddp" when running large models in AzureML (when using DDP_spawn, we get out of
             # GPU memory).
             # Initialize the DDP plugin. The default for pl_find_unused_parameters is False. If True, the plugin
             # prints out lengthy warnings about the performance impact of find_unused_parameters.
-            plugins.append(DDPPlugin(find_unused_parameters=container.pl_find_unused_parameters))
+            strategy = DDPPlugin(find_unused_parameters=container.pl_find_unused_parameters)
             message += "s per node with DDP"
     logging.info(f"Using {message}")
     tensorboard_logger = TensorBoardLogger(save_dir=str(container.logs_folder), name="Lightning", version="")
@@ -170,13 +169,13 @@ def create_lightning_trainer(container: LightningContainer,
                       deterministic=deterministic,
                       benchmark=benchmark,
                       accelerator=accelerator,
-                      plugins=plugins,
+                      strategy=strategy,
                       max_epochs=container.num_epochs,
                       num_sanity_val_steps=container.pl_num_sanity_val_steps,
                       callbacks=callbacks,
                       logger=loggers,
                       num_nodes=num_nodes,
-                      devices=num_gpus,
+                      devices=devices,
                       precision=precision,
                       sync_batchnorm=True,
                       detect_anomaly=container.detect_anomaly,
