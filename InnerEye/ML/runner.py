@@ -45,7 +45,7 @@ from InnerEye.Azure.azure_util import (RUN_CONTEXT, RUN_RECOVERY_ID_KEY_NAME, ge
                                        is_offline_run_context)
 from InnerEye.Azure.run_pytest import download_pytest_result, run_pytest
 from InnerEye.Common.common_util import (FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE,
-                                         disable_logging_to_file, is_linux, logging_to_stdout)
+                                         is_linux, logging_to_stdout)
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
@@ -226,6 +226,8 @@ class Runner:
                 and not self.lightning_container.azure_dataset_id:
             raise ValueError("When running an InnerEye built-in model in AzureML, the 'azure_dataset_id' "
                              "property must be set.")
+        # https://docs.nvidia.com/cuda/cublas/index.html#cublasApi_reproducibility
+        env_variables = {"CUBLAS_WORKSPACE_CONFIG": "4096:8"} if self.lightning_container.pl_deterministic else {}
         source_config = SourceConfig(
             root_folder=self.project_root,
             entry_script=Path(sys.argv[0]).resolve(),
@@ -235,8 +237,7 @@ class Runner:
                                     else self.lightning_container.get_hyperdrive_config),
             # For large jobs, upload of results can time out because of large checkpoint files. Default is 600
             upload_timeout_seconds=86400,
-            # https://docs.nvidia.com/cuda/cublas/index.html#cublasApi_reproducibility
-            environment_variables={"CUBLAS_WORKSPACE_CONFIG": "4096:8"} if self.lightning_container.pl_deterministic else {}
+            environment_variables=env_variables
         )
         # Reduce the size of the snapshot by adding unused folders to amlignore. The Test* subfolders are only needed
         # when running pytest.
