@@ -66,7 +66,7 @@ class InnerEyeRecoveryCheckpointCallback(ModelCheckpoint):
         super().__init__(dirpath=str(container.checkpoint_folder),
                          monitor="epoch",
                          filename=RECOVERY_CHECKPOINT_FILE_NAME + "_{epoch}",
-                         period=container.recovery_checkpoint_save_interval,
+                         every_n_epochs=container.recovery_checkpoint_save_interval,
                          save_top_k=container.recovery_checkpoints_save_last_k,
                          mode="max",
                          save_last=False)

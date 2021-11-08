@@ -250,14 +250,6 @@ class InnerEyeLightning(LightningModule):
         self.train_epoch_metrics_logger.flush()
         self.val_epoch_metrics_logger.flush()
 
-    @property
-    def use_sync_dist(self) -> bool:
-        """
-        Returns True if metric logging should use sync_dist=True. This is read off from the use_ddp flag of the trainer.
-        """
-        assert isinstance(self.trainer, Trainer)
-        return self.trainer.accelerator_connector.use_ddp
-
     def training_epoch_end(self, outputs: List[Any]) -> None:
         # Write out all the metrics that have been accumulated in the StoringLogger in the previous epoch.
         # Metrics for the very last epoch are written in on_train_end
@@ -330,11 +322,10 @@ class InnerEyeLightning(LightningModule):
         """
         metric_name = name if isinstance(name, str) else name.value
         prefix = TRAIN_PREFIX if is_training else VALIDATION_PREFIX
-        sync_dist = self.use_sync_dist if sync_dist_override is None else sync_dist_override
         log_on_epoch(self,
                      name=prefix + metric_name,
                      value=value,
-                     sync_dist=sync_dist,
+                     sync_dist=sync_dist_override,
                      reduce_fx=reduce_fx,
                      sync_dist_op=sync_dist_op)
 

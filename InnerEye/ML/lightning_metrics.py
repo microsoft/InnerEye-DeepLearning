@@ -10,7 +10,7 @@ import torch
 import torch.nn.functional as F
 import torchmetrics as metrics
 from torchmetrics import Metric
-from pytorch_lightning.metrics.functional import accuracy, auc, auroc, precision_recall_curve, roc
+from torchmetrics.functional import accuracy, auc, auroc, precision_recall_curve, roc
 from torch.nn import ModuleList
 
 from InnerEye.Common.metrics_constants import AVERAGE_DICE_SUFFIX, MetricType, TRAIN_PREFIX, VALIDATION_PREFIX

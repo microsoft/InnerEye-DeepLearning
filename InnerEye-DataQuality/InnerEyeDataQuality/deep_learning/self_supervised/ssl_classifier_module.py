@@ -13,7 +13,7 @@ from torch import Tensor as T
 from torch.nn import ModuleList, functional as F
 
 from InnerEyeDataQuality.deep_learning.self_supervised.metrics import AreaUnderRocCurve
-from pytorch_lightning.metrics import Accuracy
+from torchmetrics.classification import Accuracy
 
 
 BatchType = Tuple[List, T]

@@ -9,7 +9,7 @@ import pandas as pd
 import param
 import torch
 from pytorch_lightning import LightningDataModule, LightningModule
-from pytorch_lightning.metrics import MeanSquaredError
+from torchmetrics.regression import MeanSquaredError
 from torch import Tensor
 from torch.nn import Identity
 from torch.utils.data import DataLoader, Dataset
