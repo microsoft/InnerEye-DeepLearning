@@ -234,7 +234,9 @@ class Runner:
             hyperdrive_config_func=(self.model_config.get_hyperdrive_config if self.model_config
                                     else self.lightning_container.get_hyperdrive_config),
             # For large jobs, upload of results can time out because of large checkpoint files. Default is 600
-            upload_timeout_seconds=86400
+            upload_timeout_seconds=86400,
+            # https://docs.nvidia.com/cuda/cublas/index.html#cublasApi_reproducibility
+            environment_variables={"CUBLAS_WORKSPACE_CONFIG": "4096:8"} if self.lightning_container.pl_deterministic else {}
         )
         # Reduce the size of the snapshot by adding unused folders to amlignore. The Test* subfolders are only needed
         # when running pytest.
