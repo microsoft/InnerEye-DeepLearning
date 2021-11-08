@@ -83,7 +83,7 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
         # Log classification metrics
         pl_module.log('ssl/online_val_loss', loss, on_step=False, on_epoch=True, sync_dist=False)
 
-    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx) -> None:  # type: ignore
+    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx) -> None:  # type: ignore
         logger = trainer.logger.experiment  # type: ignore 
         loss = self.shared_step(batch, pl_module, is_training=True)
 

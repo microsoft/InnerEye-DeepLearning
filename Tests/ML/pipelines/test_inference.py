@@ -118,7 +118,7 @@ def inference_identity(test_output_dirs: OutputFolderForTests,
     num_channels = num_classes + 1
     image_channels = np.random.randn(num_channels, *list(image_size))
     # create a random mask if required
-    mask = np.round(np.random.uniform(size=image_size)).astype(np.int) if create_mask else None
+    mask = np.round(np.random.uniform(size=image_size)).astype(int) if create_mask else None
     config = InferenceIdentityModel(shrink_by=shrink_by)
     config.crop_size = crop_size
     config.test_crop_size = crop_size

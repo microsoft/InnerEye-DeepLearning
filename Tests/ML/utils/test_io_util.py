@@ -524,8 +524,8 @@ def test_load_images_and_stack_2d_with_resize_random(test_output_dirs: OutputFol
     array3 = np.random.randint(low=low, high=high, size=(30, 20), dtype='uint16')
     write_test_dicom(array3, test_output_dirs.root_dir / "file3.dcm")
 
-    array1 = resize(array1.astype(np.float), image_size, anti_aliasing=True)
-    array3 = resize(array3.astype(np.float), image_size, anti_aliasing=True)
+    array1 = resize(array1.astype(float), image_size, anti_aliasing=True)
+    array3 = resize(array3.astype(float), image_size, anti_aliasing=True)
 
     expected_tensor = torch.from_numpy(np.expand_dims(np.stack([array1, array2, array3]).astype(float), axis=1))
 
@@ -575,15 +575,15 @@ def test_load_images_and_stack_3d_with_resize_random(test_output_dirs: OutputFol
     low = -200
     high = 200
 
-    array1 = np.random.randint(low=low, high=high, size=(10, 20, 10)).astype(np.float)
+    array1 = np.random.randint(low=low, high=high, size=(10, 20, 10)).astype(float)
     np.save(test_output_dirs.root_dir / "file1.npy", array1)
-    array2 = np.random.randint(low=low, high=high, size=(20, 30, 20)).astype(np.float)
+    array2 = np.random.randint(low=low, high=high, size=(20, 30, 20)).astype(float)
     np.save(test_output_dirs.root_dir / "file2.npy", array2)
-    array3 = np.random.randint(low=low, high=high, size=(30, 10, 30)).astype(np.float)
+    array3 = np.random.randint(low=low, high=high, size=(30, 10, 30)).astype(float)
     np.save(test_output_dirs.root_dir / "file3.npy", array3)
 
-    array1 = resize(array1.astype(np.float), image_size, anti_aliasing=True)
-    array3 = resize(array3.astype(np.float), image_size, anti_aliasing=True)
+    array1 = resize(array1.astype(float), image_size, anti_aliasing=True)
+    array3 = resize(array3.astype(float), image_size, anti_aliasing=True)
 
     expected_tensor = torch.from_numpy(np.stack([array1, array2, array3]).astype(float))
 
@@ -662,7 +662,7 @@ def test_create_dicom_series(test_output_dirs: OutputFolderForTests) -> None:
     assert loaded_image.GetSize() == reverse_tuple_float3(test_shape)
     assert loaded_image.GetSpacing() == test_spacing
     # Get the data from the loaded series and compare it.
-    loaded_image_data = sitk.GetArrayFromImage(loaded_image).astype(np.float)
+    loaded_image_data = sitk.GetArrayFromImage(loaded_image).astype(float)
     assert loaded_image_data.shape == test_shape
     # Data is saved 16 bit, so need a generous tolerance.
     assert np.allclose(loaded_image_data, image_data, atol=1e-1)

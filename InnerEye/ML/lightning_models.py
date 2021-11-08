@@ -150,8 +150,7 @@ class SegmentationLightning(InnerEyeLightning):
         self.log_on_epoch(name=MetricType.SUBJECT_COUNT,
                           value=num_subjects,
                           is_training=is_training,
-                          reduce_fx=torch.sum,
-                          sync_dist_op="sum")
+                          reduce_fx=torch.sum)
 
     def training_or_validation_epoch_end(self, is_training: bool) -> None:
         """
@@ -292,7 +291,7 @@ class ScalarLightning(InnerEyeLightning):
         logger = self.train_subject_outputs_logger if is_training else self.val_subject_outputs_logger  # type: ignore
         logger.flush()
 
-    def transfer_batch_to_device(self, batch: Any, device: torch.device) -> Any:  # type: ignore
+    def transfer_batch_to_device(self, batch: Any, device: torch.device, dataloader_idx: int) -> Any:  # type: ignore
         """
         For sequence models, transfer the nested lists of items to the given GPU device.
         For all other models, this relies on the superclass to move the batch of data to the GPU.

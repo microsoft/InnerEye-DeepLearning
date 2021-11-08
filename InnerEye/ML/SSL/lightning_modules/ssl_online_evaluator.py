@@ -118,7 +118,7 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
                 pl_module.log(f"ssl_online_evaluator/val/{metric.name}", metric, on_epoch=True,
                               on_step=False)  # type: ignore
 
-    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx) -> None:  # type: ignore
+    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx) -> None:  # type: ignore
         """
         Get and log training metrics, perform network update.
         """

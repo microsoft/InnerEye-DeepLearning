@@ -8,7 +8,7 @@ import InnerEye.Common.Statistics.report_structure_extremes as rse
 
 
 def test_line_for_structure() -> None:
-    data = np.zeros((10, 15, 20), dtype=np.int)
+    data = np.zeros((10, 15, 20), dtype=int)
     # Data is a cuboid with x = 3 to 7, y = 4 to 11, z = 8 to 14
     data[3:8, 4:12, 8:15] = 1
     line = rse.line_for_structure("123", "abcdefgh", "armpit.nii.gz", data)
@@ -19,7 +19,7 @@ def test_line_for_structure() -> None:
 
 
 def test_line_for_structure_with_missing() -> None:
-    data = np.zeros((10, 15, 20), dtype=np.int)
+    data = np.zeros((10, 15, 20), dtype=int)
     # Data is two cuboids: slices 8 and 9 are empty in Y dimension
     data[3:8, 4:8, 8:15] = 1
     data[3:8, 10:12, 8:15] = 1

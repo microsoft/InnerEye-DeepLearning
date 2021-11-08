@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, TypeVar
 
 from pytorch_lightning import Callback, LightningModule, Trainer, seed_everything
-from pytorch_lightning.callbacks import GPUStatsMonitor, ModelCheckpoint
+from pytorch_lightning.callbacks import GPUStatsMonitor, ModelCheckpoint, TQDMProgressBar
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.plugins import DDPPlugin
 
@@ -92,17 +92,24 @@ def create_lightning_trainer(container: LightningContainer,
     """
     num_gpus = container.num_gpus_per_node()
     effective_num_gpus = num_gpus * num_nodes
-    # Accelerator should be "ddp" when running large models in AzureML (when using DDP_spawn, we get out of GPU memory).
-    if effective_num_gpus > 1:
-        accelerator: Optional[str] = "ddp"
-        # Initialize the DDP plugin. The default for pl_find_unused_parameters is False. If True, the plugin prints out
-        # lengthy warnings about the performance impact of find_unused_parameters.
-        plugins = [DDPPlugin(num_nodes=num_nodes, sync_batchnorm=True,
-                             find_unused_parameters=container.pl_find_unused_parameters)]
-    else:
-        accelerator = None
+    if effective_num_gpus == 0:
+        accelerator = "cpu"
+        devices = 1
         plugins = []
-    logging.info(f"Using {num_gpus} GPUs per node with accelerator '{accelerator}'")
+        message = "CPU"
+    else:
+        accelerator = "gpu"
+        devices = num_gpus
+        plugins = []
+        message = f"{devices} GPU"
+        if effective_num_gpus > 1:
+            # Accelerator should be "ddp" when running large models in AzureML (when using DDP_spawn, we get out of
+            # GPU memory).
+            # Initialize the DDP plugin. The default for pl_find_unused_parameters is False. If True, the plugin
+            # prints out lengthy warnings about the performance impact of find_unused_parameters.
+            plugins.append(DDPPlugin(find_unused_parameters=container.pl_find_unused_parameters))
+            message += "s per node with DDP"
+    logging.info(f"Using {message}")
     tensorboard_logger = TensorBoardLogger(save_dir=str(container.logs_folder), name="Lightning", version="")
     loggers = [tensorboard_logger, AzureMLLogger()]
     storing_logger = StoringLogger()
@@ -147,14 +154,16 @@ def create_lightning_trainer(container: LightningContainer,
             callbacks.append(more_callbacks)  # type: ignore
     is_azureml_run = not is_offline_run_context(RUN_CONTEXT)
     progress_bar_refresh_rate = container.pl_progress_bar_refresh_rate
+    if progress_bar_refresh_rate is None:
+        progress_bar_refresh_rate = 50
+        logging.info(f"The progress bar refresh rate is not set. Using a default of {progress_bar_refresh_rate}. "
+                     f"To change, modify the pl_progress_bar_refresh_rate field of the container.")
     if is_azureml_run:
-        if progress_bar_refresh_rate is None:
-            progress_bar_refresh_rate = 50
-            logging.info(f"The progress bar refresh rate is not set. Using a default of {progress_bar_refresh_rate}. "
-                         f"To change, modify the pl_progress_bar_refresh_rate field of the container.")
         callbacks.append(AzureMLProgressBar(refresh_rate=progress_bar_refresh_rate,
                                             write_to_logging_info=True,
                                             print_timestamp=False))
+    else:
+        callbacks.append(TQDMProgressBar(refresh_rate=progress_bar_refresh_rate))
     # Read out additional model-specific args here.
     # We probably want to keep essential ones like numgpu and logging.
     trainer = Trainer(default_root_dir=str(container.outputs_folder),
@@ -166,12 +175,11 @@ def create_lightning_trainer(container: LightningContainer,
                       num_sanity_val_steps=container.pl_num_sanity_val_steps,
                       callbacks=callbacks,
                       logger=loggers,
-                      progress_bar_refresh_rate=progress_bar_refresh_rate,
                       num_nodes=num_nodes,
-                      gpus=num_gpus,
+                      devices=num_gpus,
                       precision=precision,
                       sync_batchnorm=True,
-                      terminate_on_nan=container.detect_anomaly,
+                      detect_anomaly=container.detect_anomaly,
                       profiler=container.pl_profiler,
                       resume_from_checkpoint=str(resume_from_checkpoint) if resume_from_checkpoint else None,
                       **kwargs)
