@@ -325,12 +325,12 @@ class Runner:
                         commandline_args=" ".join(source_config.script_params)),
                     after_submission=after_submission_hook,
                     hyperdrive_config=hyperdrive_config)
+                if self.azure_config.tag:
+                    azure_run_info.run.display_name = self.azure_config.tag
             else:
-                # compute_cluster_name is a required parameter in early versions of the HI-ML package
                 azure_run_info = submit_to_azure_if_needed(
                     input_datasets=input_datasets,
-                    submit_to_azureml=False,
-                    compute_cluster_name="")
+                    submit_to_azureml=False)
         finally:
             if temp_conda:
                 temp_conda.unlink()
