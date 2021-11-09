@@ -593,7 +593,7 @@ class TrainerParams(param.Parameterized):
     monitor_gpu: bool = param.Boolean(default=False,
                                       doc="If True, add the GPUStatsMonitor callback to the Lightning trainer object. "
                                           "This will write GPU utilization metrics every 50 batches by default.")
-    monitor_loading: bool = param.Boolean(default=True,
+    monitor_loading: bool = param.Boolean(default=False,
                                           doc="If True, add the BatchTimeCallback callback to the Lightning trainer "
                                               "object. This will monitor how long individual batches take to load.")
     pl_profiler: Optional[str] = \
