@@ -33,6 +33,7 @@ dependencies:
       - thop<0.0.31.post2004070130
       - tensorboard==2.3.0
       - tensorboardX==2.1
+      - torchmetrics==0.6.0
       - torchprof==1.1.1
       - torchvision==0.7.0
       - git+https://github.com/NVIDIA/apex.git@a0d99fd#egg=apex
