@@ -115,7 +115,7 @@ def test_metrics_dict_roc() -> None:
     # Prepare a vector of predictions and labels. We can compute AUC off those to compare.
     # MetricsDict will get that supplied in 3 chunks, and should return the same AUC value.
     predictions = np.array([0.5, 0.6, 0.1, 0.8, 0.2, 0.9])
-    labels = np.array([0, 1.0, 0, 0, 1, 1], dtype=np.float)
+    labels = np.array([0, 1.0, 0, 0, 1, 1], dtype=float)
     split_length = [3, 2, 1]
     assert sum(split_length) == len(predictions)
     summed = np.cumsum(split_length)
@@ -231,7 +231,7 @@ def test_metrics_dict_average_additional_metrics() -> None:
     """
     # Prepare a vector of predictions and labels.
     predictions = np.array([0.5, 0.6, 0.1, 0.8, 0.2, 0.9])
-    labels = np.array([0, 1.0, 0, 0, 1, 1], dtype=np.float)
+    labels = np.array([0, 1.0, 0, 0, 1, 1], dtype=float)
     split_length = [3, 2, 1]
 
     # Get MetricsDict

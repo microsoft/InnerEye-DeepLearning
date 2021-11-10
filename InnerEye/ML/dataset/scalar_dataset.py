@@ -102,7 +102,7 @@ def extract_label_classification(label_string: str, sample_id: str, num_classes:
                 raise ValueError(f"Subject {sample_id}: Indices {out_of_range} are out of range, for number of classes "
                                  f"= {num_classes}")
 
-            one_hot_array = np.zeros(num_classes, dtype=np.float)
+            one_hot_array = np.zeros(num_classes, dtype=float)
             one_hot_array[classes] = 1.0
             return one_hot_array.tolist()
     else:

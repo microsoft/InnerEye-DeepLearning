@@ -120,8 +120,8 @@ def pad_images_for_inference(images: np.ndarray,
         """
         Creates the padding vector.
         """
-        diff = np.subtract(crop_size, output_size)
-        pad: List[int] = np.ceil(diff / 2.0).astype(int)
+        diff = np.subtract(crop_size, output_size)  # type: ignore
+        pad = np.ceil(diff / 2.0).astype(int)
         return (pad[0], diff[0] - pad[0]), (pad[1], diff[1] - pad[1]), (pad[2], diff[2] - pad[2])
 
     if images is None:
@@ -222,7 +222,7 @@ def posteriors_to_segmentation(posteriors: NumpyOrTorch) -> NumpyOrTorch:
 
     # add a batch dimension if required
     argmax_dim = 1 if len(posteriors.shape) == 5 else 0
-    if torch.is_tensor(posteriors):
+    if isinstance(posteriors, torch.Tensor):
         try:
             segmentation = posteriors.argmax(dim=argmax_dim)
         except RuntimeError:
@@ -262,8 +262,8 @@ def largest_connected_components(img: np.ndarray,
     if not largest_component_indices:
         # We can get here either if we didn't run the "if" clause above, or if we did but found no components
         # of the required size. In either case, we want to return the largest component, whatever its size.
-        largest_component_indices = [np.argmax(component_sizes)]
-    out = np.zeros(img.shape, np.bool)
+        largest_component_indices = [np.argmax(component_sizes)]  # type: ignore
+    out = np.zeros(img.shape, bool)
     for idx in largest_component_indices:
         out[labeled_array == idx] = True
     voxels_left = out.sum()
@@ -686,8 +686,8 @@ def find_intersection_array_indices(indices1: Union[np.ndarray, Tuple[np.ndarray
     if len(indices1) != len(indices2) or len(indices1) != len(shape):
         raise ValueError("find_intersection_array_indices: "
                          "Trying to compare indices from incompatible array shapes")
-    row_major_indices1 = np.ravel_multi_index(indices1, shape)
-    row_major_indices2 = np.ravel_multi_index(indices2, shape)
+    row_major_indices1 = np.ravel_multi_index(indices1, shape)  # type: ignore
+    row_major_indices2 = np.ravel_multi_index(indices2, shape)  # type: ignore
     intersection_in_row_major = np.intersect1d(row_major_indices1, row_major_indices2, assume_unique=True)
     intersection_indices = np.unravel_index(intersection_in_row_major, shape)
     return intersection_indices

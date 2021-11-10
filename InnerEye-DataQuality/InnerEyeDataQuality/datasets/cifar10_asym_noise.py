@@ -116,7 +116,7 @@ class CIFAR10AsymNoise(torchvision.datasets.CIFAR10):
         """
         assert targets.ndim == 1
         class_ids, class_counts = np.unique(targets, return_counts=True)
-        class_distribution = np.zeros(num_classes, dtype=np.float)
+        class_distribution = np.zeros(num_classes, dtype=float)
         for ii in range(num_classes):
             if np.any(class_ids == ii):
                 class_distribution[ii] = class_counts[class_ids == ii]/targets.size

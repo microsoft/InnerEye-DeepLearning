@@ -209,6 +209,8 @@ def test_rnn_classifier_via_config_1(use_combined_model: bool,
                               use_mean_teacher_model=use_mean_teacher_model,
                               should_validate=False)
     config.use_mixed_precision = True
+    # Necessary because PyTorch 1.10.0 says "avg_pool3d_backward_cuda does not have a deterministic implementation"
+    config.pl_deterministic = False
     config.set_output_to(test_output_dirs.root_dir)
     config.dataset_data_frame = _get_mock_sequence_dataset()
     # Patch the load_images function that will be called once we access a dataset item

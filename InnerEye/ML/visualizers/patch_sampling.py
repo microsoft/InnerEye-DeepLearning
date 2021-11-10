@@ -83,7 +83,7 @@ def visualize_random_crops(sample: Sample,
                                file_name=ct_output_name,
                                image_type=sample.image.dtype,
                                scale=False)
-    heatmap_scaled = heatmap.astype(dtype=np.float) / heatmap.max()
+    heatmap_scaled = heatmap.astype(dtype=float) / heatmap.max()
     # If the incoming image is effectively a 2D image with degenerate Z dimension, then only plot a single
     # axial thumbnail. Otherwise, plot thumbnails for all 3 dimensions.
     dimensions = list(range(3)) if is_3dim else [0]

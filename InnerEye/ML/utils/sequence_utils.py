@@ -85,7 +85,7 @@ def get_masked_model_outputs_and_labels(model_output: torch.Tensor,
     :param subject_ids: The associated subject ids.
     :return: None if all labels are required to be masked, otherwise MaskedModelOutputAndLabelSequences
     """
-    non_nan_idxs = ~torch.isnan(labels)
+    non_nan_idxs = ~torch.isnan(labels)  # type: ignore
     _subject_ids: Optional[List[Any]] = [] if subject_ids is not None else None
     _model_output_tensors, _label_tensors = [], []
     # iterate over each of the sequences to create masked tensors

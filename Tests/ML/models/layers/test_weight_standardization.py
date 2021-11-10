@@ -48,7 +48,7 @@ def test_standardize_random() -> None:
     Test normalization on arbitrary weights.
     """
     size = (5, 3, 3, 3)
-    random = np.random.randint(low=0, high=100, size=size).astype(np.float)
+    random = np.random.randint(low=0, high=100, size=size).astype(float)
     weights = torch.from_numpy(random)
     expected = np.copy(random)
 

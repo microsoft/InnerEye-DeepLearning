@@ -105,7 +105,7 @@ class GraphClassifier:
         """
         Computes mingling index of each graph node based on label distribution in local graphs.
         """
-        mingling = np.zeros(indices.shape, dtype=np.float)
+        mingling = np.zeros(indices.shape, dtype=float)
         for loop_id, _ind in enumerate(indices):
             disagreement = self.labels[self.knn[_ind].indices] != self.labels[_ind]
             mingling[loop_id] = np.sum(disagreement) / float(disagreement.size)

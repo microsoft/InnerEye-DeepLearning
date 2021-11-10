@@ -58,9 +58,9 @@ def assert_image_out_datatype(image_out: np.ndarray) -> None:
 
 def test_simplenorm_half(image_rand_pos: Union[torch.Tensor, np.ndarray]) -> None:
     image_out = photometric_normalization.simple_norm(image_rand_pos, mask_half, debug_mode=True)
-    assert np.mean(image_out, dtype=np.float) == approx(-0.05052318)
+    assert np.mean(image_out, dtype=float) == approx(-0.05052318)
     for c in range(image_out.shape[0]):
-        assert np.mean(image_out[c, mask_half > 0.5], dtype=np.float) == approx(0, abs=1e-7)
+        assert np.mean(image_out[c, mask_half > 0.5], dtype=float) == approx(0, abs=1e-7)
     assert_image_out_datatype(image_out)
 
 
@@ -86,7 +86,7 @@ def test_trimmed_norm_full(image_rand_pos: Union[torch.Tensor, np.ndarray]) -> N
     image_out, status = photometric_normalization.normalize_trim(image_rand_pos, mask_ones,
                                                                  output_range=(-1, 1), sharpen=1,
                                                                  trim_percentiles=(1, 99))
-    assert np.mean(image_out, dtype=np.float) == approx(-0.08756259549409151)
+    assert np.mean(image_out, dtype=float) == approx(-0.08756259549409151)
     assert_image_out_datatype(image_out)
 
 
@@ -94,7 +94,7 @@ def test_trimmed_norm_half(image_rand_pos: Union[torch.Tensor, np.ndarray]) -> N
     image_out, status = photometric_normalization.normalize_trim(image_rand_pos, mask_half,
                                                                  output_range=(-1, 1), sharpen=1,
                                                                  trim_percentiles=(1, 99))
-    assert np.mean(image_out, dtype=np.float) == approx(-0.4862089517215888)
+    assert np.mean(image_out, dtype=float) == approx(-0.4862089517215888)
     assert_image_out_datatype(image_out)
 
 
@@ -127,5 +127,5 @@ def test_ct_range_liver(image_rand_pos_gpu: Union[torch.Tensor, np.ndarray]) -> 
         assert is_gpu_tensor(image_out)
         image_out = image_out.cpu().numpy()
 
-    assert np.mean(image_out, dtype=np.float) == approx(0.9399296555978557)
+    assert np.mean(image_out, dtype=float) == approx(0.9399296555978557)
     assert_image_out_datatype(image_out)

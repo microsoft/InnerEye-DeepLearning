@@ -271,7 +271,7 @@ def load_dicom_image(path: PathOrString) -> np.ndarray:
         else:
             raise ValueError("Unknown value for DICOM tag 0028,0103 PixelRepresentation")
     # Return a float array, we may resize this in load_3d_images_and_stack, and interpolation will not work on int
-    return pixels.astype(np.float)
+    return pixels.astype(float)
 
 
 def load_hdf5_dataset_from_file(path_str: Path, dataset_name: str) -> np.ndarray:
@@ -353,7 +353,7 @@ def load_images_and_stack(files: Iterable[Path],
             if array.shape[0] == 1 and not center_crop_size[0] == 1:
                 raise ValueError(f"Input image is 2D with singleton dimension {array.shape}, but parameter "
                                  f"center_crop_size has non-singleton first dimension {center_crop_size}")
-            return get_center_crop(t, center_crop_size)
+            return get_center_crop(t, center_crop_size)  # type: ignore
         return t
 
     for file_path in files:
@@ -431,7 +431,7 @@ def load_labels_from_dataset_source(dataset_source: PatientDatasetSource, check_
     # label_list keeps track of missing ground truth channels
     for gt in dataset_source.ground_truth_channels:
         if gt is None:
-            label_list.append(np.full(image_size, np.NAN, ImageDataType))
+            label_list.append(np.full(image_size, np.NAN, ImageDataType))  # type: ignore
         else:
             label_list.append(load_image(gt, ImageDataType.SEGMENTATION.value).image)
     labels = np.stack(label_list)
@@ -496,7 +496,7 @@ def load_image(path: PathOrString, image_type: Optional[Type] = float) -> ImageW
             return ImageWithHeader(image, header)
     elif is_png(path):
         import imageio
-        image = imageio.imread(path).astype(np.float)
+        image = imageio.imread(path).astype(float)
         header = get_unit_image_header()
         return ImageWithHeader(image, header)
     raise ValueError(f"Invalid file type {path}")
@@ -669,7 +669,7 @@ def store_as_nifti(image: np.ndarray,
     if scale:
         if input_range is not None and output_range is not None:
             # noinspection PyTypeChecker
-            image = LinearTransform.transform(
+            image = LinearTransform.transform(  # type: ignore
                 data=image,
                 input_range=input_range,  # type: ignore
                 output_range=tuple(output_range)  # type: ignore
@@ -677,11 +677,11 @@ def store_as_nifti(image: np.ndarray,
         else:
             image = (image + 1) * 255
 
-    image = sitk.GetImageFromArray(image.astype(image_type))
-    image.SetSpacing(sitk.VectorDouble(reverse_tuple_float3(header.spacing)))  # Spacing needs to be X Y Z
-    image.SetOrigin(header.origin)
-    image.SetDirection(header.direction)
-    sitk.WriteImage(image, str(file_name))
+    image_sitk = sitk.GetImageFromArray(image.astype(image_type))
+    image_sitk.SetSpacing(sitk.VectorDouble(reverse_tuple_float3(header.spacing)))  # Spacing needs to be X Y Z
+    image_sitk.SetOrigin(header.origin)
+    image_sitk.SetDirection(header.direction)
+    sitk.WriteImage(image_sitk, str(file_name))
     return Path(file_name)
 
 
@@ -763,7 +763,7 @@ def create_dicom_series(folder: Path, size: TupleInt3, spacing: TupleFloat3) -> 
     :param spacing: Final image spacing, as (column spacing, row spacing, slice spacing) (in mm).
     :return: The test data, a 3d ndarray of floats in the range [0, 1000.0).
     """
-    data = np.random.uniform(high=1000, size=size).astype(np.float)
+    data = np.random.uniform(high=1000, size=size).astype(float)
     image = sitk.GetImageFromArray(data)
     image.SetSpacing(spacing)
 

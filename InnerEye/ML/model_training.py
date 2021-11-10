@@ -25,7 +25,7 @@ from InnerEye.ML.lightning_loggers import StoringLogger
 from InnerEye.ML.lightning_models import SUBJECT_OUTPUT_PER_RANK_PREFIX, ScalarLightning, \
     get_subject_output_file_per_rank
 from health_azure.utils import is_global_rank_zero, is_local_rank_zero
-from health_ml.utils import AzureMLLogger, AzureMLProgressBar, BatchTimeCallback
+from health_ml.utils import AzureMLLogger, AzureMLProgressBar
 
 TEMP_PREFIX = "temp/"
 

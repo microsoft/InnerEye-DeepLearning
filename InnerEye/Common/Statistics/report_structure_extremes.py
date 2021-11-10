@@ -140,7 +140,7 @@ def report_structure_extremes_for_subject(subj_dir: str, series_id: str) -> Iter
             yield line_for_structure(subject, series_prefix, base, data)
 
 
-def line_for_structure(subject: str, series_prefix: str, base: str, data: np.array) -> str:
+def line_for_structure(subject: str, series_prefix: str, base: str, data: np.ndarray) -> str:
     """
     :param subject: a subject, to include in the result
     :param series_prefix: first 8 characters (if any) of the series ID of the subject
@@ -169,7 +169,7 @@ def line_for_structure(subject: str, series_prefix: str, base: str, data: np.arr
     return line
 
 
-def extent_list(presence: np.array, max_value: int) -> Tuple[List[int], List[str]]:
+def extent_list(presence: np.ndarray, max_value: int) -> Tuple[List[int], List[str]]:
     """
     :param presence: a 1-D array of distinct integers in increasing order.
     :param max_value: any integer, not necessarily related to presence
@@ -186,7 +186,7 @@ def extent_list(presence: np.array, max_value: int) -> Tuple[List[int], List[str
     return result, missing_ranges
 
 
-def derive_missing_ranges(presence: np.array) -> List[str]:
+def derive_missing_ranges(presence: np.ndarray) -> List[str]:
     """
     :param presence: a 1-D array of distinct integers in increasing order.
     :return: a list of strings, each denoting a missing range of values within "presence".

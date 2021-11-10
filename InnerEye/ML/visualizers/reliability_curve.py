@@ -32,6 +32,7 @@ def plot_reliability_curve(
 
     if not isinstance(y_predict, list):
         y_predict = [y_predict]
+    if not isinstance(y_true, list):
         y_true = [y_true]
     if not len(y_true) == len(y_predict):
         raise ValueError("y_true and y_predict are not of the same length")

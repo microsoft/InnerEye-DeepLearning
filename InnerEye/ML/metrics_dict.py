@@ -426,7 +426,7 @@ class MetricsDict:
         to the optimal threshold.
         """
         optimal_idx = np.argmax(tpr - fpr)
-        return optimal_idx
+        return optimal_idx  # type: ignore
 
     def get_metrics_at_optimal_cutoff(self, hue: str = DEFAULT_HUE_KEY) -> Tuple:
         """
@@ -705,8 +705,8 @@ class ScalarMetricsDict(MetricsDict):
                 result[mode][epoch] = ScalarMetricsDict(is_classification_metrics=is_classification_metrics,
                                                         hues=hues)
             subjects = list(group[LoggingColumns.Patient.value].values)
-            predictions = group[LoggingColumns.ModelOutput.value].to_numpy(dtype=np.float)
-            labels = group[LoggingColumns.Label.value].to_numpy(dtype=np.float)
+            predictions = group[LoggingColumns.ModelOutput.value].to_numpy(dtype=float)
+            labels = group[LoggingColumns.Label.value].to_numpy(dtype=float)
             result[mode][epoch].add_predictions(subjects, predictions, labels, hue=hue)
 
         return result

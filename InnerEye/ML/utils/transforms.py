@@ -108,7 +108,7 @@ class LinearTransform(Transform3D[Union[torch.Tensor, np.ndarray]]):
         if torch.is_tensor(data):
             gradient = self.get_gpu_tensor_if_possible(torch.tensor(gradient))
             c = self.get_gpu_tensor_if_possible(torch.tensor(c))
-            return _apply_transform().clamp(min=self.output_range[0], max=self.output_range[1])
+            return _apply_transform().clamp(min=self.output_range[0], max=self.output_range[1])  # type: ignore
         else:
             return np.clip(_apply_transform(), a_min=self.output_range[0], a_max=self.output_range[1])
 
