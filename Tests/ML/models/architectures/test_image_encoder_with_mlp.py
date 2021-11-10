@@ -254,6 +254,8 @@ def test_image_encoder_with_segmentation(test_output_dirs: OutputFolderForTests,
     """
     Test if the image encoder networks can be trained on segmentations from HDF5.
     """
+    # Necessary because PyTorch 1.10.0 says "avg_pool3d_backward_cuda does not have a deterministic implementation"
+    torch.use_deterministic_algorithms(False)
     logging_to_stdout()
     set_random_seed(0)
     scan_size = (6, 64, 60)
