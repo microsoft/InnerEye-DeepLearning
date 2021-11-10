@@ -32,7 +32,7 @@ epoch,subject,prediction_target,model_output,label,data_split,cross_validation_s
 0,000363-OD,Default,0.539062,1,Train,1
 0,002219-OD,Default,0.540039,1,Train,1
 0,001463-OD,Default,0.538574,1,Train,1
-0,000649-OS,Default,0.538574,1,Train,1
+0,000649-OS,Default,0.539062,1,Train,1
 0,002162-OD,Default,0.539551,1,Train,1
 0,000477-OS,Default,0.540039,0,Train,1
 0,001538-OS,Default,0.538086,0,Train,1
@@ -119,7 +119,7 @@ epoch,subject,prediction_target,model_output,label,data_split,cross_validation_s
 0,000979-OS,Default,0.541992,1,Train,1
 0,000760-OS,Default,0.539551,1,Train,1
 0,001436-OS,Default,0.542969,1,Train,1
-0,000221-OD,Default,0.535645,0,Train,1
+0,000221-OD,Default,0.536133,0,Train,1
 0,001600-OD,Default,0.539062,1,Train,1
 0,002564-OS,Default,0.538574,1,Train,1
 0,000932-OS,Default,0.538574,0,Train,1
@@ -170,7 +170,7 @@ epoch,subject,prediction_target,model_output,label,data_split,cross_validation_s
 0,001346-OS,Default,0.541016,1,Train,1
 0,003399-OD,Default,0.538574,1,Train,1
 0,002113-OS,Default,0.538086,0,Train,1
-0,002478-OS,Default,0.536621,1,Train,1
+0,002478-OS,Default,0.536133,1,Train,1
 0,000139-OS,Default,0.544434,1,Train,1
 0,001834-OD,Default,0.539551,1,Train,1
 0,000578-OS,Default,0.536133,0,Train,1
@@ -299,7 +299,7 @@ epoch,subject,prediction_target,model_output,label,data_split,cross_validation_s
 1,000143-OS,Default,0.541992,1,Train,1
 1,002422-OD,Default,0.533203,1,Train,1
 1,002300-OD,Default,0.543945,0,Train,1
-1,002592-OS,Default,0.547852,1,Train,1
+1,002592-OS,Default,0.547363,1,Train,1
 1,003120-OD,Default,0.542480,0,Train,1
 1,003516-OD,Default,0.538574,1,Train,1
 1,000556-OS,Default,0.544434,1,Train,1
@@ -468,7 +468,7 @@ epoch,subject,prediction_target,model_output,label,data_split,cross_validation_s
 1,001020-OD,Default,0.555664,1,Train,1
 1,003423-OS,Default,0.552734,1,Train,1
 1,003107-OD,Default,0.555176,1,Train,1
-1,000575-OS,Default,0.550781,1,Train,1
+1,000575-OS,Default,0.550293,1,Train,1
 1,003431-OS,Default,0.552246,1,Train,1
 1,002284-OD,Default,0.546387,1,Train,1
 1,000364-OD,Default,0.541992,1,Train,1
@@ -664,7 +664,7 @@ epoch,subject,prediction_target,model_output,label,data_split,cross_validation_s
 0,000994-OD,Default,0.539062,1,Train,1
 0,000587-OD,Default,0.540039,0,Train,1
 0,000981-OD,Default,0.539062,1,Train,1
-0,001285-OS,Default,0.533691,0,Train,1
+0,001285-OS,Default,0.534180,0,Train,1
 0,001528-OS,Default,0.540039,0,Train,1
 0,002082-OS,Default,0.539551,1,Train,1
 0,000087-OD,Default,0.538574,1,Train,1
@@ -811,7 +811,7 @@ epoch,subject,prediction_target,model_output,label,data_split,cross_validation_s
 1,000361-OS,Default,0.542969,1,Train,1
 1,003262-OD,Default,0.536621,1,Train,1
 1,000294-OD,Default,0.543457,1,Train,1
-1,000776-OS,Default,0.535645,1,Train,1
+1,000776-OS,Default,0.536133,1,Train,1
 1,002915-OD,Default,0.541016,1,Train,1
 1,001154-OD,Default,0.544434,1,Train,1
 1,001920-OD,Default,0.550781,1,Train,1
@@ -824,7 +824,7 @@ epoch,subject,prediction_target,model_output,label,data_split,cross_validation_s
 1,002379-OD,Default,0.535645,1,Train,1
 1,003308-OS,Default,0.546875,1,Train,1
 1,001890-OS,Default,0.542969,1,Train,1
-1,000834-OD,Default,0.540039,0,Train,1
+1,000834-OD,Default,0.539551,0,Train,1
 1,003326-OD,Default,0.534180,0,Train,1
 1,000810-OS,Default,0.540039,0,Train,1
 1,001551-OD,Default,0.542480,1,Train,1
@@ -847,7 +847,7 @@ epoch,subject,prediction_target,model_output,label,data_split,cross_validation_s
 1,001633-OS,Default,0.539062,0,Train,1
 1,002131-OS,Default,0.546875,1,Train,1
 1,002130-OS,Default,0.543945,1,Train,1
-1,000863-OS,Default,0.544434,0,Train,1
+1,000863-OS,Default,0.543945,0,Train,1
 1,001528-OS,Default,0.541016,0,Train,1
 1,000700-OS,Default,0.535156,1,Train,1
 1,001589-OD,Default,0.543945,1,Train,1
@@ -862,7 +862,7 @@ epoch,subject,prediction_target,model_output,label,data_split,cross_validation_s
 1,000830-OS,Default,0.545410,1,Train,1
 1,003272-OS,Default,0.541016,1,Train,1
 1,000503-OS,Default,0.532227,0,Train,1
-1,001193-OD,Default,0.545898,1,Train,1
+1,001193-OD,Default,0.545410,1,Train,1
 1,001231-OS,Default,0.533691,1,Train,1
 1,001669-OD,Default,0.543945,1,Train,1
 1,000728-OS,Default,0.550781,1,Train,1
