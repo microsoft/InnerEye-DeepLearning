@@ -105,8 +105,8 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     train_config.check_exclusive = False
 
     if machine_has_gpu:
-        expected_train_losses = [0.4552919, 0.4548529]
-        expected_val_losses = [0.455389, 0.455306]
+        expected_train_losses = [0.4554231, 0.4550124]
+        expected_val_losses = [0.4553894, 0.4553061]
     else:
         expected_train_losses = [0.4554231, 0.4550112]
         expected_val_losses = [0.4553893, 0.4553061]
