@@ -73,6 +73,7 @@ class InnerEyeRecoveryCheckpointCallback(ModelCheckpoint):
 
     def on_train_epoch_end(self, trainer: Trainer, pl_module: LightningModule, unused: bool = None) -> None:
         pl_module.log(name="epoch", value=trainer.current_epoch)  # type: ignore
+        super().on_train_epoch_end(trainer, pl_module)
 
 
 def create_lightning_trainer(container: LightningContainer,
@@ -140,7 +141,9 @@ def create_lightning_trainer(container: LightningContainer,
         recovery_checkpoint_callback,
     ]
     if container.monitor_loading:
-        callbacks.append(BatchTimeCallback())
+        # TODO antonsc: Remove after fixing the callback.
+        raise NotImplementedError("Monitoring batch loading times has been temporarily disabled.")
+        # callbacks.append(BatchTimeCallback())
     if num_gpus > 0 and container.monitor_gpu:
         logging.info("Adding monitoring for GPU utilization")
         callbacks.append(GPUStatsMonitor(intra_step_time=True, inter_step_time=True))
