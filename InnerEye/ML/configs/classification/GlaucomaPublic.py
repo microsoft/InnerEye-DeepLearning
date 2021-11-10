@@ -37,6 +37,10 @@ class GlaucomaPublic(ScalarModelBase):
             train_batch_size=64,  # Batch size of 64 uses about 7GB of GPU memory
         )
         self.add_and_validate(kwargs)
+        # With deterministic, Pytorch 1.10.0 fails in forward pass:
+        # avg_pool3d_backward_cuda does not have a deterministic implementation
+        # Fix is in PyTorch https://github.com/pytorch/pytorch/pull/66233 but not yet released
+        self.pl_deterministic = False
 
     def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:
         return DatasetSplits.from_proportions(
