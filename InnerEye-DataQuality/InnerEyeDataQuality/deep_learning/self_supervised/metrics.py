@@ -5,8 +5,8 @@
 
 import numpy as np
 import torch
-from torchmetrics import Metric
-from torchmetrics.functional import auroc
+from pytorch_lightning.metrics import Metric
+from pytorch_lightning.metrics.functional import auroc
 
 
 class AreaUnderRocCurve(Metric):
