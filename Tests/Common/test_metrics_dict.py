@@ -190,9 +190,12 @@ def test_load_metrics_from_df() -> None:
             expected_df = test_df[
                 (test_df[LoggingColumns.DataSplit.value] == x.value) & (test_df[LoggingColumns.Epoch.value] == e)]
             metrics_dict = metrics[x][e]
-            assert np.alltrue(expected_df[LoggingColumns.ModelOutput.value].values == metrics_dict.get_predictions())
-            assert np.alltrue(expected_df[LoggingColumns.Label.value].values == metrics_dict.get_labels())
-            assert np.alltrue(expected_df[LoggingColumns.Patient.value].values == metrics_dict.subject_ids())
+            assert np.alltrue(expected_df[LoggingColumns.ModelOutput.value].values   # type: ignore
+                              == metrics_dict.get_predictions())
+            assert np.alltrue(expected_df[LoggingColumns.Label.value].values   # type: ignore
+                              == metrics_dict.get_labels())
+            assert np.alltrue(expected_df[LoggingColumns.Patient.value].values   # type: ignore
+                              == metrics_dict.subject_ids())
 
 
 def test_load_metrics_from_df_with_hue() -> None:

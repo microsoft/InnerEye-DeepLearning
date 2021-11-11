@@ -117,7 +117,6 @@ class Runner:
     :param model_deployment_hook: an optional function for deploying a model in an application-specific way.
     If present, it should take a model config (SegmentationModelBase), an AzureConfig, and an AzureML
     Model as arguments, and return an optional Path and a further object of any type.
-    :param command_line_args: command-line arguments to use; if None, use sys.argv.
     """
 
     def __init__(self,

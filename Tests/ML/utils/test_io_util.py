@@ -330,7 +330,7 @@ def test_load_dicom_image_random(test_output_dirs: OutputFolderForTests,
     if not is_signed:
         array = np.random.randint(0, 200, size=array_size, dtype='uint16')
     else:
-        array = np.random.randint(-200, 200, size=array_size, dtype='int16')
+        array = np.random.randint(-200, 200, size=array_size, dtype='int16')  # type: ignore
     assert array.shape == array_size
 
     if is_monochrome2:
@@ -339,7 +339,7 @@ def test_load_dicom_image_random(test_output_dirs: OutputFolderForTests,
         if not is_signed:
             to_write = 2 ** bits_stored - 1 - array
         else:
-            to_write = -1 * array - 1
+            to_write = -1 * array - 1  # type: ignore
 
     dcm_file = test_output_dirs.root_dir / "file.dcm"
     assert is_dicom_file_path(dcm_file)

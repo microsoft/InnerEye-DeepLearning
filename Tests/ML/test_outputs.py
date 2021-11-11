@@ -49,7 +49,7 @@ def _create_config_with_folders(test_dirs: OutputFolderForTests) -> Segmentation
 def to_unique_bytes(a: np.ndarray, input_range: Tuple[float, float]) -> Any:
     """Returns an array of unique ubytes after applying LinearTransform on the input array."""
     ubyte_range = (np.iinfo(np.ubyte).min, np.iinfo(np.ubyte).max)
-    a = LinearTransform.transform(data=a, input_range=input_range, output_range=ubyte_range)
+    a = LinearTransform.transform(data=a, input_range=input_range, output_range=ubyte_range)  # type: ignore
     return np.unique(a.astype(np.ubyte))
 
 
@@ -95,7 +95,9 @@ def test_store_inference_results(test_output_dirs: OutputFolderForTests) -> None
                          segmentation.shape, header, list(np.unique(segmentation)), np.ubyte)
 
     assert_nifti_content(results_folder / "012" / "uncertainty.nii.gz",
-                         inference_result.uncertainty.shape, header, list([248, 249, 253, 254]), np.ubyte)
+                         inference_result.uncertainty.shape,   # type: ignore
+                         header,
+                         list([248, 249, 253, 254]), np.ubyte)
 
 
 def test_metrics_file(test_output_dirs: OutputFolderForTests) -> None:
@@ -187,7 +189,7 @@ def test_store_as_nifti(test_output_dirs: OutputFolderForTests, image_type: Any,
         linear_transform = LinearTransform.transform(data=image, input_range=input_range, output_range=output_range)
         image = linear_transform.astype(image_type)  # type: ignore
     assert_nifti_content(test_output_dirs.create_file_or_folder_path(default_image_name),
-                         image.shape, header, list(np.unique(image.astype(image_type))), image_type)
+                         image.shape, header, list(np.unique(image.astype(image_type))), image_type)  # type: ignore
 
     loaded_image = io_util.load_nifti_image(path_image, image_type)
     assert loaded_image.header.spacing == spacingzyx
@@ -214,10 +216,10 @@ def test_store_as_scaled_ubyte_nifti(test_output_dirs: OutputFolderForTests, inp
     io_util.store_as_scaled_ubyte_nifti(image, header,
                                         test_output_dirs.create_file_or_folder_path(default_image_name),
                                         input_range)
-    image = LinearTransform.transform(data=image, input_range=input_range, output_range=(0, 255))
+    image = LinearTransform.transform(data=image, input_range=input_range, output_range=(0, 255))  # type: ignore
     t = np.unique(image.astype(np.ubyte))
-    assert_nifti_content(test_output_dirs.create_file_or_folder_path(default_image_name), image.shape, header, list(t),
-                         np.ubyte)
+    assert_nifti_content(test_output_dirs.create_file_or_folder_path(default_image_name),
+                         image.shape, header, list(t), np.ubyte)  # type: ignore
 
 
 @pytest.mark.parametrize("input_range", [None])
@@ -238,7 +240,7 @@ def test_store_as_ubyte_nifti(test_output_dirs: OutputFolderForTests) -> None:
     io_util.store_as_ubyte_nifti(image, header, test_output_dirs.create_file_or_folder_path(default_image_name))
     t = np.unique(image).astype(np.ubyte)
     assert_nifti_content(test_output_dirs.create_file_or_folder_path(default_image_name),
-                         image.shape, header, list(t), np.ubyte)
+                         image.shape, header, list(t), np.ubyte)  # type: ignore
 
 
 @pytest.mark.parametrize("image",
@@ -321,13 +323,14 @@ def test_store_image_as_short_nifti(test_output_dirs: OutputFolderForTests,
 
     if norm_method == PhotometricNormalizationMethod.CtWindow:
         output_range = get_range_for_window_level(args.level, args.window)
-        image = LinearTransform.transform(data=image, input_range=args.output_range, output_range=output_range)
+        image = LinearTransform.transform(data=image, input_range=args.output_range,   # type: ignore
+                                          output_range=output_range)
         image = image.astype(np.short)
     else:
         image = image * 1000
 
     t = np.unique(image)
-    assert_nifti_content(nifti_name, image_shape, header, list(t), np.short)
+    assert_nifti_content(nifti_name, image_shape, header, list(t), np.short)  # type: ignore
 
 
 def test_scale_and_unscale_image(test_output_dirs: OutputFolderForTests) -> None:
@@ -362,7 +365,7 @@ def test_scale_and_unscale_image(test_output_dirs: OutputFolderForTests) -> None
                                  level=level, should_validate=False)
 
     file_name = test_output_dirs.create_file_or_folder_path("scale_and_unscale_image.nii.gz")
-    io_util.store_image_as_short_nifti(image_windowed, header, file_name, args)
+    io_util.store_image_as_short_nifti(image_windowed, header, file_name, args)  # type: ignore
     image_from_disk = io_util.load_nifti_image(file_name)
     # noinspection PyTypeChecker
     assert_nifti_content(file_name, image_size, header, np.unique(image_restricted).tolist(), np.short)

@@ -303,7 +303,7 @@ class InnerEyeLightning(LightningModule):
                      name: Union[MetricType, str],
                      value: Any,
                      is_training: bool,
-                     reduce_fx: Callable = "mean",
+                     reduce_fx: Union[str, Callable] = "mean",
                      sync_dist_override: Optional[bool] = None) -> None:
         """
         Logs a metrics to Pytorch Lightning with the on_epoch flag set. The metric will get a prefix indicating

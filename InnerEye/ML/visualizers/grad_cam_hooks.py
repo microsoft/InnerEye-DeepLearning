@@ -249,11 +249,11 @@ class GradCam(GradientBasedFeatureExtractor):
         total_pseudo_cam_non_image = _tensor_as_numpy(torch.nn.functional.relu(
             torch.mul(self.non_image_input, self.non_image_input.grad)))
         batch_size = self.non_image_input.shape[0]
-        non_image_input = _tensor_as_numpy(self.non_image_input.detach())
+        non_image_input = _tensor_as_numpy(self.non_image_input)
         if self.total_num_categorical_features > 0:
             if len(total_pseudo_cam_non_image.shape) == 2:
                 total_pseudo_cam_non_image = total_pseudo_cam_non_image.reshape(batch_size, 1, -1)
-                non_image_input = self.non_image_input.reshape(batch_size, 1, -1)
+                non_image_input = non_image_input.reshape(batch_size, 1, -1)
 
             pseudo_cam_numerical = total_pseudo_cam_non_image[:, :,
                                    :self.total_number_of_numerical_non_imaging_features]
@@ -285,7 +285,7 @@ class GradCam(GradientBasedFeatureExtractor):
             return total_pseudo_cam_non_image
 
     def generate(self, input: List[torch.Tensor], target_position: int = -1, target_label_index: int = -1) \
-            -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+            -> Tuple[Optional[np.ndarray], Optional[np.ndarray], np.ndarray]:
         """
         Generates the GradCam for images, PseudoGradCam for non-imaging features
         of one batch for the given classification model.
@@ -427,7 +427,7 @@ class GuidedBackPropagation(GradientBasedFeatureExtractor):
                 backprop_map_image = backprop_map_image[:, :(target_position + 1), ...]
             return np.concatenate([backprop_map_segmentation, backprop_map_image], axis=1)  # [B, 2*C, Z, X, Y]
         else:
-            ValueError("This imaging feature type is not supported.")
+            raise ValueError("This imaging feature type is not supported.")
 
 
 class VisualizationMaps:
@@ -448,7 +448,8 @@ class VisualizationMaps:
 
     def generate(self, input: List[torch.Tensor],
                  target_position: int = -1,
-                 target_label_index: int = -1) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+                 target_label_index: int = -1) \
+            -> Tuple[Optional[np.ndarray], Optional[np.ndarray], Optional[np.ndarray], np.ndarray]:
         """
         Generates the GuidedGradCam, GradCam and PseudoGradCam maps (for non-imaging data)
         for one batch of data.
@@ -528,9 +529,12 @@ class VisualizationMaps:
                     # Need to temporarily save the variables to access them from the notebook.
                     # Because papermill does not support passing numpy array as parameters.
                     np.save(str(gradcam_dir / "image.npy"), image)
+                    assert grad_cams is not None
                     np.save(str(gradcam_dir / "gradcam.npy"), grad_cams[i])
+                    assert guided_grad_cams is not None
                     np.save(str(gradcam_dir / "guided_grad_cam.npy"), guided_grad_cams[i])
                     if has_non_image_features:
+                        assert pseudo_cam_non_img is not None
                         np.save(str(gradcam_dir / "non_image_pseudo_cam.npy"), pseudo_cam_non_img[i])
                     has_image_features = True
                 else:
@@ -540,6 +544,7 @@ class VisualizationMaps:
                     has_image_features = False
                     self.encode_channels_jointly = False
                     self.imaging_feature_type = ImagingFeatureType.Image
+                    assert pseudo_cam_non_img is not None
                     np.save(str(gradcam_dir / "non_image_pseudo_cam.npy"), pseudo_cam_non_img[i])
 
                 current_label = ground_truth_labels[i, label_index]
@@ -635,6 +640,8 @@ class VisualizationMaps:
                 [_tensor_as_numpy(torch.cat(images, dim=0)).astype(float),  # type: ignore
                  _tensor_as_numpy(torch.cat(segmentations, dim=0)).astype(int)],  # type: ignore
                 axis=0)
+        else:
+            raise ValueError(f"imaging_feature_type not recognized: {self.imaging_feature_type}")
 
     def _get_image_attributes_for_scalar_item(self, classification_item: ScalarItem, index: int) -> np.ndarray:
         """

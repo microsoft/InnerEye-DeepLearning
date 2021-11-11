@@ -217,7 +217,7 @@ def evaluate_model_predictions(process_id: int,
     patient_results_folder = get_patient_results_folder(results_folder, sample.patient_id)
     segmentation = load_nifti_image(patient_results_folder / DEFAULT_RESULT_IMAGE_NAME).image
     metrics_per_class = metrics.calculate_metrics_per_class(segmentation,
-                                                            sample.labels,
+                                                            sample.labels,  # type: ignore
                                                             ground_truth_ids=config.ground_truth_ids,
                                                             voxel_spacing=sample.image_spacing,
                                                             patient_id=sample.patient_id)

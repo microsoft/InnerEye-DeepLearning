@@ -72,9 +72,9 @@ class CroppingDataset(FullImageDataset):
                     "or padding_mode must be set to enable padding")
             else:
                 sample = sample.clone_with_overrides(
-                    image=pad_images(sample.image, crop_size, padding_mode),
-                    mask=pad_images(sample.mask, crop_size, padding_mode),
-                    labels=pad_images(sample.labels, crop_size, padding_mode)
+                    image=pad_images(sample.image, crop_size, padding_mode),  # type: ignore
+                    mask=pad_images(sample.mask, crop_size, padding_mode),  # type: ignore
+                    labels=pad_images(sample.labels, crop_size, padding_mode)  # type: ignore
                 )
 
                 logging.debug(f"Padded sample for patient: {sample.patient_id}, from spatial dimensions: "

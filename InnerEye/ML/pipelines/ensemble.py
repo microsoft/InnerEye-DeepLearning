@@ -68,7 +68,7 @@ class EnsemblePipeline(FullImageInferencePipelineBase):
             n_results += 1
         assert aggregate is not None
         aggregate.posteriors /= n_results
-        aggregate.segmentation = posteriors_to_segmentation(aggregate.posteriors)
+        aggregate.segmentation = posteriors_to_segmentation(aggregate.posteriors)  # type: ignore
         return aggregate
 
     def predict_whole_image(self, image_channels: np.ndarray,

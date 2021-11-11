@@ -25,7 +25,7 @@ def test_aggregate_results() -> None:
         model_results.append(InferencePipeline.Result(
             patient_id=0,
             posteriors=posteriors,
-            segmentation=posteriors_to_segmentation(posteriors),
+            segmentation=posteriors_to_segmentation(posteriors),  # type: ignore
             voxel_spacing_mm=(1, 1, 1)
         ))
 

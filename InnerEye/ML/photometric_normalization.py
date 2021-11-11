@@ -13,7 +13,7 @@ from skimage.filters import threshold_otsu
 from InnerEye.ML.config import PhotometricNormalizationMethod, SegmentationModelBase
 from InnerEye.ML.dataset.sample import Sample
 from InnerEye.ML.dataset.scalar_sample import ScalarItem
-from InnerEye.ML.utils.image_util import check_array_range
+from InnerEye.ML.utils.image_util import NumpyOrTorch, check_array_range
 from InnerEye.ML.utils.transforms import CTRange, LinearTransform, Transform3D
 
 
@@ -74,11 +74,11 @@ class PhotometricNormalization(Transform3D[Sample]):
             )
         )
 
-    def transform(self, image: Union[np.ndarray, torch.Tensor],
-                  mask: Optional[Union[np.ndarray, torch.Tensor]] = None,
-                  patient_id: Optional[int] = None) -> Union[np.ndarray, torch.Tensor]:
+    def transform(self, image: NumpyOrTorch,
+                  mask: Optional[NumpyOrTorch] = None,
+                  patient_id: Optional[int] = None) -> NumpyOrTorch:
         if mask is None:
-            if torch.is_tensor(image):
+            if isinstance(image, torch.Tensor):
                 mask = torch.ones_like(image)
             else:
                 mask = np.ones_like(image)
@@ -87,7 +87,7 @@ class PhotometricNormalization(Transform3D[Sample]):
         if self.norm_method == PhotometricNormalizationMethod.Unchanged:
             image_out = image
         elif self.norm_method == PhotometricNormalizationMethod.SimpleNorm:
-            image_out = simple_norm(image, mask, self.debug_mode)
+            image_out = simple_norm(image, mask, self.debug_mode)  # type: ignore
         elif self.norm_method == PhotometricNormalizationMethod.MriWindow:
             if self.sharpen is None:
                 raise ValueError("The 'sharpen' parameter must be provided.")
@@ -95,7 +95,7 @@ class PhotometricNormalization(Transform3D[Sample]):
                 raise ValueError(
                     "The 'tail' parameter must be provided and set to a float value or a list of float values.")
             image_out, status = mri_window(
-                image, mask,
+                image, mask,  # type: ignore
                 self.output_range, self.sharpen, self.tail, self.debug_mode
             )
             self.status_of_most_recent_call = status
@@ -107,7 +107,7 @@ class PhotometricNormalization(Transform3D[Sample]):
             image_out = CTRange.transform(data=image, output_range=self.output_range,
                                           level=self.level, window=self.window, use_gpu=self.use_gpu)
         elif self.norm_method == PhotometricNormalizationMethod.TrimmedNorm:
-            image_out, status = normalize_trim(image, mask,
+            image_out, status = normalize_trim(image, mask,  # type: ignore
                                                self.output_range, self.sharpen, self.trim_percentiles,
                                                self.debug_mode)
             self.status_of_most_recent_call = status
@@ -115,12 +115,12 @@ class PhotometricNormalization(Transform3D[Sample]):
             raise ValueError("Unknown normalization method {}".format(self.norm_method))
         if patient_id is not None and self.status_of_most_recent_call is not None:
             logging.debug(f"Photonorm patient {patient_id}: {self.status_of_most_recent_call}")
-        check_array_range(image_out, error_prefix="Normalized image")
+        check_array_range(image_out, error_prefix="Normalized image")  # type: ignore
 
         return image_out
 
 
-def simple_norm(image_in: np.ndarray, mask: np.ndarray, debug_mode: bool = False) -> np.array:
+def simple_norm(image_in: np.ndarray, mask: np.ndarray, debug_mode: bool = False) -> np.ndarray:
     """
     Normalizes a single image to have mean 0 and standard deviation 1
 
@@ -160,7 +160,7 @@ def normalize_trim(image: np.ndarray,
                    output_range: Tuple[float, float] = (-1.0, 1.0),
                    sharpen: float = 1.9,
                    trim_percentiles: Tuple[float, float] = (2.0, 98.0),
-                   debug_mode: bool = False) -> np.array:
+                   debug_mode: bool = False) -> Tuple[np.ndarray, str]:
     """
     Normalizes a single image to have mean 0 and standard deviation 1
     Normalising occurs after percentile thresholds have been applied to strip out extreme values
@@ -203,7 +203,7 @@ def normalize_trim(image: np.ndarray,
             input_range=input_range,
             output_range=output_range
         )
-        channel_output[np.logical_not(in_mask)] = output_range[0]
+        channel_output[np.logical_not(in_mask)] = output_range[0]  # type: ignore
         imout[ichannel, ...] = channel_output
         status += "Range ({0:0.0f}, {1:0.0f}) ".format(input_range[0], input_range[1])
         logging.info(status)
@@ -229,7 +229,7 @@ def normalize_trim(image: np.ndarray,
     return imout, status
 
 
-def robust_mean_std(data: np.ndarray) -> Tuple[float, float, float, float]:
+def robust_mean_std(data: NumpyOrTorch) -> Tuple[float, float, float, float]:
     """
     Computes robust estimates of mean and standard deviation in the given array.
     The median is the robust estimate for the mean, the standard deviation is computed from the
@@ -258,7 +258,7 @@ def mri_window(image_in: np.ndarray,
                output_range: Tuple[float, float] = (-1.0, 1.0),
                sharpen: float = 1.9,
                tail: Union[List[float], float] = 1.0,
-               debug_mode: bool = False) -> Tuple[np.array, str]:
+               debug_mode: bool = False) -> Tuple[np.ndarray, str]:
     """
     This function takes an MRI Image,  removes to first peak of values (air). Then a window range is found centered
     around the mean of the remaining values and with a range controlled by the standard deviation and the sharpen
@@ -287,7 +287,7 @@ def mri_window(image_in: np.ndarray,
         imflat = image_in[ichannel, ...].flatten()
         if mask is None:
             maflat = None
-            in_mask = False
+            in_mask: Union[bool, np.ndarray] = False
         else:
             maflat = mask.flatten()
             in_mask = mask > 0
@@ -309,8 +309,8 @@ def mri_window(image_in: np.ndarray,
             if mask is None:
                 no_thresh = np.sum(imflat < threshold)
                 no_high = np.sum(imout == output_range[1])
-                pc_thresh = no_thresh / np.numel(imflat) * 100
-                pc_high = no_high / np.numel(imflat) * 100
+                pc_thresh = no_thresh / imflat.size * 100
+                pc_high = no_high / imflat.size * 100
             else:
                 no_thresh = np.sum(imflat[maflat == 1] < threshold)
                 no_high = np.sum(imout == output_range[1])

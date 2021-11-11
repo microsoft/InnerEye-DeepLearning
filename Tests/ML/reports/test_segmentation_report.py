@@ -6,9 +6,9 @@ import re
 from io import StringIO
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import pytest
-from numpy.core.numeric import NaN
 
 from InnerEye.Common.common_util import is_windows
 from InnerEye.Common.fixed_paths_for_tests import tests_root_directory
@@ -52,7 +52,7 @@ def _test_generate_segmentation_report_with_partial_ground_truth(
     original_metrics = pd.read_csv(original_metrics_file)
     partial_metrics = original_metrics
     partial_metrics.loc[partial_metrics['Structure'].eq('brainstem') & partial_metrics['Patient'].isin([14, 15, 19]),
-                        ['Dice', 'HausdorffDistance_mm', 'MeanDistance_mm']] = NaN
+                        ['Dice', 'HausdorffDistance_mm', 'MeanDistance_mm']] = np.NAN
     current_dir = test_output_dirs.make_sub_dir("test_segmentation_report")
     partial_metrics_file = current_dir / "metrics_hn.csv"
     result_file = current_dir / "report.ipynb"
@@ -70,7 +70,7 @@ def _test_generate_segmentation_report_with_partial_ground_truth(
         #    regex = "<td>brainstem<\/td>(\n\s*<td>[0-9\.]*<\/td>){3}\n\s*<td>([0-9\.]*)"
         match = re.search(regex, text)
         if not match:
-            return NaN
+            return np.NAN
         patient_count_as_string = match.group(2)
         return float(patient_count_as_string)
 

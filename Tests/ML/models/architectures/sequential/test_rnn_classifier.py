@@ -45,8 +45,8 @@ def prepare_sequences(num_sequences: int, sequence_length: int, batch_size: int)
     # Returns [batch][sequence, label]
     num_mini_batches = num_sequences // batch_size
 
-    inputs = np.random.choice([0, 1], size=(num_sequences, sequence_length), p=[1. / 3, 2. / 3]).astype(np.float32)
-    inputs = torch.tensor(inputs)
+    inputs_np = np.random.choice([0, 1], size=(num_sequences, sequence_length), p=[1. / 3, 2. / 3]).astype(np.float32)
+    inputs = torch.tensor(inputs_np)
     labels = torch.sum(inputs, dim=1) > (sequence_length // 2)
     labels = labels.long()
     data = list()
@@ -288,6 +288,8 @@ def test_visualization_with_sequence_model(use_combined_model: bool,
     guided_grad_cams, grad_cams, pseudo_cam_non_img, probas = visualizer.generate(
         model_inputs_and_labels.model_inputs)
     if use_combined_model:
+        assert guided_grad_cams is not None
+        assert grad_cams is not None
         if imaging_feature_type == ImagingFeatureType.ImageAndSegmentation:
             assert guided_grad_cams.shape[:2] == (number_subjects, number_sequences * 2)
             assert grad_cams.shape[:2] == (number_subjects, number_sequences * 2)
@@ -297,6 +299,8 @@ def test_visualization_with_sequence_model(use_combined_model: bool,
     else:
         assert guided_grad_cams is None
         assert grad_cams is None
+        assert pseudo_cam_non_img is not None
+        assert probas is not None
         assert pseudo_cam_non_img.shape[:2] == (number_subjects, number_sequences)
         assert probas.shape[0] == number_subjects
     non_image_features = config.numerical_columns + config.categorical_columns
@@ -532,6 +536,7 @@ def test_visualization_for_different_target_weeks(test_output_dirs: OutputFolder
     _, _, pseudo_cam_non_img_1, probas_1 = visualizer.generate(model_inputs_and_labels.model_inputs,
                                                                target_position=0,
                                                                target_label_index=0)
+    assert pseudo_cam_non_img_1 is not None
     assert pseudo_cam_non_img_1.shape[1] == 1
     assert pseudo_cam_non_img_3.shape[1] == 3
     # Both visualizations should not be equal

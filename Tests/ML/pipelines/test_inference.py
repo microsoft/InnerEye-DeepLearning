@@ -145,7 +145,7 @@ def inference_identity(test_output_dirs: OutputFolderForTests,
     expected_segmentation = image_util.posteriors_to_segmentation(expected_posteriors)
     if extract_largest_foreground_connected_component:
         largest_component = image_util.extract_largest_foreground_connected_component(
-            multi_label_array=expected_segmentation)
+            multi_label_array=expected_segmentation)  # type: ignore
         # make sure the test data is accurate by checking if more than one component exists
         assert not np.array_equal(largest_component, expected_segmentation)
         expected_segmentation = largest_component
@@ -199,7 +199,7 @@ class PyTorchMockModel(BaseSegmentationModel):
         predictions = torch.zeros(patches.shape[:2] + output_size)
         for i, patch in enumerate(patches):
             for j, channel in enumerate(patch):
-                predictions[i, j] = image_util.get_center_crop(image=channel, crop_shape=output_size)
+                predictions[i, j] = image_util.get_center_crop(image=channel, crop_shape=output_size)  # type: ignore
 
         return predictions
 

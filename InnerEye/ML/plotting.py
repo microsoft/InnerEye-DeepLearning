@@ -2,12 +2,12 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import sys
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
-import sys
 from matplotlib import colors
 from matplotlib.pyplot import Axes
 
@@ -152,7 +152,7 @@ def plot_image_and_label_contour(image: np.ndarray,
 
 
 def _plot_single_image_stats(image: np.ndarray,
-                             mask: np.ndarray,
+                             mask: Optional[np.ndarray],
                              z_slice: int,
                              image_axes: Axes,
                              hist_axes: Axes,
@@ -252,21 +252,21 @@ def plot_normalization_result(loaded_images: Sample,
     # Labels are encoded with background and a single foreground class. We need the
     # slice with largest number of foreground voxels
     ground_truth = loaded_images.labels[class_index, ...]
-    largest_gt_slice = get_largest_z_slice(ground_truth)
-    first_channel = loaded_images.image[channel_index, ...]
+    largest_gt_slice = get_largest_z_slice(ground_truth)  # type: ignore
+    first_channel = loaded_images.image[channel_index, ...]  # type: ignore
     filename_stem = f"{result_prefix}{loaded_images.patient_id:03d}_slice_{largest_gt_slice:03d}"
-    normalized_image = normalizer.transform(loaded_images.image, loaded_images.mask)[channel_index, ...]
+    normalized_image = normalizer.transform(loaded_images.image, loaded_images.mask)[channel_index, ...]  # type: ignore
 
     before_after_plot = \
-        plot_before_after_statistics(first_channel,
-                                     normalized_image,
-                                     loaded_images.mask,
+        plot_before_after_statistics(first_channel,  # type: ignore
+                                     normalized_image,  # type: ignore
+                                     loaded_images.mask,  # type: ignore
                                      z_slice=largest_gt_slice,
                                      normalizer_status_message=normalizer.status_of_most_recent_call,
                                      plot_file_name=result_folder / filename_stem)
     image_contour_plot = \
-        plot_image_and_label_contour(image=normalized_image[largest_gt_slice, ...],
-                                     labels=ground_truth[largest_gt_slice, ...],
+        plot_image_and_label_contour(image=normalized_image[largest_gt_slice, ...],  # type: ignore
+                                     labels=ground_truth[largest_gt_slice, ...],  # type: ignore
                                      contour_arguments={'colors': 'r'},
                                      image_range=image_range,
                                      plot_file_name=result_folder / f"{filename_stem}_contour{contour_file_suffix}")
@@ -300,7 +300,7 @@ def plot_contours_for_all_classes(sample: Sample,
             f"Labels tensor indicates {num_classes} classes, but got {len(foreground_class_names)} foreground "
             f"class names: {foreground_class_names}")
     plot_names: List[Path] = []
-    image = sample.image[channel_index, ...]
+    image = sample.image[channel_index, ...]  # type: ignore
     contour_arguments = [{'colors': 'r'}, {'colors': 'b', 'linestyles': 'dashed'}]
     binaries = binaries_from_multi_label_array(segmentation, num_classes)
     for class_index, binary in enumerate(binaries):
@@ -308,10 +308,10 @@ def plot_contours_for_all_classes(sample: Sample,
             continue
         ground_truth = sample.labels[class_index, ...]
 
-        if is_missing_ground_truth(ground_truth):
+        if is_missing_ground_truth(ground_truth):  # type: ignore
             continue
 
-        largest_gt_slice = get_largest_z_slice(ground_truth)
+        largest_gt_slice = get_largest_z_slice(ground_truth)  # type: ignore
         labels_at_largest_gt = ground_truth[largest_gt_slice]
         segmentation_at_largest_gt = binary[largest_gt_slice, ...]
         class_name = foreground_class_names[class_index - 1]
@@ -321,11 +321,12 @@ def plot_contours_for_all_classes(sample: Sample,
         else:
             patient_id_str = f"{patient_id:03d}"
         filename_stem = f"{result_prefix}{patient_id_str}_{class_name}_slice_{largest_gt_slice:03d}"
-        plot_file = plot_image_and_label_contour(image=image[largest_gt_slice, ...],
-                                                 labels=[labels_at_largest_gt, segmentation_at_largest_gt],
-                                                 contour_arguments=contour_arguments,
-                                                 image_range=image_range,
-                                                 plot_file_name=result_folder / filename_stem)
+        plot_file = \
+            plot_image_and_label_contour(image=image[largest_gt_slice, ...],  # type: ignore
+                                         labels=[labels_at_largest_gt, segmentation_at_largest_gt], # type: ignore
+                                         contour_arguments=contour_arguments,
+                                         image_range=image_range,
+                                         plot_file_name=result_folder / filename_stem)
 
         plot_names.append(plot_file)
     return plot_names

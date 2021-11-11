@@ -372,7 +372,7 @@ def get_center_crop(image: NumpyOrTorch, crop_shape: TupleInt3) -> NumpyOrTorch:
         raise Exception("image and crop_shape must have 3 dimensions, found dimensions: image={}, crop_shape={}"
                         .format(len(image.shape), len(crop_shape)))
 
-    if any(np.asarray(crop_shape) > np.asarray(image.shape)):
+    if np.any(np.asarray(crop_shape) > np.asarray(image.shape)):
         raise Exception("crop_shape must be <= to image shape in all dimensions, found shapes: image={}, crop_shape={}"
                         .format(image.shape, crop_shape))
 

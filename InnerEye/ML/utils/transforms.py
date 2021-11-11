@@ -14,6 +14,7 @@ import torch
 
 from InnerEye.Common.common_util import is_gpu_tensor
 from InnerEye.Common.type_annotations import T, TupleFloat2
+from InnerEye.ML.utils.image_util import NumpyOrTorch
 
 
 class Transform3D(param.Parameterized, Generic[T]):
@@ -94,18 +95,18 @@ class CTRange(Transform3D[Union[torch.Tensor, np.ndarray]]):
         return transform(data)
 
 
-class LinearTransform(Transform3D[Union[torch.Tensor, np.ndarray]]):
+class LinearTransform(Transform3D[NumpyOrTorch]):
     input_range: TupleFloat2 = param.NumericTuple(None, length=2, doc="Expected input range of intensities")
     output_range: TupleFloat2 = param.NumericTuple(None, length=2, doc="Desired output range of intensities")
 
-    def __call__(self, data: Union[torch.Tensor, np.ndarray]) -> Union[torch.Tensor, np.ndarray]:
+    def __call__(self, data: NumpyOrTorch) -> NumpyOrTorch:
         data = self.get_gpu_tensor_if_possible(data)
         gradient = (self.output_range[1] - self.output_range[0]) / (self.input_range[1] - self.input_range[0])
         c = self.output_range[1] - gradient * self.input_range[1]
 
         _apply_transform = lambda: data * gradient + c
 
-        if torch.is_tensor(data):
+        if isinstance(data, torch.Tensor):
             gradient = self.get_gpu_tensor_if_possible(torch.tensor(gradient))
             c = self.get_gpu_tensor_if_possible(torch.tensor(c))
             return _apply_transform().clamp(min=self.output_range[0], max=self.output_range[1])  # type: ignore
@@ -113,9 +114,9 @@ class LinearTransform(Transform3D[Union[torch.Tensor, np.ndarray]]):
             return np.clip(_apply_transform(), a_min=self.output_range[0], a_max=self.output_range[1])
 
     @staticmethod
-    def transform(data: Union[torch.Tensor, np.ndarray],
+    def transform(data: NumpyOrTorch,
                   input_range: TupleFloat2, output_range: TupleFloat2,
-                  use_gpu: bool = False) -> Union[torch.Tensor, np.ndarray]:
+                  use_gpu: bool = False) -> NumpyOrTorch:
         transform = LinearTransform(use_gpu=use_gpu, input_range=input_range, output_range=output_range)
         return transform(data)
 

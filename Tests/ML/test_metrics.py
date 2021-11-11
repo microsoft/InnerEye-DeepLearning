@@ -122,7 +122,7 @@ def test_calculate_hd_exact() -> None:
                               [1, 0, 0],
                               [1, 0, 0]]])
 
-    ground_truth = np.stack(np.stack([1 - ground_truth, ground_truth]))
+    ground_truth = np.stack([1 - ground_truth, ground_truth])
     g1 = "g1"
     m = metrics.calculate_metrics_per_class(prediction, ground_truth, voxel_spacing=(1, 2, 3), ground_truth_ids=[g1])
     assert m.get_single_metric(MetricType.HAUSDORFF_mm, hue=g1) == 6

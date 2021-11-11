@@ -390,11 +390,13 @@ def test_visualization_with_scalar_model(use_non_imaging_features: bool,
     guided_grad_cams, grad_cams, pseudo_cam_non_img, probas = visualizer.generate(
         model_inputs_and_labels.model_inputs)
 
+    assert guided_grad_cams is not None
     if imaging_feature_type == ImagingFeatureType.ImageAndSegmentation:
         assert guided_grad_cams.shape[:2] == (number_subjects, number_channels * 2)
     else:
         assert guided_grad_cams.shape[:2] == (number_subjects, number_channels)
 
+    assert grad_cams is not None
     assert grad_cams.shape[:2] == (number_subjects, 1) if encode_channels_jointly \
         else (number_subjects, number_channels)
 
@@ -410,4 +412,5 @@ def test_visualization_with_scalar_model(use_non_imaging_features: bool,
                                            'categorical1_week1',
                                            'categorical1_week0',
                                            'categorical2_week1']
+        assert pseudo_cam_non_img is not None
         assert pseudo_cam_non_img.shape == (number_subjects, 1, len(non_imaging_plot_labels))

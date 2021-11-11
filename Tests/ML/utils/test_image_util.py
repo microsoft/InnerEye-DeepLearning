@@ -88,7 +88,7 @@ def test_merge_masks() -> None:
     """
     with pytest.raises(Exception):
         # noinspection PyTypeChecker
-        assert image_util.merge_masks(masks=None)
+        assert image_util.merge_masks(masks=None)  # type: ignore
     with pytest.raises(Exception):
         assert image_util.merge_masks(masks=np.zeros(shape=(2, 2, 2)))
     with pytest.raises(Exception):
@@ -117,18 +117,18 @@ def test_apply_mask_to_posteriors(image_size: List[int]) -> None:
 
     with pytest.raises(Exception):
         # noinspection PyTypeChecker
-        image_util.apply_mask_to_posteriors(posteriors=None, mask=None)
+        image_util.apply_mask_to_posteriors(posteriors=None, mask=None)  # type: ignore
     with pytest.raises(Exception):
         # noinspection PyTypeChecker
-        image_util.apply_mask_to_posteriors(posteriors=image, mask=None)
+        image_util.apply_mask_to_posteriors(posteriors=image, mask=None)  # type: ignore
     with pytest.raises(Exception):
         # noinspection PyTypeChecker
-        image_util.apply_mask_to_posteriors(posteriors=None, mask=image)
+        image_util.apply_mask_to_posteriors(posteriors=None, mask=image)  # type: ignore
     with pytest.raises(Exception):
         # noinspection PyTypeChecker
         image_util.apply_mask_to_posteriors(posteriors=image, mask=image)
 
-    image = image_util.apply_mask_to_posteriors(posteriors=image, mask=mask)
+    image = image_util.apply_mask_to_posteriors(posteriors=image, mask=mask)  # type: ignore
     assert np.all(image[:, 0, ...] == 1)
     assert np.all(image[1:, 1:, ...] == 0)
 
@@ -139,7 +139,7 @@ def test_posteriors_to_segmentation() -> None:
     """
     with pytest.raises(ValueError):
         # noinspection PyTypeChecker
-        image_util.posteriors_to_segmentation(posteriors=None)
+        image_util.posteriors_to_segmentation(posteriors=None)  # type: ignore
     with pytest.raises(ValueError):
         image_util.posteriors_to_segmentation(posteriors=np.zeros(shape=(3, 3, 3)))
     with pytest.raises(ValueError):
@@ -396,7 +396,9 @@ def test_posterior_smoothing() -> None:
     def _load_and_scale_image(name: str) -> ImageWithHeader:
         image_with_header = load_nifti_image(full_ml_test_data_path(name))
         return ImageWithHeader(
-            image=LinearTransform.transform(data=image_with_header.image, input_range=(0, 255), output_range=(0, 1)),
+            image=LinearTransform.transform(data=image_with_header.image,  # type: ignore
+                                            input_range=(0, 255),
+                                            output_range=(0, 1)),
             header=image_with_header.header
         )
 
@@ -562,11 +564,11 @@ def test_apply_summed_probability_rules_incorrect_input(model_config: Segmentati
     with pytest.raises(ValueError):
         # noinspection PyTypeChecker
         image_util.apply_summed_probability_rules(model_config, posteriors=posteriors,
-                                                  segmentation=None)
+                                                  segmentation=None)  # type: ignore
 
     with pytest.raises(ValueError):
         # noinspection PyTypeChecker
-        image_util.apply_summed_probability_rules(model_config, posteriors=None,
+        image_util.apply_summed_probability_rules(model_config, posteriors=None,  # type: ignore
                                                   segmentation=segmentation)
 
     with pytest.raises(ValueError):
@@ -611,7 +613,8 @@ def test_apply_summed_probability_rules_change(model_config: SegmentationModelBa
                           image_util.apply_summed_probability_rules(model_config, posteriors, np.copy(segmentation)))
     # noinspection PyTypeChecker
     assert torch.equal(torch.from_numpy(expected_segmentation).type(torch.LongTensor),  # type: ignore
-                       image_util.apply_summed_probability_rules(model_config, torch.from_numpy(posteriors),
+                       image_util.apply_summed_probability_rules(model_config,  # type: ignore
+                                                                 torch.from_numpy(posteriors),
                                                                  torch.from_numpy(np.copy(segmentation))))
 
 
@@ -643,5 +646,6 @@ def test_apply_summed_probability_rules_no_change(model_config: SegmentationMode
                           image_util.apply_summed_probability_rules(model_config, posteriors, np.copy(segmentation)))
     # noinspection PyTypeChecker
     assert torch.equal(torch.from_numpy(expected_segmentation).type(torch.LongTensor),  # type: ignore
-                       image_util.apply_summed_probability_rules(model_config, torch.from_numpy(posteriors),
+                       image_util.apply_summed_probability_rules(model_config,  # type: ignore
+                                                                 torch.from_numpy(posteriors),
                                                                  torch.from_numpy(np.copy(segmentation))))

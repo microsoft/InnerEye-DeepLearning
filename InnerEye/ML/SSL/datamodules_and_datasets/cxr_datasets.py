@@ -69,7 +69,7 @@ class InnerEyeCXRDatasetBase(VisionDataset):
             scan_image = Image.open(filename).convert("L")
         if self.transforms is not None:
             scan_image = self.transforms(scan_image)
-        return scan_image, target
+        return scan_image, target  # type: ignore
 
     def __len__(self) -> int:
         """

@@ -10,8 +10,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import param
 
-from InnerEye.ML.augmentations.augmentation_for_segmentation_utils import slicers_for_random_crop
 from InnerEye.Common.generic_parsing import GenericConfig
+from InnerEye.ML.augmentations.augmentation_for_segmentation_utils import slicers_for_random_crop
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.dataset.cropping_dataset import CroppingDataset
 from InnerEye.ML.dataset.full_image_dataset import FullImageDataset
@@ -55,7 +55,10 @@ def visualize_random_crops(sample: Sample,
         padding_mode=config.padding_mode)
     logging.info(f"Processing sample: {sample.patient_id}")
     # Exhaustively sample with random crop function
-    image_channel0 = sample.image[0]
+    image = sample.image
+    assert isinstance(image, np.ndarray)
+
+    image_channel0 = image[0]
     heatmap = np.zeros(image_channel0.shape, dtype=np.uint16)
     # Number of repeats should fit into the range of UInt16, because we will later save the heatmap as an integer
     # Nifti file of that datatype.
@@ -81,7 +84,7 @@ def visualize_random_crops(sample: Sample,
         io_util.store_as_nifti(image=image_channel0,
                                header=header,
                                file_name=ct_output_name,
-                               image_type=sample.image.dtype,
+                               image_type=sample.image.dtype,  # type: ignore
                                scale=False)
     heatmap_scaled = heatmap.astype(dtype=float) / heatmap.max()
     # If the incoming image is effectively a 2D image with degenerate Z dimension, then only plot a single
@@ -95,7 +98,7 @@ def visualize_random_crops(sample: Sample,
         scan_with_transparent_overlay(scan=image_channel0,
                                       overlay=heatmap_scaled,
                                       dimension=dimension,
-                                      position=max_heatmap_index[dimension] if is_3dim else 0,
+                                      position=max_heatmap_index[dimension] if is_3dim else 0,  # type: ignore
                                       spacing=header.spacing)
         # Construct a filename that has a dimension suffix if we are generating 3 of them. For 2dim images, skip
         # the suffix.

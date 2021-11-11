@@ -114,7 +114,7 @@ def main() -> None:
         ct_path = Path("outputs") / SurfaceDistanceRunType.IOV.value.lower() / "ct.nii.gz"
         ct = load_nifti_image(ct_path).image
     else:
-        ct = None
+        ct = None  # type: ignore
     annotators = [annotator.strip() for annotator in surface_distance_config.annotators]
     extended_annotators = annotators + [surface_distance_config.model_name]
 
@@ -127,7 +127,7 @@ def main() -> None:
     voxel_spacing = segmentations[0].header.spacing[::-1]
 
     overall_gold_standard = np.zeros(img_shape)
-    sds_for_annotator = sd_util.initialise_surface_distance_dictionary(extended_annotators, img_shape)
+    sds_for_annotator = sd_util.initialise_surface_distance_dictionary(extended_annotators, img_shape)  # type: ignore
 
     plane = surface_distance_config.plane
     output_img_dir = Path(surface_distance_config.output_img_dir)

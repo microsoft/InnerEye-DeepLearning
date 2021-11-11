@@ -72,14 +72,16 @@ class FullImageInferencePipelineBase(InferencePipelineBase):
             results = InferencePipeline.Result(
                 patient_id=results.patient_id,
                 posteriors=posteriors,
-                segmentation=posteriors_to_segmentation(posteriors),
+                segmentation=posteriors_to_segmentation(posteriors),  # type: ignore
                 voxel_spacing_mm=results.voxel_spacing_mm
             )
 
         if self.model_config.summed_probability_rules and not self.model_config.disable_extra_postprocessing:
             assert isinstance(self.model_config, SegmentationModelBase)
             results = results.with_new_segmentation(
-                image_util.apply_summed_probability_rules(self.model_config, results.posteriors, results.segmentation))
+                image_util.apply_summed_probability_rules(self.model_config,  # type: ignore
+                                                          results.posteriors,
+                                                          results.segmentation))
 
         if self.model_config.largest_connected_component_foreground_classes is not None:
             # get indices for classes to restrict
@@ -323,7 +325,7 @@ class InferenceBatch(CTImagesMaskedBatch):
         image_size = image_channels.shape[1:]
         model: BaseSegmentationModel = self.pipeline.get_variable(InferencePipeline.Variables.Model).model
         effective_crop, effective_stride = \
-            model.crop_size_constraints.restrict_crop_size_to_image(image_size,
+            model.crop_size_constraints.restrict_crop_size_to_image(image_size,  # type: ignore
                                                                     model_config.test_crop_size,
                                                                     model_config.inference_stride_size)
         self.pipeline.set_variable(name=InferencePipeline.Variables.CropSize, value=effective_crop)
@@ -430,7 +432,7 @@ class InferenceBatch(CTImagesMaskedBatch):
         mask = self.get_component(InferenceBatch.Components.Mask)
         posteriors = self.get_component(InferenceBatch.Components.Posteriors)
         if mask is not None:
-            posteriors = image_util.apply_mask_to_posteriors(posteriors=posteriors, mask=mask)
+            posteriors = image_util.apply_mask_to_posteriors(posteriors=posteriors, mask=mask)  # type: ignore
 
         # create segmentation using an argmax over the posterior probabilities
         segmentation = image_util.posteriors_to_segmentation(posteriors)

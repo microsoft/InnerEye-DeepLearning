@@ -100,8 +100,8 @@ class ImageEncoder(DeviceAwareModule[ScalarItem, torch.Tensor]):
             self.stride_size_per_encoding_block = stride_size_per_encoding_block
         else:
             self.stride_size_per_encoding_block = [stride_size_per_encoding_block] * num_encoder_blocks
-        self.conv_in_3d = np.any([k[0] != 1 for k in self.kernel_size_per_encoding_block]) \
-                          or np.any([s[0] != 1 for s in self.stride_size_per_encoding_block])
+        self.conv_in_3d = (np.any([k[0] != 1 for k in self.kernel_size_per_encoding_block])  # type: ignore
+                           or np.any([s[0] != 1 for s in self.stride_size_per_encoding_block]))
         self.padding_mode = padding_mode
         self.encode_channels_jointly = encode_channels_jointly
         self.num_image_channels = num_image_channels
