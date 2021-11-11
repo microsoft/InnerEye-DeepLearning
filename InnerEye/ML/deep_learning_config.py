@@ -222,6 +222,9 @@ class WorkflowParams(param.Parameterized):
     local_weights_path: List[Path] = param.List(default=[], class_=Path,
                                                 doc="A list of checkpoints paths to use for inference, "
                                                     "when the job is running outside Azure.")
+    experiment_name: str = param.String(default="",
+                                        doc="If provided, overrides the default AzureML experiment name "
+                                            "based on the current Git branch.")
     model_id: str = param.String(default="",
                                  doc="A model id string in the form 'model name:version' "
                                      "to use a registered model for inference.")

@@ -296,6 +296,8 @@ class Runner:
                 if not self.azure_config.cluster:
                     raise ValueError("self.azure_config.cluster not set, but we need a compute_cluster_name to submit"
                                      "the script to run in AzureML")
+                experiment_name = self.lightning_container.experiment_name \
+                    or create_experiment_name(self.azure_config)
                 azure_run_info = submit_to_azure_if_needed(
                     entry_script=source_config.entry_script,
                     snapshot_root_directory=source_config.root_folder,
@@ -305,7 +307,7 @@ class Runner:
                     compute_cluster_name=self.azure_config.cluster,
                     environment_variables=source_config.environment_variables,
                     default_datastore=self.azure_config.azureml_datastore,
-                    experiment_name=to_azure_friendly_string(create_experiment_name(self.azure_config)),
+                    experiment_name=to_azure_friendly_string(experiment_name),
                     max_run_duration=self.azure_config.max_run_duration,
                     input_datasets=input_datasets,
                     num_nodes=self.azure_config.num_nodes,
