@@ -154,15 +154,6 @@ def pad_images(images: np.ndarray,
     :return: padded copy of the original image.
     """
 
-    def create_padding_vector() -> Tuple[TupleInt2, TupleInt2, TupleInt2]:
-        """
-        Creates the padding vector ceil(crop_size - output_size / 2)
-        """
-        image_spatial_shape = images.shape[-3:]
-        diff = np.clip(np.subtract(output_size, image_spatial_shape), a_min=0, a_max=None)
-        pad: List[int] = np.ceil(diff / 2.0).astype(int)
-        return (pad[0], diff[0] - pad[0]), (pad[1], diff[1] - pad[1]), (pad[2], diff[2] - pad[2])
-
     if images is None:
         raise Exception("Image must not be none")
 
@@ -172,8 +163,12 @@ def pad_images(images: np.ndarray,
     if not len(images.shape) in [3, 4]:
         raise Exception("Image must be either 3 dimensions (Z x Y x X) or "
                         "Batched into 4 dimensions (Batches x Z x Y x X)")
+    image_spatial_shape = images.shape[-3:]
+    diff = np.clip(np.subtract(output_size, image_spatial_shape), a_min=0, a_max=None)
+    pad: List[int] = np.ceil(diff / 2.0).astype(int)
+    padding_vector = (pad[0], diff[0] - pad[0]), (pad[1], diff[1] - pad[1]), (pad[2], diff[2] - pad[2])
 
-    return _pad_images(images=images, padding_vector=create_padding_vector(), padding_mode=padding_mode)
+    return _pad_images(images=images, padding_vector=padding_vector, padding_mode=padding_mode)
 
 
 def _pad_images(images: np.ndarray,
@@ -253,7 +248,7 @@ def largest_connected_components(img: np.ndarray,
     component_sizes = np.bincount(labeled_array.flatten())
     # We don't want to count background
     component_sizes[0] = 0
-    largest_component_indices: List[Union[int, np.array]] = []
+    largest_component_indices: List[Union[int, np.ndarray]] = []
     if deletion_limit is not None and deletion_limit < 0.5:
         # Find the indices of all components with sizes over the threshold - there can be more than one
         # (or there might be none, if all components are small).

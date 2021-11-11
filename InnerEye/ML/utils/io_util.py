@@ -371,6 +371,7 @@ def load_images_and_stack(files: Iterable[Path],
         if load_segmentation:
             # Segmentations are loaded as UInt8. Convert to one-hot encoding as late as possible,
             # that is only before feeding into the model
+            assert image_and_segmentation.segmentations is not None
             segmentations.append(from_numpy_crop_and_resize(image_and_segmentation.segmentations))
 
     image_tensor = torch.stack(images, dim=0) if len(images) > 0 else torch.empty(0)

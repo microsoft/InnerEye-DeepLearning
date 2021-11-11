@@ -41,7 +41,7 @@ class CategoricalToOneHotEncoder(OneHotEncoderBase):
         for col, value in columns_and_possible_categories.items():
             # Fit only once during initialization with all possible values.
             if np.inf in value:
-                value.remove(np.inf)
+                value.remove(np.inf)  # type: ignore
             self._encoder[col] = OneHotEncoder(handle_unknown='ignore').fit(np.array(value).reshape(-1, 1))
             self._feature_length[col] = len(value)
 
