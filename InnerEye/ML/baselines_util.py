@@ -34,7 +34,7 @@ REGRESSION_TEST_AZUREML_PARENT_FOLDER = "AZUREML_PARENT_OUTPUT"
 CONTENTS_MISMATCH = "Contents mismatch"
 MISSING_FILE = "Missing"
 CSV_SUFFIX = ".csv"
-TEXT_FILE_SUFFIXES = [CSV_SUFFIX, ".txt", ".json", ".html", ".md"]
+TEXT_FILE_SUFFIXES = [".txt", ".json", ".html", ".md"]
 
 INFERENCE_DISABLED_WARNING = "Not performing comparison of model against baseline(s), because inference is currently " \
                              "disabled. If comparison is required, use either the inference_on_test_set or " \
@@ -210,11 +210,10 @@ def compare_files(expected: Path, actual: Path, csv_relative_tolerance: float = 
         actual_df = pd.read_csv(actual)
         try:
             pd.testing.assert_frame_equal(actual_df, expected_df, rtol=csv_relative_tolerance)
-            return ""
         except Exception as ex:
             logging.debug(str(ex))
             return CONTENTS_MISMATCH
-    if expected.suffix in TEXT_FILE_SUFFIXES:
+    elif expected.suffix in TEXT_FILE_SUFFIXES:
         # Compare line-by-line to avoid issues with line separators
         expected_lines = expected.read_text().splitlines()
         actual_lines = actual.read_text().splitlines()

@@ -151,7 +151,8 @@ def test_compare_plain_outputs(test_output_dirs: OutputFolderForTests) -> None:
     file2 = expected / no_such_file
     create_folder_and_write_text(file2, "foo")
     with pytest.raises(ValueError) as ex:
-        compare_folders_and_run_outputs(expected=test_output_dirs.root_dir, actual=Path.cwd())
+        compare_folders_and_run_outputs(expected=test_output_dirs.root_dir, actual=Path.cwd(),
+                                        csv_relative_tolerance=0.0)
     message = ex.value.args[0].splitlines()
     assert f"{baselines_util.MISSING_FILE}: {no_such_file}" in message
 
@@ -178,7 +179,8 @@ def test_compare_folder_against_run(test_output_dirs: OutputFolderForTests) -> N
         file2 = test_output_dirs.root_dir / REGRESSION_TEST_AZUREML_FOLDER / no_such_file
         create_folder_and_write_text(file2, "foo")
         with pytest.raises(ValueError) as ex:
-            compare_folders_and_run_outputs(expected=test_output_dirs.root_dir, actual=Path.cwd())
+            compare_folders_and_run_outputs(expected=test_output_dirs.root_dir, actual=Path.cwd(),
+                                            csv_relative_tolerance=0.0)
         message = ex.value.args[0].splitlines()
         assert f"{baselines_util.MISSING_FILE}: {no_such_file}" in message
     # Now run the same comparison that failed previously, without mocking the RUN_CONTEXT. This should now
@@ -207,10 +209,12 @@ No outliers found
 No outliers found""")
     with mock.patch("InnerEye.ML.baselines_util.PARENT_RUN_CONTEXT", parent_run):
         # No plain files to compare. The file Test_outliers.txt should be compared and found to match.
-        compare_folders_and_run_outputs(expected=test_output_dirs.root_dir, actual=Path.cwd())
+        compare_folders_and_run_outputs(expected=test_output_dirs.root_dir, actual=Path.cwd(),
+                                        csv_relative_tolerance=0.0)
         create_folder_and_write_text(file1, "foo")
         with pytest.raises(ValueError) as ex:
-            compare_folders_and_run_outputs(expected=test_output_dirs.root_dir, actual=Path.cwd())
+            compare_folders_and_run_outputs(expected=test_output_dirs.root_dir, actual=Path.cwd(),
+                                            csv_relative_tolerance=0.0)
         message = ex.value.args[0].splitlines()
         assert f"{baselines_util.CONTENTS_MISMATCH}: {CROSSVAL_RESULTS_FOLDER}/{file1.name}" in message
         # Now add a file to the set of expected files that does not exist in the run: comparison should now fail
@@ -218,11 +222,13 @@ No outliers found""")
         file2 = test_output_dirs.root_dir / REGRESSION_TEST_AZUREML_PARENT_FOLDER / no_such_file
         create_folder_and_write_text(file2, "foo")
         with pytest.raises(ValueError) as ex:
-            compare_folders_and_run_outputs(expected=test_output_dirs.root_dir, actual=Path.cwd())
+            compare_folders_and_run_outputs(expected=test_output_dirs.root_dir, actual=Path.cwd(),
+                                            csv_relative_tolerance=0.0)
         message = ex.value.args[0].splitlines()
         assert f"{baselines_util.MISSING_FILE}: {no_such_file}" in message
     # Now run the same comparison without mocking the PARENT_RUN_CONTEXT. This should now
     # realize that the present run is a crossval child run
     with pytest.raises(ValueError) as ex:
-        compare_folders_and_run_outputs(expected=test_output_dirs.root_dir, actual=Path.cwd())
+        compare_folders_and_run_outputs(expected=test_output_dirs.root_dir, actual=Path.cwd(),
+                                        csv_relative_tolerance=0.0)
     assert "no (parent) run to compare against" in str(ex)
