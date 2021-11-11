@@ -323,7 +323,7 @@ def plot_contours_for_all_classes(sample: Sample,
         filename_stem = f"{result_prefix}{patient_id_str}_{class_name}_slice_{largest_gt_slice:03d}"
         plot_file = \
             plot_image_and_label_contour(image=image[largest_gt_slice, ...],  # type: ignore
-                                         labels=[labels_at_largest_gt, segmentation_at_largest_gt], # type: ignore
+                                         labels=[labels_at_largest_gt, segmentation_at_largest_gt],  # type: ignore
                                          contour_arguments=contour_arguments,
                                          image_range=image_range,
                                          plot_file_name=result_folder / filename_stem)

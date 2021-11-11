@@ -538,6 +538,7 @@ def test_visualization_for_different_target_weeks(test_output_dirs: OutputFolder
                                                                target_label_index=0)
     assert pseudo_cam_non_img_1 is not None
     assert pseudo_cam_non_img_1.shape[1] == 1
+    assert pseudo_cam_non_img_3 is not None
     assert pseudo_cam_non_img_3.shape[1] == 3
     # Both visualizations should not be equal
     assert np.any(pseudo_cam_non_img_1 != pseudo_cam_non_img_3)

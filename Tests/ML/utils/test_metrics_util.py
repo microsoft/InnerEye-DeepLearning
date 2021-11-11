@@ -2,7 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from typing import Any, Dict
+from typing import Any
 
 import numpy as np
 import pytest
@@ -60,7 +60,7 @@ def test_get_label_volume() -> None:
     Tests computation of label volumes.
     """
     test_data = {'spleen': np.array([[0, 1, 0], [1, 1, 0]]),
-                                        'liver': np.array([[0, 0, 0], [0, 0, 0]])}
+                 'liver': np.array([[0, 0, 0], [0, 0, 0]])}
     label_overlap_stats = get_label_volume(labels=np.stack(test_data.values()),  # type: ignore
                                            label_names=list(test_data.keys()),
                                            label_spacing=(1.00, 2.00, 3.00))

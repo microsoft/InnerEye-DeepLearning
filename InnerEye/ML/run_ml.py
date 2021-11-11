@@ -440,7 +440,8 @@ class MLRunner:
             logging.info("Comparing the current results against stored results")
             if self.is_normal_run_or_crossval_child_0():
                 compare_folders_and_run_outputs(expected=self.container.regression_test_folder,
-                                                actual=self.container.outputs_folder)
+                                                actual=self.container.outputs_folder,
+                                                csv_relative_tolerance=self.container.regression_test_csv_tolerance)
             else:
                 logging.info("Skipping because this is not cross-validation child run 0.")
 

@@ -63,6 +63,20 @@ def test_compare_files_text(test_output_dirs: OutputFolderForTests, file_extensi
     assert compare_files(expected=expected, actual=actual) == baselines_util.CONTENTS_MISMATCH
 
 
+def test_compare_files_csv(test_output_dirs: OutputFolderForTests) -> None:
+    expected = test_output_dirs.root_dir / "expected.csv"
+    actual = test_output_dirs.root_dir / "actual.does_not_matter"
+    expected.write_text("""foo,bar
+1.0,10.0""")
+    actual.write_text("""foo,bar
+1.0001,10.001""")
+    assert compare_files(expected=expected, actual=actual, csv_relative_tolerance=1e-2) == ""
+    assert compare_files(expected=expected, actual=actual, csv_relative_tolerance=1e-3) == ""
+    assert compare_files(expected=expected, actual=actual, csv_relative_tolerance=2e-4) == ""
+    assert compare_files(expected=expected, actual=actual,
+                         csv_relative_tolerance=9e-5) == baselines_util.CONTENTS_MISMATCH
+
+
 @pytest.mark.parametrize("file_extension", [".png", ".whatever"])
 def test_compare_files_binary(test_output_dirs: OutputFolderForTests, file_extension: str) -> None:
     """
@@ -107,7 +121,8 @@ def test_compare_folder(test_output_dirs: OutputFolderForTests) -> None:
     (expected / subfolder / mismatch).write_text("contents1")
     (actual / subfolder / mismatch).write_text("contents2")
 
-    messages = compare_folder_contents(expected_folder=expected, actual_folder=actual)
+    messages = compare_folder_contents(expected_folder=expected, actual_folder=actual,
+                                       csv_relative_tolerance=0.0)
     all_messages = " ".join(messages)
     # No issues expected
     assert matching not in all_messages
@@ -130,7 +145,7 @@ def test_compare_plain_outputs(test_output_dirs: OutputFolderForTests) -> None:
         file1 = folder / "output.txt"
         create_folder_and_write_text(file1, "Something")
     # First comparison should pass
-    compare_folders_and_run_outputs(expected=expected, actual=actual)
+    compare_folders_and_run_outputs(expected=expected, actual=actual, csv_relative_tolerance=0.0)
     # Now add a file to the set of expected files that does not exist in the run: comparison should now fail
     no_such_file = "no_such_file.txt"
     file2 = expected / no_such_file
@@ -156,7 +171,8 @@ def test_compare_folder_against_run(test_output_dirs: OutputFolderForTests) -> N
                                  '"model_configs_namespace": "InnerEye.ML.configs.segmentation.BasicModel2Epochs"}')
     with mock.patch("InnerEye.ML.baselines_util.RUN_CONTEXT", run):
         # First comparison only on the .json file should pass
-        compare_folders_and_run_outputs(expected=test_output_dirs.root_dir, actual=Path.cwd())
+        compare_folders_and_run_outputs(expected=test_output_dirs.root_dir, actual=Path.cwd(),
+                                        csv_relative_tolerance=0.0)
         # Now add a file to the set of expected files that does not exist in the run: comparison should now fail
         no_such_file = "no_such_file.txt"
         file2 = test_output_dirs.root_dir / REGRESSION_TEST_AZUREML_FOLDER / no_such_file
@@ -167,7 +183,8 @@ def test_compare_folder_against_run(test_output_dirs: OutputFolderForTests) -> N
         assert f"{baselines_util.MISSING_FILE}: {no_such_file}" in message
     # Now run the same comparison that failed previously, without mocking the RUN_CONTEXT. This should now
     # realize that the present run is an offline run, and skip the comparison
-    compare_folders_and_run_outputs(expected=test_output_dirs.root_dir, actual=Path.cwd())
+    compare_folders_and_run_outputs(expected=test_output_dirs.root_dir, actual=Path.cwd(),
+                                    csv_relative_tolerance=0.0)
 
 
 @pytest.mark.after_training_ensemble_run

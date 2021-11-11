@@ -33,7 +33,8 @@ REGRESSION_TEST_AZUREML_FOLDER = "AZUREML_OUTPUT"
 REGRESSION_TEST_AZUREML_PARENT_FOLDER = "AZUREML_PARENT_OUTPUT"
 CONTENTS_MISMATCH = "Contents mismatch"
 MISSING_FILE = "Missing"
-TEXT_FILE_SUFFIXES = [".txt", ".csv", ".json", ".html", ".md"]
+CSV_SUFFIX = ".csv"
+TEXT_FILE_SUFFIXES = [CSV_SUFFIX, ".txt", ".json", ".html", ".md"]
 
 INFERENCE_DISABLED_WARNING = "Not performing comparison of model against baseline(s), because inference is currently " \
                              "disabled. If comparison is required, use either the inference_on_test_set or " \
@@ -185,7 +186,7 @@ def get_comparison_baselines(outputs_folder: Path, azure_config: AzureConfig,
     return comparison_baselines
 
 
-def compare_files(expected: Path, actual: Path) -> str:
+def compare_files(expected: Path, actual: Path, csv_relative_tolerance: float = 0.0) -> str:
     """
     Compares two individual files for regression testing. It returns an empty string if the two files appear identical.
     If the files are not identical, an error message with details is return. This handles known text file formats,
@@ -194,6 +195,8 @@ def compare_files(expected: Path, actual: Path) -> str:
     :param expected: A file that contains the expected contents. The type of comparison (text or binary) is chosen
     based on the extension of this file.
     :param actual: A file that contains the actual contents.
+    :param csv_relative_tolerance: When comparing CSV files, use this as the maximum allowed relative discrepancy.
+    If 0.0, do not allow any discrepancy.
     :return: An empty string if the files appear identical, or otherwise an error message with details.
     """
 
@@ -202,6 +205,15 @@ def compare_files(expected: Path, actual: Path) -> str:
         logging.debug(f"{prefix} {len(lines)} lines, first {count} of those:")
         logging.debug(os.linesep.join(lines[:count]))
 
+    if expected.suffix == CSV_SUFFIX:
+        expected_df = pd.read_csv(expected)
+        actual_df = pd.read_csv(actual)
+        try:
+            pd.testing.assert_frame_equal(actual_df, expected_df, rtol=csv_relative_tolerance)
+            return ""
+        except Exception as ex:
+            logging.debug(str(ex))
+            return CONTENTS_MISMATCH
     if expected.suffix in TEXT_FILE_SUFFIXES:
         # Compare line-by-line to avoid issues with line separators
         expected_lines = expected.read_text().splitlines()
@@ -220,6 +232,7 @@ def compare_files(expected: Path, actual: Path) -> str:
 
 
 def compare_folder_contents(expected_folder: Path,
+                            csv_relative_tolerance: float,
                             actual_folder: Optional[Path] = None,
                             run: Optional[Run] = None) -> List[str]:
     """
@@ -228,9 +241,12 @@ def compare_folder_contents(expected_folder: Path,
     (or the AzureML run), with exactly the same contents, in the same folder structure.
     For example, if there is a file "<expected>/foo/bar/contents.txt", then there must also be a file
     "<actual>/foo/bar/contents.txt"
+
     :param expected_folder: A folder with files that are expected to be present.
     :param actual_folder: The output folder with the actually produced files.
     :param run: An AzureML run
+    :param csv_relative_tolerance: When comparing CSV files, use this as the maximum allowed relative discrepancy.
+    If 0.0, do not allow any discrepancy.
     :return: A list of human readable error messages, with message and file path. If no errors are found, the list is
     empty.
     """
@@ -254,7 +270,8 @@ def compare_folder_contents(expected_folder: Path,
                 run.download_file(name=str(file_relative), output_file_path=str(actual_file))
         else:
             raise ValueError("One of the two arguments run, actual_folder must be provided.")
-        message = compare_files(expected=file, actual=actual_file) if actual_file.exists() else MISSING_FILE
+        message = compare_files(expected=file, actual=actual_file,
+                                csv_relative_tolerance=csv_relative_tolerance) if actual_file.exists() else MISSING_FILE
         if message:
             messages.append(f"{message}: {file_relative}")
         logging.info(f"File {file_relative}: {message or 'OK'}")
@@ -263,15 +280,18 @@ def compare_folder_contents(expected_folder: Path,
     return messages
 
 
-def compare_folders_and_run_outputs(expected: Path, actual: Path) -> None:
+def compare_folders_and_run_outputs(expected: Path, actual: Path, csv_relative_tolerance: float) -> None:
     """
     Compares the actual set of run outputs in the `actual` folder against an expected set of files in the `expected`
     folder. The `expected` folder can have two special subfolders AZUREML_OUTPUT and AZUREML_PARENT_OUTPUT, that
     contain files that are expected to be present in the AzureML run context of the present run (AZUREML_OUTPUT)
     or the run context of the parent run (AZUREML_PARENT_OUTPUT).
     If a file is missing, or does not have the expected contents, an exception is raised.
+
     :param expected: A folder with files that are expected to be present.
     :param actual: The output folder with the actually produced files.
+    :param csv_relative_tolerance: When comparing CSV files, use this as the maximum allowed relative discrepancy.
+    If 0.0, do not allow any discrepancy.
     """
     if not expected.is_dir():
         raise ValueError(f"Folder with expected files does not exist: {expected}")
@@ -287,7 +307,10 @@ def compare_folders_and_run_outputs(expected: Path, actual: Path) -> None:
             if actual_folder is None and run_to_compare is None:
                 raise ValueError(f"The set of expected test results in {expected} contains a folder "
                                  f"{subfolder}, but there is no (parent) run to compare against.")
-            new_messages = compare_folder_contents(folder, actual_folder=actual_folder, run=run_to_compare)
+            new_messages = compare_folder_contents(folder,
+                                                   actual_folder=actual_folder,
+                                                   run=run_to_compare,
+                                                   csv_relative_tolerance=csv_relative_tolerance)
             if new_messages:
                 messages.append(f"Issues in {message_prefix}:")
                 messages.extend(new_messages)

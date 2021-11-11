@@ -255,6 +255,10 @@ class WorkflowParams(param.Parameterized):
                                 "folder, and their contents must match exactly. When running in AzureML, you need to "
                                 "ensure that this folder is part of the snapshot that gets uploaded. The path should "
                                 "be relative to the repository root directory.")
+    regression_test_csv_tolerance: float = \
+        param.Number(default=0.0, allow_None=False,
+                     doc="When comparing CSV files during regression tests, use this value as the maximum allowed "
+                         "relative difference of actual and expected results. Default: 0.0 (must match exactly)")
 
     def validate(self) -> None:
         if sum([bool(param) for param in [self.weights_url, self.local_weights_path, self.model_id]]) > 1:
