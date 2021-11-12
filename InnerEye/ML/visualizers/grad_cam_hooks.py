@@ -253,7 +253,7 @@ class GradCam(GradientBasedFeatureExtractor):
         if self.total_num_categorical_features > 0:
             if len(total_pseudo_cam_non_image.shape) == 2:
                 total_pseudo_cam_non_image = total_pseudo_cam_non_image.reshape(batch_size, 1, -1)
-                non_image_input = self.non_image_input.reshape(batch_size, 1, -1)
+                non_image_input = self.non_image_input.reshape(batch_size, 1, -1)  # type: ignore
 
             pseudo_cam_numerical = total_pseudo_cam_non_image[:, :,
                                    :self.total_number_of_numerical_non_imaging_features]

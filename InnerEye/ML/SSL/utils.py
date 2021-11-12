@@ -127,7 +127,7 @@ def SSLModelLoader(ssl_class: Any, num_classes: int) -> Any:
 
 def add_submodules_to_same_device(module: torch.nn.Module,
                                   submodules: Iterable[torch.nn.Module],
-                                  prefix: str = ""):
+                                  prefix: str = "") -> None:
     """
     Adds each of the given submodules to the "main" module, and moves them to the same device as the "main"
     module. The submodules get a name derived from their class name, with the given prefix.
