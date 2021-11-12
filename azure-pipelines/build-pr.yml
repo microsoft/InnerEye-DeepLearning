@@ -144,7 +144,7 @@ jobs:
       - name: number_of_cross_validation_splits
         value: 2
       - name: more_switches
-        value: '--num_epochs=2 --regression_test_folder=RegressionTestResults/PR_GlaucomaCV --log_level=DEBUG --regression_test_csv_tolerance=1e-3'
+        value: '--num_epochs=2 --regression_test_folder=RegressionTestResults/PR_GlaucomaCV --log_level=DEBUG'
     pool:
       vmImage: 'ubuntu-18.04'
     steps:
