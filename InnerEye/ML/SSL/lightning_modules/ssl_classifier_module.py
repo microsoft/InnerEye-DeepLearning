@@ -5,7 +5,6 @@
 from typing import Any, List, Optional
 
 import torch
-from torchmetrics import Metric
 from pl_bolts.models.self_supervised import SSLEvaluator
 from torch.nn import ModuleList, functional as F
 
