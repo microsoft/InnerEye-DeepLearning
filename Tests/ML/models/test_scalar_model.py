@@ -126,10 +126,10 @@ def test_train_classification_model(class_name: str, test_output_dirs: OutputFol
         f"""epoch,subject,prediction_target,model_output,label,data_split,cross_validation_split_index
 0,S2,{class_name},0.529514,1,Train,-1
 0,S4,{class_name},0.521659,0,Train,-1
-1,S4,{class_name},0.521482,0,Train,-1
 1,S2,{class_name},0.529475,1,Train,-1
-2,S4,{class_name},0.521305,0,Train,-1
+1,S4,{class_name},0.521482,0,Train,-1
 2,S2,{class_name},0.529437,1,Train,-1
+2,S4,{class_name},0.521305,0,Train,-1
 3,S2,{class_name},0.529399,1,Train,-1
 3,S4,{class_name},0.521128,0,Train,-1
 """

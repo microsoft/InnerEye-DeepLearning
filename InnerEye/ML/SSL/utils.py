@@ -6,7 +6,7 @@
 import logging
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Iterable, Optional
 
 import torch
 from yacs.config import CfgNode
@@ -123,3 +123,23 @@ def SSLModelLoader(ssl_class: Any, num_classes: int) -> Any:
                                                      n_hidden=None)
 
     return _wrap
+
+
+def add_submodules_to_same_device(module: torch.nn.Module,
+                                  submodules: Iterable[torch.nn.Module],
+                                  prefix: str = ""):
+    """
+    Adds each of the given submodules to the "main" module, and moves them to the same device as the "main"
+    module. The submodules get a name derived from their class name, with the given prefix.
+
+    :param module: The module to which submodules should be added.
+    :param submodules: The submodules to add.
+    :param prefix: A string prefix that will be used to create the name of the submodule.
+    """
+
+    def _class_name(o: Any) -> str:
+        return str(type(o)).split(".")[-1]
+
+    for m in submodules:
+        m.to(device=module.device)  # type: ignore
+        module.add_module(f"{prefix}{_class_name(m)}", m)

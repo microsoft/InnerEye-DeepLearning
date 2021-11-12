@@ -253,7 +253,7 @@ class GradCam(GradientBasedFeatureExtractor):
         if self.total_num_categorical_features > 0:
             if len(total_pseudo_cam_non_image.shape) == 2:
                 total_pseudo_cam_non_image = total_pseudo_cam_non_image.reshape(batch_size, 1, -1)
-                non_image_input = non_image_input.reshape(batch_size, 1, -1)
+                non_image_input = self.non_image_input.reshape(batch_size, 1, -1)
 
             pseudo_cam_numerical = total_pseudo_cam_non_image[:, :,
                                    :self.total_number_of_numerical_non_imaging_features]
@@ -275,8 +275,7 @@ class GradCam(GradientBasedFeatureExtractor):
                                 b, t, categorical_input_one_hot[b, t] != 0]
             else:
                 # For a non-sequence model a categorical feature might appear several times for several channels but
-                # there
-                # is no padding. Hence we handle the conversion differently.
+                # there is no padding. Hence we handle the conversion differently.
                 pseudo_cam_categorical = pseudo_cam_one_hot[categorical_input_one_hot.cpu() != 0].reshape(
                     (batch_size, number_positions, -1))
 
