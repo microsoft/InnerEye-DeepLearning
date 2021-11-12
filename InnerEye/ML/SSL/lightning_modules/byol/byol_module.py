@@ -122,7 +122,7 @@ class BYOLInnerEye(pl.LightningModule):
                          lr=self.hparams.learning_rate,  # type: ignore
                          weight_decay=self.hparams.weight_decay)  # type: ignore
         scheduler = LinearWarmupCosineAnnealingLR(optimizer,
-                                                  warmup_epochs=self.hparams.warmup_epochs,
+                                                  warmup_epochs=self.hparams.warmup_epochs,  # type: ignore
                                                   max_epochs=self.hparams.max_epochs)  # type: ignore
         return [optimizer], [scheduler]
 
