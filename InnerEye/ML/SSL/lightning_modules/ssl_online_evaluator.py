@@ -78,7 +78,7 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
         """
         for metric in [*self.train_metrics, *self.val_metrics]:
             metric.to(device=pl_module.device)  # type: ignore
-        self.non_linear_evaluator = self.non_linear_evaluator.to(pl_module.device)
+        self.non_linear_evaluator.to(pl_module.device)
 
     @staticmethod
     def to_device(batch: Any, device: Union[str, torch.device]) -> Tuple[T, T]:
@@ -150,7 +150,7 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
             self.visited_ids.add(ids_linear_head)
             loss = self.shared_step(batch, pl_module, is_training=True)
             self.optimizer.zero_grad()
-            loss.backward(loss)
+            loss.backward()
             self.optimizer.step()
 
             # log metrics

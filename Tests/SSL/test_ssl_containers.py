@@ -123,7 +123,7 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
         'ssl_online_evaluator/val/loss': 2.2472469806671143,
         'ssl_online_evaluator/val/AccuracyAtThreshold05': 0.20000000298023224
     }
-    _compare_stored_metrics(runner, expected_metrics)
+    _compare_stored_metrics(runner, expected_metrics, abs=5e-5)
 
     # Check that the checkpoint contains both the optimizer for the embedding and for the linear head
     checkpoint_path = loaded_config.outputs_folder / "checkpoints" / "best_checkpoint.ckpt"
