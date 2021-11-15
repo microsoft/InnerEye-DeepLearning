@@ -98,7 +98,7 @@ jobs:
       - name: tag
         value: 'TrainEnsemble'
       - name: more_switches
-        value: '--regression_test_folder=RegressionTestResults/PR_TrainEnsemble'
+        value: '--regression_test_folder=RegressionTestResults/PR_TrainEnsemble --log_level=DEBUG --pl_deterministic=True'
     pool:
       vmImage: 'ubuntu-18.04'
     steps:
@@ -120,7 +120,7 @@ jobs:
       - name: tag
         value: 'Train2Nodes'
       - name: more_switches
-        value: '--log_level=DEBUG --num_nodes=2 --regression_test_folder=RegressionTestResults/PR_Train2Nodes'
+        value: '--num_nodes=2 --regression_test_folder=RegressionTestResults/PR_Train2Nodes --log_level=DEBUG --pl_deterministic=True'
     pool:
       vmImage: 'ubuntu-18.04'
     steps:
@@ -144,7 +144,7 @@ jobs:
       - name: number_of_cross_validation_splits
         value: 2
       - name: more_switches
-        value: '--num_epochs=2 --regression_test_folder=RegressionTestResults/PR_GlaucomaCV'
+        value: '--num_epochs=2 --regression_test_folder=RegressionTestResults/PR_GlaucomaCV --log_level=DEBUG --pl_deterministic=True'
     pool:
       vmImage: 'ubuntu-18.04'
     steps:
@@ -182,7 +182,7 @@ jobs:
       - name: tag
         value: 'HelloContainerPR'
       - name: more_switches
-        value: '--num_nodes=2 --regression_test_folder=RegressionTestResults/PR_HelloContainer'
+        value: '--num_nodes=2 --regression_test_folder=RegressionTestResults/PR_HelloContainer --log_level=DEBUG --pl_deterministic=True'
     pool:
       vmImage: 'ubuntu-18.04'
     steps:
@@ -206,7 +206,7 @@ jobs:
       - name: tag
         value: 'LungPR'
       - name: more_switches
-        value: '--num_epochs=1 --feature_channels=16 --show_patch_sampling=0 --train_batch_size=4 --inference_on_val_set=False --inference_on_test_set=False '
+        value: '--num_epochs=1 --feature_channels=16 --show_patch_sampling=0 --train_batch_size=4 --inference_on_val_set=False --inference_on_test_set=False  --log_level=DEBUG --pl_deterministic=True'
     pool:
       vmImage: 'ubuntu-18.04'
     steps:

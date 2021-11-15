@@ -11,7 +11,7 @@ from typing import Any, List, Optional, Sequence, Tuple, Union
 import numpy as np
 import torch
 from torch.utils.hooks import RemovableHandle
-from torchprof.profile import Profile
+import torch.profiler as profiler
 
 from InnerEye.Common.common_util import logging_only_to_file
 from InnerEye.Common.fixed_paths import DEFAULT_MODEL_SUMMARIES_DIR_PATH
@@ -188,12 +188,15 @@ class ModelSummary:
 
         # Register the forward-pass hooks, profile the model, and restore its state
         self.model.apply(self._register_hook)
-        with Profile(self.model, use_cuda=self.use_gpu) as prof:
+        activities = [profiler.ProfilerActivity.CPU]
+        if self.use_gpu:
+            activities.append(profiler.ProfilerActivity.CUDA)
+        with profiler.profile(activities=activities, record_shapes=True) as prof:
             forward_preserve_state(self.model, input_tensors)  # type: ignore
 
         # Log the model summary: tensor shapes, num of parameters, memory requirement, and forward pass time
         logging.info(self.model)
-        logging.info('\n' + prof.display(show_events=False))
+        logging.info('\n' + prof.key_averages().table())
         print_summary()
 
         # Remove the hooks via handles
