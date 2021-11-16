@@ -3,13 +3,13 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
+import torch
 from abc import ABC
 from typing import List, Tuple
 
-import torch
-
-from InnerEye.Common.common_util import logging_to_stdout
+from InnerEye.Common.common_util import logging_to_stdout, change_working_directory
 from InnerEye.Common.fixed_paths import DEFAULT_MODEL_SUMMARIES_DIR_PATH
+from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.configs.classification.GlaucomaPublic import GlaucomaPublic
 from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel, CropSizeConstraints
 from InnerEye.ML.models.architectures.classification.image_encoder_with_mlp import ImageEncoderWithMlp, \
@@ -79,19 +79,19 @@ def test_model_summary_on_classification2() -> None:
     assert summarizer.n_trainable_params != 0
 
 
-def test_log_model_summary_to_file() -> None:
+def test_log_model_summary_to_file(test_output_dirs: OutputFolderForTests) -> None:
     model = MyFavModel()
     input_size = (16, 16, 32)
-    expected_log_file = DEFAULT_MODEL_SUMMARIES_DIR_PATH / "model_log001.txt"
-    if expected_log_file.exists():
+    with change_working_directory(test_output_dirs.root_dir):
+        expected_log_file = DEFAULT_MODEL_SUMMARIES_DIR_PATH / "model_log001.txt"
+        if expected_log_file.exists():
+            expected_log_file.unlink()
+        model.generate_model_summary(input_size, log_summaries_to_files=True)
+        assert expected_log_file.exists()
+        assert len(expected_log_file.read_text().splitlines()) >= 3
         expected_log_file.unlink()
-    model.generate_model_summary(input_size, log_summaries_to_files=True)
-    assert expected_log_file.exists()
-    with expected_log_file.open() as inpt:
-        assert len(inpt.readlines()) >= 3
-    expected_log_file.unlink()
-    model.generate_model_summary(input_size, log_summaries_to_files=False)
-    assert not expected_log_file.exists()
+        model.generate_model_summary(input_size, log_summaries_to_files=False)
+        assert not expected_log_file.exists()
 
 
 class MyFavModel(BaseSegmentationModel, ABC):
