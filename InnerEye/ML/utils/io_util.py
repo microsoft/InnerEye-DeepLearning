@@ -12,7 +12,6 @@ from typing import Dict, Generic, Iterable, List, Optional, Tuple, Type, TypeVar
 
 import SimpleITK as sitk
 import h5py
-import matplotlib.image as mpimg
 import numpy as np
 import pandas as pd
 import PIL.PngImagePlugin
