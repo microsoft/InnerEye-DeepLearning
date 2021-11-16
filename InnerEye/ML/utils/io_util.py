@@ -15,6 +15,7 @@ import h5py
 import matplotlib.image as mpimg
 import numpy as np
 import pandas as pd
+import PIL.PngImagePlugin
 import pydicom as dicom
 import torch
 from numpy.lib.npyio import NpzFile
@@ -496,15 +497,8 @@ def load_image(path: PathOrString, image_type: Optional[Type] = float) -> ImageW
             header = get_unit_image_header()
             return ImageWithHeader(image, header)
     elif is_png(path):
-        # https://matplotlib.org/stable/api/image_api.html#matplotlib.image.imread
-        # numpy_array is a numpy.array of shape: (H, W), (H, W, 3), or (H, W, 4)
-        # where H = height, W = width
-        nd = mpimg.imread(path)
-        if len(nd.shape) == 2:
-            # if loaded a greyscale image, then it is of shape (H, W) so add in an extra axis
-            nd = np.expand_dims(nd, 2)
-        # transpose to shape (C, H, W)
-        image = np.transpose(nd, (2, 0, 1))
+        with PIL.PngImagePlugin.PngImageFile(path) as pil_png:
+            image = np.asarray(pil_png, np.float)
         header = get_unit_image_header()
         return ImageWithHeader(image, header)
     raise ValueError(f"Invalid file type {path}")
