@@ -531,8 +531,8 @@ def test_add_foreground_dice() -> None:
 def test_dataframe_logger() -> None:
     fixed_columns = {"cross_validation_split_index": 1}
     records = [
-        {"bar": math.pi, MetricType.LEARNING_RATE.value: 1e-5, MetricType.SECONDS_PER_EPOCH.value: 123.123456},
-        {"bar": math.pi, MetricType.LEARNING_RATE.value: 1, MetricType.SECONDS_PER_EPOCH.value: 123.123456},
+        {"bar": math.pi, MetricType.LEARNING_RATE.value: 1e-5},
+        {"bar": math.pi, MetricType.LEARNING_RATE.value: 1},
     ]
     out_buffer = StringIO()
     df = DataframeLogger(csv_path=out_buffer, fixed_columns=fixed_columns)
@@ -540,6 +540,6 @@ def test_dataframe_logger() -> None:
         df.add_record(r)
     df.flush()
     assert out_buffer.getvalue().splitlines() == [
-        'bar,LearningRate,SecondsPerEpoch,cross_validation_split_index',
-        '3.141593,1.000000e-05,123.12,1',
-        '3.141593,1.000000e+00,123.12,1']
+        'bar,LearningRate,cross_validation_split_index',
+        '3.141593,1.000000e-05,1',
+        '3.141593,1.000000e+00,1']

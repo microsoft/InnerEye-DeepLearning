@@ -818,8 +818,6 @@ class DataframeLogger:
         df = pd.DataFrame.from_records(self.records, columns=columns)
         special_formatting = {
             MetricType.LEARNING_RATE.value: ".6e",
-            MetricType.SECONDS_PER_EPOCH.value: ".2f",
-            MetricType.SECONDS_PER_BATCH.value: ".2f",
         }
         for column, column_format in special_formatting.items():
             if column in df:

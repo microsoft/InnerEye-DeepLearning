@@ -506,7 +506,6 @@ def test_model_inference_on_single_run(test_output_dirs: OutputFolderForTests) -
     azure_config.train = False
     ml_runner = MLRunner(container=container, azure_config=azure_config, project_root=test_output_dirs.root_dir)
     ml_runner.setup()
-    ml_runner.start_logging_to_file()
     ml_runner.run()
 
     inference_files = [container.outputs_folder / file for file in files_to_check]

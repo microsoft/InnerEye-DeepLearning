@@ -3,7 +3,6 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
-import numbers
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
@@ -20,21 +19,23 @@ from InnerEye.Common.metrics_constants import LoggingColumns, MetricType, TRAIN_
 from InnerEye.Common.type_annotations import DictStrFloat
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
+from InnerEye.ML.dataset.full_image_dataset import convert_channels_to_file_paths
 from InnerEye.ML.deep_learning_config import DatasetParams, DeepLearningConfig, OutputParams, TrainerParams, \
     WorkflowParams
 from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.lightning_loggers import StoringLogger
-from InnerEye.ML.metrics import EpochTimers, MAX_ITEM_LOAD_TIME_SEC, store_epoch_metrics
+from InnerEye.ML.metrics import store_epoch_metrics
 from InnerEye.ML.metrics_dict import DataframeLogger
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.utils import model_util
+from InnerEye.ML.utils.csv_util import CSV_SUBJECT_HEADER
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot, set_random_seed, validate_dataset_paths
 from InnerEye.ML.utils.model_util import generate_and_print_model_summary
 from InnerEye.ML.visualizers.patch_sampling import visualize_random_crops_for_dataset
-from InnerEye.ML.utils.csv_util import CSV_SUBJECT_HEADER
-from InnerEye.ML.dataset.full_image_dataset import convert_channels_to_file_paths
+from health_ml.utils import log_on_epoch
+
 
 class TrainAndValDataLightning(LightningDataModule):
     """
@@ -220,9 +221,6 @@ class InnerEyeLightning(LightningModule):
         self.l_rate_scheduler: Optional[_LRScheduler] = None
         self.cross_validation_split_index = config.cross_validation_split_index
         self.effective_random_seed = config.get_effective_random_seed()
-        # Timers for monitoring data loading time
-        self.train_timers = EpochTimers()
-        self.val_timers = EpochTimers()
         # This should be re-assigned on the outside, to a logger that is hooked up with the Trainer object.
         self.storing_logger = StoringLogger()
         # This will be initialized correctly in epoch_start
@@ -260,14 +258,11 @@ class InnerEyeLightning(LightningModule):
         assert isinstance(self.trainer, Trainer)
         return self.trainer.accelerator_connector.use_ddp
 
-    def on_train_epoch_start(self) -> None:
-        self.train_timers.reset()
-
     def training_epoch_end(self, outputs: List[Any]) -> None:
         # Write out all the metrics that have been accumulated in the StoringLogger in the previous epoch.
         # Metrics for the very last epoch are written in on_train_end
         self.read_epoch_results_from_logger_and_store(epoch=self.current_epoch - 1)
-        self.training_or_validation_epoch_end(is_training=True)
+        self.training_or_validation_epoch_end(is_training=True)  # type: ignore
 
     def on_validation_epoch_start(self) -> None:
         """
@@ -275,19 +270,12 @@ class InnerEyeLightning(LightningModule):
         that any randomization when loading validation data is consistent during training. In particular, this ensures
         that drawing random patches for segmentation model training is giving a validation set that does not fluctuate.
         """
-        self.val_timers.reset()
-        # In Lightning, the validation epoch is running "inside" the training. If we get here, it means that training
-        # is done for this epoch, even though the on_training_epoch hook has not yet been called.
-        self.train_timers.epoch_end()
         # Store the random number generator state, so that the next training epoch starts from here.
         self.random_state = RandomStateSnapshot.snapshot_random_state()
         # reset the random state for validation, so that we get consistent behaviour when drawing random patches
         # when validating segmentation models.
         seed = self.effective_random_seed
         set_random_seed(seed, "Validation")
-
-    def on_validation_epoch_end(self) -> None:
-        self.val_timers.epoch_end()
 
     def validation_epoch_end(self, outputs: List[Any]) -> None:
         """
@@ -297,7 +285,7 @@ class InnerEyeLightning(LightningModule):
         # reset the random state for training, so that we get continue from where we were before the validation step.
         assert self.random_state is not None
         self.random_state.restore_random_state()
-        self.training_or_validation_epoch_end(is_training=False)
+        self.training_or_validation_epoch_end(is_training=False)  # type: ignore
 
     @rank_zero_only
     def on_train_end(self) -> None:
@@ -314,49 +302,10 @@ class InnerEyeLightning(LightningModule):
         Training and Validation metrics.
         """
         if epoch >= 0:
-            if epoch in self.storing_logger.results:
+            if epoch in self.storing_logger.results_per_epoch:
                 for is_training, prefix in [(True, TRAIN_PREFIX), (False, VALIDATION_PREFIX)]:
                     metrics = self.storing_logger.extract_by_prefix(epoch, prefix)
                     self.store_epoch_results(metrics, epoch, is_training)
-
-    @rank_zero_only
-    def training_or_validation_epoch_end(self, is_training: bool) -> None:
-        """
-        This is a hook called at the end of a training or validation epoch. In here, we can still write
-        metrics to a logger.
-        :param is_training: If True, this is called at the end of a training epoch. If False, this is at the
-        end of a validation epoch.
-        """
-        if not is_training:
-            # In validation epochs, mark that it has been completed. Training epochs are marked completed already
-            # at the start of the validation epoch.
-            self.val_timers.epoch_end()
-            # Write all IO stats here, so that the order on the console is Train start, train end, val start, val end.
-            self.write_and_log_epoch_time(is_training=True)
-            self.write_and_log_epoch_time(is_training=False)
-
-    def write_and_log_epoch_time(self, is_training: bool) -> None:
-        """
-        Reads the IO timers for either the training or validation epoch, writes them to the console, and logs the
-        time per epoch.
-        :param is_training: If True, show and log the data for the training epoch. If False, use the data for the
-        validation epoch.
-        """
-        timers = self.get_timers(is_training=is_training)
-        epoch_time_seconds = timers.total_epoch_time
-        status = "training" if is_training else "validation"
-        logging.info(f"Epoch {self.current_epoch} {status} took {epoch_time_seconds:0.2f}sec, of which waiting for "
-                     f"data took {timers.total_load_time:0.2f} sec total.")
-        if timers.num_load_time_exceeded > 0 and timers.should_warn_in_this_epoch:
-            logging.warning("The dataloaders were not fast enough to always supply the next batch in less than "
-                            f"{MAX_ITEM_LOAD_TIME_SEC}sec.")
-            logging.warning(
-                f"In this epoch, {timers.num_load_time_exceeded} out of {timers.num_batches} batches exceeded the load "
-                f"time threshold. Total loading time for the slow batches was {timers.total_extra_load_time:0.2f}sec.")
-        # This metric is only written at rank zero, and hence must no be synchronized across workers. If attempted,
-        # training will get stuck.
-        self.log_on_epoch(MetricType.SECONDS_PER_EPOCH, epoch_time_seconds, is_training=is_training,
-                          sync_dist_override=False)
 
     def log_on_epoch(self,
                      name: Union[MetricType, str],
@@ -375,20 +324,19 @@ class InnerEyeLightning(LightningModule):
         :param name: The name of the metric to log
         :param value: The value of the metric. This can be a tensor, floating point value, or a Metric class.
         :param is_training: If true, give the metric a "train/" prefix, otherwise a "val/" prefix.
-        :param reduce_fx: The reduce function to apply after synchronizing the tensors across GPUs.
+        :param reduce_fx: The reduce function to apply to step values. Default: torch.mean
         :param sync_dist_op: The reduce operation to use when synchronizing the tensors across GPUs. This must be
         a value recognized by sync_ddp: Either 'None' to use 'sum' as aggregate, or 'mean' or 'avg'
         """
         metric_name = name if isinstance(name, str) else name.value
-        if isinstance(value, numbers.Number):
-            value = torch.tensor(value, dtype=torch.float, device=self.device)
         prefix = TRAIN_PREFIX if is_training else VALIDATION_PREFIX
         sync_dist = self.use_sync_dist if sync_dist_override is None else sync_dist_override
-        self.log(prefix + metric_name, value,
-                 sync_dist=sync_dist,
-                 on_step=False, on_epoch=True,
-                 reduce_fx=reduce_fx,
-                 sync_dist_op=sync_dist_op)
+        log_on_epoch(self,
+                     name=prefix + metric_name,
+                     value=value,
+                     sync_dist=sync_dist,
+                     reduce_fx=reduce_fx,
+                     sync_dist_op=sync_dist_op)
 
     def store_epoch_results(self, metrics: DictStrFloat, epoch: int, is_training: bool) -> None:
         """
@@ -414,18 +362,6 @@ class InnerEyeLightning(LightningModule):
             self.checkpoint_loading_message = f"Loading checkpoint that was created at ({', '.join(present_keys)})"
             logging.info(self.checkpoint_loading_message)
 
-    def on_train_batch_start(self, batch: Any, batch_idx: int, dataloader_idx: int) -> None:
-        self.batch_start(batch_idx=batch_idx, is_training=True)
-
-    def on_validation_batch_start(self, batch: Any, batch_idx: int, dataloader_idx: int) -> None:
-        self.batch_start(batch_idx=batch_idx, is_training=False)
-
-    def on_train_batch_end(self, outputs: Any, batch: Any, batch_idx: int, dataloader_idx: int) -> None:
-        self.batch_end(is_training=True)
-
-    def on_validation_batch_end(self, outputs: Any, batch: Any, batch_idx: int, dataloader_idx: int) -> None:
-        self.batch_end(is_training=False)
-
     def training_step(self,  # type: ignore
                       sample: Dict[str, Any],
                       batch_index: int) -> Any:
@@ -449,45 +385,6 @@ class InnerEyeLightning(LightningModule):
         `validation_step`.
         """
         raise NotImplementedError("This method must be overwritten in a derived class.")
-
-    @rank_zero_only
-    def batch_start(self, batch_idx: int, is_training: bool) -> None:
-        """
-        Shared code to keep track of IO-related metrics when loading a minibatch. This is only done on rank zero.
-        :param batch_idx: The index of the current minibatch.
-        :param is_training: If true, this has been called from `on_train_batch_start`, otherwise it has been called from
-        `on_validation_batch_start`.
-        :return:
-        """
-        timers = self.get_timers(is_training=is_training)
-        message_prefix = f"Epoch {self.current_epoch} {'training' if is_training else 'validation'}"
-        timers.batch_start(batch_index=batch_idx, epoch=self.current_epoch, message_prefix=message_prefix)
-
-    @rank_zero_only
-    def batch_end(self, is_training: bool) -> None:
-        """
-        Shared code to keep track of IO-related metrics when loading a minibatch.
-        :param is_training: If true, this has been called from `on_train_batch_end`, otherwise it has been called from
-        `on_validation_batch_end`.
-        """
-        timers = self.get_timers(is_training=is_training)
-        batch_time = timers.batch_end()
-        # This metric is only written at rank 0, and hence must not be synchronized. Trying to synchronize will
-        # block training.
-        self.log_on_epoch(MetricType.SECONDS_PER_BATCH, batch_time, is_training=is_training, sync_dist_override=False)
-
-    def get_timers(self, is_training: bool) -> EpochTimers:
-        """
-        Gets the object that holds all IO-related metrics and timers, for either the validation or the training epoch.
-        """
-        return self.train_timers if is_training else self.val_timers
-
-    def reset_timers(self) -> None:
-        """
-        Resets all timers and counters for IO-related metrics, for both the validation and the training epoch.
-        """
-        self.train_timers.reset()
-        self.val_timers.reset()
 
     def write_loss(self, is_training: bool, loss: torch.Tensor) -> None:
         """

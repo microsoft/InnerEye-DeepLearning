@@ -28,7 +28,8 @@ fixed_paths.add_submodules_to_path()
 from azureml._base_sdk_common import user_agent
 from azureml.core import Run, ScriptRunConfig
 from health_azure import AzureRunInfo, submit_to_azure_if_needed
-from health_azure.utils import create_run_recovery_id, merge_conda_files, to_azure_friendly_string
+from health_azure.utils import create_run_recovery_id, is_global_rank_zero, is_local_rank_zero, merge_conda_files, \
+    to_azure_friendly_string
 import matplotlib
 
 from InnerEye.Azure.tensorboard_monitor import AMLTensorBoardMonitorConfig, monitor
@@ -50,7 +51,6 @@ from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.lightning_base import InnerEyeContainer
 from InnerEye.ML.model_config_base import ModelConfigBase
-from InnerEye.ML.model_training import is_global_rank_zero, is_local_rank_zero
 from InnerEye.ML.run_ml import MLRunner, ModelDeploymentHookSignature, PostCrossValidationHookSignature
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.lightning_container import LightningContainer
@@ -134,6 +134,8 @@ class Runner:
         self.model_config: Optional[DeepLearningConfig] = None
         self.azure_config: AzureConfig = AzureConfig()
         self.lightning_container: LightningContainer = None  # type: ignore
+        # This field stores the MLRunner object that has been created in the most recent call to the run() method.
+        self.ml_runner: Optional[MLRunner] = None
 
     def parse_and_load_model(self) -> ParserResult:
         """
@@ -383,13 +385,9 @@ class Runner:
             # Set environment variables for multi-node training if needed. This function will terminate early
             # if it detects that it is not in a multi-node environment.
             set_environment_variables_for_multi_node()
-            ml_runner = self.create_ml_runner()
-            ml_runner.setup(azure_run_info)
-            ml_runner.start_logging_to_file()
-            try:
-                ml_runner.run()
-            finally:
-                disable_logging_to_file()
+            self.ml_runner = self.create_ml_runner()
+            self.ml_runner.setup(azure_run_info)
+            self.ml_runner.run()
 
     def create_ml_runner(self) -> MLRunner:
         """
