@@ -67,7 +67,8 @@ def test_create_ml_runner_args(is_container: bool,
                                                   run=None,
                                                   is_running_in_azure_ml=False,
                                                   output_folder=Path.cwd(),
-                                                  logs_folder=Path.cwd())
+                                                  logs_folder=Path.cwd(),
+                                                  mount_contexts=[])
                     runner.run_in_situ(azure_run_info)
                     azure_config = runner.azure_config
                     container_or_legacy_config = runner.lightning_container if is_container else runner.model_config
