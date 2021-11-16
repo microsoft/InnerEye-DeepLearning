@@ -218,6 +218,11 @@ class LightningContainer(GenericConfig,
         """
         This method allows overriding AzureConfig parameters from within a LightningContainer.
         It is called right after the AzureConfig and container are initialised.
+        Be careful when using class parameters to override these values. If the parameter names clash,
+        CLI values will be consumed by the AzureConfig, but container parameters will keep their defaults.
+        This can be avoided by always using unique parameter names.
+        Also note that saving a reference to `azure_config` and updating its attributes at any other
+        point may lead to unexpected behaviour.
         :param azure_config: The initialised AzureConfig whose parameters to override in-place.
         """
         pass
