@@ -105,11 +105,11 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     train_config.check_exclusive = False
 
     if machine_has_gpu:
-        expected_train_losses = [0.4552919, 0.4548529]
-        expected_val_losses = [0.455389, 0.455306]
+        expected_train_losses = [0.4554231, 0.4550124]
+        expected_val_losses = [0.4553894, 0.4553061]
     else:
-        expected_train_losses = [0.4552919, 0.4548538]
-        expected_val_losses = [0.4553891, 0.4553060]
+        expected_train_losses = [0.4554231, 0.4550112]
+        expected_val_losses = [0.4553893, 0.4553061]
     loss_absolute_tolerance = 1e-6
     expected_learning_rates = [train_config.l_rate, 5.3589e-4]
 
@@ -154,7 +154,7 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     # and be the same across 'region' and 'region_1' because they derive from the same Nifti files.
     # The following values are read off directly from the results of compute_dice_across_patches in the training loop
     # This checks that averages are computed correctly, and that metric computers are reset after each epoch.
-    train_voxels = [[82860.0, 83212.0, 83087.0], [82831.0, 82900.0, 83212.0]]
+    train_voxels = [[82765.0, 83212.0, 82740.0], [82831.0, 82647.0, 83255.0]]
     val_voxels = [[82765.0, 83212.0], [82765.0, 83212.0]]
     _check_voxel_count(model_training_result.train_results_per_epoch(), _mean_list(train_voxels), "Train")
     _check_voxel_count(model_training_result.val_results_per_epoch(), _mean_list(val_voxels), "Val")
@@ -170,8 +170,8 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     # The following values are read off directly from the results of compute_dice_across_patches in the
     # training loop. Results are slightly different for GPU, hence use a larger tolerance there.
     dice_tolerance = 1e-3 if machine_has_gpu else 4.5e-4
-    train_dice_region = [[0.0, 0.0, 4.0282e-04], [0.0372, 0.0388, 0.1091]]
-    train_dice_region1 = [[0.4785, 0.4807, 0.4834], [0.4832, 0.4800, 0.4628]]
+    train_dice_region = [[0.0, 0.0, 0.0], [0.0376, 0.0343, 0.1017]]
+    train_dice_region1 = [[0.4845, 0.4814, 0.4829], [0.4822, 0.4747, 0.4426]]
     # There appears to be some amount of non-determinism here: When using a tolerance of 1e-4, we get occasional
     # test failures on Linux in the cloud (not on Windows, not on AzureML) Unclear where it comes from. Even when
     # failing here, the losses match up to the expected tolerance.
