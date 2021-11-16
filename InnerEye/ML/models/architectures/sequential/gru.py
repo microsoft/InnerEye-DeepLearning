@@ -37,10 +37,8 @@ class LayerNormGRUCell(RNNCellBase):
         self.ln_n = nn.LayerNorm(self.hidden_size) if use_layer_norm else Identity()
 
     def forward(self, input: torch.Tensor, hx: Optional[torch.Tensor] = None) -> torch.Tensor:  # type: ignore
-        self.check_forward_input(input)  # type: ignore
         if hx is None:
             hx = input.new_zeros(size=(input.size(0), self.hidden_size), requires_grad=False)
-        self.check_forward_hidden(input, hx)  # type: ignore
 
         ih = input.mm(self.weight_ih.t())
         hh = hx.mm(self.weight_hh.t())
