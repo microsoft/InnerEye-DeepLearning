@@ -53,6 +53,7 @@ gets uploaded to AzureML, by skipping all test folders.
 - ([#572](https://github.com/microsoft/InnerEye-DeepLearning/pull/572)) Updated to new version of hi-ml package
 
 ### Fixed
+- ([#587](https://github.com/microsoft/InnerEye-DeepLearning/pull/587)) Bug fix for regression in AzureML's handling of environments: upgrade to hi-ml 0.1.11
 - ([#537](https://github.com/microsoft/InnerEye-DeepLearning/pull/537)) Print warning if inference is disabled but comparison requested.
 - ([#567](https://github.com/microsoft/InnerEye-DeepLearning/pull/567)) fix pillow version.
 - ([#546](https://github.com/microsoft/InnerEye-DeepLearning/pull/546)) Environment and hello_world_model documentation updated
