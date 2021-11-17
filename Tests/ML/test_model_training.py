@@ -9,7 +9,7 @@ import os
 import pandas as pd
 import pytest
 import shutil
-from health_ml.utils import BatchTimeCallback
+
 from pathlib import Path
 from torch.utils.data import DataLoader
 from typing import Any, Dict, List
@@ -17,7 +17,7 @@ from typing import Any, Dict, List
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, is_windows, logging_to_stdout
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
-from InnerEye.Common.metrics_constants import MetricType, TRAIN_PREFIX, TrackedMetrics, VALIDATION_PREFIX
+from InnerEye.Common.metrics_constants import MetricType, TrackedMetrics, VALIDATION_PREFIX
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, CHECKPOINT_SUFFIX, DATASET_CSV_FILE_NAME, \
     ModelExecutionMode, \
