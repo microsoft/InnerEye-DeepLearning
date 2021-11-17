@@ -14,6 +14,8 @@ from typing import Optional, Tuple
 # flake8: noqa
 # Workaround for an issue with how AzureML and Pytorch Lightning interact: When spawning additional processes for DDP,
 # the working directory is not correctly picked up in sys.path
+from azureml._restclient.constants import RunStatus
+
 print(f"Starting InnerEye runner at {sys.argv[0]}")
 innereye_root = Path(__file__).absolute().parent.parent.parent
 if (innereye_root / "InnerEye").is_dir():
@@ -269,15 +271,18 @@ class Runner:
                       f"InnerEye/Azure/tensorboard_monitor.py --run_ids={azure_run.id}")
 
             if self.azure_config.wait_for_completion:
-                # We want the job output to be visible on the console, but the program should not exit if the
-                # job fails because we need to download the pytest result file.
-                azure_run.wait_for_completion(show_output=True, raise_on_error=True)
+                # We want the job output to be visible on the console. Do not exit yet if the job fails, because we
+                # may need to download the pytest result file.
+                azure_run.wait_for_completion(show_output=True, raise_on_error=False)
                 if self.azure_config.pytest_mark:
                     # The AzureML job can optionally run pytest. Attempt to download it to the current directory.
                     # A build step will pick up that file and publish it to Azure DevOps.
                     # If pytest_mark is set, this file must exist.
                     logging.info("Downloading pytest result file.")
                     download_pytest_result(azure_run)
+                if azure_run.status == RunStatus.FAILED:
+                    raise ValueError(f"The AzureML run failed. Please check this URL for details: "
+                                     f"{azure_run.portal_url}")
 
         hyperdrive_config = None
         if self.azure_config.hyperdrive:
