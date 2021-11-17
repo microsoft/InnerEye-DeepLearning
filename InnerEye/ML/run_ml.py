@@ -801,7 +801,9 @@ class MLRunner:
 
     def are_sibling_runs_finished(self) -> bool:
         """
-        Checks if all child runs (except the current run) of the current run's parent are completed or failed.
+        Checks if all child runs (except the current run) of the current run's parent are completed, failed,
+        or cancelled.
+
         :return: True if all sibling runs of the current run have finished (they either completed successfully,
         or failed). False if any of them is still pending (running or queued).
         """
@@ -812,7 +814,7 @@ class MLRunner:
                                                      expected_number_cross_validation_splits=n_splits)
             pending_runs = [x.id for x in child_runs
                             if (x.id != RUN_CONTEXT.id)
-                            and (x.get_status() not in [RunStatus.COMPLETED, RunStatus.FAILED])]
+                            and (x.get_status() not in [RunStatus.COMPLETED, RunStatus.FAILED, RunStatus.CANCELED])]
             all_runs_finished = len(pending_runs) == 0
             if not all_runs_finished:
                 logging.info(f"Waiting for sibling run(s) to finish: {pending_runs}")
