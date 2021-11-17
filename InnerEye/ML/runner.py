@@ -45,7 +45,7 @@ from InnerEye.Azure.azure_util import (RUN_CONTEXT, RUN_RECOVERY_ID_KEY_NAME, ge
                                        is_offline_run_context)
 from InnerEye.Azure.run_pytest import download_pytest_result, run_pytest
 from InnerEye.Common.common_util import (FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE,
-                                         disable_logging_to_file, is_linux, logging_to_stdout)
+                                         is_linux, logging_to_stdout)
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
@@ -117,7 +117,6 @@ class Runner:
     :param model_deployment_hook: an optional function for deploying a model in an application-specific way.
     If present, it should take a model config (SegmentationModelBase), an AzureConfig, and an AzureML
     Model as arguments, and return an optional Path and a further object of any type.
-    :param command_line_args: command-line arguments to use; if None, use sys.argv.
     """
 
     def __init__(self,
@@ -226,6 +225,8 @@ class Runner:
                 and not self.lightning_container.azure_dataset_id:
             raise ValueError("When running an InnerEye built-in model in AzureML, the 'azure_dataset_id' "
                              "property must be set.")
+        # https://docs.nvidia.com/cuda/cublas/index.html#cublasApi_reproducibility
+        env_variables = {"CUBLAS_WORKSPACE_CONFIG": ":4096:8"} if self.lightning_container.pl_deterministic else {}
         source_config = SourceConfig(
             root_folder=self.project_root,
             entry_script=Path(sys.argv[0]).resolve(),
@@ -234,7 +235,8 @@ class Runner:
             hyperdrive_config_func=(self.model_config.get_hyperdrive_config if self.model_config
                                     else self.lightning_container.get_hyperdrive_config),
             # For large jobs, upload of results can time out because of large checkpoint files. Default is 600
-            upload_timeout_seconds=86400
+            upload_timeout_seconds=86400,
+            environment_variables=env_variables
         )
         # Reduce the size of the snapshot by adding unused folders to amlignore. The Test* subfolders are only needed
         # when running pytest.
@@ -322,12 +324,12 @@ class Runner:
                         commandline_args=" ".join(source_config.script_params)),
                     after_submission=after_submission_hook,
                     hyperdrive_config=hyperdrive_config)
+                if self.azure_config.tag:
+                    azure_run_info.run.display_name = self.azure_config.tag
             else:
-                # compute_cluster_name is a required parameter in early versions of the HI-ML package
                 azure_run_info = submit_to_azure_if_needed(
                     input_datasets=input_datasets,
-                    submit_to_azureml=False,
-                    compute_cluster_name="")
+                    submit_to_azureml=False)
         finally:
             if temp_conda:
                 temp_conda.unlink()

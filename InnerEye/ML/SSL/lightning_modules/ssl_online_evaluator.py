@@ -9,11 +9,11 @@ import pytorch_lightning as pl
 import torch
 from pl_bolts.callbacks.ssl_online import SSLOnlineEvaluator
 from pl_bolts.models.self_supervised.evaluator import SSLEvaluator
-from torchmetrics import Metric
 from torch import Tensor as T
 from torch.nn import functional as F
+from torchmetrics import Metric
 
-from InnerEye.ML.SSL.utils import SSLDataModuleType
+from InnerEye.ML.SSL.utils import SSLDataModuleType, add_submodules_to_same_device
 from InnerEye.ML.lightning_metrics import Accuracy05, AreaUnderPrecisionRecallCurve, AreaUnderRocCurve
 
 BatchType = Union[Dict[SSLDataModuleType, Any], Any]
@@ -48,8 +48,8 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
         """
         Initializes modules and moves metrics and class weights to module device
         """
-        for metric in [*self.train_metrics, *self.val_metrics]:
-            metric.to(device=pl_module.device)  # type: ignore
+        for prefix, metrics in [("train", self.train_metrics), ("val", self.val_metrics)]:
+            add_submodules_to_same_device(pl_module, metrics, prefix=prefix)
 
         pl_module.non_linear_evaluator = SSLEvaluator(n_input=self.z_dim,
                                                       n_classes=self.num_classes,
@@ -118,7 +118,7 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
                 pl_module.log(f"ssl_online_evaluator/val/{metric.name}", metric, on_epoch=True,
                               on_step=False)  # type: ignore
 
-    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx) -> None:  # type: ignore
+    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx) -> None:  # type: ignore
         """
         Get and log training metrics, perform network update.
         """

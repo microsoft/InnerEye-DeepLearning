@@ -255,6 +255,10 @@ class WorkflowParams(param.Parameterized):
                                 "folder, and their contents must match exactly. When running in AzureML, you need to "
                                 "ensure that this folder is part of the snapshot that gets uploaded. The path should "
                                 "be relative to the repository root directory.")
+    regression_test_csv_tolerance: float = \
+        param.Number(default=0.0, allow_None=False,
+                     doc="When comparing CSV files during regression tests, use this value as the maximum allowed "
+                         "relative difference of actual and expected results. Default: 0.0 (must match exactly)")
 
     def validate(self) -> None:
         if sum([bool(param) for param in [self.weights_url, self.local_weights_path, self.model_id]]) > 1:
@@ -593,7 +597,7 @@ class TrainerParams(param.Parameterized):
     monitor_gpu: bool = param.Boolean(default=False,
                                       doc="If True, add the GPUStatsMonitor callback to the Lightning trainer object. "
                                           "This will write GPU utilization metrics every 50 batches by default.")
-    monitor_loading: bool = param.Boolean(default=True,
+    monitor_loading: bool = param.Boolean(default=False,
                                           doc="If True, add the BatchTimeCallback callback to the Lightning trainer "
                                               "object. This will monitor how long individual batches take to load.")
     pl_profiler: Optional[str] = \
