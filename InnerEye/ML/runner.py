@@ -189,6 +189,10 @@ class Runner:
             self.lightning_container = InnerEyeContainer(config_or_container)
         else:
             raise ValueError(f"Don't know how to handle a loaded configuration of type {type(config_or_container)}")
+
+        # Allow overriding AzureConfig params from within the container.
+        self.lightning_container.update_azure_config(self.azure_config)
+
         if azure_config.extra_code_directory:
             exist = "exists" if Path(azure_config.extra_code_directory).exists() else "does not exist"
             logging.info(f"extra_code_directory is {azure_config.extra_code_directory}, which {exist}")
