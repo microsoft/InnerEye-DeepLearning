@@ -156,14 +156,14 @@ def create_lightning_trainer(container: LightningContainer,
         callbacks.append(AzureMLProgressBar(refresh_rate=progress_bar_refresh_rate,
                                             write_to_logging_info=True,
                                             print_timestamp=False))
-    # Read out additional model-specific args here.
-    # We probably want to keep essential ones like numgpu and logging.
     trainer = Trainer(default_root_dir=str(container.outputs_folder),
                       deterministic=deterministic,
                       benchmark=benchmark,
                       accelerator=accelerator,
                       plugins=plugins,
                       max_epochs=container.num_epochs,
+                      # Both these arguments can be integers or floats. If integers, it is the number of batches.
+                      # If float, it's the fraction of batches. We default to 1.0 (processing all batches).
                       limit_train_batches=container.pl_limit_train_batches or 1.0,
                       limit_val_batches=container.pl_limit_val_batches or 1.0,
                       num_sanity_val_steps=container.pl_num_sanity_val_steps,

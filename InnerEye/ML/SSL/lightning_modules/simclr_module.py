@@ -10,7 +10,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from health_ml.utils import log_learning_rate, log_on_epoch
 from pl_bolts.models.self_supervised.simclr.simclr_module import SimCLR
-from torch import Tensor as T
 
 from InnerEye.ML.SSL.encoders import SSLEncoder
 from InnerEye.ML.SSL.utils import SSLDataModuleType
@@ -64,12 +63,12 @@ class SimCLRInnerEye(SimCLR):
         log_learning_rate(self, name="simclr/learning_rate")
         return loss
 
-    def validation_step(self, batch: BatchType, batch_idx: int) -> T:  # type: ignore
+    def validation_step(self, batch: BatchType, batch_idx: int) -> torch.Tensor:  # type: ignore
         loss = self.shared_step(batch)
         log_on_epoch(self, "simclr/val/loss", loss, sync_dist=False)
         return loss
 
-    def shared_step(self, batch: BatchType) -> T:
+    def shared_step(self, batch: BatchType) -> torch.Tensor:
         batch = batch[SSLDataModuleType.ENCODER] if isinstance(batch, dict) else batch
 
         (img1, img2), y = batch

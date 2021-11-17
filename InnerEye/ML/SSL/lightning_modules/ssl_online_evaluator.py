@@ -127,16 +127,20 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
                                 dataloader_idx: int) -> None:  # type: ignore
         """
         Get and log validation metrics.
+        Metrics are computed only if the sample IDs in the batch have not yet been seen in this epoch (linear head
+        data may be repeated if the SSL data is longer than the linear head data).
         """
         ids_linear_head = tuple(batch[SSLDataModuleType.LINEAR_HEAD][0].tolist())
         if ids_linear_head not in self.visited_ids:
             self.visited_ids.add(ids_linear_head)
+            # Put the online evaluator into "eval" mode
             old_mode = self.non_linear_evaluator.training
             self.non_linear_evaluator.eval()
             loss = self.shared_step(batch, pl_module, is_training=False)
             log_on_epoch(pl_module, 'ssl_online_evaluator/val/loss', loss)
             for metric in self.val_metrics:
                 log_on_epoch(pl_module, f"ssl_online_evaluator/val/{metric.name}", metric)
+            # Put the online evaluator back into the state (eval or train) that it was before calling this method
             self.non_linear_evaluator.train(old_mode)
 
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx) -> None:  # type: ignore
