@@ -243,9 +243,12 @@ class InnerEyeLightning(LightningModule):
     def configure_optimizers(self) -> Tuple[List[Optimizer], List[_LRScheduler]]:
         return [self.optimizer], [self.l_rate_scheduler]  # type: ignore
 
+    @rank_zero_only
     def on_fit_end(self) -> None:
         """
-        Flushes all logger objects that the present object holds.
+        Flushes all logger objects that the present object holds. This should only be run on rank zero, because
+        otherwise ranks != 0 will create empty log files that can clash with the non-empty log files written on
+        rank 0.
         """
         self.train_epoch_metrics_logger.flush()
         self.val_epoch_metrics_logger.flush()
