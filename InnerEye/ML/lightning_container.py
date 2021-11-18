@@ -13,6 +13,7 @@ from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 from azureml.core import ScriptRunConfig
 from azureml.train.hyperdrive import GridParameterSampling, HyperDriveConfig, PrimaryMetricGoal, choice
+from InnerEye.Azure.azure_config import AzureConfig
 
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY
 from InnerEye.Common.generic_parsing import GenericConfig, create_from_matching_params
@@ -212,6 +213,19 @@ class LightningContainer(GenericConfig,
         Parameter search is not implemented. It should be implemented in a sub class if needed.
         """
         raise NotImplementedError("Parameter search is not implemented. It should be implemented in a sub class if needed.")
+
+    def update_azure_config(self, azure_config: AzureConfig) -> None:
+        """
+        This method allows overriding AzureConfig parameters from within a LightningContainer.
+        It is called right after the AzureConfig and container are initialised.
+        Be careful when using class parameters to override these values. If the parameter names clash,
+        CLI values will be consumed by the AzureConfig, but container parameters will keep their defaults.
+        This can be avoided by always using unique parameter names.
+        Also note that saving a reference to `azure_config` and updating its attributes at any other
+        point may lead to unexpected behaviour.
+        :param azure_config: The initialised AzureConfig whose parameters to override in-place.
+        """
+        pass
 
     def create_report(self) -> None:
         """
