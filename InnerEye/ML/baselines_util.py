@@ -203,14 +203,14 @@ def compare_files(expected: Path, actual: Path, csv_relative_tolerance: float = 
 
     def print_lines(prefix: str, lines: List[str]) -> None:
         count = 5
-        logging.debug(f"{prefix} {len(lines)} lines, first {count} of those:")
-        logging.debug(os.linesep.join(lines[:count]))
+        logging.info(f"{prefix} {len(lines)} lines, first {count} of those:")
+        logging.info(os.linesep.join(lines[:count]))
 
     def try_read_csv(prefix: str, file: Path) -> Optional[pd.DataFrame]:
         try:
             return pd.read_csv(file)
         except Exception as ex:
-            logging.debug(f"{prefix} file can't be read as CSV: {str(ex)}")
+            logging.info(f"{prefix} file can't be read as CSV: {str(ex)}")
             return None
 
     if expected.suffix == CSV_SUFFIX:
@@ -221,7 +221,7 @@ def compare_files(expected: Path, actual: Path, csv_relative_tolerance: float = 
         try:
             pd.testing.assert_frame_equal(actual_df, expected_df, rtol=csv_relative_tolerance)
         except Exception as ex:
-            logging.debug(str(ex))
+            logging.info(str(ex))
             return CONTENTS_MISMATCH
     elif expected.suffix in TEXT_FILE_SUFFIXES:
         # Compare line-by-line to avoid issues with line separators
@@ -235,7 +235,7 @@ def compare_files(expected: Path, actual: Path, csv_relative_tolerance: float = 
         expected_binary = expected.read_bytes()
         actual_binary = actual.read_bytes()
         if expected_binary != actual_binary:
-            logging.debug(f"Expected {len(expected_binary)} bytes, actual {len(actual_binary)} bytes")
+            logging.info(f"Expected {len(expected_binary)} bytes, actual {len(actual_binary)} bytes")
             return CONTENTS_MISMATCH
     return ""
 
