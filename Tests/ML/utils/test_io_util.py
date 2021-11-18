@@ -709,10 +709,9 @@ def test_load_png_images(test_output_dirs: OutputFolderForTests) -> None:
         assert scipy_image.dtype == np.float  # type: ignore
         assert np.array_equal(data, scipy_image)
 
-        with PIL.PngImagePlugin.PngImageFile(path) as pil_png:
-            pil_image = np.asarray(pil_png, np.float)
-        assert pil_image.dtype == np.float  # type: ignore
-        assert np.array_equal(data, pil_image)
+        image_with_header = io_util.load_image(path)
+        assert image_with_header.image.dtype == np.float  # type: ignore
+        assert np.array_equal(data, image_with_header.image)
 
     data_l = np.random.randint(2**8, size=(300, 200), dtype=np.uint8)
     save_and_reload_image(data_l, 'L')
