@@ -13,7 +13,8 @@ from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, logging_to_stdo
 from InnerEye.Common.fixed_paths import MODEL_INFERENCE_JSON_FILE_NAME
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import baselines_util
-from InnerEye.ML.baselines_util import REGRESSION_TEST_AZUREML_FOLDER, REGRESSION_TEST_AZUREML_PARENT_FOLDER, \
+from InnerEye.ML.baselines_util import FILE_FORMAT_ERROR, REGRESSION_TEST_AZUREML_FOLDER, \
+    REGRESSION_TEST_AZUREML_PARENT_FOLDER, \
     REGRESSION_TEST_OUTPUT_FOLDER, compare_files, compare_folder_contents, compare_folders_and_run_outputs
 from InnerEye.ML.deep_learning_config import FINAL_MODEL_FOLDER
 from InnerEye.ML.run_ml import MLRunner
@@ -75,6 +76,26 @@ def test_compare_files_csv(test_output_dirs: OutputFolderForTests) -> None:
     assert compare_files(expected=expected, actual=actual, csv_relative_tolerance=2e-4) == ""
     assert compare_files(expected=expected, actual=actual,
                          csv_relative_tolerance=9e-5) == baselines_util.CONTENTS_MISMATCH
+
+
+def test_compare_files_empty_csv(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    If either of the two CSV files is empty, it should not raise an error, but exit gracefully.
+    """
+    expected = test_output_dirs.root_dir / "expected.csv"
+    actual = test_output_dirs.root_dir / "actual.csv"
+    valid_csv = """foo,bar
+    1.0,10.0"""
+    empty_csv = ""
+    for expected_contents, actual_contents in [(empty_csv, empty_csv),
+                                               (valid_csv, empty_csv),
+                                               (empty_csv, valid_csv)]:
+        expected.write_text(expected_contents)
+        actual.write_text(actual_contents)
+        assert compare_files(expected=expected, actual=actual) == FILE_FORMAT_ERROR
+    expected.write_text(valid_csv)
+    actual.write_text(valid_csv)
+    assert compare_files(expected=expected, actual=actual) == ""
 
 
 @pytest.mark.parametrize("file_extension", [".png", ".whatever"])

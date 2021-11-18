@@ -286,7 +286,7 @@ class Runner:
                     download_pytest_result(azure_run)
                 if azure_run.status == RunStatus.FAILED:
                     raise ValueError(f"The AzureML run failed. Please check this URL for details: "
-                                     f"{azure_run.portal_url}")
+                                     f"{azure_run.get_portal_url()}")
 
         hyperdrive_config = None
         if self.azure_config.hyperdrive:

@@ -32,6 +32,7 @@ REGRESSION_TEST_OUTPUT_FOLDER = "OUTPUT"
 REGRESSION_TEST_AZUREML_FOLDER = "AZUREML_OUTPUT"
 REGRESSION_TEST_AZUREML_PARENT_FOLDER = "AZUREML_PARENT_OUTPUT"
 CONTENTS_MISMATCH = "Contents mismatch"
+FILE_FORMAT_ERROR = "File format error"
 MISSING_FILE = "Missing"
 CSV_SUFFIX = ".csv"
 TEXT_FILE_SUFFIXES = [".txt", ".json", ".html", ".md"]
@@ -205,9 +206,18 @@ def compare_files(expected: Path, actual: Path, csv_relative_tolerance: float = 
         logging.debug(f"{prefix} {len(lines)} lines, first {count} of those:")
         logging.debug(os.linesep.join(lines[:count]))
 
+    def try_read_csv(prefix: str, file: Path) -> Optional[pd.DataFrame]:
+        try:
+            return pd.read_csv(file)
+        except Exception as ex:
+            logging.debug(f"{prefix} file can't be read as CSV: {str(ex)}")
+            return None
+
     if expected.suffix == CSV_SUFFIX:
-        expected_df = pd.read_csv(expected)
-        actual_df = pd.read_csv(actual)
+        expected_df = try_read_csv("Expected", expected)
+        actual_df = try_read_csv("Actual", actual)
+        if expected_df is None or actual_df is None:
+            return FILE_FORMAT_ERROR
         try:
             pd.testing.assert_frame_equal(actual_df, expected_df, rtol=csv_relative_tolerance)
         except Exception as ex:
