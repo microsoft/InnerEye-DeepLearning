@@ -9,14 +9,18 @@ import pytorch_lightning as pl
 import torch
 from pl_bolts.callbacks.ssl_online import SSLOnlineEvaluator
 from pl_bolts.models.self_supervised.evaluator import SSLEvaluator
-from torchmetrics import Metric
 from torch import Tensor as T
+from health_ml.utils import log_on_epoch
 from torch.nn import functional as F
+from torchmetrics import Metric
 
 from InnerEye.ML.SSL.utils import SSLDataModuleType
 from InnerEye.ML.lightning_metrics import Accuracy05, AreaUnderPrecisionRecallCurve, AreaUnderRocCurve
 
 BatchType = Union[Dict[SSLDataModuleType, Any], Any]
+
+OPTIMIZER_STATE_NAME = "evaluator_optimizer"
+EVALUATOR_STATE_NAME = "evaluator_weights"
 
 
 class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
@@ -43,6 +47,30 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
                                           Accuracy05()] \
             if self.num_classes == 2 else [Accuracy05()]
         self.class_weights = class_weights
+        self.non_linear_evaluator = SSLEvaluator(n_input=self.z_dim,
+                                                 n_classes=self.num_classes,
+                                                 p=self.drop_p,
+                                                 n_hidden=self.hidden_dim)
+        self.optimizer = torch.optim.Adam(self.non_linear_evaluator.parameters(),
+                                          lr=self.learning_rate,
+                                          weight_decay=self.weight_decay)
+
+    def on_save_checkpoint(self,
+                           trainer: pl.Trainer,
+                           pl_module: pl.LightningModule,
+                           checkpoint: Dict[str, Any]) -> Dict[str, Any]:
+        # Each callback gets its own state dictionary, that are fed back in during load
+        return {
+            OPTIMIZER_STATE_NAME: self.optimizer.state_dict(),
+            EVALUATOR_STATE_NAME: self.non_linear_evaluator.state_dict()
+        }
+
+    def on_load_checkpoint(self,
+                           trainer: pl.Trainer,
+                           pl_module: pl.LightningModule,
+                           callback_state: Dict[str, Any]) -> None:
+        self.optimizer.load_state_dict(callback_state[OPTIMIZER_STATE_NAME])
+        self.non_linear_evaluator.load_state_dict(callback_state[EVALUATOR_STATE_NAME])
 
     def on_pretrain_routine_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
         """
@@ -50,15 +78,7 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
         """
         for metric in [*self.train_metrics, *self.val_metrics]:
             metric.to(device=pl_module.device)  # type: ignore
-
-        pl_module.non_linear_evaluator = SSLEvaluator(n_input=self.z_dim,
-                                                      n_classes=self.num_classes,
-                                                      p=self.drop_p,
-                                                      n_hidden=self.hidden_dim).to(pl_module.device)
-        assert isinstance(pl_module.non_linear_evaluator, torch.nn.Module)
-        self.optimizer = torch.optim.Adam(pl_module.non_linear_evaluator.parameters(),
-                                          lr=self.learning_rate,
-                                          weight_decay=self.weight_decay)
+        self.non_linear_evaluator.to(pl_module.device)
 
     @staticmethod
     def to_device(batch: Any, device: Union[str, torch.device]) -> Tuple[T, T]:
@@ -86,10 +106,9 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
         with torch.no_grad():
             representations = self.get_representations(pl_module, x)
         representations = representations.detach()
-        assert isinstance(pl_module.non_linear_evaluator, torch.nn.Module)
 
         # Run the linear-head with SSL embeddings.
-        mlp_preds = pl_module.non_linear_evaluator(representations)
+        mlp_preds = self.non_linear_evaluator(representations)
         weights = None if self.class_weights is None else self.class_weights.to(device=pl_module.device)
         mlp_loss = F.cross_entropy(mlp_preds, y, weight=weights)
 
@@ -108,20 +127,28 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
                                 dataloader_idx: int) -> None:  # type: ignore
         """
         Get and log validation metrics.
+        Metrics are computed only if the sample IDs in the batch have not yet been seen in this epoch (linear head
+        data may be repeated if the SSL data is longer than the linear head data).
         """
         ids_linear_head = tuple(batch[SSLDataModuleType.LINEAR_HEAD][0].tolist())
         if ids_linear_head not in self.visited_ids:
             self.visited_ids.add(ids_linear_head)
+            # Put the online evaluator into "eval" mode
+            old_mode = self.non_linear_evaluator.training
+            self.non_linear_evaluator.eval()
             loss = self.shared_step(batch, pl_module, is_training=False)
-            pl_module.log('ssl_online_evaluator/val/loss', loss, on_step=False, on_epoch=True, sync_dist=False)
+            log_on_epoch(pl_module, 'ssl_online_evaluator/val/loss', loss)
             for metric in self.val_metrics:
-                pl_module.log(f"ssl_online_evaluator/val/{metric.name}", metric, on_epoch=True,
-                              on_step=False)  # type: ignore
+                log_on_epoch(pl_module, f"ssl_online_evaluator/val/{metric.name}", metric)
+            # Put the online evaluator back into the state (eval or train) that it was before calling this method
+            self.non_linear_evaluator.train(old_mode)
 
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx) -> None:  # type: ignore
         """
         Get and log training metrics, perform network update.
         """
+        # Similar code should also live in the encoder training.
+        # There is a silent assumption here that SSL data is larger than linear head data
         ids_linear_head = tuple(batch[SSLDataModuleType.LINEAR_HEAD][0].tolist())
         if ids_linear_head not in self.visited_ids:
             self.visited_ids.add(ids_linear_head)
@@ -131,7 +158,6 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
             self.optimizer.step()
 
             # log metrics
-            pl_module.log('ssl_online_evaluator/train/loss', loss)
+            log_on_epoch(pl_module, 'ssl_online_evaluator/train/loss', loss)
             for metric in self.train_metrics:
-                pl_module.log(f"ssl_online_evaluator/train/online_{metric.name}", metric, on_epoch=True,
-                              on_step=False)  # type: ignore
+                log_on_epoch(pl_module, f"ssl_online_evaluator/train/online_{metric.name}", metric)

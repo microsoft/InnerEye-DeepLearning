@@ -23,7 +23,7 @@ class NIH_COVID_BYOL(SSLContainer):
                          recovery_checkpoint_save_interval=50,
                          recovery_checkpoints_save_last_k=3,
                          num_epochs=500,
-                         ssl_training_batch_size=1200,  # This runs  with 16 gpus (4 nodes)
+                         ssl_training_batch_size=75,  # This runs  with 16 gpus (4 nodes)
                          num_workers=12,
                          ssl_encoder=EncoderName.densenet121,
                          ssl_training_type=SSLTrainingType.BYOL,

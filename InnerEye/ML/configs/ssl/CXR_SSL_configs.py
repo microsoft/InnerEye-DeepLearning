@@ -29,7 +29,8 @@ class NIH_RSNA_BYOL(SSLContainer):
                          random_seed=1,
                          recovery_checkpoint_save_interval=200,
                          num_epochs=1000,
-                         ssl_training_batch_size=1200,
+                         # We usually train this model with 16 GPUs, giving an effective batch size of 1200
+                         ssl_training_batch_size=75,
                          ssl_encoder=EncoderName.resnet50,
                          ssl_training_type=SSLTrainingType.BYOL,
                          use_balanced_binary_loss_for_linear_head=True,
@@ -45,7 +46,8 @@ class NIH_RSNA_SimCLR(SSLContainer):
                          random_seed=1,
                          recovery_checkpoint_save_interval=200,
                          num_epochs=1000,
-                         ssl_training_batch_size=1200,
+                         # We usually train this model with 16 GPUs, giving an effective batch size of 1200
+                         ssl_training_batch_size=75,
                          ssl_encoder=EncoderName.resnet50,
                          ssl_training_type=SSLTrainingType.SimCLR,
                          use_balanced_binary_loss_for_linear_head=True,

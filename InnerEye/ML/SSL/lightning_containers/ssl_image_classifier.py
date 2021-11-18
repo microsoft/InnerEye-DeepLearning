@@ -64,7 +64,6 @@ class SSLClassifierContainer(SSLContainer):
         return self.data_module
 
     def get_trainer_arguments(self) -> Dict[str, Any]:
-        trained_kwargs = {}
-        if self.is_debug_model:
-            trained_kwargs.update({"limit_train_batches": 1, "limit_val_batches": 1})
-        return trained_kwargs
+        # This class inherits from SSLContainer, where the get_trainer_arguments adds the online evaluator callback.
+        # We don't need that for the classifier, hence need to return an empty set of trainer arguments.
+        return {}
