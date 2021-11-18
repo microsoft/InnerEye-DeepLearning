@@ -15,6 +15,7 @@ class CIFAR10SimCLR(SSLContainer):
     def __init__(self) -> None:
         super().__init__(ssl_training_dataset_name=SSLDatasetName.CIFAR10,
                          linear_head_dataset_name=SSLDatasetName.CIFAR10,
+                         # We usually train this model with 4 GPUs, giving an effective batch size of 512
                          ssl_training_batch_size=128,
                          ssl_encoder=EncoderName.resnet50,
                          ssl_training_type=SSLTrainingType.SimCLR,
@@ -32,6 +33,7 @@ class CIFAR10BYOL(SSLContainer):
     def __init__(self) -> None:
         super().__init__(ssl_training_dataset_name=SSLDatasetName.CIFAR10,
                          linear_head_dataset_name=SSLDatasetName.CIFAR10,
+                         # We usually train this model with 4 GPUs, giving an effective batch size of 512
                          ssl_training_batch_size=128,
                          ssl_encoder=EncoderName.resnet50,
                          ssl_training_type=SSLTrainingType.BYOL,
