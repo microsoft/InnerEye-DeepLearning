@@ -111,7 +111,9 @@ def create_dataset_configs(azure_config: AzureConfig,
     for i, (dataset_id, mount_point) in enumerate(zip(all_azure_dataset_ids, all_dataset_mountpoints)):
         if dataset_id:
             datasets.append(DatasetConfig(name=dataset_id,
-                                          target_folder=mount_point,
+                                          # Workaround for a bug in hi-ml 0.1.11: mount_point=="" creates invalid jobs,
+                                          # setting to None works.
+                                          target_folder=mount_point or None,
                                           use_mounting=azure_config.use_dataset_mount,
                                           datastore=azure_config.azureml_datastore))
         elif mount_point:
