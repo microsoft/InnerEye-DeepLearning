@@ -9,14 +9,15 @@ from typing import Any, Dict, Iterator, List, Tuple, Union
 import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
+from health_ml.utils import log_learning_rate, log_on_epoch
 from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
+from pytorch_lightning import Trainer
 from torch import Tensor as T
 from torch.optim import Adam
 
 from InnerEye.ML.SSL.lightning_modules.byol.byol_models import SiameseArm
 from InnerEye.ML.SSL.lightning_modules.byol.byol_moving_average import ByolMovingAverageWeightUpdate
 from InnerEye.ML.SSL.utils import SSLDataModuleType
-from pytorch_lightning import Trainer
 
 SingleBatchType = Tuple[List, T]
 BatchType = Union[Dict[SSLDataModuleType, SingleBatchType], SingleBatchType]
@@ -98,14 +99,15 @@ class BYOLInnerEye(pl.LightningModule):
 
         return loss
 
-    def training_step(self, batch: BatchType, batch_idx: int, **kwargs: Any) -> T:  # type: ignore
+    def training_step(self, batch: BatchType, batch_idx: int, **kwargs: Any) -> torch.Tensor:  # type: ignore
         loss = self.shared_step(batch, batch_idx)
-        self.log_dict({'byol/train/loss': loss, 'byol/tau': self.weight_callback.current_tau})
+        log_on_epoch(self, metrics={'byol/train/loss': loss, 'byol/tau': self.weight_callback.current_tau})
+        log_learning_rate(self, name="byol/learning_rate")
         return loss
 
     def validation_step(self, batch: BatchType, batch_idx: int, **kwargs: Any) -> T:  # type: ignore
         loss = self.shared_step(batch, batch_idx)
-        self.log_dict({'byol/val/loss': loss})
+        log_on_epoch(self, 'byol/val/loss', loss)
         return loss
 
     def setup(self, *args: Any, **kwargs: Any) -> None:
@@ -116,9 +118,12 @@ class BYOLInnerEye(pl.LightningModule):
         # exclude certain parameters
         parameters = self.exclude_from_wt_decay(self.online_network.named_parameters(),
                                                 weight_decay=self.hparams.weight_decay)  # type: ignore
-        optimizer = Adam(parameters, lr=self.hparams.learning_rate, weight_decay=self.hparams.weight_decay)  # type: ignore
-        scheduler = LinearWarmupCosineAnnealingLR(
-            optimizer, warmup_epochs=self.hparams.warmup_epochs, max_epochs=self.hparams.max_epochs)   # type: ignore
+        optimizer = Adam(parameters,
+                         lr=self.hparams.learning_rate,  # type: ignore
+                         weight_decay=self.hparams.weight_decay)  # type: ignore
+        scheduler = LinearWarmupCosineAnnealingLR(optimizer,
+                                                  warmup_epochs=self.hparams.warmup_epochs,  # type: ignore
+                                                  max_epochs=self.hparams.max_epochs)  # type: ignore
         return [optimizer], [scheduler]
 
     def exclude_from_wt_decay(self,
@@ -144,4 +149,3 @@ class BYOLInnerEye(pl.LightningModule):
             {'params': params, 'weight_decay': weight_decay},
             {'params': excluded_params, 'weight_decay': 0.}
         ]
-
