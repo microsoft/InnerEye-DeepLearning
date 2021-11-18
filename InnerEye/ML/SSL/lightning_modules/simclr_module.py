@@ -14,7 +14,7 @@ from pl_bolts.models.self_supervised.simclr.simclr_module import SimCLR
 from InnerEye.ML.SSL.encoders import SSLEncoder
 from InnerEye.ML.SSL.utils import SSLDataModuleType
 
-SingleBatchType = Tuple[List, T]
+SingleBatchType = Tuple[List, torch.Tensor]
 BatchType = Union[Dict[SSLDataModuleType, SingleBatchType], SingleBatchType]
 
 
