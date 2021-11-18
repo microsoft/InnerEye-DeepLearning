@@ -10,7 +10,6 @@ from unittest import mock
 import zipfile
 
 import imageio
-import PIL.PngImagePlugin
 import SimpleITK as sitk
 import numpy as np
 import pydicom
