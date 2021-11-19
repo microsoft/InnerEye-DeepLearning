@@ -582,7 +582,7 @@ class TrainerParams(param.Parameterized):
                       doc="PyTorch Lightning trainer flag 'num_sanity_val_steps': Number of validation "
                           "steps to run before training, to identify possible problems")
     pl_deterministic: bool = \
-        param.Integer(default=True,
+        param.Boolean(default=False,
                       doc="Controls the PyTorch Lightning trainer flags 'deterministic' and 'benchmark'. If "
                           "'pl_deterministic' is True, results are perfectly reproducible. If False, they are not, but "
                           "you may see training speed increases.")

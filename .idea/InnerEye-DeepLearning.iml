@@ -6,6 +6,7 @@
       <sourceFolder url="file://$MODULE_DIR$/fastMRI" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/hi-ml/hi-ml-azure/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/hi-ml/hi-ml/src" isTestSource="false" />
+      <excludeFolder url="file://$MODULE_DIR$/InnerEye-DataQuality" />
     </content>
     <orderEntry type="jdk" jdkName="3.7 @ Ubuntu-20.04" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />

@@ -7,11 +7,10 @@ import os
 from abc import ABC
 from collections import Counter
 from pathlib import Path
-from typing import Any, Callable, Dict, Generic, List, Optional, TypeVar, Tuple
+from typing import Any, Callable, Dict, Generic, List, Mapping, Optional, Tuple, TypeVar
 
 import pandas as pd
 import torch.utils.data
-from torch._six import container_abcs
 from torch.utils.data import BatchSampler, DataLoader, Dataset, RandomSampler, Sampler, SequentialSampler
 from torch.utils.data.dataloader import default_collate  # type: ignore
 
@@ -36,7 +35,7 @@ def collate_with_metadata(batch: List[Dict[str, Any]]) -> Dict[str, Any]:
     :return: collated result
     """
     elem = batch[0]
-    if isinstance(elem, container_abcs.Mapping):
+    if isinstance(elem, Mapping):
         result = dict()
         for key in elem:
             # Special handling for all fields that store metadata, and for fields that are list.
