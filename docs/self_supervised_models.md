@@ -107,8 +107,10 @@ with the following available arguments:
 * `ssl_encoder`: name of the encoder to train, member of `EncoderName` class, currently supported are resnet50,
   resnet101 and densenet121,
 * `ssl_training_type`: which SSL algorithm to use, member of `SSLType` choice between BYOL and SimCLR,
-* `ssl_training_batch_size`: batch size of SSL training
-* `linear_head_batch_size`: batch size for linear head training (used for monitor of SSL embeddings quality)
+* `ssl_training_batch_size`: batch size of SSL training. This is the number of examples processed by a single GPU. 
+  Multiply this by the number of GPUs to get the effective batch size. 
+* `linear_head_batch_size`: batch size for linear head training (used for monitor of SSL embeddings quality). This is 
+  the number of examples processed by a single GPU. Multiply this by the number of GPUs to get the effective batch size. 
 * `ssl_augmentation_config`: path to yaml config for augmentation to use during SSL training. Only used for NIH/Kaggle
   datasets.
 * `linear_head_augmentation_config`: path to yaml config for augmentation to use for linear head training. Only used for

@@ -14,6 +14,7 @@ import SimpleITK as sitk
 import h5py
 import numpy as np
 import pandas as pd
+import PIL.PngImagePlugin
 import pydicom as dicom
 import torch
 from numpy.lib.npyio import NpzFile
@@ -495,8 +496,8 @@ def load_image(path: PathOrString, image_type: Optional[Type] = float) -> ImageW
             header = get_unit_image_header()
             return ImageWithHeader(image, header)
     elif is_png(path):
-        import imageio
-        image = imageio.imread(path).astype(np.float)
+        with PIL.PngImagePlugin.PngImageFile(path) as pil_png:
+            image = np.asarray(pil_png, np.float)
         header = get_unit_image_header()
         return ImageWithHeader(image, header)
     raise ValueError(f"Invalid file type {path}")

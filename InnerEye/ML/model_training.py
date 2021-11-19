@@ -8,6 +8,8 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, TypeVar
 
+from health_azure.utils import is_global_rank_zero, is_local_rank_zero
+from health_ml.utils import AzureMLLogger, AzureMLProgressBar, log_on_epoch
 from pytorch_lightning import Callback, LightningModule, Trainer, seed_everything
 from pytorch_lightning.callbacks import GPUStatsMonitor, ModelCheckpoint, TQDMProgressBar
 from pytorch_lightning.loggers import TensorBoardLogger
@@ -24,8 +26,6 @@ from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.lightning_loggers import StoringLogger
 from InnerEye.ML.lightning_models import SUBJECT_OUTPUT_PER_RANK_PREFIX, ScalarLightning, \
     get_subject_output_file_per_rank
-from health_azure.utils import is_global_rank_zero, is_local_rank_zero
-from health_ml.utils import AzureMLLogger, AzureMLProgressBar
 
 TEMP_PREFIX = "temp/"
 
@@ -64,7 +64,7 @@ class InnerEyeRecoveryCheckpointCallback(ModelCheckpoint):
 
     def __init__(self, container: LightningContainer):
         super().__init__(dirpath=str(container.checkpoint_folder),
-                         monitor="epoch",
+                         monitor="epoch_started",
                          filename=RECOVERY_CHECKPOINT_FILE_NAME + "_{epoch}",
                          every_n_epochs=container.recovery_checkpoint_save_interval,
                          save_top_k=container.recovery_checkpoints_save_last_k,
@@ -72,7 +72,8 @@ class InnerEyeRecoveryCheckpointCallback(ModelCheckpoint):
                          save_last=False)
 
     def on_train_epoch_end(self, trainer: Trainer, pl_module: LightningModule, unused: bool = None) -> None:
-        pl_module.log(name="epoch", value=trainer.current_epoch)  # type: ignore
+        # The metric to monitor must be logged on all ranks in distributed training
+        log_on_epoch(pl_module, name="epoch_started", value=trainer.current_epoch, sync_dist=False)  # type: ignore
         super().on_train_epoch_end(trainer, pl_module)
 
 
@@ -174,6 +175,10 @@ def create_lightning_trainer(container: LightningContainer,
                       accelerator=accelerator,
                       strategy=strategy,
                       max_epochs=container.num_epochs,
+                      # Both these arguments can be integers or floats. If integers, it is the number of batches.
+                      # If float, it's the fraction of batches. We default to 1.0 (processing all batches).
+                      limit_train_batches=container.pl_limit_train_batches or 1.0,
+                      limit_val_batches=container.pl_limit_val_batches or 1.0,
                       num_sanity_val_steps=container.pl_num_sanity_val_steps,
                       callbacks=callbacks,
                       logger=loggers,
