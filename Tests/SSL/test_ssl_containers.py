@@ -131,8 +131,8 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
     assert len(checkpoint["optimizer_states"]) == 1
     assert len(checkpoint["lr_schedulers"]) == 1
     assert "callbacks" in checkpoint
-    assert SSLOnlineEvaluatorInnerEye in checkpoint["callbacks"]
-    callback_state = checkpoint["callbacks"][SSLOnlineEvaluatorInnerEye]
+    assert SSLOnlineEvaluatorInnerEye.__name__ in checkpoint["callbacks"]
+    callback_state = checkpoint["callbacks"][SSLOnlineEvaluatorInnerEye.__name__]
     assert OPTIMIZER_STATE_NAME in callback_state
     assert EVALUATOR_STATE_NAME in callback_state
 
