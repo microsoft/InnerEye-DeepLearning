@@ -13,6 +13,7 @@ created.
 ## Upcoming
 
 ### Added
+- ([#594](https://github.com/microsoft/InnerEye-DeepLearning/pull/594)) When supplying a "--tag" argument, the AzureML jobs use that value as the display name, to more easily distinguish run.
 - ([#577](https://github.com/microsoft/InnerEye-DeepLearning/pull/577)) Commandline switch `monitor_gpu` to monitor 
   GPU utilization via Lightning's `GpuStatsMonitor`, switch `monitor_loading` to check batch loading times via
   `BatchTimeCallback`, and `pl_profiler` to turn on the Lightning profiler (`simple`, `advanced`, or `pytorch`)
