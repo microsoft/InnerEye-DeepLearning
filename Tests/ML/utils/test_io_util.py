@@ -9,11 +9,13 @@ from typing import Any, Optional, Tuple
 from unittest import mock
 import zipfile
 
+import imageio
 import SimpleITK as sitk
 import numpy as np
 import pydicom
 import pytest
 import torch
+from PIL import Image
 from skimage.transform import resize
 
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
@@ -278,6 +280,7 @@ def write_test_dicom(array: np.ndarray, path: Path, is_monochrome2: bool = True,
         ds.BitsStored = bits_stored
     ds.save_as(path)
 
+
 @pytest.mark.parametrize("is_signed", [True, False])
 @pytest.mark.parametrize("is_monochrome2", [True, False])
 def test_load_dicom_image_ones(test_output_dirs: OutputFolderForTests,
@@ -405,8 +408,8 @@ def test_load_and_stack_with_crop() -> None:
     # values of 1.0 are in the image
     image = np.zeros(image_size)
     image[center_start[0]:center_start[0] + crop_shape[0],
-    center_start[1]:center_start[1] + crop_shape[1],
-    center_start[2]:center_start[2] + crop_shape[2]] = 1
+          center_start[1]:center_start[1] + crop_shape[1],
+          center_start[2]:center_start[2] + crop_shape[2]] = 1
     segmentation = image * 2
     mock_return = ImageAndSegmentations(image, segmentation)
     with mock.patch("InnerEye.ML.utils.io_util.load_image_in_known_formats", return_value=mock_return):
@@ -689,3 +692,31 @@ def test_zip_random_dicom_series(test_output_dirs: OutputFolderForTests) -> None
     # GetSize returns (width, height, depth)
     assert loaded_image.GetSize() == reverse_tuple_float3(test_shape)
     assert loaded_image.GetSpacing() == test_spacing
+
+
+def test_load_png_images(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test load of png image files in a variety of formats using SciPy and PIL.PngImagePlugin
+    """
+    def save_and_reload_image(data: np.array,  # type: ignore
+                              mode: str) -> None:
+        path = test_output_dirs.root_dir / f"{mode}.png"
+        image = Image.fromarray(data, mode=mode)
+        image.save(path)
+
+        scipy_image = imageio.imread(path).astype(np.float)
+        assert scipy_image.dtype == np.float  # type: ignore
+        assert np.array_equal(data, scipy_image)
+
+        image_with_header = io_util.load_image(path)
+        assert image_with_header.image.dtype == np.float  # type: ignore
+        assert np.array_equal(data, image_with_header.image)
+
+    data_l = np.random.randint(2**8, size=(300, 200), dtype=np.uint8)
+    save_and_reload_image(data_l, 'L')
+
+    data_rgb = np.random.randint(2**8, size=(300, 200, 3), dtype=np.uint8)
+    save_and_reload_image(data_rgb, 'RGB')
+
+    data_rgba = np.random.randint(2**8, size=(300, 200, 4), dtype=np.uint8)
+    save_and_reload_image(data_rgba, 'RGBA')

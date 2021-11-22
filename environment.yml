@@ -23,7 +23,8 @@ dependencies:
       - gitpython==3.1.7
       - gputil==1.4.0
       - h5py==2.10.0
-      - hi-ml-azure>=0.1.9
+      - hi-ml==0.1.11
+      - hi-ml-azure==0.1.11
       - InnerEye-DICOM-RT==1.0.1
       - joblib==0.16.0
       - jupyter==1.0.0

@@ -166,7 +166,8 @@ def _test_mount_for_lightning_container(test_output_dirs: OutputFolderForTests,
                                                      run=None,
                                                      is_running_in_azure_ml=False,
                                                      output_folder=Path(),
-                                                     logs_folder=Path()
+                                                     logs_folder=Path(),
+                                                     mount_contexts=[]
                                                      ))
             return runner.container
 

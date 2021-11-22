@@ -17,7 +17,6 @@ import torch
 from InnerEye.Common import common_util, fixed_paths
 from InnerEye.Common.common_util import BEST_EPOCH_FOLDER_NAME, CROSSVAL_RESULTS_FOLDER, EPOCH_METRICS_FILE_NAME, \
     METRICS_AGGREGATES_FILE, SUBJECT_METRICS_FILE_NAME, get_best_epoch_results_path, logging_to_stdout
-from InnerEye.Common.fixed_paths import LOG_FILE_NAME
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.metrics_constants import LoggingColumns, MetricType
 from InnerEye.Common.output_directories import OutputFolderForTests
@@ -70,8 +69,6 @@ def test_train_classification_model(class_name: str, test_output_dirs: OutputFol
     val_results_per_epoch = model_training_result.val_results_per_epoch()
     assert len(train_results_per_epoch) == config.num_epochs
     assert len(val_results_per_epoch) == config.num_epochs
-    assert len(train_results_per_epoch[0]) >= 11
-    assert len(val_results_per_epoch[0]) >= 11
 
     for metric in [MetricType.ACCURACY_AT_THRESHOLD_05,
                    MetricType.ACCURACY_AT_OPTIMAL_THRESHOLD,
@@ -79,8 +76,6 @@ def test_train_classification_model(class_name: str, test_output_dirs: OutputFol
                    MetricType.AREA_UNDER_ROC_CURVE,
                    MetricType.CROSS_ENTROPY,
                    MetricType.LOSS,
-                   MetricType.SECONDS_PER_BATCH,
-                   MetricType.SECONDS_PER_EPOCH,
                    MetricType.SUBJECT_COUNT]:
         assert metric.value in train_results_per_epoch[0], f"{metric.value} not in training"
         assert metric.value in val_results_per_epoch[0], f"{metric.value} not in validation"
@@ -139,7 +134,8 @@ def test_train_classification_model(class_name: str, test_output_dirs: OutputFol
 3,S4,{class_name},0.521128,0,Train,-1
 """
     check_log_file(metrics_path, metrics_expected, ignore_columns=[])
-    # Check log METRICS_FILE_NAME inside of the folder best_validation_epoch/Train, which is written when we run model_test.
+    # Check log METRICS_FILE_NAME inside of the folder best_validation_epoch/Train, which is written when we run
+    # model_test.
     # Normally, we would run it on the Test and Val splits, but for convenience we test on the train split here.
     inference_metrics_path = config.outputs_folder / get_best_epoch_results_path(ModelExecutionMode.TRAIN) / \
                              SUBJECT_METRICS_FILE_NAME
@@ -193,7 +189,6 @@ def test_train_classification_multilabel_model(test_output_dirs: OutputFolderFor
             assert f'{metric.value}/{class_name}' in train_results_per_epoch[0], f"{metric.value} not in training"
             assert f'{metric.value}/{class_name}' in val_results_per_epoch[0], f"{metric.value} not in validation"
     for metric in [MetricType.LOSS,
-                   MetricType.SECONDS_PER_EPOCH,
                    MetricType.SUBJECT_COUNT]:
         assert metric.value in train_results_per_epoch[0], f"{metric.value} not in training"
         assert metric.value in val_results_per_epoch[0], f"{metric.value} not in validation"
@@ -355,7 +350,6 @@ def test_runner1(test_output_dirs: OutputFolderForTests) -> None:
     assert config.get_effective_random_seed() == set_from_commandline
     assert config.non_image_feature_channels == ["label"]
     assert str(config.outputs_folder).startswith(output_root)
-    assert (config.logs_folder / LOG_FILE_NAME).exists()
     # Check that we saved one checkpoint every second epoch and that we kept only that last 2 and that last.ckpt has
     # been renamed to best.ckpt
     assert len(os.listdir(config.checkpoint_folder)) == 3

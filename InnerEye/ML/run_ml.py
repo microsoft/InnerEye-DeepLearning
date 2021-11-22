@@ -28,13 +28,13 @@ from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, DEFA
     PARENT_RUN_ID_KEY_NAME, RUN_CONTEXT, RUN_RECOVERY_FROM_ID_KEY_NAME, RUN_RECOVERY_ID_KEY_NAME, \
     get_all_environment_files, is_offline_run_context
 from InnerEye.Common import fixed_paths
-from InnerEye.Common.common_util import BASELINE_COMPARISONS_FOLDER, BASELINE_WILCOXON_RESULTS_FILE, \
-    CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE, \
-    ModelProcessing, \
-    OTHER_RUNS_SUBDIR_NAME, SCATTERPLOTS_SUBDIR_NAME, SUBJECT_METRICS_FILE_NAME, \
-    change_working_directory, get_best_epoch_results_path, is_windows, logging_section, logging_to_file, \
-    print_exception, remove_file_or_directory
-from InnerEye.Common.fixed_paths import INNEREYE_PACKAGE_NAME, LOG_FILE_NAME, PYTHON_ENVIRONMENT_NAME
+from InnerEye.Common.common_util import (BASELINE_COMPARISONS_FOLDER, BASELINE_WILCOXON_RESULTS_FILE,
+                                         CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, FULL_METRICS_DATAFRAME_FILE,
+                                         METRICS_AGGREGATES_FILE, ModelProcessing,
+                                         OTHER_RUNS_SUBDIR_NAME, SCATTERPLOTS_SUBDIR_NAME, SUBJECT_METRICS_FILE_NAME,
+                                         change_working_directory, get_best_epoch_results_path, is_windows,
+                                         logging_section, print_exception, remove_file_or_directory)
+from InnerEye.Common.fixed_paths import INNEREYE_PACKAGE_NAME, PYTHON_ENVIRONMENT_NAME
 from InnerEye.Common.type_annotations import PathOrString
 from InnerEye.ML.baselines_util import compare_folders_and_run_outputs
 from InnerEye.ML.common import ModelExecutionMode
@@ -43,11 +43,12 @@ from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, DeepLearningConf
     FINAL_ENSEMBLE_MODEL_FOLDER, FINAL_MODEL_FOLDER, ModelCategory, MultiprocessingStartMethod, load_checkpoint
 from InnerEye.ML.lightning_base import InnerEyeContainer
 from InnerEye.ML.lightning_container import InnerEyeInference, LightningContainer
+from InnerEye.ML.lightning_loggers import StoringLogger
 from InnerEye.ML.metrics import InferenceMetrics, InferenceMetricsForSegmentation
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
 from InnerEye.ML.model_testing import model_test
-from InnerEye.ML.model_training import create_lightning_trainer, is_global_rank_zero, is_local_rank_zero, model_train
+from InnerEye.ML.model_training import create_lightning_trainer, model_train
 from InnerEye.ML.reports.notebook_report import generate_classification_crossval_notebook, \
     generate_classification_multilabel_notebook, generate_classification_notebook, generate_segmentation_notebook, \
     get_ipynb_report_name, reports_folder
@@ -58,9 +59,10 @@ from InnerEye.ML.utils.run_recovery import RunRecovery
 from InnerEye.ML.visualizers import activation_maps
 from InnerEye.ML.visualizers.plot_cross_validation import \
     get_config_and_results_for_offline_runs, plot_cross_validation_from_files
-from health_azure.utils import ENVIRONMENT_VERSION, create_run_recovery_id, merge_conda_files
-from health_azure.datasets import get_or_create_dataset
 from health_azure import AzureRunInfo
+from health_azure.datasets import get_or_create_dataset
+from health_azure.utils import ENVIRONMENT_VERSION, create_run_recovery_id, is_global_rank_zero, merge_conda_files, \
+    is_local_rank_zero
 
 ModelDeploymentHookSignature = Callable[[LightningContainer, AzureConfig, Model, ModelProcessing], Any]
 PostCrossValidationHookSignature = Callable[[ModelConfigBase, Path], None]
@@ -188,6 +190,7 @@ class MLRunner:
         self.post_cross_validation_hook = post_cross_validation_hook
         self.model_deployment_hook = model_deployment_hook
         self.output_subfolder = output_subfolder
+        self.storing_logger: Optional[StoringLogger] = None
         self._has_setup_run = False
 
     def setup(self, azure_run_info: Optional[AzureRunInfo] = None) -> None:
@@ -300,11 +303,6 @@ class MLRunner:
         else:
             return self.container.__class__.__module__
 
-    def start_logging_to_file(self) -> None:
-        if self.container is None:
-            self.setup()
-        logging_to_file(self.container.logs_folder / LOG_FILE_NAME)
-
     def is_offline_cross_val_parent_run(self) -> bool:
         """
         Returns true if the current run is an offline run with cross validation splits > 0
@@ -389,9 +387,10 @@ class MLRunner:
             # train a new model if required
             if self.azure_config.train:
                 with logging_section("Model training"):
-                    model_train(self.checkpoint_handler.get_recovery_or_checkpoint_path_train(),
-                                container=self.container,
-                                num_nodes=self.azure_config.num_nodes)
+                    _, storing_logger = model_train(self.checkpoint_handler.get_recovery_or_checkpoint_path_train(),
+                                                    container=self.container,
+                                                    num_nodes=self.azure_config.num_nodes)
+                    self.storing_logger = storing_logger
                 # Since we have trained the model further, let the checkpoint_handler object know so it can handle
                 # checkpoints correctly.
                 self.checkpoint_handler.additional_training_done()

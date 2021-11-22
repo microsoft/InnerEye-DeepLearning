@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
-from typing import Dict, Iterable, Optional, Tuple, TypeVar, Union
+from typing import Dict, Iterable, List, Optional, Tuple, TypeVar, Union
 
 T = TypeVar('T')
 PathOrString = Union[Path, str]
@@ -15,3 +15,4 @@ TupleFloat3 = Tuple[float, float, float]
 TupleFloat9 = Tuple[float, float, float, float, float, float, float, float, float]
 IntOrTuple3 = Union[int, TupleInt3, Iterable]
 DictStrFloat = Dict[str, float]
+DictStrFloatOrFloatList = Dict[str, Union[float, List[float]]]

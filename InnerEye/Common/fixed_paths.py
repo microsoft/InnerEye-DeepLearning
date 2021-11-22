@@ -33,10 +33,8 @@ DEFAULT_AML_UPLOAD_DIR = "outputs"
 DEFAULT_RESULT_IMAGE_NAME = "segmentation.nii.gz"
 # Default filename if scoring produces a zipped DICOM-RT file.
 DEFAULT_RESULT_ZIP_DICOM_NAME = "segmentation.dcm.zip"
-DEFAULT_AML_LOGS_DIR = "azureml-logs"
 
 DEFAULT_LOGS_DIR_NAME = "logs"
-LOG_FILE_NAME = "stdout.txt"
 
 DEFAULT_MODEL_SUMMARIES_DIR_PATH = Path(DEFAULT_LOGS_DIR_NAME) / "model_summaries"
 # The folder at the project root directory that holds datasets for local execution.
@@ -107,7 +105,8 @@ def add_submodules_to_path() -> None:
     innereye_root = repository_root_directory()
     folders_to_add = [(innereye_root, "InnerEye"),
                       (innereye_root / "fastMRI", "fastmri"),
-                      (innereye_root / "hi-ml" / "src", "health")]
+                      (innereye_root / "hi-ml" / "hi-ml-azure" / "src", "health_azure"),
+                      (innereye_root / "hi-ml" / "hi-ml" / "src", "health_ml")]
     for (folder, subfolder_that_must_exist) in folders_to_add:
         if (folder / subfolder_that_must_exist).is_dir():
             folder_str = str(folder)

@@ -49,7 +49,6 @@ from InnerEye.ML.visualizers.metrics_scatterplot import write_to_scatterplot_dir
 RUN_DICTIONARY_NAME = "RunDictionary.txt"
 
 MAX_STRUCTURES_PER_PLOT = 7
-DRIVER_LOG_BASENAME = "70_driver_log.txt"
 RUN_RECOVERY_ID_KEY = 'run_recovery_id'
 WILCOXON_RESULTS_FILE = "CrossValidationWilcoxonSignedRankTestResults.txt"
 MANN_WHITNEY_RESULTS_FILE = "CrossValidationMannWhitneyTestResults.txt"

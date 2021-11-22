@@ -29,7 +29,7 @@ from InnerEye.Azure.azure_util import MODEL_ID_KEY_NAME, download_run_output_fil
 from InnerEye.Common import common_util, fixed_paths, fixed_paths_for_tests
 from InnerEye.Common.common_util import BEST_EPOCH_FOLDER_NAME, CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, \
     get_best_epoch_results_path
-from InnerEye.Common.fixed_paths import (DEFAULT_AML_LOGS_DIR, DEFAULT_RESULT_IMAGE_NAME, DEFAULT_RESULT_ZIP_DICOM_NAME,
+from InnerEye.Common.fixed_paths import (DEFAULT_RESULT_IMAGE_NAME, DEFAULT_RESULT_ZIP_DICOM_NAME,
                                          PYTHON_ENVIRONMENT_NAME, repository_root_directory)
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
@@ -50,7 +50,7 @@ from InnerEye.ML.visualizers.plot_cross_validation import PlotCrossValidationCon
 from InnerEye.Scripts import submit_for_inference
 from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_default_workspace, get_nifti_shape
 
-FALLBACK_SINGLE_RUN = "refs_pull_545_merge:refs_pull_545_merge_1626538212_d2b07afd"
+FALLBACK_SINGLE_RUN = "refs_pull_593_merge_1637188926_7ba554ba"
 FALLBACK_ENSEMBLE_RUN = "refs_pull_545_merge:HD_caea82ae-9603-48ba-8280-7d2bc6272411"
 FALLBACK_2NODE_RUN = "refs_pull_545_merge:refs_pull_545_merge_1626538178_9f3023b2"
 FALLBACK_CV_GLAUCOMA = "refs_pull_545_merge:HD_72ecc647-07c3-4353-a538-620346114ebd"
@@ -200,10 +200,16 @@ def test_check_dataset_mountpoint(test_output_dirs: OutputFolderForTests) -> Non
     """
     run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_SINGLE_RUN)
     files = run.get_file_names()
-    driver_log = f"{DEFAULT_AML_LOGS_DIR}/70_driver_log.txt"
-    assert driver_log in files
-    downloaded = test_output_dirs.root_dir / "70_driver_log.txt"
-    run.download_file(driver_log, output_file_path=str(downloaded))
+
+    # Account for old and new job runtime: log files live in different places
+    driver_log_files = ["azureml-logs/70_driver_log.txt", "user_logs/std_log.txt"]
+    downloaded = test_output_dirs.root_dir / "driver_log.txt"
+    for f in driver_log_files:
+        if f in files:
+            run.download_file(f, output_file_path=str(downloaded))
+            break
+    else:
+        raise ValueError("The run does not contain any of the driver log files")
     logs = downloaded.read_text()
     expected_mountpoint = BasicModel2Epochs().dataset_mountpoint
     assert f"local_dataset                           : {expected_mountpoint}" in logs
@@ -506,7 +512,6 @@ def test_model_inference_on_single_run(test_output_dirs: OutputFolderForTests) -
     azure_config.train = False
     ml_runner = MLRunner(container=container, azure_config=azure_config, project_root=test_output_dirs.root_dir)
     ml_runner.setup()
-    ml_runner.start_logging_to_file()
     ml_runner.run()
 
     inference_files = [container.outputs_folder / file for file in files_to_check]

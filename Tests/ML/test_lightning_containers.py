@@ -8,11 +8,13 @@ from typing import List, Optional, Tuple
 from unittest import mock
 
 import pandas as pd
+import param
 import pytest
 from azureml.core import ScriptRunConfig
 from azureml.train.hyperdrive.runconfig import HyperDriveConfig
 from pytorch_lightning import LightningModule
 
+from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.deep_learning_config import ARGS_TXT, DatasetParams, WorkflowParams
@@ -20,6 +22,7 @@ from InnerEye.ML.lightning_base import InnerEyeContainer
 from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.run_ml import MLRunner
+from InnerEye.ML.runner import Runner
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.configs.lightning_test_containers import (DummyContainerWithAzureDataset, DummyContainerWithHooks,
                                                         DummyContainerWithModel, DummyContainerWithPlainLightning)
@@ -345,3 +348,64 @@ def test_innereyecontainer_setup_passes_on_allow_incomplete_labels(
         convert_channels_to_file_paths_mock.side_effect = mocked_convert_channels_to_file_paths
         container.setup()
         convert_channels_to_file_paths_mock.assert_called()
+
+
+class DummyContainerWithAzureConfigOverrides(LightningContainer):
+    container_subscription_id: str = param.String("default-container-subscription-id")
+    tenant_id: str = param.String("default-container-tenant-id")
+    application_id: str = param.String("default-container-application-id")
+
+    def update_azure_config(self, azure_config: AzureConfig) -> None:
+        # Override parameter with different name
+        azure_config.subscription_id = self.container_subscription_id
+        # Override parameter with clashing name
+        azure_config.tenant_id = self.tenant_id
+        # Override with hard-coded value
+        azure_config.experiment_name = "hardcoded-experiment-name"
+
+
+def test_override_azure_config_from_container() -> None:
+    # Arguments partly to be set in AzureConfig, and partly in container.
+    args = ["",
+            "--model", DummyContainerWithAzureConfigOverrides.__name__,
+            "--model_configs_namespace", "Tests.ML.test_lightning_containers",
+            "--container_subscription_id", "cli-container-subscription-id",
+            "--subscription_id", "cli-subscription-id",
+            "--tenant_id", "cli-tenant-id",
+            "--application_id", "cli-application-id",
+            "--experiment_name", "cli-experiment-name",
+            "--workspace_name", "cli-workspace-name"]
+    with mock.patch("sys.argv", args):
+        runner: Runner = default_runner()
+        runner.parse_and_load_model()
+    assert runner.azure_config is not None
+    assert runner.lightning_container is not None
+
+    # Current AzureConfig parameter priority is as follows:
+    # 1. Container
+    # 2. CLI
+    # 3. YAML
+    # 4. AzureConfig defaults
+
+    # ==== Parameters declared in the container ====
+    # Unique container parameters can be set from CLI, then override AzureConfig
+    assert runner.azure_config.subscription_id \
+        == runner.lightning_container.container_subscription_id \
+        == "cli-container-subscription-id"
+
+    # If the container declares a clashing parameter, the CLI value will be
+    # consumed by the original AzureConfig
+    assert runner.azure_config.application_id == "cli-application-id"
+    assert runner.lightning_container.application_id == "default-container-application-id"
+    # However, it may then be overriden by the container default; this should be
+    # avoided to prevent unexpected behaviour
+    assert runner.azure_config.tenant_id \
+        == runner.lightning_container.tenant_id \
+        == "default-container-tenant-id"
+
+    # ==== Parameters declared only in AzureConfig ====
+    # Hard-coded overrides ignore CLI value
+    assert runner.azure_config.experiment_name == "hardcoded-experiment-name"
+
+    # AzureConfig parameters not overriden in container can still be set from CLI
+    assert runner.azure_config.workspace_name == "cli-workspace-name"

@@ -84,14 +84,10 @@ def create_ssl_image_classifier(num_classes: int,
     logging.info(f"Loading pretrained {ssl_type} weights from:\n {pl_checkpoint_path}")
 
     if ssl_type == SSLTrainingType.BYOL.value or ssl_type == SSLTrainingType.BYOL:
-        # Here we need to indicate how many classes where used for linear evaluator at training time, to load the
-        # checkpoint (incl. linear evaluator) with strict = True
-        byol_module = SSLModelLoader(BYOLInnerEye, loaded_params["num_classes"]).load_from_checkpoint(
-            pl_checkpoint_path)
+        byol_module = BYOLInnerEye.load_from_checkpoint(pl_checkpoint_path)
         encoder = byol_module.target_network.encoder
     elif ssl_type == SSLTrainingType.SimCLR.value or ssl_type == SSLTrainingType.SimCLR:
-        simclr_module = SSLModelLoader(SimCLRInnerEye, loaded_params["num_classes"]).load_from_checkpoint(
-            pl_checkpoint_path)
+        simclr_module = SimCLRInnerEye.load_from_checkpoint(pl_checkpoint_path)
         encoder = simclr_module.encoder
     else:
         raise NotImplementedError(f"Unknown unsupervised model: {ssl_type}")
