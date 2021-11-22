@@ -12,9 +12,9 @@ dependencies:
       - git+https://github.com/analysiscenter/radio.git@6d53e25#egg=radio
       - azure-mgmt-resource==12.1.0
       - azure-mgmt-datafactory==1.1.0
-      - azureml-mlflow==1.32.0
-      - azureml-sdk==1.32.0
-      - azureml-tensorboard==1.32.0
+      - azureml-mlflow==1.36.0
+      - azureml-sdk==1.36.0
+      - azureml-tensorboard==1.36.0
       - conda-merge==0.1.5
       - cryptography==3.3.2
       - dataclasses-json==0.5.2

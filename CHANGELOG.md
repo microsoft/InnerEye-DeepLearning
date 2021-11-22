@@ -13,6 +13,7 @@ created.
 ## Upcoming
 
 ### Added
+- ([#594](https://github.com/microsoft/InnerEye-DeepLearning/pull/594)) When supplying a "--tag" argument, the AzureML jobs use that value as the display name, to more easily distinguish run.
 - ([#577](https://github.com/microsoft/InnerEye-DeepLearning/pull/577)) Commandline switch `monitor_gpu` to monitor 
   GPU utilization via Lightning's `GpuStatsMonitor`, switch `monitor_loading` to check batch loading times via
   `BatchTimeCallback`, and `pl_profiler` to turn on the Lightning profiler (`simple`, `advanced`, or `pytorch`)
@@ -53,6 +54,7 @@ gets uploaded to AzureML, by skipping all test folders.
 - ([#554](https://github.com/microsoft/InnerEye-DeepLearning/pull/554)) Updated report in CovidModel. Set parameters
   in the config to run inference on both the validation and test sets by default.
 - ([#584](https://github.com/microsoft/InnerEye-DeepLearning/pull/584)) SSL models write the optimizer state for the linear head to the checkpoint now.
+- ([#594](https://github.com/microsoft/InnerEye-DeepLearning/pull/594)) Pytorch is now non-deterministic by default. Upgrade to AzureML-SDK 1.36
 - ([#566](https://github.com/microsoft/InnerEye-DeepLearning/pull/566)) Update `hi-ml` dependency to `hi-ml-azure`.
 - ([#572](https://github.com/microsoft/InnerEye-DeepLearning/pull/572)) Updated to new version of hi-ml package
 

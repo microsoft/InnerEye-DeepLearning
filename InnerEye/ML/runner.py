@@ -12,6 +12,7 @@ from typing import Optional, Tuple
 # Suppress all errors here because the imports after code cause loads of warnings. We can't specifically suppress
 # individual warnings only.
 # flake8: noqa
+
 # Workaround for an issue with how AzureML and Pytorch Lightning interact: When spawning additional processes for DDP,
 # the working directory is not correctly picked up in sys.path
 print(f"Starting InnerEye runner at {sys.argv[0]}")
@@ -26,6 +27,7 @@ from InnerEye.Common import fixed_paths
 fixed_paths.add_submodules_to_path()
 
 from azureml._base_sdk_common import user_agent
+from azureml._restclient.constants import RunStatus
 from azureml.core import Run, ScriptRunConfig
 from health_azure import AzureRunInfo, submit_to_azure_if_needed
 from health_azure.utils import create_run_recovery_id, is_global_rank_zero, is_local_rank_zero, merge_conda_files, \
@@ -271,15 +273,18 @@ class Runner:
                       f"InnerEye/Azure/tensorboard_monitor.py --run_ids={azure_run.id}")
 
             if self.azure_config.wait_for_completion:
-                # We want the job output to be visible on the console, but the program should not exit if the
-                # job fails because we need to download the pytest result file.
+                # We want the job output to be visible on the console. Do not exit yet if the job fails, because we
+                # may need to download the pytest result file.
                 azure_run.wait_for_completion(show_output=True, raise_on_error=False)
-            if self.azure_config.pytest_mark and self.azure_config.wait_for_completion:
-                # The AzureML job can optionally run pytest. Attempt to download it to the current directory.
-                # A build step will pick up that file and publish it to Azure DevOps.
-                # If pytest_mark is set, this file must exist.
-                logging.info("Downloading pytest result file.")
-                download_pytest_result(azure_run)
+                if self.azure_config.pytest_mark:
+                    # The AzureML job can optionally run pytest. Attempt to download it to the current directory.
+                    # A build step will pick up that file and publish it to Azure DevOps.
+                    # If pytest_mark is set, this file must exist.
+                    logging.info("Downloading pytest result file.")
+                    download_pytest_result(azure_run)
+                if azure_run.status == RunStatus.FAILED:
+                    raise ValueError(f"The AzureML run failed. Please check this URL for details: "
+                                     f"{azure_run.get_portal_url()}")
 
         hyperdrive_config = None
         if self.azure_config.hyperdrive:
@@ -326,12 +331,14 @@ class Runner:
                         commandline_args=" ".join(source_config.script_params)),
                     after_submission=after_submission_hook,
                     hyperdrive_config=hyperdrive_config)
+                # Set the default display name to what was provided as the "tag"
+                if self.azure_config.tag:
+                    azure_run_info.run.display_name = self.azure_config.tag
             else:
                 # compute_cluster_name is a required parameter in early versions of the HI-ML package
                 azure_run_info = submit_to_azure_if_needed(
                     input_datasets=input_datasets,
-                    submit_to_azureml=False,
-                    compute_cluster_name="")
+                    submit_to_azureml=False)
         finally:
             if temp_conda:
                 temp_conda.unlink()
