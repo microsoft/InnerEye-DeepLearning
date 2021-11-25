@@ -3,13 +3,16 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union, IO
 
+from pathlib import Path
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
 from health_ml.utils import log_learning_rate, log_on_epoch
 from pl_bolts.models.self_supervised.simclr.simclr_module import SimCLR
+from pytorch_lightning.utilities.cloud_io import get_filesystem
 
 from InnerEye.ML.SSL.encoders import SSLEncoder
 from InnerEye.ML.SSL.utils import SSLDataModuleType
@@ -29,7 +32,8 @@ class _Projection(nn.Module):
             nn.Linear(self.input_dim, self.hidden_dim, bias=True),
             nn.BatchNorm1d(self.hidden_dim),
             nn.ReLU(),
-            nn.Linear(self.hidden_dim, self.output_dim, bias=False))
+            nn.Linear(self.hidden_dim, self.output_dim, bias=False),
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.model(x)
@@ -37,8 +41,13 @@ class _Projection(nn.Module):
 
 
 class SimCLRInnerEye(SimCLR):
-    def __init__(self, encoder_name: str, dataset_name: str, use_7x7_first_conv_in_resnet: bool = True,
-                 **kwargs: Any) -> None:
+    def __init__(
+        self,
+        encoder_name: str,
+        dataset_name: str,
+        use_7x7_first_conv_in_resnet: bool = True,
+        **kwargs: Any
+    ) -> None:
         """
         Returns SimCLR pytorch-lightning module, based on lightning-bolts implementation.
         :param encoder_name: Image encoder name (predefined models)
@@ -52,7 +61,11 @@ class SimCLRInnerEye(SimCLR):
         super().__init__(**kwargs)
         self.save_hyperparameters()
         self.encoder = SSLEncoder(encoder_name, use_7x7_first_conv_in_resnet)
-        self.projection = _Projection(input_dim=self.encoder.get_output_feature_dim(), hidden_dim=2048, output_dim=128)
+        self.projection = _Projection(
+            input_dim=self.encoder.get_output_feature_dim(),
+            hidden_dim=2048,
+            output_dim=128,
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.encoder(x)
@@ -83,3 +96,17 @@ class SimCLRInnerEye(SimCLR):
         loss = self.nt_xent_loss(z1, z2, self.temperature)
 
         return loss
+
+    def load_from_checkpoint(
+        path_or_url: Union[str, IO, Path], map_location=None, strict=True
+    ):
+        if not isinstance(path_or_url, (str, Path)):
+            # any sort of BytesIO or similiar
+            return torch.load(path_or_url, map_location=map_location, strict=strict)
+        if str(path_or_url).startswith("http"):
+            return torch.hub.load_state_dict_from_url(
+                str(path_or_url), map_location=map_location
+            )
+        fs = get_filesystem(path_or_url)
+        with fs.open(path_or_url, "rb") as f:
+            return torch.load(f, map_location=map_location, strict=strict)
