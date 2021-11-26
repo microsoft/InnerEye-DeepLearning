@@ -3,16 +3,14 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-from typing import Any, Dict, List, Tuple, Union, IO
+from typing import Any, Dict, List, Tuple, Union
 
-from pathlib import Path
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 from health_ml.utils import log_learning_rate, log_on_epoch
 from pl_bolts.models.self_supervised.simclr.simclr_module import SimCLR
-from pytorch_lightning.utilities.cloud_io import get_filesystem
 
 from InnerEye.ML.SSL.encoders import SSLEncoder
 from InnerEye.ML.SSL.utils import SSLDataModuleType
@@ -96,17 +94,3 @@ class SimCLRInnerEye(SimCLR):
         loss = self.nt_xent_loss(z1, z2, self.temperature)
 
         return loss
-
-    def load_from_checkpoint(
-        path_or_url: Union[str, IO, Path], map_location=None, strict=True
-    ):
-        if not isinstance(path_or_url, (str, Path)):
-            # any sort of BytesIO or similiar
-            return torch.load(path_or_url, map_location=map_location, strict=strict)
-        if str(path_or_url).startswith("http"):
-            return torch.hub.load_state_dict_from_url(
-                str(path_or_url), map_location=map_location
-            )
-        fs = get_filesystem(path_or_url)
-        with fs.open(path_or_url, "rb") as f:
-            return torch.load(f, map_location=map_location, strict=strict)

@@ -96,7 +96,9 @@ def create_ssl_image_classifier(
     logging.info(f"Loading pretrained {ssl_type} weights from:\n {pl_checkpoint_path}")
 
     if ssl_type == SSLTrainingType.BYOL.value or ssl_type == SSLTrainingType.BYOL:
-        byol_module = BYOLInnerEye.load_from_checkpoint(pl_checkpoint_path)
+        byol_module = BYOLInnerEye.load_from_checkpoint(
+            pl_checkpoint_path, strict=False
+        )
         encoder = byol_module.target_network.encoder
     elif ssl_type == SSLTrainingType.SimCLR.value or ssl_type == SSLTrainingType.SimCLR:
         simclr_module = SimCLRInnerEye.load_from_checkpoint(
