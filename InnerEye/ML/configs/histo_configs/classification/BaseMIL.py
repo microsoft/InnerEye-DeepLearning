@@ -11,17 +11,15 @@ import param
 from torch import nn
 from torchvision.models.resnet import resnet18
 
+from health_ml.models.histopathology.attention_layers import AttentionLayer, GatedAttentionLayer
+from health_ml.models.histopathology.deepmil import DeepMILModule
 from health_ml.data.histopathology.datamodules.base_module import CacheMode, TilesDataModule
 from health_azure.utils import CheckpointDownloader
 
-from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.Common import fixed_paths
-
-from InnerEyePrivate.Histopathology.models.attention_layers import AttentionLayer, GatedAttentionLayer
-from InnerEyePrivate.Histopathology.models.deepmil import DeepMILModule
-from InnerEyePrivate.Histopathology.models.encoders import (HistoSSLEncoder, IdentityEncoder,
-                                                            ImageNetEncoder, ImageNetSimCLREncoder,
-                                                            InnerEyeSSLEncoder, TileEncoder)
+from InnerEye.ML.lightning_container import LightningContainer
+from InnerEye.ML.SSL.encoders import (HistoSSLEncoder, IdentityEncoder, ImageNetEncoder, ImageNetSimCLREncoder,
+                                      InnerEyeSSLEncoder, TileEncoder)
 
 
 class BaseMIL(LightningContainer):
@@ -56,7 +54,7 @@ class BaseMIL(LightningContainer):
         if self.encoder_type == InnerEyeSSLEncoder.__name__:
             self.downloader = CheckpointDownloader(
                 aml_workspace=get_workspace(),
-                run_recovery_id="vsalva_ssl_crck:vsalva_ssl_crck_1630691119_af10db8a",
+                run_id="vsalva_ssl_crck:vsalva_ssl_crck_1630691119_af10db8a",
                 checkpoint_filename="best_checkpoint.ckpt",
                 download_dir='outputs/'
             )

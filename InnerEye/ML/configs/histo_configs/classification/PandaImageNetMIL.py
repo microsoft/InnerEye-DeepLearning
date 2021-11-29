@@ -5,14 +5,14 @@ from pathlib import Path
 
 from torchvision.models import resnet18
 
-from InnerEye.ML.lightning_container import LightningContainer
 from health_ml.data.histopathology.datamodules.panda_module import PandaTilesDataModule
 from health_ml.data.histopathology.datasets.default_paths import (PANDA_TILES_DATASET_DIR,
                                                                    PANDA_TILES_DATASET_ID)
 from health_ml.data.histopathology.datasets.panda_tiles_dataset import PandaTilesDataset
-from InnerEyePrivate.Histopathology.models.attention_layers import GatedAttentionLayer
-from InnerEyePrivate.Histopathology.models.deepmil import DeepMILModule
-from InnerEyePrivate.Histopathology.models.encoders import ImageNetEncoder
+from health_ml.models.histopathology.attention_layers import GatedAttentionLayer
+from health_ml.models.histopathology.deepmil import DeepMILModule
+from InnerEye.ML.lightning_container import LightningContainer
+from InnerEye.ML.SSL.encoders import ImageNetEncoder
 
 
 class PandaImageNetMIL(LightningContainer):

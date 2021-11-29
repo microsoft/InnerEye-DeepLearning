@@ -17,13 +17,12 @@ from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from health_ml.data.histopathology.datamodules.base_module import TilesDataModule
 from health_ml.data.histopathology.datamodules.tcga_crck_module import TcgaCrckTilesDataModule
 from health_ml.data.histopathology.datasets.tcga_crck_tiles_dataset import TcgaCrck_TilesDataset
+from health_ml.models.histopathology.attention_layers import GatedAttentionLayer
+from health_ml.models.histopathology.transforms import EncodeTilesBatchd, LoadTilesBatchd
 
 from InnerEye.Common import fixed_paths
 from InnerEye.ML.configs.histo_configs.classification.BaseMIL import BaseMIL
-from InnerEyePrivate.Histopathology.models.attention_layers import GatedAttentionLayer
-from InnerEyePrivate.Histopathology.models.encoders import (HistoSSLEncoder, ImageNetEncoder,
-                                                            ImageNetSimCLREncoder, InnerEyeSSLEncoder)
-from InnerEyePrivate.Histopathology.models.transforms import EncodeTilesBatchd, LoadTilesBatchd
+from InnerEye.ML.SSL.encoders import (HistoSSLEncoder, ImageNetEncoder, ImageNetSimCLREncoder, InnerEyeSSLEncoder)
 
 
 class DeepSMILECrck(BaseMIL):

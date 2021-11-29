@@ -19,11 +19,11 @@ from torch.utils.data import DataLoader
 from torchmetrics import Accuracy
 from torchvision.transforms import Normalize
 
-from InnerEye.ML.lightning_container import LightningContainer
-from InnerEye.ML.utils.split_dataset import DatasetSplits
 from health_ml.data.histopathology.datasets.default_paths import PANDA_TILES_DATASET_DIR
 from health_ml.data.histopathology.datasets.panda_tiles_dataset import PandaTilesDataset
-from InnerEyePrivate.Histopathology.models.transforms import LoadTiled
+from health_ml.models.histopathology.transforms import LoadTiled
+from InnerEye.ML.lightning_container import LightningContainer
+from InnerEye.ML.utils.split_dataset import DatasetSplits
 
 
 class PandaTileClassifier(LightningModule):

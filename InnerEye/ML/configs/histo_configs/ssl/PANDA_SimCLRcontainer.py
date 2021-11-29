@@ -2,6 +2,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Optional
 import sys
+from InnerEye.Common.fixed_paths import repository_root_directory
 
 from InnerEye.ML.SSL.lightning_containers.ssl_container import EncoderName, SSLContainer, SSLDatasetName
 from InnerEye.ML.SSL.utils import SSLTrainingType

@@ -7,14 +7,14 @@ from pathlib import Path
 from monai.transforms import Compose
 from torchvision.models import resnet18
 
-from InnerEye.ML.lightning_container import LightningContainer
 from health_ml.data.histopathology.datamodules.base_module import CacheMode, TilesDataModule
 from health_ml.data.histopathology.datamodules.tcga_crck_module import TcgaCrckTilesDataModule
-from InnerEyePrivate.Histopathology.models.attention_layers import GatedAttentionLayer
-from InnerEyePrivate.Histopathology.models.deepmil import DeepMILModule
-from InnerEyePrivate.Histopathology.models.encoders import IdentityEncoder, ImageNetEncoder, TileEncoder
-from InnerEyePrivate.Histopathology.models.transforms import EncodeTilesBatchd, LoadTilesBatchd
+from health_ml.models.histopathology.attention_layers import GatedAttentionLayer
+from health_ml.models.histopathology.deepmil import DeepMILModule
+from health_ml.models.histopathology.transforms import EncodeTilesBatchd, LoadTilesBatchd
 from health_ml.data.histopathology.datasets.tcga_crck_tiles_dataset import TcgaCrck_TilesDataset
+from InnerEye.ML.lightning_container import LightningContainer
+from InnerEye.ML.SSL.encoders import IdentityEncoder, ImageNetEncoder, TileEncoder
 
 
 class CachedTcgaCrckImageNetMIL(LightningContainer):
