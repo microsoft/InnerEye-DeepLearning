@@ -64,6 +64,7 @@ def test_create_ml_runner_args(is_container: bool,
                     # inside run_in_situ
                     azure_run_info = AzureRunInfo(input_datasets=[None],
                                                   output_datasets=[None],
+                                                  mount_contexts=[]
                                                   run=None,
                                                   is_running_in_azure_ml=False,
                                                   output_folder=Path.cwd(),

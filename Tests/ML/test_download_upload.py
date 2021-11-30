@@ -163,6 +163,7 @@ def _test_mount_for_lightning_container(test_output_dirs: OutputFolderForTests,
             path_from_aml: List[Optional[Path]] = [None] if is_offline_run else [mount_path]
             runner.setup(azure_run_info=AzureRunInfo(input_datasets=path_from_aml,
                                                      output_datasets=[],
+                                                     mount_contexts=[],
                                                      run=None,
                                                      is_running_in_azure_ml=False,
                                                      output_folder=Path(),
