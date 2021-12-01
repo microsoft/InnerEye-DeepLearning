@@ -182,7 +182,7 @@ jobs:
       - name: tag
         value: 'HelloContainerPR'
       - name: more_switches
-        value: '--num_nodes=2 --regression_test_folder=RegressionTestResults/PR_HelloContainer'
+        value: '--num_nodes=2 --max_num_gpus=2 --regression_test_folder=RegressionTestResults/PR_HelloContainer'
     pool:
       vmImage: 'ubuntu-18.04'
     steps:
