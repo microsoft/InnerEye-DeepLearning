@@ -18,7 +18,7 @@ from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import ModelProcessing, is_windows
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME
 from InnerEye.Common.generic_parsing import GenericConfig
-from InnerEye.Common.type_annotations import PathOrString, TupleFloat2
+from InnerEye.Common.type_annotations import PathOrString, T, TupleFloat2
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, create_unique_timestamp_id, \
     get_best_checkpoint_path, get_recovery_checkpoint_path
 
@@ -369,10 +369,10 @@ class DatasetParams(param.Parameterized):
         param.List(default=[], allow_None=False,
                    doc="This can be used to feed in additional datasets to your custom datamodules. These will be"
                        "mounted and made available as a list of paths in 'extra_local_datasets' when running in AML.")
-    extra_local_dataset_paths: List[Path] = param.List(class_=Path, default=[], allow_None=False,
-                                                       doc="This can be used to feed in additional datasets "
-                                                           "to your custom datamodules when running outside of Azure "
-                                                           "AML.")
+    extra_local_dataset_paths: List[Optional[Path]] = \
+        param.List(class_=Path, default=[], allow_None=False,
+                   doc="This can be used to feed in additional datasets "
+                       "to your custom datamodules when running outside of Azure AML.")
     dataset_mountpoint: str = param.String(doc="The path at which the AzureML dataset should be made available via "
                                                "mounting or downloading. This only affects jobs running in AzureML."
                                                "If empty, use a random mount/download point.")
@@ -396,20 +396,29 @@ class DatasetParams(param.Parameterized):
         Returns a list with all azure dataset IDs that are specified in self.azure_dataset_id and
         self.extra_azure_dataset_ids
         """
-        if not self.azure_dataset_id:
-            return self.extra_azure_dataset_ids
-        else:
-            return [self.azure_dataset_id] + self.extra_azure_dataset_ids
+        return self._concat_paths(self.azure_dataset_id, self.extra_azure_dataset_ids)
 
     def all_dataset_mountpoints(self) -> List[str]:
         """
         Returns a list with all dataset mount points that are specified in self.dataset_mountpoint and
         self.extra_dataset_mountpoints
         """
-        if not self.dataset_mountpoint:
-            return self.extra_dataset_mountpoints
-        else:
-            return [self.dataset_mountpoint] + self.extra_dataset_mountpoints
+        return self._concat_paths(self.dataset_mountpoint, self.extra_dataset_mountpoints)
+
+    def all_local_dataset_paths(self) -> List[Path]:
+        """
+        Returns a list with all dataset mount points that are specified in self.local_dataset and
+        self.extra_local_dataset_paths
+        """
+        return self._concat_paths(self.local_dataset, self.extra_local_dataset_paths)
+
+    def _concat_paths(self, item: Optional[T], items: List[T]) -> List[T]:
+        """
+        Creates a list with the item going first (if not None), then the rest of the items.
+        """
+        if not item:
+            return items
+        return [item] + items
 
 
 class OutputParams(param.Parameterized):

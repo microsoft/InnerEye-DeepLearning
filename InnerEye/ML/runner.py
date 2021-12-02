@@ -252,7 +252,8 @@ class Runner:
 
         input_datasets = create_dataset_configs(self.azure_config,
                                                 all_azure_dataset_ids=self.lightning_container.all_azure_dataset_ids(),
-                                                all_dataset_mountpoints=self.lightning_container.all_dataset_mountpoints())
+                                                all_dataset_mountpoints=self.lightning_container.all_dataset_mountpoints(),
+                                                all_local_datasets=self.lightning_container.all_local_dataset_paths())
 
         def after_submission_hook(azure_run: Run) -> None:
             """

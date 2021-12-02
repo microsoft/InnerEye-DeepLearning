@@ -12,13 +12,14 @@ from datetime import date
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from health_azure import DatasetConfig
+
 from InnerEye.Azure.azure_config import AzureConfig, ParserResult
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, RUN_RECOVERY_FROM_ID_KEY_NAME
 from InnerEye.Azure.secrets_handling import read_all_settings
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
-from health_azure import DatasetConfig
 
 SLEEP_TIME_SECONDS = 30
 
@@ -91,13 +92,15 @@ def create_experiment_name(azure_config: AzureConfig) -> str:
 
 def create_dataset_configs(azure_config: AzureConfig,
                            all_azure_dataset_ids: List[str],
-                           all_dataset_mountpoints: List[str]) -> List[DatasetConfig]:
+                           all_dataset_mountpoints: List[str],
+                           all_local_datasets: List[Optional[Path]]) -> List[DatasetConfig]:
     """
     Sets up all the dataset consumption objects for the datasets provided. Datasets that have an empty name will be
     skipped.
     :param azure_config: azure related configurations to use for model scale-out behaviour
     :param all_azure_dataset_ids: The name of all datasets on blob storage that will be used for this run.
     :param all_dataset_mountpoints: When using the datasets in AzureML, these are the per-dataset mount points.
+    :param all_local_datasets: The paths for all local versions of the datasets.
     :return: A list of DatasetConfig objects, in the same order as datasets were provided in all_azure_dataset_ids,
     omitting datasets with an empty name.
     """
@@ -108,12 +111,21 @@ def create_dataset_configs(azure_config: AzureConfig,
                              f"must equal the number of Azure dataset IDs ({len(all_azure_dataset_ids)})")
     else:
         all_dataset_mountpoints = [""] * len(all_azure_dataset_ids)
-    for i, (dataset_id, mount_point) in enumerate(zip(all_azure_dataset_ids, all_dataset_mountpoints)):
+    if len(all_local_datasets) > 0:
+        if len(all_azure_dataset_ids) != len(all_local_datasets):
+            raise ValueError(f"The number of local datasets ({len(all_local_datasets)}) "
+                             f"must equal the number of Azure dataset IDs ({len(all_azure_dataset_ids)})")
+    else:
+        all_local_datasets = [""] * len(all_azure_dataset_ids)
+    for i, (dataset_id, mount_point, local_dataset) in enumerate(zip(all_azure_dataset_ids,
+                                                                     all_dataset_mountpoints,
+                                                                     all_local_datasets)):
         if dataset_id:
             datasets.append(DatasetConfig(name=dataset_id,
                                           # Workaround for a bug in hi-ml 0.1.11: mount_point=="" creates invalid jobs,
                                           # setting to None works.
                                           target_folder=mount_point or None,
+                                          local_folder=local_dataset,
                                           use_mounting=azure_config.use_dataset_mount,
                                           datastore=azure_config.azureml_datastore))
         elif mount_point:
