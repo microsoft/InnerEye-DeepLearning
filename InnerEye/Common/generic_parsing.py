@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Set, Type, Union
 
 import param
@@ -30,6 +31,50 @@ class ListOrDictParam(param.Parameter):
             if not (isinstance(val, List) or isinstance(val, Dict)):
                 raise ValueError(f"{val} must be an instance of List or Dict, found {type(val)}")
         super()._validate(val)
+
+
+class StringOrStringList(param.Parameter):
+    """
+    Wrapper class to allow either a string or a list of strings. Internally represented always as a list.
+    """
+
+    def _validate(self, val: Any) -> None:
+        if isinstance(val, str):
+            return
+        if isinstance(val, List):
+            if all([isinstance(v, str) for v in val]):
+                return
+        raise ValueError(f"{val} must be a string or a list of strings")
+
+    def set_hook(self, obj, val) -> Any:
+        """
+        Modifies the value before calling the setter. Here, we are converting all strings to lists of strings.
+        """
+        if isinstance(val, str):
+            return [val]
+        return val
+
+
+class PathOrPathList(param.Parameter):
+    """
+    Wrapper class to allow either a Path or a list of Paths. Internally represented always as a list.
+    """
+
+    def _validate(self, val: Any) -> None:
+        if isinstance(val, Path):
+            return
+        if isinstance(val, List):
+            if all([isinstance(v, Path) for v in val]):
+                return
+        raise ValueError(f"{val} must be a string or a list of strings")
+
+    def set_hook(self, obj, val) -> Any:
+        """
+        Modifies the value before calling the setter. Here, we are converting simple path to lists of path.
+        """
+        if isinstance(val, Path):
+            return [val]
+        return val
 
 
 class IntTuple(param.NumericTuple):
