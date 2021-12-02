@@ -59,10 +59,10 @@ def test_encoder(create_encoder_fn: Callable[[], TileEncoder]) -> None:
     assert features.shape == (batch_size, encoder.num_encoding)
 
 @pytest.mark.skip(reason="This checkpoint has extra keys with respect to the latest SimCLRInnerEye class, cannot be loaded with strict=True")
-def test_simclr_crck_encoder() -> None:
+def test_simclr_crck_encoder(tmp_path: Path) -> None:
     batch_size = 10
 
-    encoder = get_simclr_crck_encoder()
+    encoder = get_simclr_crck_encoder(tmp_path)
 
     if isinstance(encoder, nn.Module):
         for param_name, param in encoder.named_parameters():
