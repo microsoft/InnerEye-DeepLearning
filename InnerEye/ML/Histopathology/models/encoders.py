@@ -109,12 +109,12 @@ class InnerEyeSSLEncoder(TileEncoder):
     def _get_encoder(self) -> Tuple[SSLEncoder, int]:
         model: SSLClassifier = create_ssl_image_classifier(num_classes=1,  # dummy value
                                                            freeze_encoder=True,
-                                                           pl_checkpoint_path=self.pl_checkpoint_path)
-        encoder = model.encoder
+                                                           pl_checkpoint_path=str(self.pl_checkpoint_path))
+        encoder: SSLEncoder = model.encoder
         for param in encoder.parameters():
             param.requires_grad = False  # freeze_encoder does not disable gradients
 
-        embedding_dim = model.classifier_head.n_input
+        embedding_dim: int = model.classifier_head.n_input
 
         return encoder, embedding_dim
 
