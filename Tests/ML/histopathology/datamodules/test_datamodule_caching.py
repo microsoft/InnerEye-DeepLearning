@@ -1,6 +1,6 @@
 import shutil
 from pathlib import Path
-from typing import Any, Optional, Tuple
+from typing import Any, Tuple
 
 import numpy as np
 import pandas as pd

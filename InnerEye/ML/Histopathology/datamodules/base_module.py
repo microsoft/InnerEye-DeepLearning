@@ -9,16 +9,9 @@ from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader
 
 from health_ml.utils.bag_utils import BagDataset, multibag_collate
+from health_ml.utils.common_utils import _create_generator
 from InnerEye.ML.Histopathology.datasets.base_dataset import TilesDataset
 from InnerEye.ML.Histopathology.models.transforms import LoadTilesBatchd
-
-
-def _create_generator(seed: Optional[int]) -> torch.Generator:
-    generator = torch.Generator()
-    if seed is None:
-        seed = int(torch.empty((), dtype=torch.int64).random_().item())
-    generator.manual_seed(seed)
-    return generator
 
 
 class CacheMode(Enum):
@@ -42,7 +35,7 @@ class TilesDataModule(LightningDataModule):
         will return all samples in each bag. If > 0 , bags larger than `max_bag_size` will yield
         random subsets of instances.
         :param batch_size: Number of slides to load per batch.
-        :param seed: PRNG seed to use for shuffling instances and bags. Note that randomness in
+        :param seed: pseudorandom number generator seed to use for shuffling instances and bags. Note that randomness in
         train/val/test splits is handled independently in `get_splits()`. (default: `None`)
         :param transform: A transform to apply to the source tiles dataset, or a composition of
         transforms using `monai.transforms.Compose`. By default (`None`), applies `LoadTilesBatchd`.
