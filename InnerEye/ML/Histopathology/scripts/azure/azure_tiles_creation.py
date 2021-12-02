@@ -19,8 +19,8 @@ import time
 current_file = Path(__file__)
 radiomics_root = current_file.absolute().parent.parent.parent.parent.parent
 sys.path.append(str(radiomics_root))
-from health.azure.himl import submit_to_azure_if_needed, DatasetConfig  # noqa
-from InnerEyePrivate.Histopathology.preprocessing.create_tiles_dataset import main  # noqa
+from health_azure.himl import submit_to_azure_if_needed, DatasetConfig  # noqa
+from InnerEye.ML.Histopathology.preprocessing.create_tiles_dataset import main  # noqa
 
 # Pre-built environment file that contains all the requirements (RadiomicsNN + histo)
 # Assuming ENV_NAME is a complete environment, `conda env export -n ENV_NAME -f ENV_NAME.yml` will create the desired file
