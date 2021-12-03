@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Callable, Optional, Sequence, Tuple
 
 import numpy as np
+from InnerEye.ML.lightning_container import LightningModuleWithOptimizer
 import torch
 from pl_bolts.models.self_supervised import SimCLR
 from torch import nn
@@ -12,7 +13,6 @@ from InnerEye.ML.SSL.encoders import SSLEncoder
 from InnerEye.ML.Histopathology.utils.layer_utils import (get_imagenet_preprocessing,
                                                               load_weights_to_model,
                                                               setup_feature_extractor)
-from InnerEye.ML.SSL.lightning_modules.ssl_classifier_module import SSLClassifier
 from InnerEye.ML.SSL.utils import create_ssl_image_classifier
 
 
@@ -107,14 +107,15 @@ class InnerEyeSSLEncoder(TileEncoder):
         super().__init__(tile_size=tile_size, n_channels=n_channels)
 
     def _get_encoder(self) -> Tuple[SSLEncoder, int]:
-        model = create_ssl_image_classifier(num_classes=1,  # dummy value
+        model: LightningModuleWithOptimizer = create_ssl_image_classifier(num_classes=1,  # dummy value
                                             freeze_encoder=True,
                                             pl_checkpoint_path=str(self.pl_checkpoint_path))
-        encoder: SSLEncoder = model.encoder
+        encoder = model.encoder  # type: ignore
         for param in encoder.parameters():
             param.requires_grad = False  # freeze_encoder does not disable gradients
 
-        embedding_dim: int = model.classifier_head.n_input
+        classifier_head = model.classifier_head
+        embedding_dim = classifier_head.n_input  # type: ignore
 
         return encoder, embedding_dim
 
