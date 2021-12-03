@@ -99,6 +99,7 @@ in inference-only runs when using lightning containers.
   `ScalarModelBase` can be implemented to compute the loss and metrics in a task-specific manner.
 - ([#554](https://github.com/microsoft/InnerEye-DeepLearning/pull/554)) Removed cryptography from list of invalid
   packages in `test_invalid_python_packages` as it is already present as a dependency in our conda environment.
+- ([#596](https://github.com/microsoft/InnerEye-DeepLearning/pull/596)) Removed obsolete `TrainGlaucomaCV` from PR build.
 
 ### Deprecated
 
