@@ -12,12 +12,12 @@ class TcgaPradDataset(Dataset):
     - `'slide_id'` (str)
     - `'case_id'` (str)
     - `'image_path'` (str): absolute slide image path
-    - `'brca12'` (int, 0 or 1): label for predicting BRCA1/2 mutations
+    - `'label'` (int, 0 or 1): label for predicting positive or negative
     """
     SLIDE_ID_COLUMN: str = 'slide_id'
     CASE_ID_COLUMN: str = 'case_id'
     IMAGE_COLUMN: str = 'image_path'
-    LABEL_COLUMN: str = 'brca12'
+    LABEL_COLUMN: str = 'label'
 
     DEFAULT_CSV_FILENAME: str = "dataset.csv"
 
@@ -40,8 +40,8 @@ class TcgaPradDataset(Dataset):
             dataset_df = pd.read_csv(self.dataset_csv)
 
         dataset_df = dataset_df.set_index(self.SLIDE_ID_COLUMN)
-        dataset_df[self.LABEL_COLUMN] = (dataset_df['brca1_mutation']
-                                         | dataset_df['brca2_mutation']).astype(int)
+        dataset_df[self.LABEL_COLUMN] = (dataset_df['label1_mutation']
+                                         | dataset_df['label2_mutation']).astype(int)
         self.dataset_df = dataset_df
 
     def __len__(self) -> int:
