@@ -3,7 +3,6 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Callable, Optional, Sequence, Tuple, Union
 
-import torch
 from monai.data.dataset import CacheDataset, Dataset, PersistentDataset
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader

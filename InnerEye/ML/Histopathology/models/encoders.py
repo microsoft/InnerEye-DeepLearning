@@ -107,9 +107,9 @@ class InnerEyeSSLEncoder(TileEncoder):
         super().__init__(tile_size=tile_size, n_channels=n_channels)
 
     def _get_encoder(self) -> Tuple[SSLEncoder, int]:
-        model: SSLClassifier = create_ssl_image_classifier(num_classes=1,  # dummy value
-                                                           freeze_encoder=True,
-                                                           pl_checkpoint_path=str(self.pl_checkpoint_path))
+        model = create_ssl_image_classifier(num_classes=1,  # dummy value
+                                            freeze_encoder=True,
+                                            pl_checkpoint_path=str(self.pl_checkpoint_path))
         encoder: SSLEncoder = model.encoder
         for param in encoder.parameters():
             param.requires_grad = False  # freeze_encoder does not disable gradients
