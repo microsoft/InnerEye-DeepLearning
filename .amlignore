@@ -36,4 +36,4 @@ InnerEyeTestVariables.txt
 InnerEyePrivateSettings.yml
 cifar-10-batches-py
 cifar-100-python
-!InnerEye/ML/Histopathology/datasets
+!InnerEye/ML/Histopathology/datasets/**
