@@ -22,6 +22,7 @@ SECURITY.md
 __pycache__
 azure-pipelines
 datasets
+!innereye-deeplearning/InnerEye/ML/Histopathology/datasets
 docs
 sphinx-docs
 modelweights
