@@ -103,5 +103,5 @@ class TilesDataset(Dataset):
     def get_class_weights(self) -> torch.Tensor:
         slide_labels = self.get_slide_labels()
         classes = np.unique(slide_labels)
-        class_weights = compute_class_weight('balanced', classes, slide_labels)
+        class_weights = compute_class_weight(class_weight='balanced', classes=classes, y=slide_labels)
         return torch.as_tensor(class_weights)

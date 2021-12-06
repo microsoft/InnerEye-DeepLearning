@@ -191,6 +191,7 @@ def compare_files(expected: Path, actual: Path) -> str:
     If the files are not identical, an error message with details is return. This handles known text file formats,
     where it ignores differences in line breaks. All other files are treated as binary, and compared on a byte-by-byte
     basis.
+
     :param expected: A file that contains the expected contents. The type of comparison (text or binary) is chosen
     based on the extension of this file.
     :param actual: A file that contains the actual contents.
@@ -198,8 +199,9 @@ def compare_files(expected: Path, actual: Path) -> str:
     """
 
     def print_lines(prefix: str, lines: List[str]) -> None:
-        count = 5
-        logging.debug(f"{prefix} {len(lines)} lines, first {count} of those:")
+        num_lines = len(lines)
+        count = min(5, num_lines)
+        logging.debug(f"{prefix} {num_lines} lines, first {count} of those:")
         logging.debug(os.linesep.join(lines[:count]))
 
     if expected.suffix in TEXT_FILE_SUFFIXES:
