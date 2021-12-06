@@ -71,20 +71,14 @@ def test_dataset_consumption2() -> None:
 
 def test_dataset_consumption3() -> None:
     """
-    Creating datasets, case 3: local datasets only
-    :return:
+    Creating datasets, case 3: local datasets only. This should generate no results
     """
     azure_config = get_default_azure_config()
     datasets = create_dataset_configs(azure_config,
                                       all_azure_dataset_ids=[],
                                       all_dataset_mountpoints=[],
                                       all_local_datasets=[Path("l1"), Path("l2")])
-    assert len(datasets) == 2
-    assert datasets[0].local_folder == Path("l1")
-    assert datasets[1].local_folder == Path("l2")
-    for i in range(2):
-        assert datasets[i].name == ""
-        assert datasets[i].target_folder is None
+    assert len(datasets) == 0
 
 def test_dataset_consumption4() -> None:
     """

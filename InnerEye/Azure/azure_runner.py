@@ -95,10 +95,10 @@ def create_dataset_configs(azure_config: AzureConfig,
                            all_dataset_mountpoints: List[str],
                            all_local_datasets: List[Optional[Path]]) -> List[DatasetConfig]:
     """
-    Sets up all the dataset consumption objects for the datasets provided.
+    Sets up all the dataset consumption objects for the datasets provided. The returned list will have the same length
+    as there are non-empty azure dataset IDs.
 
     Valid arguments combinations:
-    N local datasets, everything else empty
     N azure datasets, 0 or N mount points, 0 or N local datasets
 
     :param azure_config: azure related configurations to use for model scale-out behaviour
@@ -112,24 +112,21 @@ def create_dataset_configs(azure_config: AzureConfig,
     num_local = len(all_local_datasets)
     num_azure = len(all_azure_dataset_ids)
     num_mount = len(all_dataset_mountpoints)
-    if num_local > 0 and num_azure == 0 and num_mount == 0:
-        count = num_local
-    elif num_azure > 0 and (num_local == 0 or num_local == num_azure) and (num_mount == 0 or num_mount == num_azure):
+    if num_azure > 0 and (num_local == 0 or num_local == num_azure) and (num_mount == 0 or num_mount == num_azure):
         count = num_azure
-    elif num_azure == 0 and num_local == 0 and num_mount == 0:
-        count = 0
+    elif num_azure == 0 and num_mount == 0:
+        return []
     else:
-        raise ValueError("Invalid dataset setup. You can either specify N entries in local_dataset, and no entries in "
-                         "azure_datasets and dataset_mountpoints, or have N entries in azure_datasets and a matching "
+        raise ValueError("Invalid dataset setup. You need to specify N entries in azure_datasets and a matching "
                          "number of local_datasets and dataset_mountpoints")
     for i in range(count):
         azure_dataset = all_azure_dataset_ids[i] if i < num_azure else ""
+        if not azure_dataset:
+            continue
         mount_point = all_dataset_mountpoints[i] if i < num_mount else ""
         local_dataset = all_local_datasets[i] if i < num_local else None
         is_empty_azure_dataset = len(azure_dataset.strip()) == 0
-        # Workaround to enable local execution when no azure_dataset is provided: The constructor of DatasetConfig
-        # checks that the name is not empty, so we set it to a fake string and remove that after.
-        config = DatasetConfig(name="foo" if is_empty_azure_dataset else azure_dataset,
+        config = DatasetConfig(name=azure_dataset,
                                # Workaround for a bug in hi-ml 0.1.11: mount_point=="" creates invalid jobs,
                                # setting to None works.
                                target_folder=mount_point or None,
