@@ -21,7 +21,7 @@ pull_request_template.md
 SECURITY.md
 __pycache__
 azure-pipelines
-datasets
+/datasets
 docs
 sphinx-docs
 modelweights
@@ -36,3 +36,4 @@ InnerEyeTestVariables.txt
 InnerEyePrivateSettings.yml
 cifar-10-batches-py
 cifar-100-python
+!**/InnerEye/ML/Histopathology/datasets
