@@ -14,6 +14,7 @@ dependencies:
       - git+https://github.com/analysiscenter/radio.git@6d53e25#egg=radio
       - azure-mgmt-resource==12.1.0
       - azure-mgmt-datafactory==1.1.0
+      - azure-storage-blob==12.6.0
       - azureml-mlflow==1.36.0
       - azureml-sdk==1.36.0
       - azureml-tensorboard==1.36.0
@@ -33,7 +34,7 @@ dependencies:
       - jupyter-client==6.1.5
       - lightning-bolts==0.3.4
       - matplotlib==3.3.0
-      - mlflow==1.17.
+      - mlflow==1.17.0
       - monai==0.6.0
       - mypy==0.910
       - mypy-extensions==0.4.3
@@ -69,4 +70,5 @@ dependencies:
       - tensorboardX==2.1
       - torchprof==1.3.3
       - torchmetrics==0.4.1
+      - umap-learn==0.5.2
       - yacs==0.1.8
