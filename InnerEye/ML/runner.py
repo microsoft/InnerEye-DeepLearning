@@ -47,7 +47,7 @@ from InnerEye.Azure.azure_util import (RUN_CONTEXT, RUN_RECOVERY_ID_KEY_NAME, ge
                                        is_offline_run_context)
 from InnerEye.Azure.run_pytest import download_pytest_result, run_pytest
 from InnerEye.Common.common_util import (FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE,
-                                         disable_logging_to_file, is_linux, logging_to_stdout)
+                                         is_linux, logging_to_stdout)
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
@@ -250,10 +250,12 @@ class Runner:
         if not self.lightning_container.regression_test_folder:
             ignored_folders.append("RegressionTestResults")
 
-        input_datasets = create_dataset_configs(self.azure_config,
-                                                all_azure_dataset_ids=self.lightning_container.all_azure_dataset_ids(),
-                                                all_dataset_mountpoints=self.lightning_container.all_dataset_mountpoints(),
-                                                all_local_datasets=self.lightning_container.all_local_dataset_paths())
+        all_local_datasets = self.lightning_container.all_local_dataset_paths()
+        input_datasets = \
+            create_dataset_configs(self.azure_config,
+                                   all_azure_dataset_ids=self.lightning_container.all_azure_dataset_ids(),
+                                   all_dataset_mountpoints=self.lightning_container.all_dataset_mountpoints(),
+                                   all_local_datasets=all_local_datasets)  # type: ignore
 
         def after_submission_hook(azure_run: Run) -> None:
             """

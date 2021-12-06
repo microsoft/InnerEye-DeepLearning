@@ -15,7 +15,6 @@ import stopit
 import torch.multiprocessing
 from azureml._restclient.constants import RunStatus
 from azureml.core import Model, Run, model
-from azureml.data import FileDataset
 from pytorch_lightning import LightningModule, seed_everything
 from pytorch_lightning.core.datamodule import LightningDataModule
 from torch.utils.data import DataLoader
@@ -60,7 +59,6 @@ from InnerEye.ML.visualizers import activation_maps
 from InnerEye.ML.visualizers.plot_cross_validation import \
     get_config_and_results_for_offline_runs, plot_cross_validation_from_files
 from health_azure import AzureRunInfo
-from health_azure.datasets import get_or_create_dataset
 from health_azure.utils import ENVIRONMENT_VERSION, create_run_recovery_id, is_global_rank_zero, merge_conda_files
 
 ModelDeploymentHookSignature = Callable[[LightningContainer, AzureConfig, Model, ModelProcessing], Any]
@@ -163,7 +161,7 @@ class MLRunner:
                 extra_locals: List[Path] = []
                 for extra_datasets in azure_run_info.input_datasets[1:]:
                     extra_locals.append(check_dataset_folder_exists(extra_datasets))
-                self.container.extra_local_dataset_paths = extra_locals
+                self.container.extra_local_dataset_paths = extra_locals  # type: ignore
         # Ensure that we use fixed seeds before initializing the PyTorch models
         seed_everything(self.container.get_effective_random_seed())
         # Creating the folder structure must happen before the LightningModule is created, because the output

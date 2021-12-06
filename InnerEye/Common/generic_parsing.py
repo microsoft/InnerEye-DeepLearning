@@ -46,7 +46,7 @@ class StringOrStringList(param.Parameter):
                 return
         raise ValueError(f"{val} must be a string or a list of strings")
 
-    def set_hook(self, obj, val) -> Any:
+    def set_hook(self, obj: Any, val: Any) -> Any:
         """
         Modifies the value before calling the setter. Here, we are converting all strings to lists of strings.
         """
@@ -68,7 +68,7 @@ class PathOrPathList(param.Parameter):
                 return
         raise ValueError(f"{val} must be a string or a list of strings")
 
-    def set_hook(self, obj, val) -> Any:
+    def set_hook(self, obj: Any, val: Any) -> Any:
         """
         Modifies the value before calling the setter. Here, we are converting simple path to lists of path.
         """

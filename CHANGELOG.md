@@ -89,6 +89,7 @@ in inference-only runs when using lightning containers.
   correctly in the SimCLR module
 - ([#558](https://github.com/microsoft/InnerEye-DeepLearning/pull/558)) Fix issue with the CovidModel config where model
   weights from a finetuning run were incompatible with the model architecture created for non-finetuning runs.
+- ([#604](https://github.com/microsoft/InnerEye-DeepLearning/pull/604)) Fix issue where runs on a VM would download the dataset even when a local dataset is provided.
 
 ### Removed
 
@@ -103,6 +104,7 @@ in inference-only runs when using lightning containers.
 - ([#554](https://github.com/microsoft/InnerEye-DeepLearning/pull/554)) Removed cryptography from list of invalid
   packages in `test_invalid_python_packages` as it is already present as a dependency in our conda environment.
 - ([#596](https://github.com/microsoft/InnerEye-DeepLearning/pull/596)) Removed obsolete `TrainGlaucomaCV` from PR build.
+- ([#604](https://github.com/microsoft/InnerEye-DeepLearning/pull/604)) Removed all code that downloads datasets, this is now all handled by hi-ml
 
 ### Deprecated
 

@@ -3,29 +3,18 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
-import shutil
 from pathlib import Path
-from typing import Any, List, Optional
-from unittest import mock
+from typing import List
 
 import pytest
 
 from InnerEye.Azure.azure_config import AzureConfig
-from InnerEye.Common import fixed_paths
-from InnerEye.Common.common_util import OTHER_RUNS_SUBDIR_NAME, logging_section, logging_to_stdout
-from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
+from InnerEye.Common.common_util import OTHER_RUNS_SUBDIR_NAME, logging_to_stdout
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.ML.common import DATASET_CSV_FILE_NAME
-from InnerEye.ML.deep_learning_config import DeepLearningConfig
-from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.model_config_base import ModelConfigBase
-from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils.run_recovery import RunRecovery
 from Tests.AfterTraining.test_after_training import FALLBACK_ENSEMBLE_RUN, FALLBACK_SINGLE_RUN, get_most_recent_run
-from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.configs.lightning_test_containers import DummyContainerWithDatasets
 from Tests.ML.util import get_default_azure_config
-from health_azure import AzureRunInfo
 
 logging_to_stdout(logging.DEBUG)
 

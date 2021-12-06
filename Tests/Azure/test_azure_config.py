@@ -101,14 +101,14 @@ def test_dataset_params_local(first: Path, extra: List[Path], expected: List[Pat
     """
     p = DatasetParams()
     p.local_dataset = first
-    p.extra_local_dataset_paths = extra
+    p.extra_local_dataset_paths = extra  # type: ignore
     assert p.all_local_dataset_paths() == expected
 
 
 @pytest.mark.parametrize(("first", "extra", "expected"),
                          [("", ["foo"], ["foo"]),
                           ("bar", ["foo"], ["bar", "foo"])])
-def test_dataset_params_azure(first: Path, extra: List[Path], expected: List[Path]) -> None:
+def test_dataset_params_azure(first: str, extra: List[str], expected: List[Path]) -> None:
     """
     Azure datasets that are None or an empty string should be excluded from all_azure_dataset_ids
     """

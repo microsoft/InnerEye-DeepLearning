@@ -410,7 +410,7 @@ class DatasetParams(param.Parameterized):
         Returns a list with all dataset mount points that are specified in self.local_dataset and
         self.extra_local_dataset_paths
         """
-        return self._concat_paths(self.local_dataset, self.extra_local_dataset_paths)
+        return self._concat_paths(self.local_dataset, self.extra_local_dataset_paths)  # type: ignore
 
     def _concat_paths(self, item: Optional[T], items: List[T]) -> List[T]:
         """
