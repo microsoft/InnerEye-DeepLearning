@@ -95,8 +95,12 @@ def create_dataset_configs(azure_config: AzureConfig,
                            all_dataset_mountpoints: List[str],
                            all_local_datasets: List[Optional[Path]]) -> List[DatasetConfig]:
     """
-    Sets up all the dataset consumption objects for the datasets provided. Datasets that have an empty name will be
-    skipped.
+    Sets up all the dataset consumption objects for the datasets provided.
+
+    Valid arguments combinations:
+    N local datasets, everything else empty
+    N azure datasets, 0 or N mount points, 0 or N local datasets
+
     :param azure_config: azure related configurations to use for model scale-out behaviour
     :param all_azure_dataset_ids: The name of all datasets on blob storage that will be used for this run.
     :param all_dataset_mountpoints: When using the datasets in AzureML, these are the per-dataset mount points.
@@ -105,32 +109,36 @@ def create_dataset_configs(azure_config: AzureConfig,
     omitting datasets with an empty name.
     """
     datasets: List[DatasetConfig] = []
-    if len(all_dataset_mountpoints) > 0:
-        if len(all_azure_dataset_ids) != len(all_dataset_mountpoints):
-            raise ValueError(f"The number of dataset mount points ({len(all_dataset_mountpoints)}) "
-                             f"must equal the number of Azure dataset IDs ({len(all_azure_dataset_ids)})")
+    num_local = len(all_local_datasets)
+    num_azure = len(all_azure_dataset_ids)
+    num_mount = len(all_dataset_mountpoints)
+    if num_local > 0 and num_azure == 0 and num_mount == 0:
+        count = num_local
+    elif num_azure > 0 and (num_local == 0 or num_local == num_azure) and (num_mount == 0 or num_mount == num_azure):
+        count = num_azure
+    elif num_azure == 0 and num_local == 0 and num_mount == 0:
+        count = 0
     else:
-        all_dataset_mountpoints = [""] * len(all_azure_dataset_ids)
-    if len(all_local_datasets) > 0:
-        if len(all_azure_dataset_ids) != len(all_local_datasets):
-            raise ValueError(f"The number of local datasets ({len(all_local_datasets)}) "
-                             f"must equal the number of Azure dataset IDs ({len(all_azure_dataset_ids)})")
-    else:
-        all_local_datasets = [""] * len(all_azure_dataset_ids)
-    for i, (dataset_id, mount_point, local_dataset) in enumerate(zip(all_azure_dataset_ids,
-                                                                     all_dataset_mountpoints,
-                                                                     all_local_datasets)):
-        if dataset_id:
-            datasets.append(DatasetConfig(name=dataset_id,
-                                          # Workaround for a bug in hi-ml 0.1.11: mount_point=="" creates invalid jobs,
-                                          # setting to None works.
-                                          target_folder=mount_point or None,
-                                          local_folder=local_dataset,
-                                          use_mounting=azure_config.use_dataset_mount,
-                                          datastore=azure_config.azureml_datastore))
-        elif mount_point:
-            raise ValueError(f"Inconsistent setup: Dataset name at index {i} is empty, but a mount point has "
-                             f"been provided ('{mount_point}')")
+        raise ValueError("Invalid dataset setup. You can either specify N entries in local_dataset, and no entries in "
+                         "azure_datasets and dataset_mountpoints, or have N entries in azure_datasets and a matching "
+                         "number of local_datasets and dataset_mountpoints")
+    for i in range(count):
+        azure_dataset = all_azure_dataset_ids[i] if i < num_azure else ""
+        mount_point = all_dataset_mountpoints[i] if i < num_mount else ""
+        local_dataset = all_local_datasets[i] if i < num_local else None
+        is_empty_azure_dataset = len(azure_dataset.strip()) == 0
+        # Workaround to enable local execution when no azure_dataset is provided: The constructor of DatasetConfig
+        # checks that the name is not empty, so we set it to a fake string and remove that after.
+        config = DatasetConfig(name="foo" if is_empty_azure_dataset else azure_dataset,
+                               # Workaround for a bug in hi-ml 0.1.11: mount_point=="" creates invalid jobs,
+                               # setting to None works.
+                               target_folder=mount_point or None,
+                               local_folder=local_dataset,
+                               use_mounting=azure_config.use_dataset_mount,
+                               datastore=azure_config.azureml_datastore)
+        if is_empty_azure_dataset:
+            config.name = ""
+        datasets.append(config)
     return datasets
 
 

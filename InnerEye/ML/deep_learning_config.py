@@ -414,9 +414,9 @@ class DatasetParams(param.Parameterized):
 
     def _concat_paths(self, item: Optional[T], items: List[T]) -> List[T]:
         """
-        Creates a list with the item going first (if not None), then the rest of the items.
+        Creates a list with the item going first (if it does not evaluate to False), then the rest of the items.
         """
-        if not item:
+        if item is None or (isinstance(item, str) and not item.strip()):
             return items
         return [item] + items
 

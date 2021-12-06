@@ -158,11 +158,12 @@ class MLRunner:
             # Set up the paths to the datasets. azure_run_info already has all necessary information, using either
             # the provided local datasets for VM runs, or the AzureML mount points when running in AML.
             # This must happen before container setup because that could already read datasets.
-            self.container.local_dataset = check_dataset_folder_exists(azure_run_info.input_datasets[0])
-            extra_locals: List[Path] = []
-            for extra_datasets in azure_run_info.input_datasets[1:]:
-                extra_locals.append(check_dataset_folder_exists(extra_datasets))
-            self.container.extra_local_dataset_paths = extra_locals
+            if len(azure_run_info.input_datasets) > 0:
+                self.container.local_dataset = check_dataset_folder_exists(azure_run_info.input_datasets[0])
+                extra_locals: List[Path] = []
+                for extra_datasets in azure_run_info.input_datasets[1:]:
+                    extra_locals.append(check_dataset_folder_exists(extra_datasets))
+                self.container.extra_local_dataset_paths = extra_locals
         # Ensure that we use fixed seeds before initializing the PyTorch models
         seed_everything(self.container.get_effective_random_seed())
         # Creating the folder structure must happen before the LightningModule is created, because the output
