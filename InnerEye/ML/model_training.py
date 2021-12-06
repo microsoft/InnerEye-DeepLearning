@@ -105,7 +105,7 @@ def create_lightning_trainer(container: LightningContainer,
         plugins = []
     logging.info(f"Using {num_gpus} GPUs per node with accelerator '{accelerator}'")
     tensorboard_logger = TensorBoardLogger(save_dir=str(container.logs_folder), name="Lightning", version="")
-    loggers = [tensorboard_logger, AzureMLLogger()]
+    loggers = [tensorboard_logger, AzureMLLogger(False)]
     storing_logger = StoringLogger()
     loggers.append(storing_logger)
     # Use 32bit precision when running on CPU. Otherwise, make it depend on use_mixed_precision flag.
