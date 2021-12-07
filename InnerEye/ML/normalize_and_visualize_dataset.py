@@ -20,9 +20,9 @@ from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.dataset.full_image_dataset import load_dataset_sources
 from InnerEye.ML.deep_learning_config import ARGS_TXT
 from InnerEye.ML.photometric_normalization import PhotometricNormalization
-from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.utils.io_util import load_images_from_dataset_source
+from health_azure import DatasetConfig
 
 
 class NormalizeAndVisualizeConfig(GenericConfig):
@@ -73,8 +73,10 @@ def main(yaml_file_path: Path) -> None:
     In addition, the arguments '--image_channel' and '--gt_channel' must be specified (see below).
     """
     config, runner_config, args = get_configs(SegmentationModelBase(should_validate=False), yaml_file_path)
-    runner = MLRunner(config, azure_config=runner_config)
-    local_dataset = runner.download_or_use_existing_dataset(config.azure_dataset_id, config.local_dataset)
+    dataset_config = DatasetConfig(name=config.azure_dataset_id,
+                                   local_folder=config.local_dataset,
+                                   use_mounting=True)
+    local_dataset, mount_context = dataset_config.to_input_dataset_local(workspace=runner_config.get_workspace())
     dataframe = pd.read_csv(local_dataset / DATASET_CSV_FILE_NAME)
     normalizer_config = NormalizeAndVisualizeConfig(**args)
     actual_mask_channel = None if normalizer_config.ignore_mask else config.mask_id

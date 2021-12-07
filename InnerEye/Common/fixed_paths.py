@@ -37,8 +37,6 @@ DEFAULT_RESULT_ZIP_DICOM_NAME = "segmentation.dcm.zip"
 DEFAULT_LOGS_DIR_NAME = "logs"
 
 DEFAULT_MODEL_SUMMARIES_DIR_PATH = Path(DEFAULT_LOGS_DIR_NAME) / "model_summaries"
-# The folder at the project root directory that holds datasets for local execution.
-DATASETS_DIR_NAME = "datasets"
 
 ML_RELATIVE_SOURCE_PATH = os.path.join("ML")
 ML_RELATIVE_RUNNER_PATH = os.path.join(ML_RELATIVE_SOURCE_PATH, "runner.py")

@@ -91,6 +91,10 @@ class CheckpointHandler:
         the latest checkpoint will be present in this folder too.
         :return: Constructed checkpoint path to recover from.
         """
+        checkpoints = list(self.container.checkpoint_folder.rglob("*"))
+        logging.debug(f"Available checkpoints: {len(checkpoints)}")
+        for f in checkpoints:
+            logging.debug(f)
         recovery = find_recovery_checkpoint_and_epoch(self.container.checkpoint_folder)
         if recovery is not None:
             local_recovery_path, recovery_epoch = recovery
