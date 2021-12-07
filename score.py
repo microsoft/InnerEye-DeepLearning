@@ -299,6 +299,7 @@ def score_image(args: ScorePipelineConfig) -> Path:
 
 def main() -> None:
     print(f"PYTHONPATH: {os.environ.get('PYTHONPATH')}")
+    fixed_paths.add_submodules_to_path()
     score_image(ScorePipelineConfig.parse_args())
 
 
