@@ -113,8 +113,14 @@ def create_dataset_configs(azure_config: AzureConfig,
     num_azure = len(all_azure_dataset_ids)
     num_mount = len(all_dataset_mountpoints)
     if num_azure > 0 and (num_local == 0 or num_local == num_azure) and (num_mount == 0 or num_mount == num_azure):
+        # Test for valid settings: If we have N azure datasets, the local datasets and mount points need to either
+        # have exactly the same length, or 0. In the latter case, empty mount points and no local dataset will be
+        # assumed below.
         count = num_azure
     elif num_azure == 0 and num_mount == 0:
+        # No datasets in Azure at all: This is possible for runs that for example download their own data from the web.
+        # There can be any number of local datasets, but we are not checking that. In MLRunner.setup, there is a check
+        # that leaves local datasets intact if there are no Azure datasets.
         return []
     else:
         raise ValueError("Invalid dataset setup. You need to specify N entries in azure_datasets and a matching "

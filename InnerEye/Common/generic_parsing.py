@@ -66,7 +66,7 @@ class PathOrPathList(param.Parameter):
         if isinstance(val, List):
             if all([isinstance(v, Path) for v in val]):
                 return
-        raise ValueError(f"{val} must be a string or a list of strings")
+        raise ValueError(f"{val} must be a Path object or a list of paths")
 
     def set_hook(self, obj: Any, val: Any) -> Any:
         """
