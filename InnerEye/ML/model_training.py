@@ -91,6 +91,7 @@ def create_lightning_trainer(container: LightningContainer,
     :param kwargs: Any additional keyowrd arguments will be passed to the constructor of Trainer.
     :return: A tuple [Trainer object, diagnostic logger]
     """
+    logging.debug(f"resume_from_checkpoint: {resume_from_checkpoint}")
     num_gpus = container.num_gpus_per_node()
     effective_num_gpus = num_gpus * num_nodes
     # Accelerator should be "ddp" when running large models in AzureML (when using DDP_spawn, we get out of GPU memory).
