@@ -9,10 +9,6 @@ import uuid
 from pathlib import Path
 from typing import Optional, Tuple
 
-# Suppress all errors here because the imports after code cause loads of warnings. We can't specifically suppress
-# individual warnings only.
-# flake8: noqa
-
 # Workaround for an issue with how AzureML and Pytorch Lightning interact: When spawning additional processes for DDP,
 # the working directory is not correctly picked up in sys.path
 print(f"Starting InnerEye runner at {sys.argv[0]}")
@@ -24,6 +20,8 @@ if (innereye_root / "InnerEye").is_dir():
         sys.path.insert(0, innereye_root_str)
 from InnerEye.Common import fixed_paths
 
+# This must be added before all other imports because they might rely on hi-ml already, and that can optionally live
+# in a submodule
 fixed_paths.add_submodules_to_path()
 
 from azureml._base_sdk_common import user_agent

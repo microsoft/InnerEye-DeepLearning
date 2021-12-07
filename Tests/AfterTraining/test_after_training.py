@@ -50,11 +50,11 @@ from InnerEye.ML.visualizers.plot_cross_validation import PlotCrossValidationCon
 from InnerEye.Scripts import submit_for_inference
 from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_default_workspace, get_nifti_shape
 
-FALLBACK_SINGLE_RUN = "refs_pull_593_merge_1637188926_7ba554ba"
-FALLBACK_ENSEMBLE_RUN = "refs_pull_545_merge:HD_caea82ae-9603-48ba-8280-7d2bc6272411"
-FALLBACK_2NODE_RUN = "refs_pull_545_merge:refs_pull_545_merge_1626538178_9f3023b2"
+FALLBACK_SINGLE_RUN = "refs_pull_606_merge:refs_pull_606_merge_1638867172_17ba8dc5"
+FALLBACK_ENSEMBLE_RUN = "refs_pull_606_merge:HD_b8a6ad93-8c19-45de-8ea1-f87fce92c3bd"
+FALLBACK_2NODE_RUN = "refs_pull_606_merge:refs_pull_606_merge_1638867224_8d8072fe"
 FALLBACK_CV_GLAUCOMA = "refs_pull_545_merge:HD_72ecc647-07c3-4353-a538-620346114ebd"
-FALLBACK_HELLO_CONTAINER_RUN = "refs_pull_545_merge:refs_pull_545_merge_1626538216_3eb92f09"
+FALLBACK_HELLO_CONTAINER_RUN = "refs_pull_606_merge:refs_pull_606_merge_1638867108_789991ac"
 
 
 def get_most_recent_run_id(fallback_run_id_for_local_execution: str = FALLBACK_SINGLE_RUN) -> str:

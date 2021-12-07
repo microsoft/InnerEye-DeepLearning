@@ -608,10 +608,11 @@ class MLRunner:
         :param python_environment: The Python environment that is used in the present AzureML run.
         """
 
-        def copy_folder(source_folder: Path, destination_folder: str = "") -> None:
+        def copy_folder(source_folder: Path, destination_folder: Optional[Path] = None) -> None:
             logging.info(f"Copying folder for registration: {source_folder}")
-            destination_folder = destination_folder or source_folder.name
-            shutil.copytree(str(source_folder), str(model_folder / destination_folder),
+            full_destination = model_folder / source_folder.name if destination_folder is None \
+                else model_folder / destination_folder
+            shutil.copytree(str(source_folder), str(full_destination),
                             ignore=shutil.ignore_patterns('*.pyc'))
 
         def copy_file(source: Path, destination_file: str) -> None:
@@ -654,6 +655,11 @@ class MLRunner:
         # we can identify it by going up the folder structure off a known file (repository_root does exactly that)
         repository_root = fixed_paths.repository_root_directory()
         copy_folder(repository_root / INNEREYE_PACKAGE_NAME)
+        # If hi-ml is used as a submodule, copy that too
+        for relative_path, _ in fixed_paths.get_hi_ml_submodule_relative_paths():
+            full_submodule_path = repository_root / relative_path
+            if full_submodule_path.is_dir():
+                copy_folder(full_submodule_path, relative_path)
         # Extra code directory is expected to be relative to the project root folder.
         if self.azure_config.extra_code_directory:
             extra_code_folder = self.project_root / self.azure_config.extra_code_directory
