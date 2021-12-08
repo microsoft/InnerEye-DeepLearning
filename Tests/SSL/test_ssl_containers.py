@@ -12,22 +12,25 @@ import pandas as pd
 import pytest
 import torch
 from pl_bolts.models.self_supervised.resnets import ResNet
+from pytorch_lightning import Trainer
+from pytorch_lightning.callbacks import ModelCheckpoint
 from torch.optim.lr_scheduler import _LRScheduler
 
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import is_windows
 from InnerEye.Common.fixed_paths import repository_root_directory
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
+from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.SSL.lightning_containers.ssl_container import EncoderName, SSLDatasetName
 from InnerEye.ML.SSL.lightning_modules.byol.byol_module import BYOLInnerEye
 from InnerEye.ML.SSL.lightning_modules.simclr_module import SimCLRInnerEye
 from InnerEye.ML.SSL.lightning_modules.ssl_classifier_module import SSLClassifier
-from InnerEye.ML.SSL.lightning_modules.ssl_online_evaluator import EVALUATOR_STATE_NAME, OPTIMIZER_STATE_NAME, \
-    SSLOnlineEvaluatorInnerEye
+from InnerEye.ML.SSL.lightning_modules.ssl_online_evaluator import SSLOnlineEvaluatorInnerEye
 from InnerEye.ML.SSL.utils import SSLDataModuleType, SSLTrainingType
 from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
 from InnerEye.ML.configs.ssl.CXR_SSL_configs import CXRImageClassifier
 from InnerEye.ML.runner import Runner
+from Tests.ML.configs.lightning_test_containers import DummyContainerWithModel
 from Tests.ML.utils.test_io_util import write_test_dicom
 
 path_to_test_dataset = full_ml_test_data_path("cxr_test_dataset")
@@ -133,8 +136,8 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
     assert "callbacks" in checkpoint
     assert SSLOnlineEvaluatorInnerEye in checkpoint["callbacks"]
     callback_state = checkpoint["callbacks"][SSLOnlineEvaluatorInnerEye]
-    assert OPTIMIZER_STATE_NAME in callback_state
-    assert EVALUATOR_STATE_NAME in callback_state
+    assert SSLOnlineEvaluatorInnerEye.OPTIMIZER_STATE_NAME in callback_state
+    assert SSLOnlineEvaluatorInnerEye.EVALUATOR_STATE_NAME in callback_state
 
     # Now run the actual SSL classifier off the stored checkpoint
     args = common_test_args + ["--model=SSLClassifierCIFAR", f"--local_ssl_weights_path={checkpoint_path}"]
@@ -268,3 +271,73 @@ def test_simclr_lr_scheduler() -> None:
         assert lr[i] < lr[i + 1], f"Not strictly monotonically increasing at index {i}"
     for i in range(highest_lr, len(lr) - 1):
         assert lr[i] > lr[i + 1], f"Not strictly monotonically decreasing at index {i}"
+
+
+def test_online_evaluator_recovery(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test checkpoint recovery for the online evaluator in an end-to-end training run.
+    """
+    container = DummyContainerWithModel()
+    model = container.create_model()
+    data = container.get_data_module()
+    checkpoint_folder = test_output_dirs.create_file_or_folder_path("checkpoints")
+    checkpoint_folder.mkdir(exist_ok=True)
+    checkpoints = ModelCheckpoint(dirpath=checkpoint_folder,
+                                  every_n_val_epochs=1,
+                                  save_last=True)
+    # Create a first callback, that will be used in training.
+    callback1 = SSLOnlineEvaluatorInnerEye(class_weights=None,
+                                           z_dim=1,
+                                           num_classes=2,
+                                           dataset="foo",
+                                           drop_p=0.2,
+                                           learning_rate=1e-5)
+    # To simplify the test setup, do not run any actual training (this would require complicated dataset with a
+    # combined loader)
+    with mock.patch(
+            "InnerEye.ML.SSL.lightning_modules.ssl_online_evaluator.SSLOnlineEvaluatorInnerEye.on_train_batch_end",
+            return_value=None) as mock_train:
+        with mock.patch(
+                "InnerEye.ML.SSL.lightning_modules.ssl_online_evaluator.SSLOnlineEvaluatorInnerEye"
+                ".on_validation_batch_end",
+                return_value=None):
+            trainer = Trainer(default_root_dir=str(test_output_dirs.root_dir),
+                              callbacks=[checkpoints, callback1],
+                              max_epochs=10)
+            trainer.fit(model, datamodule=data)
+            # Check that the callback was actually used
+            mock_train.assert_called()
+            # Now read out the parameters of the callback.
+            # We will then run a second training job, with a new callback object, that will be initialized randomly,
+            # and should have different parameters initially. After checkpoint recovery, it should have exactly the
+            # same parameters as the first callback.
+            parameters1 = list(callback1.evaluator.parameters())
+            callback2 = SSLOnlineEvaluatorInnerEye(class_weights=None,
+                                                   z_dim=1,
+                                                   num_classes=2,
+                                                   dataset="foo",
+                                                   drop_p=0.2,
+                                                   learning_rate=1e-5)
+            # Ensure that the parameters are really different initially
+            parameters2_before_training = list(callback2.evaluator.parameters())
+            assert not torch.allclose(parameters2_before_training[0], parameters1[0])
+            # Start a second training run with recovery
+            last_checkpoint = checkpoints.last_model_path
+            trainer2 = Trainer(default_root_dir=str(test_output_dirs.root_dir),
+                               callbacks=[callback2],
+                               max_epochs=20,
+                               resume_from_checkpoint=last_checkpoint)
+            trainer2.fit(model, datamodule=data)
+            # Read the parameters and check if they are the same as what was stored in the first callback.
+            parameters2_after_training = list(callback2.evaluator.parameters())
+            assert torch.allclose(parameters2_after_training[0], parameters1[0])
+
+    # It's somewhat obsolete, but we can now check that the checkpoint file really contained the optimizer and weights
+    checkpoint = torch.load(last_checkpoint)
+    assert "callbacks" in checkpoint
+    assert SSLOnlineEvaluatorInnerEye in checkpoint["callbacks"]
+    callback_state = checkpoint["callbacks"][SSLOnlineEvaluatorInnerEye]
+    assert SSLOnlineEvaluatorInnerEye.OPTIMIZER_STATE_NAME in callback_state
+    assert SSLOnlineEvaluatorInnerEye.EVALUATOR_STATE_NAME in callback_state
+
+
