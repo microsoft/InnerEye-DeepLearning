@@ -8,7 +8,7 @@ from pathlib import Path
 
 import param
 import torch
-from pytorch_lightning import LightningDataModule, LightningModule
+from pytorch_lightning import Callback, LightningDataModule, LightningModule
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 from azureml.core import ScriptRunConfig
@@ -207,6 +207,12 @@ class LightningContainer(GenericConfig,
         Gets additional parameters that will be passed on to the PyTorch Lightning trainer.
         """
         return dict()
+
+    def get_callbacks(self) -> List[Callback]:
+        """
+        Gets additional callbacks that the trainer should use when training this model.
+        """
+        return []
 
     def get_parameter_search_hyperdrive_config(self, _: ScriptRunConfig) -> HyperDriveConfig:  # type: ignore
         """

@@ -6,10 +6,10 @@ import logging
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import param
-from pytorch_lightning import LightningModule
+from pytorch_lightning import Callback, LightningModule
 from yacs.config import CfgNode
 
 from InnerEye.ML.SSL.datamodules_and_datasets.cifar_datasets import InnerEyeCIFAR10, InnerEyeCIFAR100
@@ -266,12 +266,11 @@ class SSLContainer(LightningContainer):
 
         return train_transforms, val_transforms
 
-    def get_trainer_arguments(self) -> Dict[str, Any]:
+    def get_callbacks(self) -> List[Callback]:
         self.online_eval = SSLOnlineEvaluatorInnerEye(class_weights=self.data_module.class_weights,  # type: ignore
                                                       z_dim=self.encoder_output_dim,
                                                       num_classes=self.data_module.num_classes,  # type: ignore
                                                       dataset=self.linear_head_dataset_name.value,  # type: ignore
                                                       drop_p=0.2,
                                                       learning_rate=self.learning_rate_linear_head_during_ssl_training)
-        trainer_kwargs: Dict[str, Any] = {"callbacks": self.online_eval}
-        return trainer_kwargs
+        return [self.online_eval]

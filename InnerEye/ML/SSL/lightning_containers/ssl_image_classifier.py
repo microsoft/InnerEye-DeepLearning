@@ -4,9 +4,10 @@
 #  ------------------------------------------------------------------------------------------
 import logging
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import param
+from pytorch_lightning import Callback
 
 from InnerEye.ML.SSL.datamodules_and_datasets.datamodules import InnerEyeVisionDataModule
 from InnerEye.ML.SSL.lightning_containers.ssl_container import InnerEyeDataModuleTypes, SSLContainer
@@ -63,7 +64,7 @@ class SSLClassifierContainer(SSLContainer):
             self.data_module.class_weights = self.data_module.compute_class_weights()
         return self.data_module
 
-    def get_trainer_arguments(self) -> Dict[str, Any]:
-        # This class inherits from SSLContainer, where the get_trainer_arguments adds the online evaluator callback.
-        # We don't need that for the classifier, hence need to return an empty set of trainer arguments.
-        return {}
+    def get_callbacks(self) -> List[Callback]:
+        # This class inherits from SSLContainer, where the get_callbacks method adds the online evaluator.
+        # We don't need that for the classifier.
+        return []
