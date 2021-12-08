@@ -72,4 +72,3 @@ dependencies:
       - torchmetrics==0.4.1
       - umap-learn==0.5.2
       - yacs==0.1.8
-      - ruamel.yaml==0.16.12
