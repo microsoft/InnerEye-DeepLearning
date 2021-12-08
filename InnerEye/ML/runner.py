@@ -9,10 +9,6 @@ import uuid
 from pathlib import Path
 from typing import Optional, Tuple
 
-# Suppress all errors here because the imports after code cause loads of warnings. We can't specifically suppress
-# individual warnings only.
-# flake8: noqa
-
 # Workaround for an issue with how AzureML and Pytorch Lightning interact: When spawning additional processes for DDP,
 # the working directory is not correctly picked up in sys.path
 print(f"Starting InnerEye runner at {sys.argv[0]}")
@@ -24,6 +20,8 @@ if (innereye_root / "InnerEye").is_dir():
         sys.path.insert(0, innereye_root_str)
 from InnerEye.Common import fixed_paths
 
+# This must be added before all other imports because they might rely on hi-ml already, and that can optionally live
+# in a submodule
 fixed_paths.add_submodules_to_path()
 
 from azureml._base_sdk_common import user_agent
@@ -47,7 +45,7 @@ from InnerEye.Azure.azure_util import (RUN_CONTEXT, RUN_RECOVERY_ID_KEY_NAME, ge
                                        is_offline_run_context)
 from InnerEye.Azure.run_pytest import download_pytest_result, run_pytest
 from InnerEye.Common.common_util import (FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE,
-                                         disable_logging_to_file, is_linux, logging_to_stdout)
+                                         is_linux, logging_to_stdout)
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
@@ -250,9 +248,12 @@ class Runner:
         if not self.lightning_container.regression_test_folder:
             ignored_folders.append("RegressionTestResults")
 
-        input_datasets = create_dataset_configs(self.azure_config,
-                                                all_azure_dataset_ids=self.lightning_container.all_azure_dataset_ids(),
-                                                all_dataset_mountpoints=self.lightning_container.all_dataset_mountpoints())
+        all_local_datasets = self.lightning_container.all_local_dataset_paths()
+        input_datasets = \
+            create_dataset_configs(self.azure_config,
+                                   all_azure_dataset_ids=self.lightning_container.all_azure_dataset_ids(),
+                                   all_dataset_mountpoints=self.lightning_container.all_dataset_mountpoints(),
+                                   all_local_datasets=all_local_datasets)  # type: ignore
 
         def after_submission_hook(azure_run: Run) -> None:
             """

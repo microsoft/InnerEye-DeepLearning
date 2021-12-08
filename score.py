@@ -2,21 +2,26 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from collections import defaultdict
 import logging
 import os
 import sys
+import zipfile
+from collections import defaultdict
 from pathlib import Path
 from typing import List, Optional, Tuple
-import zipfile
 
 import numpy as np
 import param
-from azureml.core import Run
 from InnerEye_DICOM_RT.nifti_to_dicom_rt_converter import rtconvert
+from azureml.core import Run
+
+from InnerEye.Common import fixed_paths
+
+# This must be added before all other imports because they might rely on hi-ml already, and that can optionally live
+# in a submodule
+fixed_paths.add_submodules_to_path()
 
 from InnerEye.Azure.azure_util import is_offline_run_context
-from InnerEye.Common import fixed_paths
 from InnerEye.Common.fixed_paths import DEFAULT_RESULT_ZIP_DICOM_NAME
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.Common.type_annotations import TupleFloat3, TupleInt3
@@ -27,8 +32,8 @@ from InnerEye.ML.photometric_normalization import PhotometricNormalization
 from InnerEye.ML.pipelines.ensemble import EnsemblePipeline
 from InnerEye.ML.pipelines.inference import FullImageInferencePipelineBase, InferencePipeline
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
-from InnerEye.ML.utils.io_util import ImageWithHeader, load_nifti_image, reverse_tuple_float3, store_as_ubyte_nifti, \
-    load_dicom_series_and_save
+from InnerEye.ML.utils.io_util import ImageWithHeader, load_dicom_series_and_save, load_nifti_image, \
+    reverse_tuple_float3, store_as_ubyte_nifti
 
 
 class ScorePipelineConfig(GenericConfig):

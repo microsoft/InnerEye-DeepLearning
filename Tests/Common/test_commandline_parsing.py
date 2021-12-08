@@ -24,7 +24,8 @@ from health_azure import AzureRunInfo
 def test_create_ml_runner_args(is_container: bool,
                                test_output_dirs: OutputFolderForTests,
                                is_offline_run: bool,
-                               set_output_to: bool) -> None:
+                               set_output_to: bool,
+                               tmpdir: Path) -> None:
     """Test round trip parsing of commandline arguments:
     From arguments to the Azure runner to the arguments of the ML runner, checking that
     whatever is passed on can be correctly parsed. It also checks that the output files go into the right place
@@ -32,10 +33,11 @@ def test_create_ml_runner_args(is_container: bool,
     logging_to_stdout()
     model_name = "DummyContainerWithPlainLightning" if is_container else "DummyModel"
     if is_container:
-        dataset_folder = Path("download")
+        dataset_folder = tmpdir
     else:
         local_dataset = DummyModel().local_dataset
         assert local_dataset is not None
+        assert local_dataset.is_dir()
         dataset_folder = local_dataset
     outputs_folder = test_output_dirs.root_dir
     project_root = fixed_paths.repository_root_directory()
@@ -56,22 +58,20 @@ def test_create_ml_runner_args(is_container: bool,
     with mock.patch("sys.argv", [""] + args_list):
         with mock.patch("InnerEye.ML.deep_learning_config.is_offline_run_context", return_value=is_offline_run):
             with mock.patch("InnerEye.ML.run_ml.MLRunner.run", return_value=None):
-                with mock.patch("InnerEye.ML.run_ml.MLRunner.download_or_use_existing_dataset",
-                                return_value=dataset_folder):
-                    runner = Runner(project_root=project_root, yaml_config_file=fixed_paths.SETTINGS_YAML_FILE)
-                    runner.parse_and_load_model()
-                    # Only when calling config.create_filesystem we expect to see the correct paths, and this happens
-                    # inside run_in_situ
-                    azure_run_info = AzureRunInfo(input_datasets=[None],
-                                                  output_datasets=[None],
-                                                  run=None,
-                                                  is_running_in_azure_ml=False,
-                                                  output_folder=Path.cwd(),
-                                                  logs_folder=Path.cwd(),
-                                                  mount_contexts=[])
-                    runner.run_in_situ(azure_run_info)
-                    azure_config = runner.azure_config
-                    container_or_legacy_config = runner.lightning_container if is_container else runner.model_config
+                runner = Runner(project_root=project_root, yaml_config_file=fixed_paths.SETTINGS_YAML_FILE)
+                runner.parse_and_load_model()
+                azure_run_info = AzureRunInfo(input_datasets=[dataset_folder],
+                                              output_datasets=[None],
+                                              run=None,
+                                              is_running_in_azure_ml=False,
+                                              output_folder=Path.cwd(),
+                                              logs_folder=Path.cwd(),
+                                              mount_contexts=[])
+                # Only when calling config.create_filesystem we expect to see the correct paths, and this happens
+                # inside run_in_situ
+                runner.run_in_situ(azure_run_info)
+                azure_config = runner.azure_config
+                container_or_legacy_config = runner.lightning_container if is_container else runner.model_config
     assert azure_config.model == model_name
     assert container_or_legacy_config is not None
     if not is_container:
@@ -90,6 +90,8 @@ def test_create_ml_runner_args(is_container: bool,
         assert container_or_legacy_config.logs_folder == (project_root / DEFAULT_LOGS_DIR_NAME)
 
     assert not hasattr(container_or_legacy_config, "azureml_datastore")
+    # Container setup should copy the path of the local dataset from AzureRunInfo to the local_dataset field
+    assert container_or_legacy_config.local_dataset == dataset_folder
 
 
 def test_overridable_properties() -> None:

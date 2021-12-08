@@ -111,6 +111,7 @@ def create_lightning_trainer(
     :param kwargs: Any additional keyowrd arguments will be passed to the constructor of Trainer.
     :return: A tuple [Trainer object, diagnostic logger]
     """
+    logging.debug(f"resume_from_checkpoint: {resume_from_checkpoint}")
     num_gpus = container.num_gpus_per_node()
     effective_num_gpus = num_gpus * num_nodes
     # Accelerator should be "ddp" when running large models in AzureML (when using DDP_spawn, we get out of GPU memory).
@@ -127,9 +128,7 @@ def create_lightning_trainer(
         accelerator = None
         plugins = []
     logging.info(f"Using {num_gpus} GPUs per node with accelerator '{accelerator}'")
-    tensorboard_logger = TensorBoardLogger(
-        save_dir=str(container.logs_folder), name="Lightning", version=""
-    )
+    tensorboard_logger = TensorBoardLogger(save_dir=str(container.logs_folder), name="Lightning", version="")
     loggers = [tensorboard_logger, AzureMLLogger(False)]
     storing_logger = StoringLogger()
     loggers.append(storing_logger)

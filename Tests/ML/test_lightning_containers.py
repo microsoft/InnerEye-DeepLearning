@@ -256,7 +256,7 @@ def test_extra_directory_available(test_output_dirs: OutputFolderForTests) -> No
                           extra_azure_dataset_ids: List[str] = []) -> LightningContainer:
         container = DummyContainerWithModel()
         container.local_dataset = test_output_dirs.root_dir
-        container.extra_local_dataset_paths = extra_local_dataset_paths
+        container.extra_local_dataset_paths = extra_local_dataset_paths  # type: ignore
         container.extra_azure_dataset_ids = extra_azure_dataset_ids
         runner = MLRunner(model_config=None, container=container)
         runner.setup()
