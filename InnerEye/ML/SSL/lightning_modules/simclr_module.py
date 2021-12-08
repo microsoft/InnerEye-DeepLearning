@@ -3,7 +3,9 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
+import logging
 from typing import Any, Dict, List, Tuple, Union
+from pl_bolts.optimizers.lr_scheduler import linear_warmup_decay
 
 import torch
 import torch.nn as nn
@@ -53,6 +55,30 @@ class SimCLRInnerEye(SimCLR):
         self.save_hyperparameters()
         self.encoder = SSLEncoder(encoder_name, use_7x7_first_conv_in_resnet)
         self.projection = _Projection(input_dim=self.encoder.get_output_feature_dim(), hidden_dim=2048, output_dim=128)
+
+    
+    def configure_optimizers(self):
+        # DeepSpeedCPUAdam provides 5x to 7x speedup over torch.optim.adam(w)
+        from deepspeed.ops.adam import DeepSpeedCPUAdam
+        logging.info(f"Switching optimizer to DeepSpeedCPUAdam")
+        if self.exclude_bn_bias:
+            params = self.exclude_from_wt_decay(self.named_parameters(), weight_decay=self.weight_decay)
+        else:
+            params = self.parameters()
+        deepspeed_optim = DeepSpeedCPUAdam(params, lr=self.learning_rate, weight_decay=self.weight_decay)
+        warmup_steps = self.train_iters_per_epoch * self.warmup_epochs
+        total_steps = self.train_iters_per_epoch * self.max_epochs
+
+        scheduler = {
+                "scheduler": torch.optim.lr_scheduler.LambdaLR(
+                    deepspeed_optim,
+                    linear_warmup_decay(warmup_steps, total_steps, cosine=True),
+                ),
+                "interval": "step",
+                "frequency": 1,
+        }
+
+        return [deepspeed_optim], [scheduler]
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.encoder(x)
