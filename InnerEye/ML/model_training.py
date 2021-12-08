@@ -99,8 +99,11 @@ def create_lightning_trainer(container: LightningContainer,
         accelerator: Optional[str] = "ddp"
         # Initialize the DDP plugin. The default for pl_find_unused_parameters is False. If True, the plugin prints out
         # lengthy warnings about the performance impact of find_unused_parameters.
-        plugins = [DDPPlugin(num_nodes=num_nodes, sync_batchnorm=True,
-                             find_unused_parameters=container.pl_find_unused_parameters)]
+        from pytorch_lightning.plugins import DeepSpeedPlugin
+        deep_speed = DeepSpeedPlugin(num_nodes=num_nodes, cpu_offload=True)
+        deep_speed.sync_batchnorm=True
+        deep_speed.find_unused_parameters=container.pl_find_unused_parameters
+        plugins = [deep_speed]
     else:
         accelerator = None
         plugins = []
