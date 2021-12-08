@@ -102,7 +102,7 @@ def create_lightning_trainer(container: LightningContainer,
         from pytorch_lightning.plugins import DeepSpeedPlugin
         deep_speed = DeepSpeedPlugin(num_nodes=num_nodes, cpu_offload=True)
         deep_speed.sync_batchnorm=True
-        deep_speed.find_unused_parameters=container.pl_find_unused_parameters
+        deep_speed._ddp_kwargs["find_unused_parameters"] = container.pl_find_unused_parameters
         plugins = [deep_speed]
     else:
         accelerator = None

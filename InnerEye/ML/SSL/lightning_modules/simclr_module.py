@@ -57,7 +57,7 @@ class SimCLRInnerEye(SimCLR):
         self.projection = _Projection(input_dim=self.encoder.get_output_feature_dim(), hidden_dim=2048, output_dim=128)
 
     
-    def configure_optimizers(self):
+    def configure_optimizers(self) -> Tuple[List[torch.optim.Optimizer], List[Dict[str, object]]]:
         # DeepSpeedCPUAdam provides 5x to 7x speedup over torch.optim.adam(w)
         from deepspeed.ops.adam import DeepSpeedCPUAdam
         logging.info(f"Switching optimizer to DeepSpeedCPUAdam")
