@@ -17,7 +17,7 @@ from torchmetrics import Metric
 
 from InnerEye.ML.SSL.utils import SSLDataModuleType
 from InnerEye.ML.lightning_metrics import Accuracy05, AreaUnderPrecisionRecallCurve, AreaUnderRocCurve
-from InnerEye.ML.utils.model_util import set_model_to_eval_mode
+from InnerEye.ML.utils.layer_util import set_model_to_eval_mode
 from health_ml.utils import log_on_epoch
 
 BatchType = Union[Dict[SSLDataModuleType, Any], Any]

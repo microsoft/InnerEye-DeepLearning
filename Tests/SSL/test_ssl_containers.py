@@ -14,6 +14,8 @@ import torch
 from pl_bolts.models.self_supervised.resnets import ResNet
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
+from torch.nn import Module
+from torch.nn.parallel import DistributedDataParallel
 from torch.optim.lr_scheduler import _LRScheduler
 
 from InnerEye.Common import fixed_paths
@@ -341,3 +343,25 @@ def test_online_evaluator_recovery(test_output_dirs: OutputFolderForTests) -> No
     assert SSLOnlineEvaluatorInnerEye.EVALUATOR_STATE_NAME in callback_state
 
 
+@pytest.mark.gpu
+def test_online_evaluator_distributed() -> None:
+    """
+    A very primitive type of test to check if the online evaluator uses the DDP flag correctly.
+    """
+    callback = SSLOnlineEvaluatorInnerEye(class_weights=None,
+                                          z_dim=1,
+                                          num_classes=2,
+                                          dataset="foo",
+                                          drop_p=0.2,
+                                          learning_rate=1e-5)
+    assert isinstance(callback.evaluator, Module)
+    assert not isinstance(callback.evaluator, DistributedDataParallel)
+    trainer = Trainer()
+    mock_module = mock.MagicMock(device=torch.device("cpu"))
+    callback.on_pretrain_routine_start(trainer, mock_module)
+    assert isinstance(callback.evaluator, Module)
+    assert not isinstance(callback.evaluator, DistributedDataParallel)
+    mock_module = mock.MagicMock(device=torch.device("cuda:0"))
+    trainer = Trainer(accelerator="ddp", gpus=2)
+    callback.on_pretrain_routine_start(trainer, mock_module)
+    assert isinstance(callback.evaluator, DistributedDataParallel)

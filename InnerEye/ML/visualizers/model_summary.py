@@ -17,7 +17,7 @@ from InnerEye.Common.common_util import logging_only_to_file
 from InnerEye.Common.fixed_paths import DEFAULT_MODEL_SUMMARIES_DIR_PATH
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot
-from InnerEye.ML.utils.model_util import set_model_to_eval_mode
+from InnerEye.ML.utils.layer_util import set_model_to_eval_mode
 
 
 @dataclass

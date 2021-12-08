@@ -3,9 +3,8 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import logging
-from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any, Dict, Generator, Generic, Iterator, List, Optional, TypeVar, Union
+from typing import Any, Dict, Generic, Iterator, List, Optional, TypeVar, Union
 
 import torch
 from torch.nn import MSELoss
@@ -322,16 +321,3 @@ def get_scalar_model_inputs_and_labels(model: torch.nn.Module,
             subject_ids=subject_ids,
             data_item=scalar_item
         )
-
-
-@contextmanager
-def set_model_to_eval_mode(model: torch.nn.Module) -> Generator:
-    """
-    Puts the given torch model into eval mode. At the end of the context, resets the state of the training flag to
-    what is was before the call.
-    :param model: The model to modify.
-    """
-    old_mode = model.training
-    model.eval()
-    yield
-    model.train(old_mode)
