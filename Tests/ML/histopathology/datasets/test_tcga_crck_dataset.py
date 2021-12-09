@@ -1,6 +1,5 @@
 import os
 
-import pandas as pd
 import pytest
 import torch
 from monai.data.dataset import Dataset
@@ -9,7 +8,6 @@ from torch.utils.data import DataLoader
 from InnerEye.ML.Histopathology.datasets.default_paths import TCGA_CRCK_DATASET_DIR
 from InnerEye.ML.Histopathology.datasets.tcga_crck_tiles_dataset import TcgaCrck_TilesDataset
 from InnerEye.ML.Histopathology.models.transforms import LoadTiled
-from InnerEye.ML.Histopathology.utils.tcga_utils import extract_fields
 
 
 @pytest.mark.skipif(not os.path.isdir(TCGA_CRCK_DATASET_DIR),
