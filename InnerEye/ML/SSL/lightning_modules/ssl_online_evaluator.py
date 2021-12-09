@@ -11,7 +11,7 @@ from pl_bolts.callbacks.ssl_online import SSLOnlineEvaluator
 from pl_bolts.models.self_supervised.evaluator import SSLEvaluator
 from pytorch_lightning.utilities import rank_zero_warn
 from torch import Tensor as T
-from torch.nn import DataParallel, functional as F
+from torch.nn import functional as F
 from torch.nn.parallel import DistributedDataParallel
 from torchmetrics import Metric
 

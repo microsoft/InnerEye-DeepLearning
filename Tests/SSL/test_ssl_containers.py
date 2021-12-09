@@ -12,10 +12,9 @@ import pandas as pd
 import pytest
 import torch
 from pl_bolts.models.self_supervised.resnets import ResNet
-from pytorch_lightning import LightningModule, Trainer
+from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 from torch.nn import Module
-from torch.nn.parallel import DistributedDataParallel
 from torch.optim.lr_scheduler import _LRScheduler
 
 from InnerEye.Common import fixed_paths
