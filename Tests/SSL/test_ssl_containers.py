@@ -348,7 +348,9 @@ def test_online_evaluator_distributed() -> None:
     """
     A very basic test to check if the online evaluator uses the DDP flag correctly.
     """
-    with mock.patch("InnerEye.ML.SSL.lightning_modules.ssl_online_evaluator.DistributedDataParallel") as mock_ddp:
+    mock_ddp_result = "mock_ddp_result"
+    with mock.patch("InnerEye.ML.SSL.lightning_modules.ssl_online_evaluator.DistributedDataParallel",
+                    return_value=mock_ddp_result) as mock_ddp:
         callback = SSLOnlineEvaluatorInnerEye(class_weights=None,
                                               z_dim=1,
                                               num_classes=2,
@@ -368,6 +370,11 @@ def test_online_evaluator_distributed() -> None:
         mock_device = "fake_device"
         mock_module = mock.MagicMock(device=mock_device)
         trainer = Trainer(accelerator="ddp", gpus=2)
+        # Test the two flags that the internal logic of on_pretrain_routine_start uses
+        assert trainer.accelerator_connector.is_distributed
+        assert trainer.accelerator_connector.use_ddp
         callback.on_pretrain_routine_start(trainer, mock_module)
+        # Check that the evaluator has been turned into a DDP object
         # We still need to mock DDP here because the constructor relies on having a process group available
         mock_ddp.assert_called_once_with(callback.evaluator, device_ids=[mock_device])
+        assert callback.evaluator == mock_ddp_result
