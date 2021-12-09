@@ -22,12 +22,10 @@ from azureml._restclient.constants import RunStatus
 from azureml.core import Model, Run
 
 from InnerEye.Azure.azure_config import AzureConfig
-from InnerEye.Azure.azure_util import MODEL_ID_KEY_NAME, RUN_CONTEXT, download_run_output_file, \
+from InnerEye.Azure.azure_util import MODEL_ID_KEY_NAME, download_run_output_file, \
     download_run_outputs_by_prefix, \
     get_comparison_baseline_paths, \
     is_running_on_azure_agent, to_azure_friendly_string
-from InnerEye.ML.utils.checkpoint_handling import download_checkpoints_to_temp_folder, \
-    find_recovery_checkpoint_and_epoch
 from InnerEye.Common import common_util, fixed_paths, fixed_paths_for_tests
 from InnerEye.Common.common_util import BEST_EPOCH_FOLDER_NAME, CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, \
     get_best_epoch_results_path
@@ -46,6 +44,8 @@ from InnerEye.ML.model_testing import THUMBNAILS_FOLDER
 from InnerEye.ML.reports.notebook_report import get_html_report_name
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.runner import main
+from InnerEye.ML.utils.checkpoint_handling import download_checkpoints_to_temp_folder, \
+    find_recovery_checkpoint_and_epoch
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.utils.image_util import get_unit_image_header
 from InnerEye.ML.utils.io_util import zip_random_dicom_series

@@ -14,7 +14,6 @@ from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.utils.checkpoint_handling import download_all_checkpoints_from_run, \
     download_best_checkpoints_from_child_runs
-from InnerEye.ML.utils.run_recovery import RunRecovery
 from Tests.AfterTraining.test_after_training import FALLBACK_ENSEMBLE_RUN, FALLBACK_SINGLE_RUN, get_most_recent_run
 from Tests.ML.util import get_default_azure_config
 
