@@ -86,8 +86,6 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
         if accelerator.is_distributed:
             if accelerator.use_ddp:
                 self.evaluator = DistributedDataParallel(self.evaluator, device_ids=[pl_module.device])  # type: ignore
-            elif accelerator.use_dp:
-                self.evaluator = DataParallel(self.evaluator, device_ids=[pl_module.device])  # type: ignore
             else:
                 rank_zero_warn("This type of distributed accelerator is not supported. "
                                "The online evaluator will not synchronize across GPUs.")
