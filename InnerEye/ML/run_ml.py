@@ -517,7 +517,7 @@ class MLRunner:
         """
         Registers a new model in the workspace's model registry on AzureML to be deployed further.
         The AzureML run's tags are updated to describe with information about ensemble creation and the parent run ID.
-        :param checkpoint_path: Checkpoint paths to register.
+        :param checkpoint_paths: Checkpoint paths to register.
         :param model_proc: whether it's a single or ensemble model.
         :returns Tuple element 1: AML model object, or None if no model could be registered.
         Tuple element 2: The result of running the model_deployment_hook, or None if no hook was supplied.

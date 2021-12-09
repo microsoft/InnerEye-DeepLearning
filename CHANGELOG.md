@@ -33,6 +33,7 @@ jobs that run in AzureML.
   hook to enable overriding `AzureConfig` parameters from a container (e.g. `experiment_name`, `cluster`, `num_nodes`).
 -([#603](https://github.com/microsoft/InnerEye-DeepLearning/pull/603)) Add histopathology module
 -([#614](https://github.com/microsoft/InnerEye-DeepLearning/pull/614)) Checkpoint downloading falls back to looking into AzureML if no checkpoints on disk
+-([#613](https://github.com/microsoft/InnerEye-DeepLearning/pull/613)) Add additional tests for histopathology datasets
 
 
 ### Changed
