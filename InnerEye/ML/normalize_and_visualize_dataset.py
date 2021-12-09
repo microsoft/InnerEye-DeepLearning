@@ -15,10 +15,9 @@ from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import logging_to_stdout
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.ML import plotting
-from InnerEye.ML.common import DATASET_CSV_FILE_NAME
+from InnerEye.ML.common import ARGS_TXT, DATASET_CSV_FILE_NAME
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.dataset.full_image_dataset import load_dataset_sources
-from InnerEye.ML.deep_learning_config import ARGS_TXT
 from InnerEye.ML.photometric_normalization import PhotometricNormalization
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.utils.io_util import load_images_from_dataset_source

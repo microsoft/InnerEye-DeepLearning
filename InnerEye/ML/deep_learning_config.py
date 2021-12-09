@@ -19,21 +19,9 @@ from InnerEye.Common.common_util import ModelProcessing, is_windows
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.Common.type_annotations import PathOrString, T, TupleFloat2
-from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, create_unique_timestamp_id, \
-    get_best_checkpoint_path, get_recovery_checkpoint_path
-
-# A folder inside of the outputs folder that will contain all information for running the model in inference mode
-
-FINAL_MODEL_FOLDER = "final_model"
-FINAL_ENSEMBLE_MODEL_FOLDER = "final_ensemble_model"
-
-# The checkpoints must be stored inside of the final model folder, if we want to avoid copying
-# them before registration.
-CHECKPOINT_FOLDER = "checkpoints"
-VISUALIZATION_FOLDER = "visualizations"
-EXTRA_RUN_SUBFOLDER = "extra_run_id"
-
-ARGS_TXT = "args.txt"
+from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, CHECKPOINT_FOLDER, DATASET_CSV_FILE_NAME, \
+    ModelExecutionMode, VISUALIZATION_FOLDER, \
+    create_unique_timestamp_id
 
 
 @unique
@@ -487,6 +475,7 @@ class OutputParams(param.Parameterized):
         """
         Returns the full path to a recovery checkpoint.
         """
+        from InnerEye.ML.utils.checkpoint_handling import get_recovery_checkpoint_path
         return get_recovery_checkpoint_path(self.checkpoint_folder)
 
     def get_path_to_best_checkpoint(self) -> Path:
@@ -864,3 +853,11 @@ def load_checkpoint(path_to_checkpoint: Path, use_gpu: bool = True) -> Dict[str,
     map_location = None if use_gpu else 'cpu'
     checkpoint = torch.load(str(path_to_checkpoint), map_location=map_location)
     return checkpoint
+
+
+def get_best_checkpoint_path(path: Path) -> Path:
+    """
+    Given a path and checkpoint, formats a path based on the checkpoint file name format.
+    :param path to checkpoint folder
+    """
+    return path / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
