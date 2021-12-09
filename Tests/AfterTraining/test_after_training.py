@@ -228,17 +228,22 @@ def test_download_checkpoints_from_aml(test_output_dirs: OutputFolderForTests) -
     temp_folder = download_checkpoints_to_temp_folder(run, workspace=get_default_workspace())
     files = list(temp_folder.glob("*"))
     assert len(files) == 2
+    # Test if what's in the folder are really files, not directories
+    for file in files:
+        assert file.is_file()
     # Now test if that is correctly integrated into the checkpoint finder. To avoid downloading a second time,
     # now mock the call to the actual downloader.
-    with mock.patch("InnerEye.ML.common.download_checkpoints_to_temp_folder", return_value=temp_folder) as download:
-        download.assert_called_once_with()
-        # Call the checkpoint finder with a temp folder that does not contain any files, so it should try to download
-        result = find_recovery_checkpoint_and_epoch(test_output_dirs.root_dir)
-        assert result is not None
-        p, epoch = result
-        # The basic model only writes one checkpoint at epoch 1
-        assert epoch == 1
-        assert RECOVERY_CHECKPOINT_FILE_NAME in p.stem
+    with mock.patch("InnerEye.ML.utils.checkpoint_handling.is_running_in_azure_ml", return_value=True):
+        with mock.patch("InnerEye.ML.utils.checkpoint_handling.download_checkpoints_to_temp_folder",
+                        return_value=temp_folder) as download:
+            # Call the checkpoint finder with a temp folder that does not contain any files, so it should try to download
+            result = find_recovery_checkpoint_and_epoch(test_output_dirs.root_dir)
+            download.assert_called_once_with()
+            assert result is not None
+            p, epoch = result
+            # The basic model only writes one checkpoint at epoch 1
+            assert epoch == 1
+            assert RECOVERY_CHECKPOINT_FILE_NAME in p.stem
 
 
 @pytest.mark.inference

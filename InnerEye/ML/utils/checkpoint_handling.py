@@ -245,7 +245,12 @@ def download_checkpoints_to_temp_folder(run: Optional[Run] = None, workspace: Op
     Downloads all files with the outputs/checkpoints prefix of the given run to a temporary folder.
     In distributed training, the download only happens once per node.
 
-    :return: The path to which the files were downloaded.
+    :param run: If provided, download the files from that run. If omitted, download the files from the current run
+        (taken from RUN_CONTEXT)
+    :param workspace: The AML workspace where the run is located. If omitted, the hi-ml defaults of finding a workspace
+        are used (current workspace when running in AzureML, otherwise expecting a config.json file)
+    :return: The path to which the files were downloaded. The files are located in that folder, without any further
+        subfolders.
     """
     run = run or RUN_CONTEXT
     # Downloads should go to a temporary folder because downloading the files to the checkpoint folder might
@@ -263,7 +268,9 @@ def download_checkpoints_to_temp_folder(run: Optional[Run] = None, workspace: Op
                                        workspace=workspace)
         except Exception as ex:
             logging.warning(f"Unable to download checkpoints from AzureML. Error: {str(ex)}")
-    return temp_folder
+    # Checkpoint downloads preserve the full folder structure, point the caller directly to the folder where the
+    # checkpoints really are.
+    return temp_folder / DEFAULT_AML_UPLOAD_DIR / CHECKPOINT_FOLDER
 
 
 PathAndEpoch = Tuple[Path, int]
