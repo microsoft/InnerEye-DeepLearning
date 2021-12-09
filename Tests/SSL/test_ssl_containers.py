@@ -346,7 +346,7 @@ def test_online_evaluator_recovery(test_output_dirs: OutputFolderForTests) -> No
 @pytest.mark.gpu
 def test_online_evaluator_distributed() -> None:
     """
-    A very primitive type of test to check if the online evaluator uses the DDP flag correctly.
+    A very basic test to check if the online evaluator uses the DDP flag correctly.
     """
     with mock.patch("InnerEye.ML.SSL.lightning_modules.ssl_online_evaluator.DistributedDataParallel") as mock_ddp:
         callback = SSLOnlineEvaluatorInnerEye(class_weights=None,
