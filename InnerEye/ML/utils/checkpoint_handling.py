@@ -12,6 +12,7 @@ from urllib.parse import urlparse
 
 import requests
 from azureml.core import Run, Workspace, Model
+from health_azure.utils import is_global_rank_zero
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common.fixed_paths import MODEL_INFERENCE_JSON_FILE_NAME
@@ -91,10 +92,11 @@ class CheckpointHandler:
         the latest checkpoint will be present in this folder too.
         :return: Constructed checkpoint path to recover from.
         """
-        checkpoints = list(self.container.checkpoint_folder.rglob("*"))
-        logging.debug(f"Available checkpoints: {len(checkpoints)}")
-        for f in checkpoints:
-            logging.debug(f)
+        if is_global_rank_zero():
+            checkpoints = list(self.container.checkpoint_folder.rglob("*"))
+            logging.info(f"Available checkpoints: {len(checkpoints)}")
+            for f in checkpoints:
+                logging.info(f)
         recovery = find_recovery_checkpoint_and_epoch(self.container.checkpoint_folder)
         if recovery is not None:
             local_recovery_path, recovery_epoch = recovery
