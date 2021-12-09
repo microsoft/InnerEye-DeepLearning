@@ -11,7 +11,7 @@ from pl_bolts.callbacks.ssl_online import SSLOnlineEvaluator
 from pl_bolts.models.self_supervised.evaluator import SSLEvaluator
 from pytorch_lightning.utilities import rank_zero_warn
 from torch import Tensor as T
-from torch.nn import functional as F
+from torch.nn import SyncBatchNorm, functional as F
 from torch.nn.parallel import DistributedDataParallel
 from torchmetrics import Metric
 
@@ -77,7 +77,9 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
 
     def on_pretrain_routine_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
         """
-        Initializes modules and moves metrics and class weights to module device
+        Moves metrics and the online evaluator to the correct GPU.
+        If training happens via DDP, SyncBatchNorm is enabled for the online evaluator, and it is converted to
+        a DDP module.
         """
         for metric in [*self.train_metrics, *self.val_metrics]:
             metric.to(device=pl_module.device)  # type: ignore
@@ -85,6 +87,7 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
         accelerator = trainer.accelerator_connector
         if accelerator.is_distributed:
             if accelerator.use_ddp:
+                self.evaluator = SyncBatchNorm.convert_sync_batchnorm(self.evaluator)
                 self.evaluator = DistributedDataParallel(self.evaluator, device_ids=[pl_module.device])  # type: ignore
             else:
                 rank_zero_warn("This type of distributed accelerator is not supported. "

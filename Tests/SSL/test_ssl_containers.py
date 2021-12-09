@@ -372,24 +372,30 @@ def test_online_evaluator_distributed() -> None:
     Check if the online evaluator uses the DDP flag correctly when running distributed.
     """
     mock_ddp_result = "mock_ddp_result"
-    with mock.patch("InnerEye.ML.SSL.lightning_modules.ssl_online_evaluator.DistributedDataParallel",
-                    return_value=mock_ddp_result) as mock_ddp:
-        callback = SSLOnlineEvaluatorInnerEye(class_weights=None,
-                                              z_dim=1,
-                                              num_classes=2,
-                                              dataset="foo",
-                                              drop_p=0.2,
-                                              learning_rate=1e-5)
+    mock_sync_result = "mock_sync_result"
+    with mock.patch("InnerEye.ML.SSL.lightning_modules.ssl_online_evaluator.SyncBatchNorm.convert_sync_batchnorm",
+                    return_value=mock_sync_result) as mock_sync:
+        with mock.patch("InnerEye.ML.SSL.lightning_modules.ssl_online_evaluator.DistributedDataParallel",
+                        return_value=mock_ddp_result) as mock_ddp:
+            callback = SSLOnlineEvaluatorInnerEye(class_weights=None,
+                                                z_dim=1,
+                                                num_classes=2,
+                                                dataset="foo",
+                                                drop_p=0.2,
+                                                learning_rate=1e-5)
 
-        # Trainer with DDP
-        device = torch.device("cuda:0")
-        mock_module = mock.MagicMock(device=device)
-        trainer = Trainer(accelerator="ddp", gpus=2)
-        # Test the two flags that the internal logic of on_pretrain_routine_start uses
-        assert trainer.accelerator_connector.is_distributed
-        assert trainer.accelerator_connector.use_ddp
-        callback.on_pretrain_routine_start(trainer, mock_module)
-        # Check that the evaluator has been turned into a DDP object
-        # We still need to mock DDP here because the constructor relies on having a process group available
-        mock_ddp.assert_called_once_with(callback.evaluator, device_ids=[device])
-        assert callback.evaluator == mock_ddp_result
+            # Trainer with DDP
+            device = torch.device("cuda:0")
+            mock_module = mock.MagicMock(device=device)
+            trainer = Trainer(accelerator="ddp", gpus=2)
+            # Test the two flags that the internal logic of on_pretrain_routine_start uses
+            assert trainer.accelerator_connector.is_distributed
+            assert trainer.accelerator_connector.use_ddp
+            original_evaluator = callback.evaluator
+            callback.on_pretrain_routine_start(trainer, mock_module)
+            # Check that SyncBatchNorm has been turned on
+            mock_sync.assert_called_once_with(original_evaluator)
+            # Check that the evaluator has been turned into a DDP object
+            # We still need to mock DDP here because the constructor relies on having a process group available
+            mock_ddp.assert_called_once_with(mock_sync_result, device_ids=[device])
+            assert callback.evaluator == mock_ddp_result
