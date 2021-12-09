@@ -16,8 +16,8 @@ from pytorch_lightning import LightningModule
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.ML.common import ModelExecutionMode
-from InnerEye.ML.deep_learning_config import ARGS_TXT, DatasetParams, WorkflowParams
+from InnerEye.ML.common import ARGS_TXT, ModelExecutionMode
+from InnerEye.ML.deep_learning_config import DatasetParams, WorkflowParams
 from InnerEye.ML.lightning_base import InnerEyeContainer
 from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.model_config_base import ModelConfigBase
