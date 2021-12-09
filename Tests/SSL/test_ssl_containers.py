@@ -369,5 +369,5 @@ def test_online_evaluator_distributed() -> None:
         mock_module = mock.MagicMock(device=mock_device)
         trainer = Trainer(accelerator="ddp", gpus=2)
         callback.on_pretrain_routine_start(trainer, mock_module)
-        # We still need to make DDP here because the constructor relies on having a process group available
+        # We still need to mock DDP here because the constructor relies on having a process group available
         mock_ddp.assert_called_once_with(callback.evaluator, device_ids=[mock_device])
