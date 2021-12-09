@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import List
 
 from InnerEye.Common.common_util import check_properties_are_not_none
-from InnerEye.ML.deep_learning_config import get_best_checkpoint_path
+from InnerEye.ML.common import get_best_checkpoint_path
 
 
 @dataclass(frozen=True)

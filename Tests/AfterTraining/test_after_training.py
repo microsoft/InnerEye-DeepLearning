@@ -225,7 +225,7 @@ def test_download_checkpoints_from_aml(test_output_dirs: OutputFolderForTests) -
     Check that we can download checkpoint files from an AzureML run, if they are not available on disk.
     """
     run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_SINGLE_RUN)
-    temp_folder = download_checkpoints_to_temp_folder(run)
+    temp_folder = download_checkpoints_to_temp_folder(run, workspace=get_default_workspace())
     files = list(temp_folder.glob("*"))
     assert len(files) == 2
     # Now test if that is correctly integrated into the checkpoint finder. To avoid downloading a second time,

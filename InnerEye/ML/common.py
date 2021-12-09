@@ -7,6 +7,7 @@ from __future__ import annotations
 import abc
 from datetime import datetime
 from enum import Enum, unique
+from pathlib import Path
 from typing import Any, Dict, List
 
 DATASET_CSV_FILE_NAME = "dataset.csv"
@@ -76,3 +77,11 @@ def create_unique_timestamp_id() -> str:
     """
     unique_id = datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ")
     return unique_id
+
+
+def get_best_checkpoint_path(path: Path) -> Path:
+    """
+    Given a path and checkpoint, formats a path based on the checkpoint file name format.
+    :param path to checkpoint folder
+    """
+    return path / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX

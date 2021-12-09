@@ -240,7 +240,7 @@ class CheckpointHandler:
         return checkpoint_paths
 
 
-def download_checkpoints_to_temp_folder(run: Optional[Run] = None) -> Path:
+def download_checkpoints_to_temp_folder(run: Optional[Run] = None, workspace: Optional[Workspace] = None) -> Path:
     """
     Downloads all files with the outputs/checkpoints prefix of the given run to a temporary folder.
     In distributed training, the download only happens once per node.
@@ -256,9 +256,11 @@ def download_checkpoints_to_temp_folder(run: Optional[Run] = None) -> Path:
     logging.info(f"Number of checkpoints available in AzureML: {len(existing_checkpoints)}")
     if len(existing_checkpoints) > 0:
         try:
+            logging.info(f"Downloading checkpoints to {temp_folder}")
             download_files_from_run_id(run_id=run.id,
                                        output_folder=temp_folder,
-                                       prefix=checkpoint_prefix)
+                                       prefix=checkpoint_prefix,
+                                       workspace=workspace)
         except Exception as ex:
             logging.warning(f"Unable to download checkpoints from AzureML. Error: {str(ex)}")
     return temp_folder

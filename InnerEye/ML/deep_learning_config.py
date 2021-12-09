@@ -19,9 +19,9 @@ from InnerEye.Common.common_util import ModelProcessing, is_windows
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.Common.type_annotations import PathOrString, T, TupleFloat2
-from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, CHECKPOINT_FOLDER, DATASET_CSV_FILE_NAME, \
+from InnerEye.ML.common import CHECKPOINT_FOLDER, DATASET_CSV_FILE_NAME, \
     ModelExecutionMode, VISUALIZATION_FOLDER, \
-    create_unique_timestamp_id
+    create_unique_timestamp_id, get_best_checkpoint_path
 
 
 @unique
@@ -853,11 +853,3 @@ def load_checkpoint(path_to_checkpoint: Path, use_gpu: bool = True) -> Dict[str,
     map_location = None if use_gpu else 'cpu'
     checkpoint = torch.load(str(path_to_checkpoint), map_location=map_location)
     return checkpoint
-
-
-def get_best_checkpoint_path(path: Path) -> Path:
-    """
-    Given a path and checkpoint, formats a path based on the checkpoint file name format.
-    :param path to checkpoint folder
-    """
-    return path / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
