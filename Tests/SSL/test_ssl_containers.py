@@ -348,20 +348,26 @@ def test_online_evaluator_distributed() -> None:
     """
     A very primitive type of test to check if the online evaluator uses the DDP flag correctly.
     """
-    callback = SSLOnlineEvaluatorInnerEye(class_weights=None,
-                                          z_dim=1,
-                                          num_classes=2,
-                                          dataset="foo",
-                                          drop_p=0.2,
-                                          learning_rate=1e-5)
-    assert isinstance(callback.evaluator, Module)
-    assert not isinstance(callback.evaluator, DistributedDataParallel)
-    trainer = Trainer()
-    mock_module = mock.MagicMock(device=torch.device("cpu"))
-    callback.on_pretrain_routine_start(trainer, mock_module)
-    assert isinstance(callback.evaluator, Module)
-    assert not isinstance(callback.evaluator, DistributedDataParallel)
-    mock_module = mock.MagicMock(device=torch.device("cuda:0"))
-    trainer = Trainer(accelerator="ddp", gpus=2)
-    callback.on_pretrain_routine_start(trainer, mock_module)
-    assert isinstance(callback.evaluator, DistributedDataParallel)
+    with mock.patch("InnerEye.ML.SSL.lightning_modules.ssl_online_evaluator.DistributedDataParallel") as mock_ddp:
+        callback = SSLOnlineEvaluatorInnerEye(class_weights=None,
+                                              z_dim=1,
+                                              num_classes=2,
+                                              dataset="foo",
+                                              drop_p=0.2,
+                                              learning_rate=1e-5)
+        mock_ddp.assert_not_called()
+
+        # Standard trainer without DDP
+        trainer = Trainer()
+        mock_module = mock.MagicMock(device=torch.device("cpu"))
+        callback.on_pretrain_routine_start(trainer, mock_module)
+        assert isinstance(callback.evaluator, Module)
+        mock_ddp.assert_not_called()
+
+        # Trainer with DDP
+        mock_device = "fake_device"
+        mock_module = mock.MagicMock(device=mock_device)
+        trainer = Trainer(accelerator="ddp", gpus=2)
+        callback.on_pretrain_routine_start(trainer, mock_module)
+        # We still need to make DDP here because the constructor relies on having a process group available
+        mock_ddp.assert_called_once_with(callback.evaluator, device_ids=[mock_device])
