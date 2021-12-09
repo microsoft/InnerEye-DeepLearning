@@ -10,7 +10,7 @@ import json
 from attr import dataclass
 from azureml.core import Environment, Model, Workspace
 
-from InnerEye.ML.deep_learning_config import FINAL_MODEL_FOLDER, FINAL_ENSEMBLE_MODEL_FOLDER
+from InnerEye.ML.common import FINAL_ENSEMBLE_MODEL_FOLDER, FINAL_MODEL_FOLDER
 
 PYTHON_ENVIRONMENT_NAME = "python_environment_name"
 MODEL_PATH = "MODEL"
