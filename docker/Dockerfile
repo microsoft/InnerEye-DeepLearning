@@ -11,3 +11,4 @@ RUN apt-get -y install gcc
 COPY ./environment.yml /tmp
 
 RUN conda env create --file /tmp/environment.yml
+RUN chmod a+w /opt/conda/envs
