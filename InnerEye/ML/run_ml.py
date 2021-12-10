@@ -36,10 +36,12 @@ from InnerEye.Common.common_util import (BASELINE_COMPARISONS_FOLDER, BASELINE_W
 from InnerEye.Common.fixed_paths import INNEREYE_PACKAGE_NAME, PYTHON_ENVIRONMENT_NAME
 from InnerEye.Common.type_annotations import PathOrString
 from InnerEye.ML.baselines_util import compare_folders_and_run_outputs
-from InnerEye.ML.common import ModelExecutionMode
+from InnerEye.ML.common import CHECKPOINT_FOLDER, EXTRA_RUN_SUBFOLDER, FINAL_ENSEMBLE_MODEL_FOLDER, \
+    FINAL_MODEL_FOLDER, \
+    ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, DeepLearningConfig, EXTRA_RUN_SUBFOLDER, \
-    FINAL_ENSEMBLE_MODEL_FOLDER, FINAL_MODEL_FOLDER, ModelCategory, MultiprocessingStartMethod, load_checkpoint
+from InnerEye.ML.deep_learning_config import DeepLearningConfig, ModelCategory, MultiprocessingStartMethod, \
+    load_checkpoint
 from InnerEye.ML.lightning_base import InnerEyeContainer
 from InnerEye.ML.lightning_container import InnerEyeInference, LightningContainer
 from InnerEye.ML.lightning_loggers import StoringLogger
@@ -53,8 +55,7 @@ from InnerEye.ML.reports.notebook_report import generate_classification_crossval
     get_ipynb_report_name, reports_folder
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
-from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
-from InnerEye.ML.utils.run_recovery import RunRecovery
+from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler, download_all_checkpoints_from_run
 from InnerEye.ML.visualizers import activation_maps
 from InnerEye.ML.visualizers.plot_cross_validation import \
     get_config_and_results_for_offline_runs, plot_cross_validation_from_files
@@ -183,10 +184,10 @@ class MLRunner:
         if self.container.pretraining_run_recovery_id is not None:
             run_to_recover = self.azure_config.fetch_run(self.container.pretraining_run_recovery_id.strip())
             only_return_path = not is_global_rank_zero()
-            run_recovery_object = RunRecovery.download_all_checkpoints_from_run(self.container,
-                                                                                run_to_recover,
-                                                                                EXTRA_RUN_SUBFOLDER,
-                                                                                only_return_path=only_return_path)
+            run_recovery_object = download_all_checkpoints_from_run(self.container,
+                                                                    run_to_recover,
+                                                                    EXTRA_RUN_SUBFOLDER,
+                                                                    only_return_path=only_return_path)
             self.container.pretraining_run_checkpoints = run_recovery_object
 
         # A lot of the code for the built-in InnerEye models expects the output paths directly in the config files.
@@ -516,7 +517,7 @@ class MLRunner:
         """
         Registers a new model in the workspace's model registry on AzureML to be deployed further.
         The AzureML run's tags are updated to describe with information about ensemble creation and the parent run ID.
-        :param checkpoint_path: Checkpoint paths to register.
+        :param checkpoint_paths: Checkpoint paths to register.
         :param model_proc: whether it's a single or ensemble model.
         :returns Tuple element 1: AML model object, or None if no model could be registered.
         Tuple element 2: The result of running the model_deployment_hook, or None if no hook was supplied.
