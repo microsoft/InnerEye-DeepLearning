@@ -1,0 +1,15 @@
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+  - bash: |
+      cp environment.yml docker/
+    displayName: Copy InnerEye environment file
+
+  - task: Docker@2
+    displayName: Build and Push
+    inputs:
+      command: buildAndPush
+      containerRegistry: BuildAgentACR
+      repository: innereye
+      Dockerfile: 'docker/Dockerfile'
