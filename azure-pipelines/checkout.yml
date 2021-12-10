@@ -4,5 +4,5 @@ steps:
     submodules: true
 
   - bash: |
-      chown -R $USER /opt/conda/envs
+      chown -R `whoami` /opt/conda/envs
     displayName: Take ownership of conda installation
