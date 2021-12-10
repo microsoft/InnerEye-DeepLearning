@@ -4,7 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 import logging
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import List
 
 import param
 from pytorch_lightning import Callback
