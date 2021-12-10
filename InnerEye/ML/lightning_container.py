@@ -23,7 +23,6 @@ from InnerEye.ML.deep_learning_config import DatasetParams, OptimizerParams, Out
     WorkflowParams
 from InnerEye.ML.utils import model_util
 from InnerEye.ML.utils.lr_scheduler import SchedulerWithWarmUp
-from InnerEye.ML.utils.run_recovery import RunRecovery
 
 
 class InnerEyeInference(abc.ABC):
@@ -151,7 +150,8 @@ class LightningContainer(GenericConfig,
         super().__init__(**kwargs)
         self._model: Optional[LightningModule] = None
         self._model_name = type(self).__name__
-        self.pretraining_run_checkpoints: Optional[RunRecovery] = None
+        # This should be typed RunRecovery, but causes circular imports
+        self.pretraining_run_checkpoints: Optional[Any] = None
         self.num_nodes = 1
 
     def validate(self) -> None:
