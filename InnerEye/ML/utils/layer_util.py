@@ -2,7 +2,8 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from typing import Iterable, Sized, Tuple, Union
+from contextlib import contextmanager
+from typing import Generator, Iterable, Sized, Tuple, Union
 
 import torch
 from torch.nn import init
@@ -90,3 +91,16 @@ def get_upsampling_kernel_size(downsampling_factor: IntOrTuple3, num_dimensions:
                               upsample_size(downsampling_factor[1]),  # type: ignore
                               upsample_size(downsampling_factor[2]))  # type: ignore
     return upsampling_kernel_size
+
+
+@contextmanager
+def set_model_to_eval_mode(model: torch.nn.Module) -> Generator:
+    """
+    Puts the given torch model into eval mode. At the end of the context, resets the state of the training flag to
+    what is was before the call.
+    :param model: The model to modify.
+    """
+    old_mode = model.training
+    model.eval()
+    yield
+    model.train(old_mode)
