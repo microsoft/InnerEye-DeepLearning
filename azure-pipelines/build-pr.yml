@@ -23,7 +23,7 @@ variables:
   disable.coverage.autogenerate: 'true'
 
 jobs:
-  - job: Linux agent diagnostics
+  - job: LinuxDiagnostics
     pool:
       vmImage: 'ubuntu-18.04'
     steps:
