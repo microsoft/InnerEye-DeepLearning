@@ -2,7 +2,7 @@ steps:
   - template: checkout.yml
 
   - bash: |
-      conda env update --file environment.yml --name InnerEye --quiet
+      sudo conda env update --file environment.yml --name InnerEye --quiet
       source activate InnerEye
       echo Storing environment for later use by ComponentGovernance
       # This file is picked up later by ComponentGovernance

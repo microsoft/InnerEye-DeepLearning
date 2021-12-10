@@ -4,7 +4,7 @@ steps:
   - template: store_settings.yml
 
   - bash: |
-      conda env update --file environment.yml --name InnerEye
+      sudo conda env update --file environment.yml --name InnerEye
       source activate InnerEye
       pip freeze
     failOnStderr: false
