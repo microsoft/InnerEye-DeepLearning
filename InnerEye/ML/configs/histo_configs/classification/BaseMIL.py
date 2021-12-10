@@ -1,12 +1,12 @@
-"""BaseMIL is an abstract container defining basic functionality for running MIL experiments.
-It is responsible for instantiating the encoder and full DeepMIL model. Subclasses should define
-their datamodules and configure experiment-specific parameters.
-"""
 #  ------------------------------------------------------------------------------------------
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
+"""BaseMIL is an abstract container defining basic functionality for running MIL experiments.
+It is responsible for instantiating the encoder and full DeepMIL model. Subclasses should define
+their datamodules and configure experiment-specific parameters.
+"""
 import os
 from pathlib import Path
 from typing import Type
