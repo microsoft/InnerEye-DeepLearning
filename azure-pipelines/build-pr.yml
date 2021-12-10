@@ -3,6 +3,11 @@ pr:
     include:
     - '*'
 
+resources:
+  containers:
+  - container: current
+    image: innereye:46176
+
 name: PR-$(Date:yyyyMMdd)$(Rev:-r)
 variables:
   model: 'BasicModel2Epochs'
@@ -26,6 +31,7 @@ jobs:
   - job: Linux
     pool:
       vmImage: 'ubuntu-18.04'
+    container: current
     steps:
       - template: build.yaml
 
@@ -37,6 +43,7 @@ jobs:
         value: '--log_level=DEBUG --pl_deterministic --use_dataset_mount=True --regression_test_folder=RegressionTestResults/PR_BasicModel2Epochs'
     pool:
       vmImage: 'ubuntu-18.04'
+    container: current
     steps:
       - template: train_template.yml
         parameters:
@@ -53,6 +60,7 @@ jobs:
         value: 'RunGpuTests'
     pool:
       vmImage: 'ubuntu-18.04'
+    container: current
     steps:
       - template: train_template.yml
         parameters:
@@ -77,6 +85,7 @@ jobs:
         value: 'Train1ChannelSubmodule'
     pool:
       vmImage: 'ubuntu-18.04'
+    container: current
     steps:
       - template: train_via_submodule.yml
         parameters:
@@ -101,6 +110,7 @@ jobs:
         value: '--pl_deterministic --regression_test_folder=RegressionTestResults/PR_TrainEnsemble'
     pool:
       vmImage: 'ubuntu-18.04'
+    container: current
     steps:
       - template: train_template.yml
         parameters:
@@ -123,6 +133,7 @@ jobs:
         value: '--log_level=DEBUG --pl_deterministic --num_nodes=2 --regression_test_folder=RegressionTestResults/PR_Train2Nodes'
     pool:
       vmImage: 'ubuntu-18.04'
+    container: current
     steps:
       - template: train_template.yml
         parameters:
@@ -142,6 +153,7 @@ jobs:
         value: 'HelloWorldPR'
     pool:
       vmImage: 'ubuntu-18.04'
+    container: current
     steps:
       - template: train_template.yml
         parameters:
@@ -161,6 +173,7 @@ jobs:
         value: '--pl_deterministic --num_nodes=2 --max_num_gpus=2 --regression_test_folder=RegressionTestResults/PR_HelloContainer'
     pool:
       vmImage: 'ubuntu-18.04'
+    container: current
     steps:
       - template: train_template.yml
         parameters:
@@ -185,6 +198,7 @@ jobs:
         value: '--pl_deterministic --num_epochs=1 --feature_channels=16 --show_patch_sampling=0 --train_batch_size=4 --inference_on_val_set=False --inference_on_test_set=False '
     pool:
       vmImage: 'ubuntu-18.04'
+    container: current
     steps:
       - template: train_template.yml
         parameters:
@@ -196,5 +210,6 @@ jobs:
   - job: BuildDataSelection
     pool:
       vmImage: 'ubuntu-18.04'
+    container: current
     steps:
       - template: build_data_quality.yaml
