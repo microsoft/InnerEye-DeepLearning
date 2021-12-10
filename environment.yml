@@ -44,7 +44,6 @@ dependencies:
       - papermill==2.2.2
       - param==1.9.3
       - pillow==8.3.2
-      - psutil==5.7.2
       - pydicom==2.0.0
       - pyflakes==2.2.0
       - PyJWT==1.7.1
