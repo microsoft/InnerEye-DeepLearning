@@ -1,3 +1,8 @@
+#  ------------------------------------------------------------------------------------------
+#  Copyright (c) Microsoft Corporation. All rights reserved.
+#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
+#  ------------------------------------------------------------------------------------------
+
 """DeepSMILECrck is the container for experiments relating to DeepSMILE using the TCGA-CRCk dataset.
 Run using `python InnerEyePrivate/ML/runner.py --model=DeepSMILECrck --encoder_type=<encoder class name>`
 
