@@ -611,8 +611,8 @@ class TrainerParams(param.Parameterized):
         param.String(default=None,
                      doc="The value to use for the 'profiler' argument for the Lightning trainer. "
                          "Set to either 'simple', 'advanced', or 'pytorch'")
-    check_val_every_n_epoch: int = \
-        param.Integer(default=None,
+    pl_check_val_every_n_epoch: int = \
+        param.Integer(default=1,
                       doc="PyTorch Lightning trainer flag 'check_val_every_n_epoch': Run validation every N epochs.")
     monitor_gpu: bool = param.Boolean(default=False,
                                       doc="If True, add the GPUStatsMonitor callback to the Lightning trainer object. "
