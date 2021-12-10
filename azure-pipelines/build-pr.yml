@@ -23,6 +23,13 @@ variables:
   disable.coverage.autogenerate: 'true'
 
 jobs:
+  - job: Linux agent diagnostics
+    pool:
+      vmImage: 'ubuntu-18.04'
+    steps:
+      - bash: |
+          env
+
   - job: Windows
     pool:
       vmImage: 'windows-2019'
@@ -34,8 +41,6 @@ jobs:
       vmImage: 'ubuntu-18.04'
     container: current
     steps:
-      - bash: |
-          env
       - template: build.yaml
 
   - job: TrainInAzureML
