@@ -3,7 +3,7 @@
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/fastMRI" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/hi-ml" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/src/hi-ml" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/hi-ml/src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/hi-ml-azure/src" vcs="Git" />
   </component>
 </project>
