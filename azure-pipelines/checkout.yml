@@ -2,3 +2,7 @@ steps:
   - checkout: self
     lfs: true
     submodules: true
+
+  - bash: |
+      chown -R $USER /opt/conda/envs
+    displayName: Take ownership of conda installation

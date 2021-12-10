@@ -11,6 +11,3 @@ RUN apt-get -y install gcc
 COPY ./environment.yml /tmp
 
 RUN conda env create --file /tmp/environment.yml
-
-# Allow write access to this conda environment because the build agents will later try to update the environment
-RUN chmod a+w /opt/conda/envs
