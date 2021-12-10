@@ -23,13 +23,6 @@ variables:
   disable.coverage.autogenerate: 'true'
 
 jobs:
-  - job: LinuxDiagnostics
-    pool:
-      vmImage: 'ubuntu-18.04'
-    steps:
-      - bash: |
-          env
-
   - job: Windows
     pool:
       vmImage: 'windows-2019'
