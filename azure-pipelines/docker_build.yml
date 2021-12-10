@@ -10,6 +10,6 @@ steps:
     displayName: Build and Push
     inputs:
       command: buildAndPush
-      containerRegistry: BuildAgentACR
+      containerRegistry: BuildAgentACRPremium
       repository: innereye
       Dockerfile: 'docker/Dockerfile'

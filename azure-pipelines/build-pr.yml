@@ -6,8 +6,8 @@ pr:
 resources:
   containers:
   - container: current
-    image: innereye:46176
-    endpoint: BuildAgentACR
+    image: innereye:46186
+    endpoint: BuildAgentACRPremium
 
 name: PR-$(Date:yyyyMMdd)$(Rev:-r)
 variables:
