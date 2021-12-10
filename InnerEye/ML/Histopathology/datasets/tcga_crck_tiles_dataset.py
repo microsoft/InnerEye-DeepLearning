@@ -1,11 +1,12 @@
-from pathlib import Path
-from typing import Any, Callable, Optional, Tuple, Union
-
-import pandas as pd
 #  ------------------------------------------------------------------------------------------
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+
+from pathlib import Path
+from typing import Any, Callable, Optional, Tuple, Union
+
+import pandas as pd
 
 from torchvision.datasets.vision import VisionDataset
 
