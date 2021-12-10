@@ -97,13 +97,15 @@ def _test_cache_and_persistent_datasets(tmp_path: Path,
 
 @pytest.mark.skipif(not os.path.isdir(TCGA_CRCK_DATASET_DIR),
                     reason="TCGA-CRCk tiles dataset is unavailable")
-def test_cached_loading() -> None:
+def test_cached_loading(tmp_path: Path) -> None:
     tiles_dataset = TcgaCrck_TilesDataset(TCGA_CRCK_DATASET_DIR)
     image_key = tiles_dataset.IMAGE_COLUMN
 
     max_num_tiles = 100
     tiles_subset = Subset(tiles_dataset, range(max_num_tiles))
-    _test_cache_and_persistent_datasets(tiles_subset, transform=LoadTiled(image_key),
+    _test_cache_and_persistent_datasets(tmp_path,
+                                        tiles_subset,
+                                        transform=LoadTiled(image_key),
                                         cache_subdir="TCGA-CRCk_tiles_cache")
 
     max_bag_size = 5
@@ -111,14 +113,16 @@ def test_cached_loading() -> None:
     bagged_dataset = BagDataset(tiles_dataset, bag_ids=tiles_dataset.slide_ids,  # type: ignore
                                 max_bag_size=max_bag_size)
     bagged_subset = Subset(bagged_dataset, range(max_num_bags))
-    _test_cache_and_persistent_datasets(bagged_subset, transform=LoadTilesBatchd(image_key),
+    _test_cache_and_persistent_datasets(tmp_path,
+                                        bagged_subset,
+                                        transform=LoadTilesBatchd(image_key),
                                         cache_subdir="TCGA-CRCk_load_cache")
 
 
 @pytest.mark.skipif(not os.path.isdir(TCGA_CRCK_DATASET_DIR),
                     reason="TCGA-CRCk tiles dataset is unavailable")
 @pytest.mark.parametrize('use_gpu', [False, True])
-def test_encode_tiles(use_gpu: bool) -> None:
+def test_encode_tiles(tmp_path: Path, use_gpu: bool) -> None:
     tiles_dataset = TcgaCrck_TilesDataset(TCGA_CRCK_DATASET_DIR)
     image_key = tiles_dataset.IMAGE_COLUMN
     max_bag_size = 5
@@ -138,5 +142,7 @@ def test_encode_tiles(use_gpu: bool) -> None:
 
     max_num_bags = 20
     bagged_subset = Subset(bagged_dataset, range(max_num_bags))
-    _test_cache_and_persistent_datasets(bagged_subset, transform=transform,
+    _test_cache_and_persistent_datasets(tmp_path,
+                                        bagged_subset,
+                                        transform=transform,
                                         cache_subdir="TCGA-CRCk_embed_cache")
