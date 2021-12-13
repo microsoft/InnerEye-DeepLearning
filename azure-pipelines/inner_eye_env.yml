@@ -11,7 +11,7 @@ steps:
       restoreKeys: | 
         python | "$(Agent.OS)"
         python
-      path: $(CONDA_CACHE_DIR)
+      path: /home/vsts/.conda
       cacheHitVar: CONDA_CACHE_RESTORED
 
   - script: conda env create --file environment.yml
@@ -24,4 +24,4 @@ steps:
       conda info
       pip freeze
     failOnStderr: false
-    displayName: Print package list
+    displayName: Print package list and Conda info
