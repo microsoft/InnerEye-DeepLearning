@@ -29,7 +29,8 @@ from InnerEye.Azure.azure_util import MODEL_ID_KEY_NAME, download_run_output_fil
 from InnerEye.Common import common_util, fixed_paths, fixed_paths_for_tests
 from InnerEye.Common.common_util import BEST_EPOCH_FOLDER_NAME, CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, \
     get_best_epoch_results_path
-from InnerEye.Common.fixed_paths import (DEFAULT_RESULT_IMAGE_NAME, DEFAULT_RESULT_ZIP_DICOM_NAME,
+from InnerEye.Common.fixed_paths import (DEFAULT_AML_UPLOAD_DIR, DEFAULT_RESULT_IMAGE_NAME,
+                                         DEFAULT_RESULT_ZIP_DICOM_NAME,
                                          PYTHON_ENVIRONMENT_NAME, repository_root_directory)
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
@@ -44,7 +45,7 @@ from InnerEye.ML.model_testing import THUMBNAILS_FOLDER
 from InnerEye.ML.reports.notebook_report import get_html_report_name
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.runner import main
-from InnerEye.ML.utils.checkpoint_handling import download_checkpoints_to_temp_folder, \
+from InnerEye.ML.utils.checkpoint_handling import download_folder_from_run_to_temp_folder, \
     find_recovery_checkpoint_and_epoch
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.utils.image_util import get_unit_image_header
@@ -225,7 +226,10 @@ def test_download_checkpoints_from_aml(test_output_dirs: OutputFolderForTests) -
     Check that we can download checkpoint files from an AzureML run, if they are not available on disk.
     """
     run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_SINGLE_RUN)
-    temp_folder = download_checkpoints_to_temp_folder(run, workspace=get_default_workspace())
+    checkpoint_folder = f"{DEFAULT_AML_UPLOAD_DIR}/{CHECKPOINT_FOLDER}/"
+    temp_folder = download_folder_from_run_to_temp_folder(folder=checkpoint_folder,
+                                                          run=run,
+                                                          workspace=get_default_workspace())
     files = list(temp_folder.glob("*"))
     assert len(files) == 2
     # Test if what's in the folder are really files, not directories
@@ -234,11 +238,12 @@ def test_download_checkpoints_from_aml(test_output_dirs: OutputFolderForTests) -
     # Now test if that is correctly integrated into the checkpoint finder. To avoid downloading a second time,
     # now mock the call to the actual downloader.
     with mock.patch("InnerEye.ML.utils.checkpoint_handling.is_running_in_azure_ml", return_value=True):
-        with mock.patch("InnerEye.ML.utils.checkpoint_handling.download_checkpoints_to_temp_folder",
+        with mock.patch("InnerEye.ML.utils.checkpoint_handling.download_folder_from_run_to_temp_folder",
                         return_value=temp_folder) as download:
-            # Call the checkpoint finder with a temp folder that does not contain any files, so it should try to download
+            # Call the checkpoint finder with a temp folder that does not contain any files, so it should try to
+            # download
             result = find_recovery_checkpoint_and_epoch(test_output_dirs.root_dir)
-            download.assert_called_once_with()
+            download.assert_called_once_with(folder=checkpoint_folder)
             assert result is not None
             p, epoch = result
             # The basic model only writes one checkpoint at epoch 1
