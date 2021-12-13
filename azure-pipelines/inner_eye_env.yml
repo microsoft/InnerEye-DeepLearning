@@ -11,7 +11,7 @@ steps:
       path: /usr/share/miniconda/envs
       cacheHitVar: CONDA_CACHE_RESTORED
 
-  - script: conda env create --file environment.yml && conda clean --all
+  - script: conda env create --file environment.yml && conda clean --all --yes
     displayName: Create Anaconda environment
     failOnStderr: false # Conda env create does not have an option to suppress warnings generated in wheel.py
     condition: eq(variables.CONDA_CACHE_RESTORED, 'false')
