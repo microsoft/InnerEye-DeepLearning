@@ -6,7 +6,7 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional, Tuple
 
 from InnerEye.Common.type_annotations import PathOrString
 
@@ -37,8 +37,6 @@ DEFAULT_RESULT_ZIP_DICOM_NAME = "segmentation.dcm.zip"
 DEFAULT_LOGS_DIR_NAME = "logs"
 
 DEFAULT_MODEL_SUMMARIES_DIR_PATH = Path(DEFAULT_LOGS_DIR_NAME) / "model_summaries"
-# The folder at the project root directory that holds datasets for local execution.
-DATASETS_DIR_NAME = "datasets"
 
 ML_RELATIVE_SOURCE_PATH = os.path.join("ML")
 ML_RELATIVE_RUNNER_PATH = os.path.join(ML_RELATIVE_SOURCE_PATH, "runner.py")
@@ -93,6 +91,15 @@ def get_environment_yaml_file() -> Path:
     return env
 
 
+def get_hi_ml_submodule_relative_paths() -> List[Tuple[Path, str]]:
+    """
+    Returns the paths relative to the repository root where the submodules for hi-ml and hi-ml-azure are expected.
+    It returns a list with a tuple (folder name, expected subfolder in that folder)
+    """
+    return [(Path("hi-ml") / "hi-ml-azure" / "src", "health_azure"),
+            (Path("hi-ml") / "hi-ml" / "src", "health_ml")]
+
+
 def add_submodules_to_path() -> None:
     """
     This function adds all submodules that the code uses to sys.path and to the environment variables. This is
@@ -104,9 +111,8 @@ def add_submodules_to_path() -> None:
     """
     innereye_root = repository_root_directory()
     folders_to_add = [(innereye_root, "InnerEye"),
-                      (innereye_root / "fastMRI", "fastmri"),
-                      (innereye_root / "hi-ml" / "hi-ml-azure" / "src", "health_azure"),
-                      (innereye_root / "hi-ml" / "hi-ml" / "src", "health_ml")]
+                      (innereye_root / "fastMRI", "fastmri")]
+    folders_to_add.extend([(innereye_root / p, folder) for p, folder in get_hi_ml_submodule_relative_paths()])
     for (folder, subfolder_that_must_exist) in folders_to_add:
         if (folder / subfolder_that_must_exist).is_dir():
             folder_str = str(folder)

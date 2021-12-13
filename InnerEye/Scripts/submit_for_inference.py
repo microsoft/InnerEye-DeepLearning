@@ -12,14 +12,14 @@ from typing import Dict, List, Optional
 import param
 import requests
 from azureml.core import Model, ScriptRunConfig
+from health_azure import create_run_configuration, submit_run
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common.common_util import logging_to_stdout
 from InnerEye.Common.fixed_paths import DEFAULT_DATA_FOLDER, DEFAULT_RESULT_IMAGE_NAME, DEFAULT_RESULT_ZIP_DICOM_NAME, \
-    DEFAULT_TEST_IMAGE_NAME, DEFAULT_TEST_ZIP_NAME, ENVIRONMENT_YAML_FILE_NAME, PYTHON_ENVIRONMENT_NAME, \
+    DEFAULT_TEST_IMAGE_NAME, DEFAULT_TEST_ZIP_NAME, PYTHON_ENVIRONMENT_NAME, \
     RUN_SCORING_SCRIPT, SCORE_SCRIPT, SETTINGS_YAML_FILE, repository_root_directory
 from InnerEye.Common.generic_parsing import GenericConfig
-from health_azure import create_run_configuration, submit_run
 
 
 class SubmitForInferenceConfig(GenericConfig):
@@ -149,17 +149,8 @@ def submit_for_inference(args: SubmitForInferenceConfig, azure_config: AzureConf
     logging.info(f"Building inference run submission in {source_directory_path}")
     image_folder = source_directory_path / DEFAULT_DATA_FOLDER
     image = copy_image_file(args.image_file, image_folder, args.use_dicom)
-    model_sas_urls = model.get_sas_urls()
-    # Identifies all the files with basename "environment.yml" in the model and downloads them.
-    # These downloads should go into a temp folder that will most likely not be included in the model itself,
-    # because the AzureML run will later download the model into the same folder structure, and the file names might
-    # clash.
-    temp_folder = source_directory_path / "temp_for_scoring"
-    conda_files = download_files_from_model(model_sas_urls, ENVIRONMENT_YAML_FILE_NAME, dir_path=temp_folder)
-    if len(conda_files) != 1:
-        raise ValueError("Exactly 1 Conda environment definition must exist in the model.")
     # Retrieve the name of the Python environment that the training run used. This environment should have been
-    # registered. If no such environment exists, it will be re-create from the Conda files provided.
+    # registered at training.
     python_environment_name = model.tags.get(PYTHON_ENVIRONMENT_NAME, "")
     if not python_environment_name:
         raise ValueError(f"The model did not contain tag {PYTHON_ENVIRONMENT_NAME} for the AzureML environment to use.")

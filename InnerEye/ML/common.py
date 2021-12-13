@@ -2,15 +2,13 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+from __future__ import annotations
+
 import abc
-import logging
-import re
 from datetime import datetime
 from enum import Enum, unique
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
-
-import numpy as np
+from typing import Any, Dict, List
 
 DATASET_CSV_FILE_NAME = "dataset.csv"
 CHECKPOINT_SUFFIX = ".ckpt"
@@ -25,6 +23,13 @@ BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX = BEST_CHECKPOINT_FILE_NAME + CHECKPOINT_S
 # to import that here.
 LAST_CHECKPOINT_FILE_NAME = "last"
 LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX = LAST_CHECKPOINT_FILE_NAME + CHECKPOINT_SUFFIX
+
+FINAL_MODEL_FOLDER = "final_model"
+FINAL_ENSEMBLE_MODEL_FOLDER = "final_ensemble_model"
+CHECKPOINT_FOLDER = "checkpoints"
+VISUALIZATION_FOLDER = "visualizations"
+EXTRA_RUN_SUBFOLDER = "extra_run_id"
+ARGS_TXT = "args.txt"
 
 
 @unique
@@ -64,88 +69,6 @@ class OneHotEncoderBase(abc.ABC):
         raise NotImplementedError("get_feature_length must be implemented by sub classes")
 
 
-def get_recovery_checkpoint_path(path: Path) -> Path:
-    """
-    Returns the path to the last recovery checkpoint in the given folder or the provided filename. Raises a
-    FileNotFoundError if no
-    recovery checkpoint file is present.
-    :param path: Path to checkpoint folder
-    """
-    recovery_ckpt_and_epoch = find_recovery_checkpoint_and_epoch(path)
-    if recovery_ckpt_and_epoch is not None:
-        return recovery_ckpt_and_epoch[0]
-    files = list(path.glob("*"))
-    raise FileNotFoundError(f"No checkpoint files found in {path}. Existing files: {' '.join(p.name for p in files)}")
-
-
-def get_best_checkpoint_path(path: Path) -> Path:
-    """
-    Given a path and checkpoint, formats a path based on the checkpoint file name format.
-    :param path to checkpoint folder
-    """
-    return path / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
-
-
-def find_all_recovery_checkpoints(path: Path) -> Optional[List[Path]]:
-    """
-    Extracts all file starting with RECOVERY_CHECKPOINT_FILE_NAME in path
-    :param path:
-    :return:
-    """
-    all_recovery_files = [f for f in path.glob(RECOVERY_CHECKPOINT_FILE_NAME + "*")]
-    if len(all_recovery_files) == 0:
-        return None
-    return all_recovery_files
-
-
-PathAndEpoch = Tuple[Path, int]
-
-
-def extract_latest_checkpoint_and_epoch(available_files: List[Path]) -> PathAndEpoch:
-    """
-     Checkpoints are saved as recovery_epoch={epoch}.ckpt, find the latest ckpt and epoch number.
-    :param available_files: all available checkpoints
-    :return: path the checkpoint from latest epoch and epoch number
-    """
-    recovery_epochs = [int(re.findall(r"[\d]+", f.stem)[0]) for f in available_files]
-    idx_max_epoch = int(np.argmax(recovery_epochs))
-    return available_files[idx_max_epoch], recovery_epochs[idx_max_epoch]
-
-
-def find_recovery_checkpoint_and_epoch(path: Path) -> Optional[PathAndEpoch]:
-    """
-    Looks at all the recovery files, extracts the epoch number for all of them and returns the most recent (latest
-    epoch)
-    checkpoint path along with the corresponding epoch number. If no recovery checkpoint are found, return None.
-    :param path: The folder to start searching in.
-    :return: None if there is no file matching the search pattern, or a Tuple with Path object and integer pointing to
-    recovery checkpoint path and recovery epoch.
-    """
-    available_checkpoints = find_all_recovery_checkpoints(path)
-    if available_checkpoints is not None:
-        return extract_latest_checkpoint_and_epoch(available_checkpoints)
-    return None
-
-
-def create_best_checkpoint(path: Path) -> Path:
-    """
-    Creates the best checkpoint file. "Best" is at the moment defined as being the last checkpoint, but could be
-    based on some defined policy.
-    The best checkpoint will be renamed to `best_checkpoint.ckpt`.
-    :param path: The folder that contains all checkpoint files.
-    """
-    logging.debug(f"Files in checkpoint folder: {' '.join(p.name for p in path.glob('*'))}")
-    last_ckpt = path / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
-    all_files = f"Existing files: {' '.join(p.name for p in path.glob('*'))}"
-    if not last_ckpt.is_file():
-        raise FileNotFoundError(f"Checkpoint file {LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX} not found. {all_files}")
-    logging.info(f"Using {LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX} as the best checkpoint: Renaming to "
-                 f"{BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX}")
-    best = path / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
-    last_ckpt.rename(best)
-    return best
-
-
 def create_unique_timestamp_id() -> str:
     """
     Creates a unique string using the current time in UTC, up to seconds precision, with characters that
@@ -154,3 +77,11 @@ def create_unique_timestamp_id() -> str:
     """
     unique_id = datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ")
     return unique_id
+
+
+def get_best_checkpoint_path(path: Path) -> Path:
+    """
+    Given a path and checkpoint, formats a path based on the checkpoint file name format.
+    :param path to checkpoint folder
+    """
+    return path / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX

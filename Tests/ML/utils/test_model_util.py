@@ -12,8 +12,10 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, LAST_CHECKPOINT_FILE_NAME, \
-    LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, RECOVERY_CHECKPOINT_FILE_NAME, create_best_checkpoint, \
-    extract_latest_checkpoint_and_epoch, find_all_recovery_checkpoints, find_recovery_checkpoint_and_epoch
+    LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, RECOVERY_CHECKPOINT_FILE_NAME
+from InnerEye.ML.utils.checkpoint_handling import create_best_checkpoint, extract_latest_checkpoint_and_epoch, \
+    find_all_recovery_checkpoints, \
+    find_recovery_checkpoint_and_epoch
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.lightning_base import InnerEyeContainer
 from InnerEye.ML.lightning_helpers import load_from_checkpoint_and_adjust_for_inference

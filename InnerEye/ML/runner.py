@@ -9,13 +9,8 @@ import uuid
 from pathlib import Path
 from typing import Optional, Tuple
 
-# Suppress all errors here because the imports after code cause loads of warnings. We can't specifically suppress
-# individual warnings only.
-# flake8: noqa
 # Workaround for an issue with how AzureML and Pytorch Lightning interact: When spawning additional processes for DDP,
 # the working directory is not correctly picked up in sys.path
-from azureml._restclient.constants import RunStatus
-
 print(f"Starting InnerEye runner at {sys.argv[0]}")
 innereye_root = Path(__file__).absolute().parent.parent.parent
 if (innereye_root / "InnerEye").is_dir():
@@ -25,9 +20,12 @@ if (innereye_root / "InnerEye").is_dir():
         sys.path.insert(0, innereye_root_str)
 from InnerEye.Common import fixed_paths
 
+# This must be added before all other imports because they might rely on hi-ml already, and that can optionally live
+# in a submodule
 fixed_paths.add_submodules_to_path()
 
 from azureml._base_sdk_common import user_agent
+from azureml._restclient.constants import RunStatus
 from azureml.core import Run, ScriptRunConfig
 from health_azure import AzureRunInfo, submit_to_azure_if_needed
 from health_azure.utils import create_run_recovery_id, is_global_rank_zero, is_local_rank_zero, merge_conda_files, \
@@ -252,14 +250,20 @@ class Runner:
         if not self.lightning_container.regression_test_folder:
             ignored_folders.append("RegressionTestResults")
 
-        input_datasets = create_dataset_configs(self.azure_config,
-                                                all_azure_dataset_ids=self.lightning_container.all_azure_dataset_ids(),
-                                                all_dataset_mountpoints=self.lightning_container.all_dataset_mountpoints())
+        all_local_datasets = self.lightning_container.all_local_dataset_paths()
+        input_datasets = \
+            create_dataset_configs(self.azure_config,
+                                   all_azure_dataset_ids=self.lightning_container.all_azure_dataset_ids(),
+                                   all_dataset_mountpoints=self.lightning_container.all_dataset_mountpoints(),
+                                   all_local_datasets=all_local_datasets)  # type: ignore
 
         def after_submission_hook(azure_run: Run) -> None:
             """
             A function that will be called right after job submission.
             """
+            # Set the default display name to what was provided as the "tag"
+            if self.azure_config.tag:
+                azure_run.display_name = self.azure_config.tag
             # Add an extra tag that depends on the run that was actually submitted. This is used for later filtering
             # run in cross validation analysis
             recovery_id = create_run_recovery_id(azure_run)
@@ -333,8 +337,6 @@ class Runner:
                         commandline_args=" ".join(source_config.script_params)),
                     after_submission=after_submission_hook,
                     hyperdrive_config=hyperdrive_config)
-                if self.azure_config.tag:
-                    azure_run_info.run.display_name = self.azure_config.tag
             else:
                 azure_run_info = submit_to_azure_if_needed(
                     input_datasets=input_datasets,

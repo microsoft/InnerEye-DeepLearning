@@ -16,7 +16,7 @@ from InnerEye.ML import baselines_util
 from InnerEye.ML.baselines_util import FILE_FORMAT_ERROR, REGRESSION_TEST_AZUREML_FOLDER, \
     REGRESSION_TEST_AZUREML_PARENT_FOLDER, \
     REGRESSION_TEST_OUTPUT_FOLDER, compare_files, compare_folder_contents, compare_folders_and_run_outputs
-from InnerEye.ML.deep_learning_config import FINAL_MODEL_FOLDER
+from InnerEye.ML.common import FINAL_MODEL_FOLDER
 from InnerEye.ML.run_ml import MLRunner
 from Tests.AfterTraining.test_after_training import FALLBACK_ENSEMBLE_RUN, FALLBACK_SINGLE_RUN, get_most_recent_run
 from Tests.ML.configs.lightning_test_containers import DummyContainerWithModel

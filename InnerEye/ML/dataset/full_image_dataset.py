@@ -7,7 +7,7 @@ import os
 from abc import ABC
 from collections import Counter
 from pathlib import Path
-from typing import Any, Callable, Dict, Generic, List, Mapping, Optional, TypeVar, Tuple
+from typing import Any, Callable, Dict, Generic, List, Mapping, Optional, Tuple, TypeVar
 
 import pandas as pd
 import torch.utils.data

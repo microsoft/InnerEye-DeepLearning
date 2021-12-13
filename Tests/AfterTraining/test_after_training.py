@@ -20,41 +20,46 @@ import numpy as np
 import pytest
 from azureml._restclient.constants import RunStatus
 from azureml.core import Model, Run
-from health_azure.himl import RUN_RECOVERY_FILE
 
 from InnerEye.Azure.azure_config import AzureConfig
-from InnerEye.Azure.azure_util import MODEL_ID_KEY_NAME, download_run_output_file, download_run_outputs_by_prefix, \
+from InnerEye.Azure.azure_util import MODEL_ID_KEY_NAME, download_run_output_file, \
+    download_run_outputs_by_prefix, \
     get_comparison_baseline_paths, \
     is_running_on_azure_agent, to_azure_friendly_string
 from InnerEye.Common import common_util, fixed_paths, fixed_paths_for_tests
 from InnerEye.Common.common_util import BEST_EPOCH_FOLDER_NAME, CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, \
     get_best_epoch_results_path
-from InnerEye.Common.fixed_paths import (DEFAULT_RESULT_IMAGE_NAME, DEFAULT_RESULT_ZIP_DICOM_NAME,
+from InnerEye.Common.fixed_paths import (DEFAULT_AML_UPLOAD_DIR, DEFAULT_RESULT_IMAGE_NAME,
+                                         DEFAULT_RESULT_ZIP_DICOM_NAME,
                                          PYTHON_ENVIRONMENT_NAME, repository_root_directory)
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.spawn_subprocess import spawn_and_monitor_subprocess
-from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
+from InnerEye.ML.common import (CHECKPOINT_FOLDER, DATASET_CSV_FILE_NAME, ModelExecutionMode,
+                                RECOVERY_CHECKPOINT_FILE_NAME)
 from InnerEye.ML.configs.other.HelloContainer import HelloContainer
 from InnerEye.ML.configs.segmentation.BasicModel2Epochs import BasicModel2Epochs
-from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, ModelCategory
+from InnerEye.ML.deep_learning_config import ModelCategory
 from InnerEye.ML.model_inference_config import read_model_inference_config
 from InnerEye.ML.model_testing import THUMBNAILS_FOLDER
 from InnerEye.ML.reports.notebook_report import get_html_report_name
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.runner import main
+from InnerEye.ML.utils.checkpoint_handling import download_folder_from_run_to_temp_folder, \
+    find_recovery_checkpoint_and_epoch
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.utils.image_util import get_unit_image_header
 from InnerEye.ML.utils.io_util import zip_random_dicom_series
 from InnerEye.ML.visualizers.plot_cross_validation import PlotCrossValidationConfig
 from InnerEye.Scripts import submit_for_inference
 from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_default_workspace, get_nifti_shape
+from health_azure.himl import RUN_RECOVERY_FILE
 
-FALLBACK_SINGLE_RUN = "refs_pull_593_merge_1637188926_7ba554ba"
-FALLBACK_ENSEMBLE_RUN = "refs_pull_545_merge:HD_caea82ae-9603-48ba-8280-7d2bc6272411"
-FALLBACK_2NODE_RUN = "refs_pull_545_merge:refs_pull_545_merge_1626538178_9f3023b2"
+FALLBACK_SINGLE_RUN = "refs_pull_606_merge:refs_pull_606_merge_1638867172_17ba8dc5"
+FALLBACK_ENSEMBLE_RUN = "refs_pull_606_merge:HD_b8a6ad93-8c19-45de-8ea1-f87fce92c3bd"
+FALLBACK_2NODE_RUN = "refs_pull_606_merge:refs_pull_606_merge_1638867224_8d8072fe"
 FALLBACK_CV_GLAUCOMA = "refs_pull_545_merge:HD_72ecc647-07c3-4353-a538-620346114ebd"
-FALLBACK_HELLO_CONTAINER_RUN = "refs_pull_545_merge:refs_pull_545_merge_1626538216_3eb92f09"
+FALLBACK_HELLO_CONTAINER_RUN = "refs_pull_606_merge:refs_pull_606_merge_1638867108_789991ac"
 
 
 def get_most_recent_run_id(fallback_run_id_for_local_execution: str = FALLBACK_SINGLE_RUN) -> str:
@@ -213,6 +218,37 @@ def test_check_dataset_mountpoint(test_output_dirs: OutputFolderForTests) -> Non
     logs = downloaded.read_text()
     expected_mountpoint = BasicModel2Epochs().dataset_mountpoint
     assert f"local_dataset                           : {expected_mountpoint}" in logs
+
+
+@pytest.mark.after_training_single_run
+def test_download_checkpoints_from_aml(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Check that we can download checkpoint files from an AzureML run, if they are not available on disk.
+    """
+    run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_SINGLE_RUN)
+    checkpoint_folder = f"{DEFAULT_AML_UPLOAD_DIR}/{CHECKPOINT_FOLDER}/"
+    temp_folder = download_folder_from_run_to_temp_folder(folder=checkpoint_folder,
+                                                          run=run,
+                                                          workspace=get_default_workspace())
+    files = list(temp_folder.glob("*"))
+    assert len(files) == 2
+    # Test if what's in the folder are really files, not directories
+    for file in files:
+        assert file.is_file()
+    # Now test if that is correctly integrated into the checkpoint finder. To avoid downloading a second time,
+    # now mock the call to the actual downloader.
+    with mock.patch("InnerEye.ML.utils.checkpoint_handling.is_running_in_azure_ml", return_value=True):
+        with mock.patch("InnerEye.ML.utils.checkpoint_handling.download_folder_from_run_to_temp_folder",
+                        return_value=temp_folder) as download:
+            # Call the checkpoint finder with a temp folder that does not contain any files, so it should try to
+            # download
+            result = find_recovery_checkpoint_and_epoch(test_output_dirs.root_dir)
+            download.assert_called_once_with(folder=checkpoint_folder)
+            assert result is not None
+            p, epoch = result
+            # The basic model only writes one checkpoint at epoch 1
+            assert epoch == 1
+            assert RECOVERY_CHECKPOINT_FILE_NAME in p.stem
 
 
 @pytest.mark.inference

@@ -18,22 +18,10 @@ from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import ModelProcessing, is_windows
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME
 from InnerEye.Common.generic_parsing import GenericConfig
-from InnerEye.Common.type_annotations import PathOrString, TupleFloat2
-from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode, create_unique_timestamp_id, \
-    get_best_checkpoint_path, get_recovery_checkpoint_path
-
-# A folder inside of the outputs folder that will contain all information for running the model in inference mode
-
-FINAL_MODEL_FOLDER = "final_model"
-FINAL_ENSEMBLE_MODEL_FOLDER = "final_ensemble_model"
-
-# The checkpoints must be stored inside of the final model folder, if we want to avoid copying
-# them before registration.
-CHECKPOINT_FOLDER = "checkpoints"
-VISUALIZATION_FOLDER = "visualizations"
-EXTRA_RUN_SUBFOLDER = "extra_run_id"
-
-ARGS_TXT = "args.txt"
+from InnerEye.Common.type_annotations import PathOrString, T, TupleFloat2
+from InnerEye.ML.common import CHECKPOINT_FOLDER, DATASET_CSV_FILE_NAME, \
+    ModelExecutionMode, VISUALIZATION_FOLDER, \
+    create_unique_timestamp_id, get_best_checkpoint_path
 
 
 @unique
@@ -373,10 +361,10 @@ class DatasetParams(param.Parameterized):
         param.List(default=[], allow_None=False,
                    doc="This can be used to feed in additional datasets to your custom datamodules. These will be"
                        "mounted and made available as a list of paths in 'extra_local_datasets' when running in AML.")
-    extra_local_dataset_paths: List[Path] = param.List(class_=Path, default=[], allow_None=False,
-                                                       doc="This can be used to feed in additional datasets "
-                                                           "to your custom datamodules when running outside of Azure "
-                                                           "AML.")
+    extra_local_dataset_paths: List[Optional[Path]] = \
+        param.List(class_=Path, default=[], allow_None=False,
+                   doc="This can be used to feed in additional datasets "
+                       "to your custom datamodules when running outside of Azure AML.")
     dataset_mountpoint: str = param.String(doc="The path at which the AzureML dataset should be made available via "
                                                "mounting or downloading. This only affects jobs running in AzureML."
                                                "If empty, use a random mount/download point.")
@@ -400,20 +388,29 @@ class DatasetParams(param.Parameterized):
         Returns a list with all azure dataset IDs that are specified in self.azure_dataset_id and
         self.extra_azure_dataset_ids
         """
-        if not self.azure_dataset_id:
-            return self.extra_azure_dataset_ids
-        else:
-            return [self.azure_dataset_id] + self.extra_azure_dataset_ids
+        return self._concat_paths(self.azure_dataset_id, self.extra_azure_dataset_ids)
 
     def all_dataset_mountpoints(self) -> List[str]:
         """
         Returns a list with all dataset mount points that are specified in self.dataset_mountpoint and
         self.extra_dataset_mountpoints
         """
-        if not self.dataset_mountpoint:
-            return self.extra_dataset_mountpoints
-        else:
-            return [self.dataset_mountpoint] + self.extra_dataset_mountpoints
+        return self._concat_paths(self.dataset_mountpoint, self.extra_dataset_mountpoints)
+
+    def all_local_dataset_paths(self) -> List[Path]:
+        """
+        Returns a list with all dataset mount points that are specified in self.local_dataset and
+        self.extra_local_dataset_paths
+        """
+        return self._concat_paths(self.local_dataset, self.extra_local_dataset_paths)  # type: ignore
+
+    def _concat_paths(self, item: Optional[T], items: List[T]) -> List[T]:
+        """
+        Creates a list with the item going first (if it does not evaluate to False), then the rest of the items.
+        """
+        if item is None or (isinstance(item, str) and not item.strip()):
+            return items
+        return [item] + items
 
 
 class OutputParams(param.Parameterized):
@@ -482,6 +479,7 @@ class OutputParams(param.Parameterized):
         """
         Returns the full path to a recovery checkpoint.
         """
+        from InnerEye.ML.utils.checkpoint_handling import get_recovery_checkpoint_path
         return get_recovery_checkpoint_path(self.checkpoint_folder)
 
     def get_path_to_best_checkpoint(self) -> Path:
@@ -586,7 +584,7 @@ class TrainerParams(param.Parameterized):
                       doc="PyTorch Lightning trainer flag 'num_sanity_val_steps': Number of validation "
                           "steps to run before training, to identify possible problems")
     pl_deterministic: bool = \
-        param.Boolean(default=True,
+        param.Boolean(default=False,
                       doc="Controls the PyTorch Lightning trainer flags 'deterministic' and 'benchmark'. If "
                           "'pl_deterministic' is True, results are perfectly reproducible. If False, they are not, but "
                           "you may see training speed increases.")
@@ -606,6 +604,9 @@ class TrainerParams(param.Parameterized):
         param.String(default=None,
                      doc="The value to use for the 'profiler' argument for the Lightning trainer. "
                          "Set to either 'simple', 'advanced', or 'pytorch'")
+    pl_check_val_every_n_epoch: int = \
+        param.Integer(default=1,
+                      doc="PyTorch Lightning trainer flag 'check_val_every_n_epoch': Run validation every N epochs.")
     monitor_gpu: bool = param.Boolean(default=False,
                                       doc="If True, add the GPUStatsMonitor callback to the Lightning trainer object. "
                                           "This will write GPU utilization metrics every 50 batches by default.")

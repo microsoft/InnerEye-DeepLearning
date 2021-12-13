@@ -7,7 +7,7 @@ name: PR-$(Date:yyyyMMdd)$(Rev:-r)
 variables:
   model: 'BasicModel2Epochs'
   train: 'True'
-  more_switches: '--log_level=DEBUG'
+  more_switches: '--log_level=DEBUG --pl_deterministic'
   run_recovery_id: ''
   tag: ''
   number_of_cross_validation_splits: 0
@@ -34,7 +34,7 @@ jobs:
       - name: tag
         value: 'TrainBasicModel'
       - name: more_switches
-        value: '--log_level=DEBUG --use_dataset_mount=True --regression_test_folder=RegressionTestResults/PR_BasicModel2Epochs'
+        value: '--log_level=DEBUG --pl_deterministic --use_dataset_mount=True --regression_test_folder=RegressionTestResults/PR_BasicModel2Epochs'
     pool:
       vmImage: 'ubuntu-18.04'
     steps:
@@ -98,7 +98,7 @@ jobs:
       - name: tag
         value: 'TrainEnsemble'
       - name: more_switches
-        value: '--regression_test_folder=RegressionTestResults/PR_TrainEnsemble --log_level=DEBUG'
+        value: '--pl_deterministic --log_level=DEBUG --regression_test_folder=RegressionTestResults/PR_TrainEnsemble'
     pool:
       vmImage: 'ubuntu-18.04'
     steps:
@@ -120,7 +120,7 @@ jobs:
       - name: tag
         value: 'Train2Nodes'
       - name: more_switches
-        value: '--log_level=DEBUG --num_nodes=2 --regression_test_folder=RegressionTestResults/PR_Train2Nodes'
+        value: '--log_level=DEBUG --pl_deterministic --num_nodes=2 --regression_test_folder=RegressionTestResults/PR_Train2Nodes'
     pool:
       vmImage: 'ubuntu-18.04'
     steps:
@@ -133,30 +133,6 @@ jobs:
         parameters:
           pytest_mark: after_training_2node
           test_run_title: tests_after_training_2node_run
-
-  # Train a classification model in cross validation mode
-  - job: TrainGlaucomaCV
-    variables:
-      - name: model
-        value: 'GlaucomaPublic'
-      - name: tag
-        value: 'GlaucomaPR'
-      - name: number_of_cross_validation_splits
-        value: 2
-      - name: more_switches
-        value: '--num_epochs=2 --regression_test_folder=RegressionTestResults/PR_GlaucomaCV --log_level=DEBUG'
-    pool:
-      vmImage: 'ubuntu-18.04'
-    steps:
-      - template: train_template.yml
-        parameters:
-          wait_for_completion: 'True'
-          pytest_mark: ''
-          max_run_duration: '1h'
-      - template: tests_after_training.yml
-        parameters:
-          pytest_mark: after_training_glaucoma_cv_run
-          test_run_title: tests_after_training_glaucoma_cv_run
 
   - job: TrainHelloWorld
     variables:
@@ -182,7 +158,7 @@ jobs:
       - name: tag
         value: 'HelloContainerPR'
       - name: more_switches
-        value: '--num_nodes=2 --regression_test_folder=RegressionTestResults/PR_HelloContainer --log_level=DEBUG'
+        value: '--pl_deterministic --num_nodes=2 --max_num_gpus=2 --regression_test_folder=RegressionTestResults/PR_HelloContainer'
     pool:
       vmImage: 'ubuntu-18.04'
     steps:
@@ -206,7 +182,7 @@ jobs:
       - name: tag
         value: 'LungPR'
       - name: more_switches
-        value: '--num_epochs=1 --feature_channels=16 --show_patch_sampling=0 --train_batch_size=4 --inference_on_val_set=False --inference_on_test_set=False --log_level=DEBUG'
+        value: '--pl_deterministic --num_epochs=1 --feature_channels=16 --show_patch_sampling=0 --train_batch_size=4 --inference_on_val_set=False --inference_on_test_set=False '
     pool:
       vmImage: 'ubuntu-18.04'
     steps:
