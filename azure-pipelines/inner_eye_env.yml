@@ -21,6 +21,7 @@ steps:
 
   - bash: |
       source activate InnerEye
+      conda info
       pip freeze
     failOnStderr: false
     displayName: Print package list
