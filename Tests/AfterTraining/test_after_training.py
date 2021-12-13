@@ -12,8 +12,9 @@ up the most recently run AzureML job from most_recent_run.txt
 import os
 import shutil
 import sys
+import tempfile
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 from unittest import mock
 
 import numpy as np
@@ -57,7 +58,7 @@ from health_azure.himl import RUN_RECOVERY_FILE
 
 FALLBACK_SINGLE_RUN = "refs_pull_606_merge:refs_pull_606_merge_1638867172_17ba8dc5"
 FALLBACK_ENSEMBLE_RUN = "refs_pull_606_merge:HD_b8a6ad93-8c19-45de-8ea1-f87fce92c3bd"
-FALLBACK_2NODE_RUN = "refs_pull_606_merge:refs_pull_606_merge_1638867224_8d8072fe"
+FALLBACK_2NODE_RUN = "refs_pull_593_merge:refs_pull_591_merge_1639416130_e5d29ba7"
 FALLBACK_CV_GLAUCOMA = "refs_pull_545_merge:HD_72ecc647-07c3-4353-a538-620346114ebd"
 FALLBACK_HELLO_CONTAINER_RUN = "refs_pull_606_merge:refs_pull_606_merge_1638867108_789991ac"
 
@@ -386,6 +387,28 @@ def test_register_and_score_model(test_output_dirs: OutputFolderForTests) -> Non
     assert_nifti_content(str(expected_segmentation_path), expected_shape, image_header, [3], np.ubyte)
 
 
+def get_job_log_file(run: Run, index: Optional[int] = None) -> str:
+    """
+    Reads the job log file (70_driver_log.txt or std_log.txt) of the given job. If an index is provided, get
+    the matching file from a multi-node job.
+    :return: The contents of the job log file.
+    """
+    assert run.status == RunStatus.COMPLETED
+    files = run.get_file_names()
+    suffix = (f"_{index}" if index is not None else "") + ".txt"
+    file1 = "azureml-logs/70_driver_log" + suffix
+    file2 = "user_logs/std_log" + suffix
+    if file1 in files:
+        file = file1
+    elif file2 in files:
+        file = file2
+    else:
+        raise ValueError(f"No log file ({file1} or {file2}) present in the run. Existing files: {files}")
+    downloaded = tempfile.mktemp()
+    run.download_file(name=file, output_file_path=downloaded)
+    return Path(downloaded).read_text()
+
+
 @pytest.mark.after_training_2node
 def test_training_2nodes(test_output_dirs: OutputFolderForTests) -> None:
     """
@@ -393,19 +416,9 @@ def test_training_2nodes(test_output_dirs: OutputFolderForTests) -> None:
     """
     run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_2NODE_RUN)
     assert run.status == RunStatus.COMPLETED
-    files = run.get_file_names()
     # There are two nodes, so there should be one log file per node.
-    log0_path = "azureml-logs/70_driver_log_0.txt"
-    log1_path = "azureml-logs/70_driver_log_1.txt"
-    assert log0_path in files, "Node rank 0 log file is missing"
-    assert log1_path in files, "Node rank 1 log file is missing"
-    # Download both log files and check their contents
-    log0 = test_output_dirs.root_dir / log0_path
-    log1 = test_output_dirs.root_dir / log1_path
-    run.download_file(log0_path, output_file_path=str(log0))
-    run.download_file(log1_path, output_file_path=str(log1))
-    log0_txt = log0.read_text()
-    log1_txt = log1.read_text()
+    log0_txt = get_job_log_file(run, index=0)
+    log1_txt = get_job_log_file(run, index=1)
     # Only the node at rank 0 should be done certain startup activities, like visualizing crops.
     # Running inference similarly should only run on one node.
     for in_log0_only in ["Visualizing the effect of sampling random crops for training",
@@ -418,8 +431,8 @@ def test_training_2nodes(test_output_dirs: OutputFolderForTests) -> None:
     assert training_indicator in log1_txt
     # Check diagnostic messages that show if DDP was set up correctly. This could fail if Lightning
     # changes its diagnostic outputs.
-    assert "initializing ddp: GLOBAL_RANK: 0, MEMBER: 1/4" in log0_txt
-    assert "initializing ddp: GLOBAL_RANK: 2, MEMBER: 3/4" in log1_txt
+    assert "initializing distributed: GLOBAL_RANK: 0, MEMBER: 1/4" in log0_txt
+    assert "initializing distributed: GLOBAL_RANK: 2, MEMBER: 3/4" in log1_txt
 
 
 @pytest.mark.skip("The recovery job hangs after completing on AML")
@@ -443,19 +456,9 @@ def test_recovery_on_2_nodes(test_output_dirs: OutputFolderForTests) -> None:
             main()
     run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_2NODE_RUN)
     assert run.status == RunStatus.COMPLETED
-    files = run.get_file_names()
     # There are two nodes, so there should be one log file per node.
-    log0_path = "azureml-logs/70_driver_log_0.txt"
-    log1_path = "azureml-logs/70_driver_log_1.txt"
-    assert log0_path in files, "Node rank 0 log file is missing"
-    assert log1_path in files, "Node rank 1 log file is missing"
-    # Download both log files and check their contents
-    log0 = test_output_dirs.root_dir / log0_path
-    log1 = test_output_dirs.root_dir / log1_path
-    run.download_file(log0_path, output_file_path=str(log0))
-    run.download_file(log1_path, output_file_path=str(log1))
-    log0_txt = log0.read_text()
-    log1_txt = log1.read_text()
+    log0_txt = get_job_log_file(run, index=0)
+    log1_txt = get_job_log_file(run, index=1)
     assert "Downloading multiple files from run" in log0_txt
     assert "Downloading multiple files from run" not in log1_txt
     assert "Loading checkpoint that was created at (epoch = 2, global_step = 2)" in log0_txt
