@@ -34,7 +34,7 @@ class DeepSMILEPanda(BaseMIL):
             pooling_type=GatedAttentionLayer.__name__,
             # declared in DatasetParams:
             local_dataset=Path("/tmp/datasets/PANDA_tiles"),
-            # azure_dataset_id="PANDA_tiles",
+            azure_dataset_id="PANDA_tiles",
             # To mount the dataset instead of downloading in AML, pass --use_dataset_mount in the CLI
             # declared in TrainerParams:
             num_epochs=200,
