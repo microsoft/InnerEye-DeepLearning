@@ -17,7 +17,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Union
 from InnerEye.ML.SSL.utils import SSLDataModuleType, add_submodules_to_same_device
 from InnerEye.ML.lightning_metrics import Accuracy05, AreaUnderPrecisionRecallCurve, AreaUnderRocCurve
 from InnerEye.ML.utils.layer_util import set_model_to_eval_mode
-from health_ml.utils import log_on_epoch, log_on_epoch
+from health_ml.utils import log_on_epoch
 
 BatchType = Union[Dict[SSLDataModuleType, Any], Any]
 
