@@ -4,7 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 
 import os
-from typing import Callable, Dict, List
+from typing import Callable, Dict, List, Type
 
 import pytest
 from torch import Tensor, argmax, nn, rand, randint, randn, round, stack, allclose
@@ -12,9 +12,11 @@ from torchvision.models import resnet18
 
 from health_ml.networks.layers.attention_layers import AttentionLayer, GatedAttentionLayer
 
-from InnerEye.ML.configs.histo_configs.classification.DeepSMILECrck import DeepSMILECrck
+from InnerEye.ML.lightning_container import LightningContainer
+from InnerEye.ML.configs.histo_configs.classification.DeepSMILECrck import TcgaCrckImageNetMIL
+from InnerEye.ML.configs.histo_configs.classification.DeepSMILEPanda import PandaImageNetMIL
 from InnerEye.ML.Histopathology.datamodules.base_module import TilesDataModule
-from InnerEye.ML.Histopathology.datasets.default_paths import TCGA_CRCK_DATASET_DIR
+from InnerEye.ML.Histopathology.datasets.default_paths import TCGA_CRCK_DATASET_DIR, PANDA_TILES_DATASET_DIR
 from InnerEye.ML.Histopathology.models.deepmil import DeepMILModule
 from InnerEye.ML.Histopathology.models.encoders import ImageNetEncoder, TileEncoder
 from InnerEye.ML.Histopathology.utils.naming import ResultsKey
@@ -103,15 +105,21 @@ def move_batch_to_expected_device(batch: Dict[str, List], use_gpu: bool) -> Dict
             for key, values in batch.items()}
 
 
+CONTAINER_DATASET_DIR = {
+    PandaImageNetMIL: PANDA_TILES_DATASET_DIR,
+    TcgaCrckImageNetMIL: TCGA_CRCK_DATASET_DIR,
+}
+
+
+@pytest.mark.parametrize("container_type", [PandaImageNetMIL,
+                                           TcgaCrckImageNetMIL])
 @pytest.mark.parametrize("use_gpu", [True, False])
-def test_container(use_gpu: bool) -> None:
-    container_type = DeepSMILECrck
-    dataset_dir = TCGA_CRCK_DATASET_DIR
+def test_container(container_type: Type[LightningContainer], use_gpu: bool) -> None:
+    dataset_dir = CONTAINER_DATASET_DIR[container_type]
     if not os.path.isdir(dataset_dir):
         pytest.skip(f"Dataset for container {container_type.__name__} "
                     f"is unavailable: {dataset_dir}")
-
-    container = DeepSMILECrck(encoder_type=ImageNetEncoder.__name__)
+    container = container_type()
     container.setup()
 
     data_module: TilesDataModule = container.get_data_module()
