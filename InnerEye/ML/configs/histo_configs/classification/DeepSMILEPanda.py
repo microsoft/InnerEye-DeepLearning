@@ -8,7 +8,7 @@ from pathlib import Path
 import os
 from monai.transforms import Compose
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
-from InnerEyePrivate.Common import fixed_paths
+from InnerEye.Common import fixed_paths
 from InnerEye.ML.Histopathology.datamodules.panda_module import PandaTilesDataModule
 from InnerEye.Azure.azure_util import get_default_azure_config_json_path
 from InnerEye.ML.Histopathology.datasets.panda_tiles_dataset import PandaTilesDataset
