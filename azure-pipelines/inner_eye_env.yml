@@ -3,10 +3,23 @@ steps:
 
   - template: store_settings.yml
 
+  # https://docs.microsoft.com/en-us/azure/devops/pipelines/release/caching?view=azure-devops#pythonanaconda
+  - task: Cache@2
+    displayName: Use cached Conda environment
+    inputs:
+      key: 'conda | "$(Agent.OS)" | environment.yml'
+      restoreKeys: | 
+        python | "$(Agent.OS)"
+        python
+      path: $(CONDA_CACHE_DIR)
+      cacheHitVar: CONDA_CACHE_RESTORED
+
+  - script: conda env create --file environment.yml
+    displayName: Create Anaconda environment
+    condition: eq(variables.CONDA_CACHE_RESTORED, 'false')
+
   - bash: |
-      conda env create --file environment.yml --name InnerEye
       source activate InnerEye
       pip freeze
     failOnStderr: false
-    displayName: Create full Conda environment and print package list
-
+    displayName: Print package list
