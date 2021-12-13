@@ -6,10 +6,8 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, TypeVar
+from typing import Any, List, Optional, Tuple, TypeVar
 
-from health_azure.utils import is_global_rank_zero, is_local_rank_zero
-from health_ml.utils import AzureMLLogger, AzureMLProgressBar, BatchTimeCallback, log_on_epoch
 from pytorch_lightning import Callback, LightningModule, Trainer, seed_everything
 from pytorch_lightning.callbacks import GPUStatsMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
@@ -26,6 +24,8 @@ from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.lightning_loggers import StoringLogger
 from InnerEye.ML.lightning_models import SUBJECT_OUTPUT_PER_RANK_PREFIX, ScalarLightning, \
     get_subject_output_file_per_rank
+from health_azure.utils import is_global_rank_zero, is_local_rank_zero
+from health_ml.utils import AzureMLLogger, AzureMLProgressBar, BatchTimeCallback, log_on_epoch
 
 TEMP_PREFIX = "temp/"
 
@@ -78,8 +78,7 @@ class InnerEyeRecoveryCheckpointCallback(ModelCheckpoint):
 
 def create_lightning_trainer(container: LightningContainer,
                              resume_from_checkpoint: Optional[Path] = None,
-                             num_nodes: int = 1,
-                             **kwargs: Dict[str, Any]) -> \
+                             num_nodes: int = 1) -> \
         Tuple[Trainer, StoringLogger]:
     """
     Creates a Pytorch Lightning Trainer object for the given model configuration. It creates checkpoint handlers
@@ -88,7 +87,6 @@ def create_lightning_trainer(container: LightningContainer,
     :param container: The container with model and data.
     :param resume_from_checkpoint: If provided, training resumes from this checkpoint point.
     :param num_nodes: The number of nodes to use in distributed training.
-    :param kwargs: Any additional keyowrd arguments will be passed to the constructor of Trainer.
     :return: A tuple [Trainer object, diagnostic logger]
     """
     logging.debug(f"resume_from_checkpoint: {resume_from_checkpoint}")
@@ -141,12 +139,15 @@ def create_lightning_trainer(container: LightningContainer,
         logging.info("Adding monitoring for GPU utilization")
         callbacks.append(GPUStatsMonitor(intra_step_time=True, inter_step_time=True))
     # Add the additional callbacks that were specified in get_trainer_arguments for LightningContainers
-    if "callbacks" in kwargs:
-        more_callbacks = kwargs.pop("callbacks")
+    additional_args = container.get_trainer_arguments()
+    # Callbacks can be specified via the "callbacks" argument (the legacy behaviour) or the new get_callbacks method
+    if "callbacks" in additional_args:
+        more_callbacks = additional_args.pop("callbacks")
         if isinstance(more_callbacks, list):
             callbacks.extend(more_callbacks)  # type: ignore
         else:
             callbacks.append(more_callbacks)  # type: ignore
+    callbacks.extend(container.get_callbacks())
     is_azureml_run = not is_offline_run_context(RUN_CONTEXT)
     progress_bar_refresh_rate = container.pl_progress_bar_refresh_rate
     if is_azureml_run:
@@ -168,6 +169,7 @@ def create_lightning_trainer(container: LightningContainer,
                       limit_train_batches=container.pl_limit_train_batches or 1.0,
                       limit_val_batches=container.pl_limit_val_batches or 1.0,
                       num_sanity_val_steps=container.pl_num_sanity_val_steps,
+                      check_val_every_n_epoch=container.pl_check_val_every_n_epoch,
                       callbacks=callbacks,
                       logger=loggers,
                       progress_bar_refresh_rate=progress_bar_refresh_rate,
@@ -178,7 +180,7 @@ def create_lightning_trainer(container: LightningContainer,
                       terminate_on_nan=container.detect_anomaly,
                       profiler=container.pl_profiler,
                       resume_from_checkpoint=str(resume_from_checkpoint) if resume_from_checkpoint else None,
-                      **kwargs)
+                      **additional_args)
     return trainer, storing_logger
 
 
@@ -242,8 +244,7 @@ def model_train(checkpoint_path: Optional[Path],
     seed_everything(container.get_effective_random_seed())
     trainer, storing_logger = create_lightning_trainer(container,
                                                        checkpoint_path,
-                                                       num_nodes=num_nodes,
-                                                       **container.get_trainer_arguments())
+                                                       num_nodes=num_nodes)
     rank_info = ", ".join(f"{env}: {os.getenv(env)}"
                           for env in [ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK])
     logging.info(f"Environment variables: {rank_info}. trainer.global_rank: {trainer.global_rank}")
