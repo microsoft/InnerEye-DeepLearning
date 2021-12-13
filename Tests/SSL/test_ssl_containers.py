@@ -392,8 +392,8 @@ def test_online_evaluator_distributed() -> None:
             mock_module = mock.MagicMock(device=device)
             trainer = Trainer(accelerator="ddp", gpus=2)
             # Test the two flags that the internal logic of on_pretrain_routine_start uses
-            assert trainer.accelerator_connector.is_distributed
-            assert trainer.accelerator_connector.use_ddp
+            assert trainer._accelerator_connector.is_distributed
+            assert trainer._accelerator_connector.use_ddp
             original_evaluator = callback.evaluator
             callback.on_pretrain_routine_start(trainer, mock_module)
             # Check that SyncBatchNorm has been turned on

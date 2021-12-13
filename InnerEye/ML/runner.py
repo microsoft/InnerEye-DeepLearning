@@ -261,7 +261,8 @@ class Runner:
             """
             A function that will be called right after job submission.
             """
-            # Set the default display name to what was provided as the "tag"
+            # Set the default display name to what was provided as the "tag". This will affect single runs
+            # and Hyperdrive parent runs
             if self.azure_config.tag:
                 azure_run.display_name = self.azure_config.tag
             # Add an extra tag that depends on the run that was actually submitted. This is used for later filtering
@@ -337,6 +338,13 @@ class Runner:
                         commandline_args=" ".join(source_config.script_params)),
                     after_submission=after_submission_hook,
                     hyperdrive_config=hyperdrive_config)
+                if self.azure_config.tag and azure_run_info.run:
+                    if self.lightning_container.perform_cross_validation:
+                        # This code is only reached inside Azure. Set display name again - this will now affect
+                        # Hypdrive child runs (for other jobs, this has already been done after submission)
+                        cv_index = self.lightning_container.cross_validation_split_index
+                        full_display_name = f"{self.azure_config.tag} {cv_index}"
+                        azure_run_info.run.display_name = full_display_name
             else:
                 azure_run_info = submit_to_azure_if_needed(
                     input_datasets=input_datasets,
