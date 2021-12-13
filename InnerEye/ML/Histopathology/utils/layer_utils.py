@@ -1,3 +1,8 @@
+#  ------------------------------------------------------------------------------------------
+#  Copyright (c) Microsoft Corporation. All rights reserved.
+#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
+#  ------------------------------------------------------------------------------------------
+
 from typing import Callable, Tuple
 
 from torch import as_tensor, device, nn, prod, rand
@@ -25,7 +30,7 @@ def setup_feature_extractor(pretrained_model: nn.Module,
 def load_weights_to_model(weights_url: str, model: nn.Module) -> nn.Module:
     """
     Load weights to the histoSSL model from the given URL
-    https://github.com/ozanciga/self-supervised-histopathology 
+    https://github.com/ozanciga/self-supervised-histopathology
     """
     map_location = device('cpu')
     state = load_state_dict_from_url(weights_url, map_location=map_location)
