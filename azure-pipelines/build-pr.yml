@@ -15,7 +15,7 @@ variables:
   # Disable a spurious warning
   # https://stackoverflow.com/questions/56859264/publishing-code-coverage-results-from-reportgenerator-not-working
   disable.coverage.autogenerate: 'true'
-  CONDA_CACHE_DIR: $(Pipeline.Workspace)/.condarc
+  CONDA_CACHE_DIR: $(Pipeline.Workspace)/.conda
 
 jobs:
   - job: Windows
