@@ -8,9 +8,6 @@ steps:
     displayName: Use cached Conda environment
     inputs:
       key: 'conda | "$(Agent.OS)" | environment.yml'
-      restoreKeys: | 
-        python | "$(Agent.OS)"
-        python
       path: /home/vsts/.conda
       cacheHitVar: CONDA_CACHE_RESTORED
 
