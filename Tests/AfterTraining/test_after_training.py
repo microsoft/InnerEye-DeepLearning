@@ -404,7 +404,7 @@ def get_job_log_file(run: Run, index: Optional[int] = None) -> str:
         file = file2
     else:
         raise ValueError(f"No log file ({file1} or {file2}) present in the run. Existing files: {files}")
-    downloaded = tempfile.mktemp()
+    downloaded = tempfile.NamedTemporaryFile().name
     run.download_file(name=file, output_file_path=downloaded)
     return Path(downloaded).read_text()
 
