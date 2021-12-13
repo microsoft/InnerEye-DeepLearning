@@ -32,6 +32,7 @@ jobs that run in AzureML.
 - ([#589](https://github.com/microsoft/InnerEye-DeepLearning/pull/589)) Add `LightningContainer.update_azure_config()`
   hook to enable overriding `AzureConfig` parameters from a container (e.g. `experiment_name`, `cluster`, `num_nodes`).
 - ([#617](https://github.com/microsoft/InnerEye-DeepLearning/pull/617)) Commandline flag `pl_check_val_every_n_epoch` to control how often validation is happening
+- ([#618](https://github.com/microsoft/InnerEye-DeepLearning/pull/618)) Using Azure Pipeline Cache to avoid re-building conda environnment repeatedly
 - ([#603](https://github.com/microsoft/InnerEye-DeepLearning/pull/603)) Add histopathology module
 - ([#614](https://github.com/microsoft/InnerEye-DeepLearning/pull/614)) Checkpoint downloading falls back to looking into AzureML if no checkpoints on disk
 - ([#613](https://github.com/microsoft/InnerEye-DeepLearning/pull/613)) Add additional tests for histopathology datasets
