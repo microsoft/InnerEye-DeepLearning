@@ -46,3 +46,155 @@ jobs:
         parameters:
           pytest_mark: after_training_single_run
           test_run_title: tests_after_training_single_run
+
+  - job: RunGpuTestsInAzureML
+    variables:
+      - name: tag
+        value: 'RunGpuTests'
+    pool:
+      vmImage: 'ubuntu-18.04'
+    steps:
+      - template: train_template.yml
+        parameters:
+          wait_for_completion: 'True'
+          pytest_mark: 'gpu or cpu_and_gpu or azureml'
+          max_run_duration: '30m'
+      - task: PublishTestResults@2
+        inputs:
+          testResultsFiles: '**/test-*.xml'
+          testRunTitle: 'tests_on_AzureML'
+        condition: succeededOrFailed()
+        displayName: Publish test results
+
+  # Now train a module, using the Github code as a submodule. Here, a simpler 1 channel model
+  # is trained, because we use this build to also check the "submit_for_inference" code, that
+  # presently only handles single channel models.
+  - job: TrainInAzureMLViaSubmodule
+    variables:
+      - name: model
+        value: 'BasicModel2Epochs1Channel'
+      - name: tag
+        value: 'Train1ChannelSubmodule'
+    pool:
+      vmImage: 'ubuntu-18.04'
+    steps:
+      - template: train_via_submodule.yml
+        parameters:
+          wait_for_completion: 'True'
+          max_run_duration: '30m'
+      - template: tests_after_training.yml
+        parameters:
+          pytest_mark: "inference or after_training"
+          test_run_title: tests_after_train_submodule
+
+
+  # Train a 2-element ensemble model
+  - job: TrainEnsemble
+    variables:
+      - name: model
+        value: 'BasicModelForEnsembleTest'
+      - name: number_of_cross_validation_splits
+        value: 2
+      - name: tag
+        value: 'TrainEnsemble'
+      - name: more_switches
+        value: '--pl_deterministic --regression_test_folder=RegressionTestResults/PR_TrainEnsemble'
+    pool:
+      vmImage: 'ubuntu-18.04'
+    steps:
+      - template: train_template.yml
+        parameters:
+          wait_for_completion: 'True'
+          pytest_mark: ''
+          max_run_duration: '1h'
+      - template: tests_after_training.yml
+        parameters:
+          pytest_mark: after_training_ensemble_run
+          test_run_title: tests_after_training_ensemble_run
+
+  # Train a model on 2 nodes
+  - job: Train2Nodes
+    variables:
+      - name: model
+        value: 'BasicModel2EpochsMoreData'
+      - name: tag
+        value: 'Train2Nodes'
+      - name: more_switches
+        value: '--log_level=DEBUG --pl_deterministic --num_nodes=2 --regression_test_folder=RegressionTestResults/PR_Train2Nodes'
+    pool:
+      vmImage: 'ubuntu-18.04'
+    steps:
+      - template: train_template.yml
+        parameters:
+          wait_for_completion: 'True'
+          pytest_mark: ''
+          max_run_duration: '1h'
+      - template: tests_after_training.yml
+        parameters:
+          pytest_mark: after_training_2node
+          test_run_title: tests_after_training_2node_run
+
+  - job: TrainHelloWorld
+    variables:
+      - name: model
+        value: 'HelloWorld'
+      - name: tag
+        value: 'HelloWorldPR'
+    pool:
+      vmImage: 'ubuntu-18.04'
+    steps:
+      - template: train_template.yml
+        parameters:
+          wait_for_completion: 'True'
+          pytest_mark: ''
+          max_run_duration: '30m'
+
+  # Run HelloContainer on 2 nodes. HelloContainer uses native Lighting test set inference, which can get
+  # confused after doing multi-node training in the same script.
+  - job: TrainHelloContainer
+    variables:
+      - name: model
+        value: 'HelloContainer'
+      - name: tag
+        value: 'HelloContainerPR'
+      - name: more_switches
+        value: '--pl_deterministic --num_nodes=2 --max_num_gpus=2 --regression_test_folder=RegressionTestResults/PR_HelloContainer'
+    pool:
+      vmImage: 'ubuntu-18.04'
+    steps:
+      - template: train_template.yml
+        parameters:
+          wait_for_completion: 'True'
+          pytest_mark: ''
+          max_run_duration: '30m'
+      - template: tests_after_training.yml
+        parameters:
+          pytest_mark: after_training_hello_container
+          test_run_title: tests_after_training_hello_container
+
+  # Run the Lung model. This is a large model requiring a docker image with large memory. This tests against
+  # regressions in AML when requesting more than the default amount of memory. This needs to run with all subjects to
+  # trigger the bug, total runtime 10min
+  - job: TrainLung
+    variables:
+      - name: model
+        value: 'Lung'
+      - name: tag
+        value: 'LungPR'
+      - name: more_switches
+        value: '--pl_deterministic --num_epochs=1 --feature_channels=16 --show_patch_sampling=0 --train_batch_size=4 --inference_on_val_set=False --inference_on_test_set=False '
+    pool:
+      vmImage: 'ubuntu-18.04'
+    steps:
+      - template: train_template.yml
+        parameters:
+          wait_for_completion: 'True'
+          pytest_mark: ''
+          max_run_duration: '30m'
+
+  # Now run the build for the Data Selection sub-folder
+  - job: BuildDataSelection
+    pool:
+      vmImage: 'ubuntu-18.04'
+    steps:
+      - template: build_data_quality.yaml
