@@ -7,7 +7,7 @@ steps:
   - task: Cache@2
     displayName: Use cached Conda environment
     inputs:
-      key: 'conda | "$(Agent.OS)" | environment.yml'
+      key: 'conda_innereye | "$(Agent.OS)" | environment.yml'
       path: /usr/share/miniconda/envs
       cacheHitVar: CONDA_CACHE_RESTORED
 
