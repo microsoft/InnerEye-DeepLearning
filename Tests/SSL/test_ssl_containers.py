@@ -2,11 +2,10 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import math
 from pathlib import Path
-from typing import Dict
 from unittest import mock
 
+import math
 import numpy as np
 import pandas as pd
 import pytest
@@ -16,6 +15,7 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 from torch.nn import Module
 from torch.optim.lr_scheduler import _LRScheduler
+from typing import Dict
 
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import is_windows
@@ -135,8 +135,9 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
     assert len(checkpoint["optimizer_states"]) == 1
     assert len(checkpoint["lr_schedulers"]) == 1
     assert "callbacks" in checkpoint
-    assert SSLOnlineEvaluatorInnerEye.__name__ in checkpoint["callbacks"]
-    callback_state = checkpoint["callbacks"][SSLOnlineEvaluatorInnerEye]
+    callback_name = SSLOnlineEvaluatorInnerEye.__name__
+    assert callback_name in checkpoint["callbacks"]
+    callback_state = checkpoint["callbacks"][callback_name]
     assert SSLOnlineEvaluatorInnerEye.OPTIMIZER_STATE_NAME in callback_state
     assert SSLOnlineEvaluatorInnerEye.EVALUATOR_STATE_NAME in callback_state
 
@@ -336,8 +337,9 @@ def test_online_evaluator_recovery(test_output_dirs: OutputFolderForTests) -> No
     # It's somewhat obsolete, but we can now check that the checkpoint file really contained the optimizer and weights
     checkpoint = torch.load(last_checkpoint)
     assert "callbacks" in checkpoint
-    assert SSLOnlineEvaluatorInnerEye in checkpoint["callbacks"]
-    callback_state = checkpoint["callbacks"][SSLOnlineEvaluatorInnerEye]
+    callback_name = SSLOnlineEvaluatorInnerEye.__name__
+    assert callback_name in checkpoint["callbacks"]
+    callback_state = checkpoint["callbacks"][callback_name]
     assert SSLOnlineEvaluatorInnerEye.OPTIMIZER_STATE_NAME in callback_state
     assert SSLOnlineEvaluatorInnerEye.EVALUATOR_STATE_NAME in callback_state
 
@@ -359,7 +361,8 @@ def test_online_evaluator_not_distributed() -> None:
         # Standard trainer without DDP
         trainer = Trainer()
         # Test the flag that the internal logic of on_pretrain_routine_start uses
-        assert not trainer.accelerator_connector.is_distributed
+        assert hasattr(trainer, "_accelerator_connector")
+        assert not trainer._accelerator_connector.is_distributed
         mock_module = mock.MagicMock(device=torch.device("cpu"))
         callback.on_pretrain_routine_start(trainer, mock_module)
         assert isinstance(callback.evaluator, Module)
@@ -378,11 +381,11 @@ def test_online_evaluator_distributed() -> None:
         with mock.patch("InnerEye.ML.SSL.lightning_modules.ssl_online_evaluator.DistributedDataParallel",
                         return_value=mock_ddp_result) as mock_ddp:
             callback = SSLOnlineEvaluatorInnerEye(class_weights=None,
-                                                z_dim=1,
-                                                num_classes=2,
-                                                dataset="foo",
-                                                drop_p=0.2,
-                                                learning_rate=1e-5)
+                                                  z_dim=1,
+                                                  num_classes=2,
+                                                  dataset="foo",
+                                                  drop_p=0.2,
+                                                  learning_rate=1e-5)
 
             # Trainer with DDP
             device = torch.device("cuda:0")
