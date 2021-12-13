@@ -1,3 +1,8 @@
+#  ------------------------------------------------------------------------------------------
+#  Copyright (c) Microsoft Corporation. All rights reserved.
+#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
+#  ------------------------------------------------------------------------------------------
+
 """
 This script is an example of how to use the submit_to_azure_if_needed function from the hi-ml package to run the
 main pre-processing function that creates tiles from slides in the PANDA dataset. The advantage of using this script
