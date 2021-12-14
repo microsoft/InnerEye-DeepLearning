@@ -8,11 +8,14 @@ from pathlib import Path
 import os
 from monai.transforms import Compose
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
+
+from health_azure.utils import CheckpointDownloader
+from health_azure.utils import get_workspace
+from health_ml.networks.layers.attention_layers import GatedAttentionLayer
 from InnerEye.Common import fixed_paths
 from InnerEye.ML.Histopathology.datamodules.panda_module import PandaTilesDataModule
-from InnerEye.Azure.azure_util import get_default_azure_config_json_path
 from InnerEye.ML.Histopathology.datasets.panda_tiles_dataset import PandaTilesDataset
-from health_ml.networks.layers.attention_layers import GatedAttentionLayer
+
 from InnerEye.ML.Histopathology.models.transforms import (
     EncodeTilesBatchd,
     LoadTilesBatchd,
@@ -25,7 +28,6 @@ from InnerEye.ML.Histopathology.models.encoders import (
 )
 from InnerEye.ML.configs.histo_configs.classification.BaseMIL import BaseMIL
 from InnerEye.ML.configs.histo_configs.run_ids import innereye_ssl_checkpoint
-from health_azure.utils import CheckpointDownloader
 
 
 class DeepSMILEPanda(BaseMIL):
@@ -75,7 +77,7 @@ class DeepSMILEPanda(BaseMIL):
     def setup(self) -> None:
         if self.encoder_type == InnerEyeSSLEncoder.__name__:
             self.downloader = CheckpointDownloader(
-                azure_config_json_path=get_default_azure_config_json_path(),
+                azure_config_json_path=get_workspace(),
                 run_recovery_id=innereye_ssl_checkpoint,
                 checkpoint_filename="last.ckpt",
                 download_dir="outputs/",

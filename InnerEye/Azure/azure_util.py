@@ -251,7 +251,7 @@ def strip_prefix(string: str, prefix: str) -> str:
     :return: Input string with prefix removed.
     """
     if string.startswith(prefix):
-        return string[len(prefix) :]
+        return string[len(prefix):]
     return string
 
 
@@ -331,7 +331,7 @@ def download_run_outputs_by_prefix(
     # (120sec timeout for all files).
     for file in run.get_file_names():
         if file.startswith(prefix_str):
-            target_path = file[len(prefix_str) :] 
+            target_path = file[len(prefix_str):]
             if target_path.startswith("/"):
                 target_path = target_path[1:]
                 logging.info(f"Downloading {file}")
@@ -403,11 +403,3 @@ def step_up_directories(path: Path) -> Generator[Path, None, None]:
         if parent == path:
             break
         path = parent
-
-
-def get_default_azure_config_json_path() -> Path:
-    """
-    Gets the path to the project's default Azure config JSON file.
-    """
-    azure_config_json_path = fixed_paths.repository_root_directory() / "config.json"
-    return azure_config_json_path
