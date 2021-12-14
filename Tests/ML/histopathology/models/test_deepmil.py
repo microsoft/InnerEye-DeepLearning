@@ -141,7 +141,7 @@ def test_container(container_type: Type[LightningContainer], use_gpu: bool) -> N
     container = container_type()
     container.setup()
 
-    data_module: TilesDataModule = container.get_data_module()
+    data_module: TilesDataModule = container.get_data_module()  # noqa
     data_module.max_bag_size = 10
     module = container.create_model()
     if use_gpu:

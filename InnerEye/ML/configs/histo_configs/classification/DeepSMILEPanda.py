@@ -95,7 +95,7 @@ class DeepSMILEPanda(BaseMIL):
             ]
         )
         return PandaTilesDataModule(
-            root_path=self.local_dataset,  # noqa
+            root_path=self.local_dataset,
             max_bag_size=self.max_bag_size,
             batch_size=self.batch_size,
             transform=transform,
