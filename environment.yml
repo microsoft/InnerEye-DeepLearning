@@ -20,6 +20,7 @@ dependencies:
       - azureml-tensorboard==1.36.0
       - conda-merge==0.1.5
       - cryptography==3.3.2
+      - cucim==21.10.1
       - dataclasses-json==0.5.2
       - docker==4.3.1
       - flake8==3.8.3
