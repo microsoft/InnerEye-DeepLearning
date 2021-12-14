@@ -587,7 +587,7 @@ class TrainerParams(param.Parameterized):
         param.Boolean(default=False,
                       doc="Controls the PyTorch Lightning trainer flags 'deterministic' and 'benchmark'. If "
                           "'pl_deterministic' is True, results are perfectly reproducible. If False, they are not, but "
-                          "you may see training speed increases.")
+                          "you may see significant training speed increases.")
     pl_find_unused_parameters: bool = \
         param.Boolean(default=False,
                       doc="Controls the PyTorch Lightning flag 'find_unused_parameters' for the DDP plugin. "

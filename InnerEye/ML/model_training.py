@@ -118,8 +118,7 @@ def create_lightning_trainer(container: LightningContainer,
     precision = 32 if num_gpus == 0 else 16 if container.use_mixed_precision else 32
     # The next two flags control the settings in torch.backends.cudnn.deterministic and torch.backends.cudnn.benchmark
     # https://pytorch.org/docs/stable/notes/randomness.html
-    # For the classification models, we observed only a small performance deterioration (increase in 10sec on total
-    # training time of 22min) when switching to deterministic.
+    # Note that switching to deterministic models can have large performance downside.
     if container.pl_deterministic:
         deterministic = True
         benchmark = False

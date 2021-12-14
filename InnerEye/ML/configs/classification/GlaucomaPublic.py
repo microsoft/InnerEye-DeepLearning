@@ -37,9 +37,6 @@ class GlaucomaPublic(ScalarModelBase):
             train_batch_size=64,  # Batch size of 64 uses about 7GB of GPU memory
         )
         self.add_and_validate(kwargs)
-        # After Lightning 1.5.0 upgrade, torch complains that
-        # "avg_pool3d_backward_cuda does not have a deterministic implementation"
-        self.pl_deterministic = False
 
     def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:
         return DatasetSplits.from_proportions(
