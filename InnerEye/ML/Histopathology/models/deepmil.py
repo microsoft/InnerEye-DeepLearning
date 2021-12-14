@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
+import logging
 from pathlib import Path
 import pandas as pd
 import numpy as np
@@ -201,10 +202,14 @@ class DeepMILModule(LightningModule):
                         ResultsKey.PROB: probs, ResultsKey.PRED_LABEL: preds,
                         ResultsKey.TRUE_LABEL: bag_labels, ResultsKey.BAG_ATTN: bag_attn_list,
                         ResultsKey.IMAGE: batch[TilesDataset.IMAGE_COLUMN]})
+
         if (TilesDataset.TILE_X_COLUMN in batch.keys()) and (TilesDataset.TILE_Y_COLUMN in batch.keys()):
             results.update({ResultsKey.TILE_X: batch[TilesDataset.TILE_X_COLUMN],
                            ResultsKey.TILE_Y: batch[TilesDataset.TILE_Y_COLUMN]}
                            )
+        else:
+            logging.warning("Coordinates not found in batch. If this is not expected check your input tiles dataset.")
+
         return results
 
     def training_step(self, batch: Dict, batch_idx: int) -> Tensor:  # type: ignore
