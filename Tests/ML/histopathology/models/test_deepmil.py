@@ -17,10 +17,10 @@ from health_ml.networks.layers.attention_layers import (
 
 from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.configs.histo_configs.classification.DeepSMILECrck import (
-    TcgaCrckImageNetMIL,
+    DeepSMILECrck,
 )
 from InnerEye.ML.configs.histo_configs.classification.DeepSMILEPanda import (
-    PandaImageNetMIL,
+    DeepSMILEPanda,
 )
 from InnerEye.ML.Histopathology.datamodules.base_module import TilesDataModule
 from InnerEye.ML.Histopathology.datasets.default_paths import (
@@ -124,12 +124,13 @@ def move_batch_to_expected_device(batch: Dict[str, List], use_gpu: bool) -> Dict
 
 
 CONTAINER_DATASET_DIR = {
-    PandaImageNetMIL: PANDA_TILES_DATASET_DIR,
-    TcgaCrckImageNetMIL: TCGA_CRCK_DATASET_DIR,
+    DeepSMILEPanda: PANDA_TILES_DATASET_DIR,
+    DeepSMILECrck: TCGA_CRCK_DATASET_DIR,
 }
 
 
-@pytest.mark.parametrize("container_type", [PandaImageNetMIL, TcgaCrckImageNetMIL])
+@pytest.mark.parametrize("container_type", [DeepSMILEPanda,
+                                            DeepSMILECrck])
 @pytest.mark.parametrize("use_gpu", [True, False])
 def test_container(container_type: Type[LightningContainer], use_gpu: bool) -> None:
     dataset_dir = CONTAINER_DATASET_DIR[container_type]
@@ -138,10 +139,16 @@ def test_container(container_type: Type[LightningContainer], use_gpu: bool) -> N
             f"Dataset for container {container_type.__name__} "
             f"is unavailable: {dataset_dir}"
         )
-    container = container_type()
+    if container_type is DeepSMILECrck:
+        container = DeepSMILECrck(encoder_type=ImageNetEncoder.__name__)
+    elif container_type is DeepSMILEPanda:
+        container = DeepSMILEPanda(encoder_type=ImageNetEncoder.__name__)
+    else:
+        container = container_type()
+
     container.setup()
 
-    data_module: TilesDataModule = container.get_data_module()  # noqa
+    data_module: TilesDataModule = container.get_data_module()  # type: ignore
     data_module.max_bag_size = 10
     module = container.create_model()
     if use_gpu:
@@ -151,10 +158,10 @@ def test_container(container_type: Type[LightningContainer], use_gpu: bool) -> N
     for batch_idx, batch in enumerate(train_data_loader):
         batch = move_batch_to_expected_device(batch, use_gpu)
         loss = module.training_step(batch, batch_idx)
-        loss.retain_grad()  # noqa
-        loss.backward()  # noqa
-        assert loss.grad is not None  # noqa
-        assert loss.shape == ()  # noqa
+        loss.retain_grad()
+        loss.backward()
+        assert loss.grad is not None
+        assert loss.shape == ()
         assert isinstance(loss, Tensor)
         break
 
