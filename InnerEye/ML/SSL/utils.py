@@ -134,7 +134,7 @@ def add_submodules_to_same_device(module: torch.nn.Module,
     """
 
     def _class_name(o: Any) -> str:
-        return str(type(o)).split(".")[-1]
+        return type(o).__name__
 
     for m in submodules:
         m.to(device=module.device)  # type: ignore
