@@ -8,6 +8,8 @@ import pytest
 from azureml.core import Run
 from azureml.core.workspace import Workspace
 
+from health_azure.utils import is_run_and_child_runs_completed
+
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_runner import create_experiment_name
 from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, fetch_child_runs, fetch_run, \
@@ -16,9 +18,9 @@ from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, fetc
 from InnerEye.Common.common_util import logging_to_stdout
 from InnerEye.Common.fixed_paths import PRIVATE_SETTINGS_FILE, PROJECT_SECRETS_FILE, \
     repository_root_directory
+
 from Tests.AfterTraining.test_after_training import FALLBACK_ENSEMBLE_RUN, get_most_recent_run, get_most_recent_run_id
 from Tests.ML.util import get_default_workspace
-from health_azure.utils import is_run_and_child_runs_completed
 
 
 def test_os_path_to_azure_friendly_container_path() -> None:

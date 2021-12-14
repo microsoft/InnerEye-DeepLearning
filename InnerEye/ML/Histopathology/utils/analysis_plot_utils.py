@@ -1,3 +1,8 @@
+#  ------------------------------------------------------------------------------------------
+#  Copyright (c) Microsoft Corporation. All rights reserved.
+#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
+#  ------------------------------------------------------------------------------------------
+
 import numpy as np
 from typing import List, Any
 
@@ -85,7 +90,7 @@ def plot_box_whisker(data_list: List[Any], column_names: List[str], show_outlier
 def plot_histogram(data: List[Any], title: str = "") -> None:
     """
     Plot a histogram given some data
-    :param data: data to be plotted 
+    :param data: data to be plotted
     :param title: plot title string
     """
     plt.figure()
