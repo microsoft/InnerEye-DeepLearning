@@ -68,7 +68,7 @@ class DeepSMILEPanda(BaseMIL):
     @property
     def cache_dir(self) -> Path:
         return Path(
-            f"/tmp/innereye_cache/{self.__class__.__name__}-{self.encoder_type}/"
+            f"/tmp/innereye_cache1/{self.__class__.__name__}-{self.encoder_type}/"
         )
 
     def setup(self) -> None:
@@ -94,7 +94,7 @@ class DeepSMILEPanda(BaseMIL):
             ]
         )
         return PandaTilesDataModule(
-            root_path=self.local_dataset,
+            root_path=self.local_dataset,  # noqa
             max_bag_size=self.max_bag_size,
             batch_size=self.batch_size,
             transform=transform,

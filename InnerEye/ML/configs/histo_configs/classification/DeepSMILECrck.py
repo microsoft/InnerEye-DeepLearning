@@ -23,11 +23,22 @@ from health_ml.networks.layers.attention_layers import GatedAttentionLayer
 from InnerEye.Common import fixed_paths
 from InnerEye.ML.configs.histo_configs.classification.BaseMIL import BaseMIL
 from InnerEye.ML.Histopathology.datamodules.base_module import TilesDataModule
-from InnerEye.ML.Histopathology.datamodules.tcga_crck_module import TcgaCrckTilesDataModule
-from InnerEye.ML.Histopathology.models.encoders import (HistoSSLEncoder, ImageNetEncoder,
-                                                            ImageNetSimCLREncoder, InnerEyeSSLEncoder)
-from InnerEye.ML.Histopathology.models.transforms import EncodeTilesBatchd, LoadTilesBatchd
-from InnerEye.ML.Histopathology.datasets.tcga_crck_tiles_dataset import TcgaCrck_TilesDataset
+from InnerEye.ML.Histopathology.datamodules.tcga_crck_module import (
+    TcgaCrckTilesDataModule,
+)
+from InnerEye.ML.Histopathology.models.encoders import (
+    HistoSSLEncoder,
+    ImageNetEncoder,
+    ImageNetSimCLREncoder,
+    InnerEyeSSLEncoder,
+)
+from InnerEye.ML.Histopathology.models.transforms import (
+    EncodeTilesBatchd,
+    LoadTilesBatchd,
+)
+from InnerEye.ML.Histopathology.datasets.tcga_crck_tiles_dataset import (
+    TcgaCrck_TilesDataset,
+)
 
 
 class DeepSMILECrck(BaseMIL):
@@ -36,21 +47,17 @@ class DeepSMILECrck(BaseMIL):
         default_kwargs = dict(
             # declared in BaseMIL:
             pooling_type=GatedAttentionLayer.__name__,
-
             # declared in DatasetParams:
             local_dataset=Path("/tmp/datasets/TCGA-CRCk"),
             azure_dataset_id="TCGA-CRCk",
             # To mount the dataset instead of downloading in AML, pass --use_dataset_mount in the CLI
-
             # declared in TrainerParams:
             num_epochs=16,
             recovery_checkpoint_save_interval=16,
             recovery_checkpoints_save_last_k=-1,
-
             # declared in WorkflowParams:
             number_of_cross_validation_splits=5,
             cross_validation_split_index=0,
-
             # declared in OptimizerParams:
             l_rate=5e-4,
             weight_decay=1e-4,
@@ -60,33 +67,45 @@ class DeepSMILECrck(BaseMIL):
         super().__init__(**default_kwargs)
 
         self.best_checkpoint_filename = "checkpoint_max_val_auroc"
-        self.best_checkpoint_filename_with_suffix = self.best_checkpoint_filename + ".ckpt"
+        self.best_checkpoint_filename_with_suffix = (
+            self.best_checkpoint_filename + ".ckpt"
+        )
         self.checkpoint_folder_path = "outputs/checkpoints/"
 
-        best_checkpoint_callback = ModelCheckpoint(dirpath=self.checkpoint_folder_path,
-                                                   monitor='val/auroc',
-                                                   filename=self.best_checkpoint_filename,
-                                                   auto_insert_metric_name=False,
-                                                   mode='max')
+        best_checkpoint_callback = ModelCheckpoint(
+            dirpath=self.checkpoint_folder_path,
+            monitor="val/auroc",
+            filename=self.best_checkpoint_filename,
+            auto_insert_metric_name=False,
+            mode="max",
+        )
         self.callbacks = best_checkpoint_callback
 
     @property
     def cache_dir(self) -> Path:
-        return Path(f"/tmp/innereye_cache/{self.__class__.__name__}-{self.encoder_type}/")
+        return Path(
+            f"/tmp/innereye_cache1/{self.__class__.__name__}-{self.encoder_type}/"
+        )
 
     def get_data_module(self) -> TilesDataModule:
         image_key = TcgaCrck_TilesDataset.IMAGE_COLUMN
-        transform = Compose([LoadTilesBatchd(image_key, progress=True),
-                             EncodeTilesBatchd(image_key, self.encoder)])
-        return TcgaCrckTilesDataModule(root_path=self.local_dataset,
-                                       max_bag_size=self.max_bag_size,
-                                       batch_size=self.batch_size,
-                                       transform=transform,
-                                       cache_mode=self.cache_mode,
-                                       save_precache=self.save_precache,
-                                       cache_dir=self.cache_dir,
-                                       number_of_cross_validation_splits=self.number_of_cross_validation_splits,
-                                       cross_validation_split_index=self.cross_validation_split_index)
+        transform = Compose(
+            [
+                LoadTilesBatchd(image_key, progress=True),
+                EncodeTilesBatchd(image_key, self.encoder),
+            ]
+        )
+        return TcgaCrckTilesDataModule(
+            root_path=self.local_dataset,
+            max_bag_size=self.max_bag_size,
+            batch_size=self.batch_size,
+            transform=transform,
+            cache_mode=self.cache_mode,
+            save_precache=self.save_precache,
+            cache_dir=self.cache_dir,
+            number_of_cross_validation_splits=self.number_of_cross_validation_splits,
+            cross_validation_split_index=self.cross_validation_split_index,
+        )
 
     def get_trainer_arguments(self) -> Dict[str, Any]:
         # These arguments will be passed through to the Lightning trainer.
@@ -98,7 +117,11 @@ class DeepSMILECrck(BaseMIL):
         was applied there.
         """
         # absolute path is required for registering the model.
-        return fixed_paths.repository_root_directory() / self.checkpoint_folder_path / self.best_checkpoint_filename_with_suffix
+        return (
+            fixed_paths.repository_root_directory()
+            / self.checkpoint_folder_path
+            / self.best_checkpoint_filename_with_suffix
+        )
 
 
 class TcgaCrckImageNetMIL(DeepSMILECrck):
