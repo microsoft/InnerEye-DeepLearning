@@ -1,17 +1,15 @@
 steps:
-  - template: checkout.yml
+  - template: inner_eye_env.yml
 
   - bash: |
-      conda env create --file environment.yml --name InnerEye --quiet
       source activate InnerEye
       echo Storing environment for later use by ComponentGovernance
       # This file is picked up later by ComponentGovernance
       pip freeze > requirements.txt
       echo Environment has been created with these packages:
       cat requirements.txt
-    failOnStderr: false # Conda env create does not have an option to suppress warnings generated in wheel.py
     condition: succeeded()
-    displayName: Create conda environment
+    displayName: List environment
 
   # Pytest needs subscription information directly in settings.yml. Local package install will cause use of
   # the wrong default project root, hence InnerEyePrivateSettings.yml can't be picked up.
