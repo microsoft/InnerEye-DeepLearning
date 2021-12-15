@@ -363,10 +363,16 @@ def test_online_evaluator_not_distributed() -> None:
         # Test the flag that the internal logic of on_pretrain_routine_start uses
         assert hasattr(trainer, "_accelerator_connector")
         assert not trainer._accelerator_connector.is_distributed
-        mock_module = mock.MagicMock(device=torch.device("cpu"))
-        callback.on_pretrain_routine_start(trainer, mock_module)
+        cpu = torch.device("cpu")
+        callback.on_pretrain_routine_start(trainer, mock.MagicMock(device=cpu))
         assert isinstance(callback.evaluator, Module)
         mock_ddp.assert_not_called()
+        # Check that the evaluator is on the GPU before making any changes
+        assert list(callback.evaluator.parameters())[0].device == cpu
+        # Check that the evaluator is really moved to the right device
+        gpu0 = torch.device("cuda:0")
+        callback.on_pretrain_routine_start(trainer, mock.MagicMock(device=gpu0))
+        assert list(callback.evaluator.parameters())[0].device == gpu0
 
 
 @pytest.mark.gpu
