@@ -71,6 +71,8 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
                            pl_module: pl.LightningModule,
                            checkpoint: Dict[str, Any]) -> Dict[str, Any]:
         # Each callback gets its own state dictionary, that are fed back in during load
+        # When saving the evaluator, use the wrapped DDP module (otherwise the resulting checkpoint will depend
+        # on use of DDP or not).
         return {
             self.OPTIMIZER_STATE_NAME: self.optimizer.state_dict(),
             self.EVALUATOR_STATE_NAME: self._wrapped_evaluator().state_dict()
@@ -81,6 +83,7 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
                            pl_module: pl.LightningModule,
                            callback_state: Dict[str, Any]) -> None:
         self.optimizer.load_state_dict(callback_state[self.OPTIMIZER_STATE_NAME])
+        # on_load_checkpoint is called before we wrap the evaluator with DDP
         self._wrapped_evaluator().load_state_dict(callback_state[self.EVALUATOR_STATE_NAME])
 
     def on_pretrain_routine_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
