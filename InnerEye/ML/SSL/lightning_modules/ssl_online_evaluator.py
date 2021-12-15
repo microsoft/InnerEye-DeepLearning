@@ -57,6 +57,15 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
                                           lr=self.learning_rate,
                                           weight_decay=self.weight_decay)
 
+    def _wrapped_evaluator(self) -> torch.nn.Module:
+        """
+        Gets the evaluator model that is wrapped in DDP, or the evaluator model itself.
+        """
+        if isinstance(self.evaluator, DistributedDataParallel):
+            return self.evaluator.module
+        else:
+            return self.evaluator
+
     def on_save_checkpoint(self,
                            trainer: pl.Trainer,
                            pl_module: pl.LightningModule,
@@ -64,7 +73,7 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
         # Each callback gets its own state dictionary, that are fed back in during load
         return {
             self.OPTIMIZER_STATE_NAME: self.optimizer.state_dict(),
-            self.EVALUATOR_STATE_NAME: self.evaluator.state_dict()
+            self.EVALUATOR_STATE_NAME: self._wrapped_evaluator().state_dict()
         }
 
     def on_load_checkpoint(self,
@@ -72,7 +81,7 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
                            pl_module: pl.LightningModule,
                            callback_state: Dict[str, Any]) -> None:
         self.optimizer.load_state_dict(callback_state[self.OPTIMIZER_STATE_NAME])
-        self.evaluator.load_state_dict(callback_state[self.EVALUATOR_STATE_NAME])
+        self._wrapped_evaluator().load_state_dict(callback_state[self.EVALUATOR_STATE_NAME])
 
     def on_pretrain_routine_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
         """
