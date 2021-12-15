@@ -3,8 +3,6 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
-
 import pytorch_lightning as pl
 import torch
 from pl_bolts.callbacks.ssl_online import SSLOnlineEvaluator
@@ -14,8 +12,9 @@ from torch import Tensor as T
 from torch.nn import SyncBatchNorm, functional as F
 from torch.nn.parallel import DistributedDataParallel
 from torchmetrics import Metric
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
-from InnerEye.ML.SSL.utils import SSLDataModuleType
+from InnerEye.ML.SSL.utils import SSLDataModuleType, add_submodules_to_same_device
 from InnerEye.ML.lightning_metrics import Accuracy05, AreaUnderPrecisionRecallCurve, AreaUnderRocCurve
 from InnerEye.ML.utils.layer_util import set_model_to_eval_mode
 from health_ml.utils import log_on_epoch
@@ -81,10 +80,17 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
         If training happens via DDP, SyncBatchNorm is enabled for the online evaluator, and it is converted to
         a DDP module.
         """
-        for metric in [*self.train_metrics, *self.val_metrics]:
-            metric.to(device=pl_module.device)  # type: ignore
+        for prefix, metrics in [("train", self.train_metrics), ("val", self.val_metrics)]:
+            add_submodules_to_same_device(pl_module, metrics, prefix=prefix)
         self.evaluator.to(pl_module.device)
-        accelerator = trainer.accelerator_connector
+        if hasattr(trainer, "accelerator_connector"):
+            # This works with Lightning 1.3.8
+            accelerator = trainer.accelerator_connector
+        elif hasattr(trainer, "_accelerator_connector"):
+            # This works with Lightning 1.5.5
+            accelerator = trainer._accelerator_connector
+        else:
+            raise ValueError("Unable to retrieve the accelerator information")
         if accelerator.is_distributed:
             if accelerator.use_ddp:
                 self.evaluator = SyncBatchNorm.convert_sync_batchnorm(self.evaluator)
@@ -152,7 +158,7 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
                 for metric in self.val_metrics:
                     log_on_epoch(pl_module, f"ssl_online_evaluator/val/{metric.name}", metric)
 
-    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx) -> None:  # type: ignore
+    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx) -> None:  # type: ignore
         """
         Get and log training metrics, perform network update.
         """

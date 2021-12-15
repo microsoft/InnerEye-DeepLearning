@@ -14,7 +14,6 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from azureml.core import Run
-from numpy.core.numeric import NaN
 
 from InnerEye.Azure.azure_util import get_run_context_or_default
 from InnerEye.Common.metrics_constants import LoggingColumns, MetricType
@@ -174,9 +173,9 @@ def calculate_metrics_per_class(segmentation: np.ndarray,
             continue
         # Skip but record if nan_image
         elif nan_images[i]:
-            add_metric(MetricType.DICE, NaN)
-            add_metric(MetricType.HAUSDORFF_mm, NaN)
-            add_metric(MetricType.MEAN_SURFACE_DIST_mm, NaN)
+            add_metric(MetricType.DICE, np.nan)
+            add_metric(MetricType.HAUSDORFF_mm, np.nan)
+            add_metric(MetricType.MEAN_SURFACE_DIST_mm, np.nan)
             continue
         check_size_matches(prediction, ground_truth[i], arg1_name="prediction", arg2_name="ground_truth")
         if not is_binary_array(prediction):
