@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import torch
 from pytorch_lightning import LightningDataModule, LightningModule
-from pytorch_lightning.metrics import MeanAbsoluteError
+from torchmetrics.regression import MeanAbsoluteError
 from torch.optim import Adam, Optimizer
 from torch.optim.lr_scheduler import StepLR, _LRScheduler
 from torch.utils.data import DataLoader, Dataset
