@@ -94,7 +94,7 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
         """
         for prefix, metrics in [("train", self.train_metrics), ("val", self.val_metrics)]:
             add_submodules_to_same_device(pl_module, metrics, prefix=prefix)
-        self.evaluator.to(pl_module.device)
+        self.evaluator = self.evaluator.to(pl_module.device)
         if hasattr(trainer, "accelerator_connector"):
             # This works with Lightning 1.3.8
             accelerator = trainer.accelerator_connector
