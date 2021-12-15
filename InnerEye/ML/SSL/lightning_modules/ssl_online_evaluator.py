@@ -83,7 +83,8 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
                            pl_module: pl.LightningModule,
                            callback_state: Dict[str, Any]) -> None:
         self.optimizer.load_state_dict(callback_state[self.OPTIMIZER_STATE_NAME])
-        # on_load_checkpoint is called before we wrap the evaluator with DDP
+        # on_load_checkpoint is called before on_pretrain_routine_start, where we wrap the evaluator with DDP.
+        # Hence, this call to _wrapped_evaluator should actually not be necessary.
         self._wrapped_evaluator().load_state_dict(callback_state[self.EVALUATOR_STATE_NAME])
 
     def on_pretrain_routine_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
