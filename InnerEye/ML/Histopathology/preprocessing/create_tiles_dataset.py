@@ -293,6 +293,7 @@ def main(slides_dataset: SlidesDataset, root_output_dir: Union[str, Path],
 if __name__ == '__main__':
     from InnerEye.ML.Histopathology.datasets.tcga_prad_dataset import TcgaPradDataset
 
+    # Example set up for an existing slides dataset:
     main(slides_dataset=TcgaPradDataset("/tmp/datasets/TCGA-PRAD"),
          root_output_dir="/datadrive/TCGA-PRAD_tiles",
          n_slides=5,

@@ -36,6 +36,7 @@ class TcgaPradDataset(SlidesDataset):
         from the dataset CSV file, e.g. after some filtering. If given, overrides `dataset_csv`.
         """
         super().__init__(root, dataset_csv, dataset_df, validate_columns=False)
-        self.dataset_df[self.LABEL_COLUMN] = (self.dataset_df['label1_mutation']
-                                              | self.dataset_df['label2_mutation']).astype(int)
+        # Example of how to define a custom label column from existing columns:
+        self.dataset_df[self.LABEL_COLUMN] = (self.dataset_df['label1']
+                                              | self.dataset_df['label2']).astype(int)
         self.validate_columns()
