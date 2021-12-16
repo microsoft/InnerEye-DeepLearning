@@ -7,8 +7,8 @@ from cucim import CuImage
 from monai.data.image_reader import WSIReader
 
 from InnerEye.Common.fixed_paths_for_tests import tests_root_directory
-from InnerEye.ML.Histopathology.datasets.default_paths import TCGA_PRAD_DATASET_DIR
-from InnerEye.ML.Histopathology.datasets.tcga_prad_dataset import TcgaPradDataset
+from InnerEye.ML.Histopathology.datasets.default_paths import PANDA_DATASET_DIR
+from InnerEye.ML.Histopathology.datasets.panda_dataset import PandaDataset
 from InnerEye.ML.Histopathology.preprocessing.tiling import tile_array_2d
 from InnerEye.ML.Histopathology.preprocessing.loading import LoadROId, get_luminance, load_slide_at_level, segment_foreground
 from InnerEye.ML.Histopathology.utils.naming import SlideKey
@@ -17,15 +17,13 @@ TEST_IMAGE_PATH = str(tests_root_directory("ML/histopathology/test_data/panda_ws
 
 
 def _get_sample() -> Dict[SlideKey, Any]:
-    dataset = TcgaPradDataset(TCGA_PRAD_DATASET_DIR)
+    dataset = PandaDataset(PANDA_DATASET_DIR)
     return dataset[0]
 
 
 def test_load_slide() -> None:
     level = 2
     reader = WSIReader('cuCIM')
-    # image_path = _get_sample()[SlideKey.IMAGE]
-    # print(image_path)
     slide_obj: CuImage = reader.read(TEST_IMAGE_PATH)
     dims = slide_obj.resolutions['level_dimensions'][level][::-1]
 
@@ -136,9 +134,9 @@ def test_get_bounding_box(level: int, foreground_threshold: Optional[float]) -> 
     assert level0_bbox_margin.h == level0_bbox.h + 2 * level0_margin
 
 
-@pytest.mark.skipif(not os.path.isdir(TCGA_PRAD_DATASET_DIR),
-                    reason="TCGA-PRAD dataset is unavailable")
-@pytest.mark.parametrize('level', [2, 3])
+@pytest.mark.skipif(not os.path.isdir(PANDA_DATASET_DIR),
+                    reason="PANDA dataset is unavailable")
+@pytest.mark.parametrize('level', [1, 2])
 @pytest.mark.parametrize('margin', [0, 42])
 @pytest.mark.parametrize('foreground_threshold', [None, 215])
 def test_load_roi(level: int, margin: int, foreground_threshold: Optional[float]) -> None:
