@@ -7,50 +7,42 @@ from pathlib import Path
 from typing import Any, Dict, Union, Optional
 
 import pandas as pd
+from cucim import CuImage
+from health_ml.utils import box_utils
 from monai.config import KeysCollection
 from monai.data.image_reader import ImageReader, WSIReader
 from monai.transforms import MapTransform
-from openslide import OpenSlide
-from torch.utils.data import Dataset
 
-from health_ml.utils import box_utils
+from InnerEye.ML.Histopathology.datasets.base_dataset import SlidesDataset
 
 
-class PandaDataset(Dataset):
+class PandaDataset(SlidesDataset):
     """Dataset class for loading files from the PANDA challenge dataset.
 
-    Iterating over this dataset returns a dictionary containing the `'image_id'`, paths to the `'image'`
-    and `'mask'` files, and the remaining meta-data from the original dataset (`'data_provider'`,
-    `'isup_grade'`, and `'gleason_score'`).
+    Iterating over this dataset returns a dictionary following the `SlideKey` schema plus meta-data
+    from the original dataset (`'data_provider'`, `'isup_grade'`, and `'gleason_score'`).
 
     Ref.: https://www.kaggle.com/c/prostate-cancer-grade-assessment/overview
     """
-    def __init__(self, root_dir: Union[str, Path], n_slides: Optional[int] = None,
-                 frac_slides: Optional[float] = None) -> None:
-        super().__init__()
-        self.root_dir = Path(root_dir)
-        self.train_df = pd.read_csv(self.root_dir / "train.csv", index_col='image_id')
-        if n_slides or frac_slides:
-            self.train_df = self.train_df.sample(n=n_slides, frac=frac_slides, replace=False,
-                                                          random_state=1234)
+    SLIDE_ID_COLUMN = 'image_id'
+    IMAGE_COLUMN = 'image'
+    MASK_COLUMN = 'mask'
+    LABEL_COLUMN = 'isup_grade'
 
-    def __len__(self) -> int:
-        return self.train_df.shape[0]
+    METADATA_COLUMNS = ('data_provider', 'isup_grade', 'gleason_score')
 
-    def _get_image_path(self, image_id: str) -> Path:
-        return self.root_dir / "train_images" / f"{image_id}.tiff"
+    DEFAULT_CSV_FILENAME = "train.csv"
 
-    def _get_mask_path(self, image_id: str) -> Path:
-        return self.root_dir / "train_label_masks" / f"{image_id}_mask.tiff"
-
-    def __getitem__(self, index: int) -> Dict:
-        image_id = self.train_df.index[index]
-        return {
-            'image_id': image_id,
-            'image': str(self._get_image_path(image_id).absolute()),
-            'mask': str(self._get_mask_path(image_id).absolute()),
-            **self.train_df.loc[image_id].to_dict()
-        }
+    def __init__(self,
+                 root: Union[str, Path],
+                 dataset_csv: Optional[Union[str, Path]] = None,
+                 dataset_df: Optional[pd.DataFrame] = None) -> None:
+        super().__init__(root, dataset_csv, dataset_df, validate_columns=False)
+        # PANDA CSV does not come with paths for image and mask files
+        slide_ids = self.dataset_df.index
+        self.dataset_df[self.IMAGE_COLUMN] = "train_images/" + slide_ids + ".tiff"
+        self.dataset_df[self.MASK_COLUMN] = "train_label_masks/" + slide_ids + "_mask.tiff"
+        self.validate_columns()
 
 
 # MONAI's convention is that dictionary transforms have a 'd' suffix in the class name
@@ -96,10 +88,10 @@ class LoadPandaROId(MapTransform):
         self.margin = margin
         self.kwargs = kwargs
 
-    def _get_bounding_box(self, mask_obj: OpenSlide) -> box_utils.Box:
+    def _get_bounding_box(self, mask_obj: CuImage) -> box_utils.Box:
         # Estimate bounding box at the lowest resolution (i.e. highest level)
-        highest_level = mask_obj.level_count - 1
-        scale = mask_obj.level_downsamples[highest_level]
+        highest_level = mask_obj.resolutions['level_count'] - 1
+        scale = mask_obj.resolutions['level_downsamples'][highest_level]
         mask, _ = self.reader.get_data(mask_obj, level=highest_level)  # loaded as RGB PIL image
 
         foreground_mask = mask[0] > 0  # PANDA segmentation mask is in 'R' channel
@@ -107,14 +99,14 @@ class LoadPandaROId(MapTransform):
         return bbox
 
     def __call__(self, data: Dict) -> Dict:
-        mask_obj: OpenSlide = self.reader.read(data[self.mask_key])
-        image_obj: OpenSlide = self.reader.read(data[self.image_key])
+        mask_obj: CuImage = self.reader.read(data[self.mask_key])
+        image_obj: CuImage = self.reader.read(data[self.image_key])
 
         level0_bbox = self._get_bounding_box(mask_obj)
 
-        # OpenSlide takes absolute location coordinates in the level 0 reference frame,
+        # cuCIM/OpenSlide take absolute location coordinates in the level 0 reference frame,
         # but relative region size in pixels at the chosen level
-        scale = mask_obj.level_downsamples[self.level]
+        scale = mask_obj.resolutions['level_downsamples'][self.level]
         scaled_bbox = level0_bbox / scale
         get_data_kwargs = dict(location=(level0_bbox.x, level0_bbox.y),
                                size=(scaled_bbox.w, scaled_bbox.h),
