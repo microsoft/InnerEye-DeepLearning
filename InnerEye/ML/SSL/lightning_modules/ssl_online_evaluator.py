@@ -3,6 +3,8 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
+from typing import Any, Dict, List, Optional, OrderedDict, Set, Tuple, Union
+
 import pytorch_lightning as pl
 import torch
 from pl_bolts.callbacks.ssl_online import SSLOnlineEvaluator
@@ -12,7 +14,6 @@ from torch import Tensor as T
 from torch.nn import SyncBatchNorm, functional as F
 from torch.nn.parallel import DistributedDataParallel
 from torchmetrics import Metric
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from InnerEye.ML.SSL.utils import SSLDataModuleType, add_submodules_to_same_device
 from InnerEye.ML.lightning_metrics import Accuracy05, AreaUnderPrecisionRecallCurve, AreaUnderRocCurve
@@ -49,13 +50,8 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
                                           Accuracy05()] \
             if self.num_classes == 2 else [Accuracy05()]
         self.class_weights = class_weights
-        self.evaluator = SSLEvaluator(n_input=self.z_dim,
-                                      n_classes=self.num_classes,
-                                      p=self.drop_p,
-                                      n_hidden=self.hidden_dim)
-        self.optimizer = torch.optim.Adam(self.evaluator.parameters(),
-                                          lr=self.learning_rate,
-                                          weight_decay=self.weight_decay)
+        self.evaluator_state: Optional[OrderedDict] = None
+        self.optimizer_state: Optional[OrderedDict] = None
 
     def _wrapped_evaluator(self) -> torch.nn.Module:
         """
@@ -82,10 +78,8 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
                            trainer: pl.Trainer,
                            pl_module: pl.LightningModule,
                            callback_state: Dict[str, Any]) -> None:
-        self.optimizer.load_state_dict(callback_state[self.OPTIMIZER_STATE_NAME])
-        # on_load_checkpoint is called before on_pretrain_routine_start, where we wrap the evaluator with DDP.
-        # Hence, this call to _wrapped_evaluator should actually not be necessary.
-        self._wrapped_evaluator().load_state_dict(callback_state[self.EVALUATOR_STATE_NAME])
+        self.optimizer_state = callback_state[self.OPTIMIZER_STATE_NAME]
+        self.evaluator_state = callback_state[self.EVALUATOR_STATE_NAME]
 
     def on_pretrain_routine_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
         """
@@ -95,6 +89,10 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
         """
         for prefix, metrics in [("train", self.train_metrics), ("val", self.val_metrics)]:
             add_submodules_to_same_device(pl_module, metrics, prefix=prefix)
+        self.evaluator = SSLEvaluator(n_input=self.z_dim,
+                                      n_classes=self.num_classes,
+                                      p=self.drop_p,
+                                      n_hidden=self.hidden_dim)
         self.evaluator = self.evaluator.to(pl_module.device)
         if hasattr(trainer, "accelerator_connector"):
             # This works with Lightning 1.3.8
@@ -111,6 +109,13 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
             else:
                 rank_zero_warn("This type of distributed accelerator is not supported. "
                                "The online evaluator will not synchronize across GPUs.")
+        self.optimizer = torch.optim.Adam(self.evaluator.parameters(),
+                                          lr=self.learning_rate,
+                                          weight_decay=self.weight_decay)
+        if self.evaluator_state is not None:
+            self._wrapped_evaluator().load_state_dict(self.evaluator_state)
+        if self.optimizer_state is not None:
+            self.optimizer.load_state_dict(self.optimizer_state)
 
     @staticmethod
     def to_device(batch: Any, device: Union[str, torch.device]) -> Tuple[T, T]:

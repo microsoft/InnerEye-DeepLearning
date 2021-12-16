@@ -320,9 +320,6 @@ def test_online_evaluator_recovery(test_output_dirs: OutputFolderForTests) -> No
                                                    dataset="foo",
                                                    drop_p=0.2,
                                                    learning_rate=1e-5)
-            # Ensure that the parameters are really different initially
-            parameters2_before_training = list(callback2.evaluator.parameters())
-            assert not torch.allclose(parameters2_before_training[0], parameters1[0])
             # Start a second training run with recovery
             last_checkpoint = checkpoints.last_model_path
             trainer2 = Trainer(default_root_dir=str(test_output_dirs.root_dir),
