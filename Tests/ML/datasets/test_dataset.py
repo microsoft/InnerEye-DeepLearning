@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import pytest
 import torch
-from pytorch_lightning.core.step_result import Result
+from pytorch_lightning.utilities.data import extract_batch_size
 
 from InnerEye.Common import common_util
 from InnerEye.ML.config import PaddingMode, SegmentationModelBase
@@ -502,7 +502,7 @@ def test_sample_metadata_field() -> None:
     assert SAMPLE_METADATA_FIELD in fields
     # Lightning attempts to determine the batch size by trying to find a tensor field in the sample.
     # This only works if any field other than Metadata is first.
-    assert Result.unpack_batch_size(fields) == batch_size
+    assert extract_batch_size(fields) == batch_size
 
 
 def test_custom_collate() -> None:
