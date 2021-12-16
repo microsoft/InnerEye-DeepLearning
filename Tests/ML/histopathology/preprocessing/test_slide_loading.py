@@ -1,5 +1,4 @@
-import os
-from typing import Any, Dict, Optional
+from typing import Optional
 
 import numpy as np
 import pytest
@@ -7,18 +6,12 @@ from cucim import CuImage
 from monai.data.image_reader import WSIReader
 
 from InnerEye.Common.fixed_paths_for_tests import tests_root_directory
-from InnerEye.ML.Histopathology.datasets.default_paths import PANDA_DATASET_DIR
-from InnerEye.ML.Histopathology.datasets.panda_dataset import PandaDataset
 from InnerEye.ML.Histopathology.preprocessing.tiling import tile_array_2d
 from InnerEye.ML.Histopathology.preprocessing.loading import LoadROId, get_luminance, load_slide_at_level, segment_foreground
 from InnerEye.ML.Histopathology.utils.naming import SlideKey
+from Tests.ML.histopathology.datasets.test_slides_dataset import MockSlidesDataset
 
 TEST_IMAGE_PATH = str(tests_root_directory("ML/histopathology/test_data/panda_wsi_example.tiff"))
-
-
-def _get_sample() -> Dict[SlideKey, Any]:
-    dataset = PandaDataset(PANDA_DATASET_DIR)
-    return dataset[0]
 
 
 def test_load_slide() -> None:
@@ -134,13 +127,12 @@ def test_get_bounding_box(level: int, foreground_threshold: Optional[float]) -> 
     assert level0_bbox_margin.h == level0_bbox.h + 2 * level0_margin
 
 
-@pytest.mark.skipif(not os.path.isdir(PANDA_DATASET_DIR),
-                    reason="PANDA dataset is unavailable")
 @pytest.mark.parametrize('level', [1, 2])
 @pytest.mark.parametrize('margin', [0, 42])
 @pytest.mark.parametrize('foreground_threshold', [None, 215])
 def test_load_roi(level: int, margin: int, foreground_threshold: Optional[float]) -> None:
-    sample = _get_sample()
+    dataset = MockSlidesDataset()
+    sample = dataset[0]
     reader = WSIReader('cuCIM')
     loader = LoadROId(reader, image_key=SlideKey.IMAGE, level=level, margin=margin,
                       foreground_threshold=foreground_threshold)
