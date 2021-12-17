@@ -122,7 +122,7 @@ class TilesDataModule(LightningDataModule):
     def _get_transformed_dataset(self, base_dataset: BagDataset,
                                  transform: Union[Sequence[Callable], Callable]) -> Dataset:
         if self.cache_mode is CacheMode.MEMORY:
-            dataset = CacheDataset(base_dataset, transform, num_workers=1)  # type: ignore
+            dataset = CacheDataset(base_dataset, transform, cache_rate=0.25)  # type: ignore
         elif self.cache_mode is CacheMode.DISK:
             dataset = PersistentDataset(base_dataset, transform, cache_dir=self.cache_dir)  # type: ignore
             if self.save_precache:

@@ -30,6 +30,13 @@ from InnerEye.ML.configs.histo_configs.classification.BaseMIL import BaseMIL
 from InnerEye.ML.configs.histo_configs.run_ids import innereye_ssl_checkpoint
 
 
+def get_default_azure_config_json_path() -> Path:
+    """
+    Gets the path to the project's default Azure config JSON file.
+    """
+    azure_config_json_path = fixed_paths.repository_root_directory() / 'config.json'
+    return azure_config_json_path
+
 class DeepSMILEPanda(BaseMIL):
     def __init__(self, **kwargs: Any) -> None:
         default_kwargs = dict(
@@ -43,6 +50,7 @@ class DeepSMILEPanda(BaseMIL):
             num_epochs=200,
             recovery_checkpoint_save_interval=10,
             recovery_checkpoints_save_last_k=-1,
+            use_mixed_precision=True,
             # declared in WorkflowParams:
             number_of_cross_validation_splits=5,
             cross_validation_split_index=0,
@@ -77,12 +85,13 @@ class DeepSMILEPanda(BaseMIL):
     def setup(self) -> None:
         if self.encoder_type == InnerEyeSSLEncoder.__name__:
             self.downloader = CheckpointDownloader(
-                azure_config_json_path=get_workspace(),
-                run_recovery_id=innereye_ssl_checkpoint,
+                azure_config_json_path=get_default_azure_config_json_path(),
+                run_id=innereye_ssl_checkpoint,
                 checkpoint_filename="last.ckpt",
                 download_dir="outputs/",
             )
             os.chdir(fixed_paths.repository_root_directory())
+            print(f"trying to download from {fixed_paths.repository_root_directory()}")
             self.downloader.download_checkpoint_if_necessary()
         self.encoder = self.get_encoder()
         self.encoder.cuda()

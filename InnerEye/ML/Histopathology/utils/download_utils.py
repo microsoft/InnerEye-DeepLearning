@@ -19,7 +19,10 @@ def download_file_if_necessary(run_id: str, remote_dir: Path, download_dir: Path
     :param filename: name of the file to be downloaded (e.g. `"test_output.csv"`).
     """
     aml_workspace = get_workspace()
-    os.chdir(fixed_paths.repository_root_directory())
+    # current is the config file level
+    current = Path(__file__)
+    # os.chdir(fixed_paths.repository_root_directory())
+    os.chdir(current.parent.parent.parent)
     local_path = download_dir / run_id.split(":")[1] / "outputs" / filename
     remote_path = remote_dir / filename
     if local_path.exists():

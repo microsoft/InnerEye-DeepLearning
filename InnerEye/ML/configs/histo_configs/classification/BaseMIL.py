@@ -110,3 +110,6 @@ class BaseMIL(LightningContainer):
 
     def get_data_module(self) -> TilesDataModule:
         raise NotImplementedError
+
+    def create_report(self) -> None:
+        pass
