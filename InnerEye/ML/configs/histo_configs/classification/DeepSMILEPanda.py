@@ -27,7 +27,7 @@ from InnerEye.ML.Histopathology.models.encoders import (
     InnerEyeSSLEncoder,
 )
 from InnerEye.ML.configs.histo_configs.classification.BaseMIL import BaseMIL
-from InnerEye.ML.configs.histo_configs.run_ids import innereye_ssl_checkpoint
+from InnerEye.ML.configs.histo_configs.run_ids import innereye_ssl_checkpoint_binary
 
 
 class DeepSMILEPanda(BaseMIL):
@@ -43,6 +43,7 @@ class DeepSMILEPanda(BaseMIL):
             num_epochs=200,
             recovery_checkpoint_save_interval=10,
             recovery_checkpoints_save_last_k=-1,
+            # use_mixed_precision = True,
             # declared in WorkflowParams:
             number_of_cross_validation_splits=5,
             cross_validation_split_index=0,
@@ -78,11 +79,12 @@ class DeepSMILEPanda(BaseMIL):
         if self.encoder_type == InnerEyeSSLEncoder.__name__:
             self.downloader = CheckpointDownloader(
                 azure_config_json_path=get_workspace(),
-                run_recovery_id=innereye_ssl_checkpoint,
+                run_id=innereye_ssl_checkpoint_binary,  # innereye_ssl_checkpoint
                 checkpoint_filename="last.ckpt",
                 download_dir="outputs/",
+                remote_checkpoint_dir=Path("outputs/checkpoints")
             )
-            os.chdir(fixed_paths.repository_root_directory())
+            os.chdir(fixed_paths.repository_root_directory().parent)
             self.downloader.download_checkpoint_if_necessary()
         self.encoder = self.get_encoder()
         self.encoder.cuda()
