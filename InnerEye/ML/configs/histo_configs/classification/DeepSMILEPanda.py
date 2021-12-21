@@ -15,6 +15,7 @@ from health_ml.networks.layers.attention_layers import GatedAttentionLayer
 from InnerEye.Common import fixed_paths
 from InnerEye.ML.Histopathology.datamodules.panda_module import PandaTilesDataModule
 from InnerEye.ML.Histopathology.datasets.panda_tiles_dataset import PandaTilesDataset
+from InnerEye.ML.common import get_best_checkpoint_path
 
 from InnerEye.ML.Histopathology.models.transforms import (
     EncodeTilesBatchd,
@@ -120,11 +121,23 @@ class DeepSMILEPanda(BaseMIL):
         was applied there.
         """
         # absolute path is required for registering the model.
-        return (
-            fixed_paths.repository_root_directory()
-            / self.checkpoint_folder_path
-            / self.best_checkpoint_filename_with_suffix
-        )
+        absolute_checkpoint_path = Path(fixed_paths.repository_root_directory(),
+                                        self.checkpoint_folder_path,
+                                        self.best_checkpoint_filename_with_suffix)
+        if absolute_checkpoint_path.is_file():
+            return absolute_checkpoint_path
+
+        absolute_checkpoint_path_parent = Path(fixed_paths.repository_root_directory().parent,
+                                    self.checkpoint_folder_path,
+                                    self.best_checkpoint_filename_with_suffix)
+        if absolute_checkpoint_path_parent.is_file():
+            return absolute_checkpoint_path_parent
+
+        checkpoint_path = get_best_checkpoint_path(self.checkpoint_folder_path)
+        if checkpoint_path.is_file():
+            return checkpoint_path
+
+        raise ValueError("Path to best checkpoint not found")
 
 
 class PandaImageNetMIL(DeepSMILEPanda):
