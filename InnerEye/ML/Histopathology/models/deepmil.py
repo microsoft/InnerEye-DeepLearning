@@ -265,9 +265,9 @@ class DeepMILModule(LightningModule):
             list_slide_dicts.append(slide_dict)
             list_encoded_features.append(results[ResultsKey.IMAGE][slide_idx])
 
-        print(f"Metrics results will be output to {fixed_paths.repository_root_directory()}/outputs")
-        csv_filename = fixed_paths.repository_root_directory() / Path('outputs/test_output.csv')
-        encoded_features_filename = fixed_paths.repository_root_directory() / Path('outputs/test_encoded_features.pickle')
+        print(f"Metrics results will be output to {fixed_paths.repository_parent_directory()}/outputs")
+        csv_filename = fixed_paths.repository_parent_directory() / Path('outputs/test_output.csv')
+        encoded_features_filename = fixed_paths.repository_parent_directory() / Path('outputs/test_encoded_features.pickle')
 
         # Collect the list of dictionaries in a list of pandas dataframe and save
         df_list = []
@@ -290,7 +290,7 @@ class DeepMILModule(LightningModule):
 
         for key in report_cases.keys():
             print(f"Plotting {key} ...")
-            output_path = Path(fixed_paths.repository_root_directory(), f'outputs/fig/{key}/')
+            output_path = Path(fixed_paths.repository_parent_directory(), f'outputs/fig/{key}/')
             Path(output_path).mkdir(parents=True, exist_ok=True)
             nslides = len(report_cases[key][0])
             for i in range(nslides):
@@ -306,7 +306,7 @@ class DeepMILModule(LightningModule):
 
         print("Plotting histogram ...")
         fig = plot_scores_hist(results)
-        output_path = Path(fixed_paths.repository_root_directory(), 'outputs/fig/hist_scores.png')
+        output_path = Path(fixed_paths.repository_parent_directory(), 'outputs/fig/hist_scores.png')
         fig.savefig(output_path, bbox_inches='tight')
 
     @staticmethod
