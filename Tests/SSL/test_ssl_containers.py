@@ -425,4 +425,4 @@ def test_simclr_batch_size() -> None:
             # iterations per epoch
             container.num_nodes = 2
             model2 = container.create_model()
-            assert model2.train_iters_per_epoch == old_iters_per_epoch // container.num_nodes
+            assert model2.train_iters_per_epoch == old_iters_per_epoch // container.num_nodes  # type:ignore
