@@ -321,9 +321,6 @@ def test_online_evaluator_recovery(test_output_dirs: OutputFolderForTests) -> No
                                                    dataset="foo",
                                                    drop_p=0.2,
                                                    learning_rate=1e-5)
-            # Ensure that the parameters are really different initially
-            parameters2_before_training = list(callback2.evaluator.parameters())
-            assert not torch.allclose(parameters2_before_training[0], parameters1[0])
             # Start a second training run with recovery
             last_checkpoint = checkpoints.last_model_path
             trainer2 = Trainer(default_root_dir=str(test_output_dirs.root_dir),
@@ -364,19 +361,24 @@ def test_online_evaluator_not_distributed() -> None:
         # Test the flag that the internal logic of on_pretrain_routine_start uses
         assert hasattr(trainer, "_accelerator_connector")
         assert not trainer._accelerator_connector.is_distributed
-        mock_module = mock.MagicMock(device=torch.device("cpu"))
-        callback.on_pretrain_routine_start(trainer, mock_module)
+        cpu = torch.device("cpu")
+        callback.on_pretrain_routine_start(trainer, mock.MagicMock(device=cpu))
         assert isinstance(callback.evaluator, Module)
         mock_ddp.assert_not_called()
+        # Check that the evaluator is on the GPU before making any changes
+        assert list(callback.evaluator.parameters())[0].device == cpu
+        # Check that the evaluator is really moved to the right device
+        gpu0 = torch.device("cuda:0")
+        callback.on_pretrain_routine_start(trainer, mock.MagicMock(device=gpu0))
+        assert list(callback.evaluator.parameters())[0].device == gpu0
 
 
-@pytest.mark.gpu
 def test_online_evaluator_distributed() -> None:
     """
     Check if the online evaluator uses the DDP flag correctly when running distributed.
     """
-    mock_ddp_result = "mock_ddp_result"
-    mock_sync_result = "mock_sync_result"
+    mock_ddp_result = torch.nn.Linear(in_features=10, out_features=1)
+    mock_sync_result = torch.nn.Linear(in_features=20, out_features=2)
     with mock.patch("InnerEye.ML.SSL.lightning_modules.ssl_online_evaluator.SyncBatchNorm.convert_sync_batchnorm",
                     return_value=mock_sync_result) as mock_sync:
         with mock.patch("InnerEye.ML.SSL.lightning_modules.ssl_online_evaluator.DistributedDataParallel",
@@ -389,16 +391,15 @@ def test_online_evaluator_distributed() -> None:
                                                   learning_rate=1e-5)
 
             # Trainer with DDP
-            device = torch.device("cuda:0")
+            device = torch.device("cpu")
             mock_module = mock.MagicMock(device=device)
-            trainer = Trainer(accelerator="ddp", gpus=2)
+            trainer = Trainer(strategy="ddp", num_processes=2)
             # Test the two flags that the internal logic of on_pretrain_routine_start uses
             assert trainer._accelerator_connector.is_distributed
             assert trainer._accelerator_connector.use_ddp
-            original_evaluator = callback.evaluator
             callback.on_pretrain_routine_start(trainer, mock_module)
             # Check that SyncBatchNorm has been turned on
-            mock_sync.assert_called_once_with(original_evaluator)
+            mock_sync.assert_called_once()
             # Check that the evaluator has been turned into a DDP object
             # We still need to mock DDP here because the constructor relies on having a process group available
             mock_ddp.assert_called_once_with(mock_sync_result, device_ids=[device])
