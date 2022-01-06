@@ -56,11 +56,10 @@ class SimCLRInnerEye(SimCLR):
         self.encoder = SSLEncoder(encoder_name, use_7x7_first_conv_in_resnet)
         self.projection = _Projection(input_dim=self.encoder.get_output_feature_dim(), hidden_dim=2048, output_dim=128)
 
-    
     def configure_optimizers(self) -> Tuple[List[torch.optim.Optimizer], List[Dict[str, object]]]:
         # DeepSpeedCPUAdam provides 5x to 7x speedup over torch.optim.adam(w)
         from deepspeed.ops.adam import DeepSpeedCPUAdam
-        logging.info(f"Switching optimizer to DeepSpeedCPUAdam")
+        logging.info("Switching optimizer to DeepSpeedCPUAdam")
         if self.exclude_bn_bias:
             params = self.exclude_from_wt_decay(self.named_parameters(), weight_decay=self.weight_decay)
         else:

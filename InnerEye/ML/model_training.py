@@ -11,7 +11,6 @@ from typing import Any, List, Optional, Tuple, TypeVar
 from pytorch_lightning import Callback, LightningModule, Trainer, seed_everything
 from pytorch_lightning.callbacks import GPUStatsMonitor, ModelCheckpoint, TQDMProgressBar
 from pytorch_lightning.loggers import TensorBoardLogger
-from pytorch_lightning.plugins import DDPPlugin
 
 from InnerEye.Azure.azure_runner import ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK
 from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
@@ -109,7 +108,7 @@ def create_lightning_trainer(container: LightningContainer,
             # prints out lengthy warnings about the performance impact of find_unused_parameters.
             from pytorch_lightning.plugins import DeepSpeedPlugin
             strategy = DeepSpeedPlugin(num_nodes=num_nodes)
-            strategy.sync_batchnorm=True
+            strategy.sync_batchnorm = True
             strategy._ddp_kwargs["find_unused_parameters"] = container.pl_find_unused_parameters
             message += "s per node with DDP"
     logging.info(f"Using {message}")
