@@ -151,9 +151,10 @@ class SSLContainer(LightningContainer):
             model: LightningModule = SimCLRInnerEye(encoder_name=self.ssl_encoder.value,
                                                     dataset_name=self.ssl_training_dataset_name.value,
                                                     use_7x7_first_conv_in_resnet=use_7x7_first_conv_in_resnet,
-                                                    gpus=self.total_num_gpus,
                                                     num_samples=self.data_module.num_samples,
                                                     batch_size=self.data_module.batch_size,
+                                                    gpus=self.num_gpus_per_node(),
+                                                    num_nodes=self.num_nodes,
                                                     learning_rate=self.l_rate,
                                                     max_epochs=self.num_epochs)
         elif self.ssl_training_type == SSLTrainingType.BYOL:
