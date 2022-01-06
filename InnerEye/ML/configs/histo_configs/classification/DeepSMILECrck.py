@@ -109,7 +109,9 @@ class DeepSMILECrck(BaseMIL):
 
     def get_trainer_arguments(self) -> Dict[str, Any]:
         # These arguments will be passed through to the Lightning trainer.
-        return {"callbacks": self.callbacks}
+        kw_args = super().get_trainer_arguments()
+        kw_args["callbacks"] = self.callbacks
+        return kw_args
 
     def get_path_to_best_checkpoint(self) -> Path:
         """

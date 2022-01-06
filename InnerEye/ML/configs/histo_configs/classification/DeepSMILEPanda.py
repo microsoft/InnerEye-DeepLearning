@@ -15,6 +15,7 @@ from health_ml.networks.layers.attention_layers import GatedAttentionLayer
 from InnerEye.Common import fixed_paths
 from InnerEye.ML.Histopathology.datamodules.panda_module import PandaTilesDataModule
 from InnerEye.ML.Histopathology.datasets.panda_tiles_dataset import PandaTilesDataset
+from InnerEye.ML.Histopathology.models.deepmil import DeepMILModule_Panda
 
 from InnerEye.ML.Histopathology.models.transforms import (
     EncodeTilesBatchd,
@@ -28,7 +29,7 @@ from InnerEye.ML.Histopathology.models.encoders import (
 )
 from InnerEye.ML.configs.histo_configs.classification.BaseMIL import BaseMIL
 from InnerEye.ML.configs.histo_configs.run_ids import innereye_ssl_checkpoint
-
+from InnerEye.ML.Histopathology.models.encoders import IdentityEncoder
 
 class DeepSMILEPanda(BaseMIL):
     def __init__(self, **kwargs: Any) -> None:
@@ -40,7 +41,7 @@ class DeepSMILEPanda(BaseMIL):
             azure_dataset_id="PANDA_tiles",
             # To mount the dataset instead of downloading in AML, pass --use_dataset_mount in the CLI
             # declared in TrainerParams:
-            num_epochs=200,
+            num_epochs=2,
             recovery_checkpoint_save_interval=10,
             recovery_checkpoints_save_last_k=-1,
             # declared in WorkflowParams:
@@ -67,6 +68,8 @@ class DeepSMILEPanda(BaseMIL):
             mode="max",
         )
         self.callbacks = best_checkpoint_callback
+        self.slide_dir = "tmp/datasets/PANDA"
+        self.magnification_level = 1
 
     @property
     def cache_dir(self) -> Path:
@@ -108,9 +111,27 @@ class DeepSMILEPanda(BaseMIL):
             cross_validation_split_index=self.cross_validation_split_index,
         )
 
+    def create_model(self) -> DeepMILModule_Panda:
+        self.data_module = self.get_data_module()
+        # Encoding is done in the datamodule, so here we provide instead a dummy
+        # no-op IdentityEncoder to be used inside the model
+        return DeepMILModule_Panda(encoder=IdentityEncoder(input_dim=(self.encoder.num_encoding,)),
+                             label_column=self.data_module.train_dataset.LABEL_COLUMN,
+                             n_classes=self.data_module.train_dataset.N_CLASSES,
+                             pooling_layer=self.get_pooling_layer(),
+                             class_weights=self.data_module.class_weights,
+                             l_rate=self.l_rate,
+                             weight_decay=self.weight_decay,
+                             adam_betas=self.adam_betas,
+                             panda_dir=self.slide_dir,
+                             tile_size=self.tile_size,
+                             level=self.magnification_level)
+
     def get_trainer_arguments(self) -> Dict[str, Any]:
         # These arguments will be passed through to the Lightning trainer.
-        return {"callbacks": self.callbacks}
+        kw_args = super().get_trainer_arguments()
+        kw_args["callbacks"] = self.callbacks
+        return kw_args
 
     def get_path_to_best_checkpoint(self) -> Path:
         """
