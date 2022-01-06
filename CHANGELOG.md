@@ -66,6 +66,7 @@ gets uploaded to AzureML, by skipping all test folders.
 - ([#566](https://github.com/microsoft/InnerEye-DeepLearning/pull/566)) Update `hi-ml` dependency to `hi-ml-azure`.
 - ([#591](https://github.com/microsoft/InnerEye-DeepLearning/pull/591)) Upgrade Pytorch Lightning to 1.5.0
 - ([#572](https://github.com/microsoft/InnerEye-DeepLearning/pull/572)) Updated to new version of hi-ml package
+- ([#623](https://github.com/microsoft/InnerEye-DeepLearning/pull/623)) Save checkpoints in SSLOnlineEvaluator without DDP wrapper code
 - ([#617](https://github.com/microsoft/InnerEye-DeepLearning/pull/617)) Provide an easier way for LightningContainers to add callbacks.
 - ([#596](https://github.com/microsoft/InnerEye-DeepLearning/pull/596)) Add `cudatoolkit=11.1` specification to environment.yml.
 - ([#615](https://github.com/microsoft/InnerEye-DeepLearning/pull/615)) Minor changes to checkpoint download from AzureML.
