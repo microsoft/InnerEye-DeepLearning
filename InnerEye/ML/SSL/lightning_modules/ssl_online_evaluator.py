@@ -93,7 +93,7 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
                                       n_classes=self.num_classes,
                                       p=self.drop_p,
                                       n_hidden=self.hidden_dim)
-        self.evaluator = self.evaluator.to(pl_module.device)
+        self.evaluator.to(pl_module.device)
         if hasattr(trainer, "accelerator_connector"):
             # This works with Lightning 1.3.8
             accelerator = trainer.accelerator_connector
