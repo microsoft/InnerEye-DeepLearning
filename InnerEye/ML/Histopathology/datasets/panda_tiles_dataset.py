@@ -1,3 +1,8 @@
+#  ------------------------------------------------------------------------------------------
+#  Copyright (c) Microsoft Corporation. All rights reserved.
+#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
+#  ------------------------------------------------------------------------------------------
+
 from pathlib import Path
 from typing import Any, Callable, Optional, Tuple, Union
 
@@ -25,10 +30,10 @@ class PandaTilesDataset(TilesDataset):
     SPLIT_COLUMN = None  # PANDA does not have an official train/test split
     N_CLASSES = 6
 
-    _RELATIVE_ROOT_FOLDER = "PANDA_tiles_20210926-135446/panda_tiles_level1_224"
+    _RELATIVE_ROOT_FOLDER = Path("PANDA_tiles_20210926-135446/panda_tiles_level1_224")
 
     def __init__(self,
-                 root: Union[str, Path],
+                 root: Path,
                  dataset_csv: Optional[Union[str, Path]] = None,
                  dataset_df: Optional[pd.DataFrame] = None) -> None:
         super().__init__(root=Path(root) / self._RELATIVE_ROOT_FOLDER,
@@ -43,7 +48,7 @@ class PandaTilesDatasetReturnImageLabel(VisionDataset):
     class label.
     """
     def __init__(self,
-                 root: Union[str, Path],
+                 root: Path,
                  dataset_csv: Optional[Union[str, Path]] = None,
                  dataset_df: Optional[pd.DataFrame] = None,
                  transform: Optional[Callable] = None,

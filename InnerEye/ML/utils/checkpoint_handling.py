@@ -240,9 +240,14 @@ class CheckpointHandler:
         return checkpoint_paths
 
 
-def download_checkpoints_to_temp_folder(run: Optional[Run] = None, workspace: Optional[Workspace] = None) -> Path:
+def download_folder_from_run_to_temp_folder(folder: str,
+                                            run: Optional[Run] = None,
+                                            workspace: Optional[Workspace] = None) -> Path:
     """
-    Downloads all files with the outputs/checkpoints prefix of the given run to a temporary folder.
+    Downloads all files from a run that have the given prefix to a temporary folder.
+    For example, if the run contains files "foo/bar.txt" and "nothing.txt", and this function is called with
+    argument folder = "foo", it will return a path in a temp file system pointing to "bar.txt".
+
     In distributed training, the download only happens once per node.
 
     :param run: If provided, download the files from that run. If omitted, download the files from the current run
@@ -252,25 +257,25 @@ def download_checkpoints_to_temp_folder(run: Optional[Run] = None, workspace: Op
     :return: The path to which the files were downloaded. The files are located in that folder, without any further
         subfolders.
     """
+    if not is_running_in_azure_ml() and run is None:
+        raise ValueError("When running outside AzureML, the run to download from must be set.")
     run = run or RUN_CONTEXT
-    # Downloads should go to a temporary folder because downloading the files to the checkpoint folder might
-    # cause artifact conflicts later.
     temp_folder = Path(tempfile.mkdtemp())
-    checkpoint_prefix = f"{DEFAULT_AML_UPLOAD_DIR}/{CHECKPOINT_FOLDER}/"
-    existing_checkpoints = get_run_file_names(run, prefix=checkpoint_prefix)
+    cleaned_prefix = folder.strip("/") + "/"
+    existing_checkpoints = get_run_file_names(run, prefix=cleaned_prefix)
     logging.info(f"Number of checkpoints available in AzureML: {len(existing_checkpoints)}")
     if len(existing_checkpoints) > 0:
         try:
             logging.info(f"Downloading checkpoints to {temp_folder}")
             download_files_from_run_id(run_id=run.id,
                                        output_folder=temp_folder,
-                                       prefix=checkpoint_prefix,
+                                       prefix=cleaned_prefix,
                                        workspace=workspace)
         except Exception as ex:
             logging.warning(f"Unable to download checkpoints from AzureML. Error: {str(ex)}")
     # Checkpoint downloads preserve the full folder structure, point the caller directly to the folder where the
     # checkpoints really are.
-    return temp_folder / DEFAULT_AML_UPLOAD_DIR / CHECKPOINT_FOLDER
+    return temp_folder / cleaned_prefix
 
 
 PathAndEpoch = Tuple[Path, int]
@@ -287,10 +292,11 @@ def find_recovery_checkpoint_and_epoch(path: Path) -> Optional[PathAndEpoch]:
     """
     available_checkpoints = find_all_recovery_checkpoints(path)
     if available_checkpoints is None and is_running_in_azure_ml():
-        logging.info("No recovery checkpoints available in the checkpoint folder. Trying to find checkpoints in "
-                     "AzureML from previous runs of this job.")
+        logging.info("No checkpoints available in the checkpoint folder. Trying to find checkpoints in AzureML.")
         # Download checkpoints from AzureML, then try to find recovery checkpoints among those.
-        temp_folder = download_checkpoints_to_temp_folder()
+        # Downloads should go to a temporary folder because downloading the files to the checkpoint folder might
+        # cause artifact conflicts later.
+        temp_folder = download_folder_from_run_to_temp_folder(folder=f"{DEFAULT_AML_UPLOAD_DIR}/{CHECKPOINT_FOLDER}/")
         available_checkpoints = find_all_recovery_checkpoints(temp_folder)
     if available_checkpoints is not None:
         return extract_latest_checkpoint_and_epoch(available_checkpoints)

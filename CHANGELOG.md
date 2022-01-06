@@ -28,13 +28,17 @@ jobs that run in AzureML.
 - ([#554](https://github.com/microsoft/InnerEye-DeepLearning/pull/554)) Added a parameter `pretraining_dataset_id` to
   `NIH_COVID_BYOL` to specify the name of the SSL training dataset.
 - ([#560](https://github.com/microsoft/InnerEye-DeepLearning/pull/560)) Added pre-commit hooks.
+-([#619](https://github.com/microsoft/InnerEye-DeepLearning/pull/619)) Add DeepMIL PANDA
 - ([#559](https://github.com/microsoft/InnerEye-DeepLearning/pull/559)) Adding the accompanying code for the ["Active label cleaning: Improving dataset quality under resource constraints"](https://arxiv.org/abs/2109.00574) paper. The code can be found in the [InnerEye-DataQuality](InnerEye-DataQuality/README.md) subfolder. It provides tools for training noise robust models, running label cleaning simulation and loading our label cleaning benchmark datasets.
 - ([#589](https://github.com/microsoft/InnerEye-DeepLearning/pull/589)) Add `LightningContainer.update_azure_config()`
   hook to enable overriding `AzureConfig` parameters from a container (e.g. `experiment_name`, `cluster`, `num_nodes`).
--([#603](https://github.com/microsoft/InnerEye-DeepLearning/pull/603)) Add histopathology module
--([#614](https://github.com/microsoft/InnerEye-DeepLearning/pull/614)) Checkpoint downloading falls back to looking into AzureML if no checkpoints on disk
--([#613](https://github.com/microsoft/InnerEye-DeepLearning/pull/613)) Add additional tests for histopathology datasets
-
+- ([#617](https://github.com/microsoft/InnerEye-DeepLearning/pull/617)) Commandline flag `pl_check_val_every_n_epoch` to control how often validation is happening
+- ([#618](https://github.com/microsoft/InnerEye-DeepLearning/pull/618)) Using Azure Pipeline Cache to avoid re-building conda environnment repeatedly
+- ([#603](https://github.com/microsoft/InnerEye-DeepLearning/pull/603)) Add histopathology module
+- ([#614](https://github.com/microsoft/InnerEye-DeepLearning/pull/614)) Checkpoint downloading falls back to looking into AzureML if no checkpoints on disk
+- ([#613](https://github.com/microsoft/InnerEye-DeepLearning/pull/613)) Add additional tests for histopathology datasets
+- ([#616](https://github.com/microsoft/InnerEye-DeepLearning/pull/616)) Add more histopathology configs and tests
+- ([#621](https://github.com/microsoft/InnerEye-DeepLearning/pull/621)) Add WSI preprocessing functions and enable tiling more generic slide datasets
 
 ### Changed
 - ([#588](https://github.com/microsoft/InnerEye-DeepLearning/pull/588)) Replace SciPy with PIL.PngImagePlugin.PngImageFile to load png files.
@@ -60,8 +64,11 @@ gets uploaded to AzureML, by skipping all test folders.
 - ([#584](https://github.com/microsoft/InnerEye-DeepLearning/pull/584)) SSL models write the optimizer state for the linear head to the checkpoint now.
 - ([#594](https://github.com/microsoft/InnerEye-DeepLearning/pull/594)) Pytorch is now non-deterministic by default. Upgrade to AzureML-SDK 1.36
 - ([#566](https://github.com/microsoft/InnerEye-DeepLearning/pull/566)) Update `hi-ml` dependency to `hi-ml-azure`.
+- ([#591](https://github.com/microsoft/InnerEye-DeepLearning/pull/591)) Upgrade Pytorch Lightning to 1.5.0
 - ([#572](https://github.com/microsoft/InnerEye-DeepLearning/pull/572)) Updated to new version of hi-ml package
+- ([#617](https://github.com/microsoft/InnerEye-DeepLearning/pull/617)) Provide an easier way for LightningContainers to add callbacks.
 - ([#596](https://github.com/microsoft/InnerEye-DeepLearning/pull/596)) Add `cudatoolkit=11.1` specification to environment.yml.
+- ([#615](https://github.com/microsoft/InnerEye-DeepLearning/pull/615)) Minor changes to checkpoint download from AzureML.
 - ([#605](https://github.com/microsoft/InnerEye-DeepLearning/pull/605)) Make build jobs deterministic for regression testing.
 
 ### Fixed
@@ -90,6 +97,7 @@ in inference-only runs when using lightning containers.
 - ([#553](https://github.com/microsoft/InnerEye-DeepLearning/pull/553)) Fix incomplete test data module setup in Lightning inference.
 - ([#557](https://github.com/microsoft/InnerEye-DeepLearning/pull/557)) Fix issue where learning rate was not set
   correctly in the SimCLR module
+- ([#622](https://github.com/microsoft/InnerEye-DeepLearning/pull/622)) Fix issue with multi-GPU jobs on a VM: each process tries to create a folder structure
 - ([#558](https://github.com/microsoft/InnerEye-DeepLearning/pull/558)) Fix issue with the CovidModel config where model
   weights from a finetuning run were incompatible with the model architecture created for non-finetuning runs.
 - ([#604](https://github.com/microsoft/InnerEye-DeepLearning/pull/604)) Fix issue where runs on a VM would download the dataset even when a local dataset is provided.

@@ -52,14 +52,20 @@ def split_recovery_id(id: str) -> Tuple[str, str]:
     """
     components = id.strip().split(EXPERIMENT_RUN_SEPARATOR)
     if len(components) > 2:
-        raise ValueError("recovery_id must be in the format: 'experiment_name:run_id', but got: {}".format(id))
+        raise ValueError(
+            "recovery_id must be in the format: 'experiment_name:run_id', but got: {}".format(
+                id
+            )
+        )
     elif len(components) == 2:
         return components[0], components[1]
     else:
         recovery_id_regex = r"^(\w+)_\d+_[0-9a-f]+$|^(\w+)_\d+$"
         match = re.match(recovery_id_regex, id)
         if not match:
-            raise ValueError("The recovery ID was not in the expected format: {}".format(id))
+            raise ValueError(
+                "The recovery ID was not in the expected format: {}".format(id)
+            )
         return (match.group(1) or match.group(2)), id
 
 
@@ -77,9 +83,15 @@ def fetch_run(workspace: Workspace, run_recovery_id: str) -> Run:
     try:
         experiment_to_recover = Experiment(workspace, experiment)
     except Exception as ex:
-        raise Exception(f"Unable to retrieve run {run} in experiment {experiment}: {str(ex)}")
+        raise Exception(
+            f"Unable to retrieve run {run} in experiment {experiment}: {str(ex)}"
+        )
     run_to_recover = fetch_run_for_experiment(experiment_to_recover, run)
-    logging.info("Fetched run #{} {} from experiment {}.".format(run, run_to_recover.number, experiment))
+    logging.info(
+        "Fetched run #{} {} from experiment {}.".format(
+            run, run_to_recover.number, experiment
+        )
+    )
     return run_to_recover
 
 
@@ -94,9 +106,13 @@ def fetch_run_for_experiment(experiment_to_recover: Experiment, run_id: str) -> 
     except Exception:
         available_runs = experiment_to_recover.get_runs()
         available_ids = ", ".join([run.id for run in available_runs])
-        raise (Exception(
-            "Run {} not found for experiment: {}. Available runs are: {}".format(
-                run_id, experiment_to_recover.name, available_ids)))
+        raise (
+            Exception(
+                "Run {} not found for experiment: {}. Available runs are: {}".format(
+                    run_id, experiment_to_recover.name, available_ids
+                )
+            )
+        )
 
 
 def fetch_runs(experiment: Experiment, filters: List[str]) -> List[Run]:
@@ -116,8 +132,11 @@ def fetch_runs(experiment: Experiment, filters: List[str]) -> List[Run]:
     return exp_runs
 
 
-def fetch_child_runs(run: Run, status: Optional[str] = None,
-                     expected_number_cross_validation_splits: int = 0) -> List[Run]:
+def fetch_child_runs(
+    run: Run,
+    status: Optional[str] = None,
+    expected_number_cross_validation_splits: int = 0,
+) -> List[Run]:
     """
     Fetch child runs for the provided runs that have the provided AML status (or fetch all by default)
     and have a run_recovery_id tag value set (this is to ignore superfluous AML infrastructure platform runs).
@@ -138,18 +157,25 @@ def fetch_child_runs(run: Run, status: Optional[str] = None,
         if 0 < expected_number_cross_validation_splits != len(children_runs):
             logging.warning(
                 f"The expected number of child runs was {expected_number_cross_validation_splits}."
-                f"Fetched only: {len(children_runs)} runs. Now trying to fetch them manually.")
-            run_ids_to_evaluate = [f"{create_run_recovery_id(run)}_{i}"
-                                   for i in range(expected_number_cross_validation_splits)]
-            children_runs = [fetch_run(run.experiment.workspace, id) for id in run_ids_to_evaluate]
+                f"Fetched only: {len(children_runs)} runs. Now trying to fetch them manually."
+            )
+            run_ids_to_evaluate = [
+                f"{create_run_recovery_id(run)}_{i}"
+                for i in range(expected_number_cross_validation_splits)
+            ]
+            children_runs = [
+                fetch_run(run.experiment.workspace, id) for id in run_ids_to_evaluate
+            ]
     if status is not None:
-        children_runs = [child_run for child_run in children_runs if child_run.get_status() == status]
+        children_runs = [
+            child_run for child_run in children_runs if child_run.get_status() == status
+        ]
     return children_runs
 
 
 def is_ensemble_run(run: Run) -> bool:
     """Checks if the run was an ensemble of multiple models"""
-    return run.get_tags().get(IS_ENSEMBLE_KEY_NAME) == 'True'
+    return run.get_tags().get(IS_ENSEMBLE_KEY_NAME) == "True"
 
 
 def to_azure_friendly_string(x: Optional[str]) -> Optional[str]:
@@ -160,7 +186,7 @@ def to_azure_friendly_string(x: Optional[str]) -> Optional[str]:
     if x is None:
         return x
     else:
-        return re.sub('_+', '_', re.sub(r'\W+', '_', x))
+        return re.sub("_+", "_", re.sub(r"\W+", "_", x))
 
 
 def to_azure_friendly_container_path(path: Path) -> str:
@@ -178,7 +204,7 @@ def is_offline_run_context(run_context: Run) -> bool:
     :param run_context: Context of the run to check
     :return:
     """
-    return not hasattr(run_context, 'experiment')
+    return not hasattr(run_context, "experiment")
 
 
 def get_run_context_or_default(run: Optional[Run] = None) -> Run:
@@ -199,7 +225,12 @@ def get_cross_validation_split_index(run: Run) -> int:
     if is_offline_run_context(run):
         return DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
     else:
-        return int(run.get_tags().get(CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX))
+        return int(
+            run.get_tags().get(
+                CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY,
+                DEFAULT_CROSS_VALIDATION_SPLIT_INDEX,
+            )
+        )
 
 
 def is_cross_validation_child_run(run: Run) -> bool:
@@ -256,9 +287,7 @@ def is_parent_run(run: Run) -> bool:
     return PARENT_RUN_CONTEXT and run.id == PARENT_RUN_CONTEXT.id
 
 
-def download_run_output_file(blob_path: Path,
-                             destination: Path,
-                             run: Run) -> Path:
+def download_run_output_file(blob_path: Path, destination: Path, run: Run) -> Path:
     """
     Downloads a single file from the run's default output directory: DEFAULT_AML_UPLOAD_DIR ("outputs").
     For example, if blobs_path = "foo/bar.csv", then the run result file "outputs/foo/bar.csv" will be downloaded
@@ -270,17 +299,21 @@ def download_run_output_file(blob_path: Path,
     """
     blobs_prefix = str((fixed_paths.DEFAULT_AML_UPLOAD_DIR / blob_path).as_posix())
     destination = destination / blob_path.name
-    logging.info(f"Downloading single file from run {run.id}: {blobs_prefix} -> {str(destination)}")
+    logging.info(
+        f"Downloading single file from run {run.id}: {blobs_prefix} -> {str(destination)}"
+    )
     try:
         run.download_file(blobs_prefix, str(destination), _validate_checksum=True)
     except Exception as ex:
-        raise ValueError(f"Unable to download file '{blobs_prefix}' from run {run.id}") from ex
+        raise ValueError(
+            f"Unable to download file '{blobs_prefix}' from run {run.id}"
+        ) from ex
     return destination
 
 
-def download_run_outputs_by_prefix(blobs_prefix: Path,
-                                   destination: Path,
-                                   run: Run) -> None:
+def download_run_outputs_by_prefix(
+    blobs_prefix: Path, destination: Path, run: Run
+) -> None:
     """
     Download all the blobs from the run's default output directory: DEFAULT_AML_UPLOAD_DIR ("outputs") that
     have a given prefix (folder structure). When saving, the prefix string will be stripped off. For example,
@@ -291,7 +324,9 @@ def download_run_outputs_by_prefix(blobs_prefix: Path,
     :param destination: Local path to save the downloaded blobs to.
     """
     prefix_str = str((fixed_paths.DEFAULT_AML_UPLOAD_DIR / blobs_prefix).as_posix())
-    logging.info(f"Downloading multiple files from run {run.id}: {prefix_str} -> {str(destination)}")
+    logging.info(
+        f"Downloading multiple files from run {run.id}: {prefix_str} -> {str(destination)}"
+    )
     # There is a download_files function, but that can time out when downloading several large checkpoints file
     # (120sec timeout for all files).
     for file in run.get_file_names():
@@ -300,10 +335,14 @@ def download_run_outputs_by_prefix(blobs_prefix: Path,
             if target_path.startswith("/"):
                 target_path = target_path[1:]
                 logging.info(f"Downloading {file}")
-                run.download_file(file, str(destination / target_path), _validate_checksum=True)
+                run.download_file(
+                    file, str(destination / target_path), _validate_checksum=True
+                )
             else:
-                logging.warning(f"Skipping file {file}, because the desired prefix {prefix_str} is not aligned with "
-                                f"the folder structure")
+                logging.warning(
+                    f"Skipping file {file}, because the desired prefix {prefix_str} is not aligned with "
+                    f"the folder structure"
+                )
 
 
 def is_running_on_azure_agent() -> bool:
@@ -314,10 +353,9 @@ def is_running_on_azure_agent() -> bool:
     return bool(os.environ.get("AGENT_OS", None))
 
 
-def get_comparison_baseline_paths(outputs_folder: Path,
-                                  blob_path: Path, run: Run,
-                                  dataset_csv_file_name: str) -> \
-        Tuple[Optional[Path], Optional[Path]]:
+def get_comparison_baseline_paths(
+    outputs_folder: Path, blob_path: Path, run: Run, dataset_csv_file_name: str
+) -> Tuple[Optional[Path], Optional[Path]]:
     run_rec_id = run.id
     # We usually find dataset.csv in the same directory as metrics.csv, but we sometimes
     # have to look higher up.
@@ -328,21 +366,29 @@ def get_comparison_baseline_paths(outputs_folder: Path,
     for blob_path_parent in step_up_directories(blob_path):
         try:
             comparison_dataset_path = download_run_output_file(
-                blob_path_parent / dataset_csv_file_name, destination_folder, run)
+                blob_path_parent / dataset_csv_file_name, destination_folder, run
+            )
             break
         except (ValueError, UserErrorException):
-            logging.warning(f"cannot find {dataset_csv_file_name} at {blob_path_parent} in {run_rec_id}")
+            logging.warning(
+                f"cannot find {dataset_csv_file_name} at {blob_path_parent} in {run_rec_id}"
+            )
         except NotADirectoryError:
             logging.warning(f"{blob_path_parent} is not a directory")
             break
         if comparison_dataset_path is None:
-            logging.warning(f"cannot find {dataset_csv_file_name} at or above {blob_path} in {run_rec_id}")
+            logging.warning(
+                f"cannot find {dataset_csv_file_name} at or above {blob_path} in {run_rec_id}"
+            )
     # Look for epoch_NNN/Test/metrics.csv
     try:
         comparison_metrics_path = download_run_output_file(
-            blob_path / SUBJECT_METRICS_FILE_NAME, destination_folder, run)
+            blob_path / SUBJECT_METRICS_FILE_NAME, destination_folder, run
+        )
     except (ValueError, UserErrorException):
-        logging.warning(f"cannot find {SUBJECT_METRICS_FILE_NAME} at {blob_path} in {run_rec_id}")
+        logging.warning(
+            f"cannot find {SUBJECT_METRICS_FILE_NAME} at {blob_path} in {run_rec_id}"
+        )
     return (comparison_dataset_path, comparison_metrics_path)
 
 

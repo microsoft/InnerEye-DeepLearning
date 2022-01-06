@@ -1,3 +1,8 @@
+#  ------------------------------------------------------------------------------------------
+#  Copyright (c) Microsoft Corporation. All rights reserved.
+#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
+#  ------------------------------------------------------------------------------------------
+
 # These tiling implementations are adapted from PANDA Kaggle solutions, for example:
 # https://github.com/kentaroy47/Kaggle-PANDA-1st-place-solution/blob/master/src/data_process/a00_save_tiles.py
 from typing import Any, Optional, Tuple
@@ -25,7 +30,7 @@ def pad_for_tiling_2d(array: np.ndarray, tile_size: int, channels_first: Optiona
         original array to obtain indices for the padded array.
     """
     height, width = array.shape[1:] if channels_first else array.shape[:-1]
-    padding_h = get_1d_padding(height, tile_size) 
+    padding_h = get_1d_padding(height, tile_size)
     padding_w = get_1d_padding(width, tile_size)
     padding = [padding_h, padding_w]
     channels_axis = 0 if channels_first else 2

@@ -12,8 +12,9 @@ up the most recently run AzureML job from most_recent_run.txt
 import os
 import shutil
 import sys
+import tempfile
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 from unittest import mock
 
 import numpy as np
@@ -29,7 +30,8 @@ from InnerEye.Azure.azure_util import MODEL_ID_KEY_NAME, download_run_output_fil
 from InnerEye.Common import common_util, fixed_paths, fixed_paths_for_tests
 from InnerEye.Common.common_util import BEST_EPOCH_FOLDER_NAME, CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, \
     get_best_epoch_results_path
-from InnerEye.Common.fixed_paths import (DEFAULT_RESULT_IMAGE_NAME, DEFAULT_RESULT_ZIP_DICOM_NAME,
+from InnerEye.Common.fixed_paths import (DEFAULT_AML_UPLOAD_DIR, DEFAULT_RESULT_IMAGE_NAME,
+                                         DEFAULT_RESULT_ZIP_DICOM_NAME,
                                          PYTHON_ENVIRONMENT_NAME, repository_root_directory)
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
@@ -44,7 +46,7 @@ from InnerEye.ML.model_testing import THUMBNAILS_FOLDER
 from InnerEye.ML.reports.notebook_report import get_html_report_name
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.runner import main
-from InnerEye.ML.utils.checkpoint_handling import download_checkpoints_to_temp_folder, \
+from InnerEye.ML.utils.checkpoint_handling import download_folder_from_run_to_temp_folder, \
     find_recovery_checkpoint_and_epoch
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.utils.image_util import get_unit_image_header
@@ -56,7 +58,7 @@ from health_azure.himl import RUN_RECOVERY_FILE
 
 FALLBACK_SINGLE_RUN = "refs_pull_606_merge:refs_pull_606_merge_1638867172_17ba8dc5"
 FALLBACK_ENSEMBLE_RUN = "refs_pull_606_merge:HD_b8a6ad93-8c19-45de-8ea1-f87fce92c3bd"
-FALLBACK_2NODE_RUN = "refs_pull_606_merge:refs_pull_606_merge_1638867224_8d8072fe"
+FALLBACK_2NODE_RUN = "refs_pull_593_merge:refs_pull_591_merge_1639416130_e5d29ba7"
 FALLBACK_CV_GLAUCOMA = "refs_pull_545_merge:HD_72ecc647-07c3-4353-a538-620346114ebd"
 FALLBACK_HELLO_CONTAINER_RUN = "refs_pull_606_merge:refs_pull_606_merge_1638867108_789991ac"
 
@@ -225,7 +227,10 @@ def test_download_checkpoints_from_aml(test_output_dirs: OutputFolderForTests) -
     Check that we can download checkpoint files from an AzureML run, if they are not available on disk.
     """
     run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_SINGLE_RUN)
-    temp_folder = download_checkpoints_to_temp_folder(run, workspace=get_default_workspace())
+    checkpoint_folder = f"{DEFAULT_AML_UPLOAD_DIR}/{CHECKPOINT_FOLDER}/"
+    temp_folder = download_folder_from_run_to_temp_folder(folder=checkpoint_folder,
+                                                          run=run,
+                                                          workspace=get_default_workspace())
     files = list(temp_folder.glob("*"))
     assert len(files) == 2
     # Test if what's in the folder are really files, not directories
@@ -234,11 +239,12 @@ def test_download_checkpoints_from_aml(test_output_dirs: OutputFolderForTests) -
     # Now test if that is correctly integrated into the checkpoint finder. To avoid downloading a second time,
     # now mock the call to the actual downloader.
     with mock.patch("InnerEye.ML.utils.checkpoint_handling.is_running_in_azure_ml", return_value=True):
-        with mock.patch("InnerEye.ML.utils.checkpoint_handling.download_checkpoints_to_temp_folder",
+        with mock.patch("InnerEye.ML.utils.checkpoint_handling.download_folder_from_run_to_temp_folder",
                         return_value=temp_folder) as download:
-            # Call the checkpoint finder with a temp folder that does not contain any files, so it should try to download
+            # Call the checkpoint finder with a temp folder that does not contain any files, so it should try to
+            # download
             result = find_recovery_checkpoint_and_epoch(test_output_dirs.root_dir)
-            download.assert_called_once_with()
+            download.assert_called_once_with(folder=checkpoint_folder)
             assert result is not None
             p, epoch = result
             # The basic model only writes one checkpoint at epoch 1
@@ -381,6 +387,28 @@ def test_register_and_score_model(test_output_dirs: OutputFolderForTests) -> Non
     assert_nifti_content(str(expected_segmentation_path), expected_shape, image_header, [3], np.ubyte)
 
 
+def get_job_log_file(run: Run, index: Optional[int] = None) -> str:
+    """
+    Reads the job log file (70_driver_log.txt or std_log.txt) of the given job. If an index is provided, get
+    the matching file from a multi-node job.
+    :return: The contents of the job log file.
+    """
+    assert run.status == RunStatus.COMPLETED
+    files = run.get_file_names()
+    suffix = (f"_{index}" if index is not None else "") + ".txt"
+    file1 = "azureml-logs/70_driver_log" + suffix
+    file2 = "user_logs/std_log" + suffix
+    if file1 in files:
+        file = file1
+    elif file2 in files:
+        file = file2
+    else:
+        raise ValueError(f"No log file ({file1} or {file2}) present in the run. Existing files: {files}")
+    downloaded = tempfile.NamedTemporaryFile().name
+    run.download_file(name=file, output_file_path=downloaded)
+    return Path(downloaded).read_text()
+
+
 @pytest.mark.after_training_2node
 def test_training_2nodes(test_output_dirs: OutputFolderForTests) -> None:
     """
@@ -388,19 +416,9 @@ def test_training_2nodes(test_output_dirs: OutputFolderForTests) -> None:
     """
     run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_2NODE_RUN)
     assert run.status == RunStatus.COMPLETED
-    files = run.get_file_names()
     # There are two nodes, so there should be one log file per node.
-    log0_path = "azureml-logs/70_driver_log_0.txt"
-    log1_path = "azureml-logs/70_driver_log_1.txt"
-    assert log0_path in files, "Node rank 0 log file is missing"
-    assert log1_path in files, "Node rank 1 log file is missing"
-    # Download both log files and check their contents
-    log0 = test_output_dirs.root_dir / log0_path
-    log1 = test_output_dirs.root_dir / log1_path
-    run.download_file(log0_path, output_file_path=str(log0))
-    run.download_file(log1_path, output_file_path=str(log1))
-    log0_txt = log0.read_text()
-    log1_txt = log1.read_text()
+    log0_txt = get_job_log_file(run, index=0)
+    log1_txt = get_job_log_file(run, index=1)
     # Only the node at rank 0 should be done certain startup activities, like visualizing crops.
     # Running inference similarly should only run on one node.
     for in_log0_only in ["Visualizing the effect of sampling random crops for training",
@@ -413,8 +431,8 @@ def test_training_2nodes(test_output_dirs: OutputFolderForTests) -> None:
     assert training_indicator in log1_txt
     # Check diagnostic messages that show if DDP was set up correctly. This could fail if Lightning
     # changes its diagnostic outputs.
-    assert "initializing ddp: GLOBAL_RANK: 0, MEMBER: 1/4" in log0_txt
-    assert "initializing ddp: GLOBAL_RANK: 2, MEMBER: 3/4" in log1_txt
+    assert "initializing distributed: GLOBAL_RANK: 0, MEMBER: 1/4" in log0_txt
+    assert "initializing distributed: GLOBAL_RANK: 2, MEMBER: 3/4" in log1_txt
 
 
 @pytest.mark.skip("The recovery job hangs after completing on AML")
@@ -438,19 +456,9 @@ def test_recovery_on_2_nodes(test_output_dirs: OutputFolderForTests) -> None:
             main()
     run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_2NODE_RUN)
     assert run.status == RunStatus.COMPLETED
-    files = run.get_file_names()
     # There are two nodes, so there should be one log file per node.
-    log0_path = "azureml-logs/70_driver_log_0.txt"
-    log1_path = "azureml-logs/70_driver_log_1.txt"
-    assert log0_path in files, "Node rank 0 log file is missing"
-    assert log1_path in files, "Node rank 1 log file is missing"
-    # Download both log files and check their contents
-    log0 = test_output_dirs.root_dir / log0_path
-    log1 = test_output_dirs.root_dir / log1_path
-    run.download_file(log0_path, output_file_path=str(log0))
-    run.download_file(log1_path, output_file_path=str(log1))
-    log0_txt = log0.read_text()
-    log1_txt = log1.read_text()
+    log0_txt = get_job_log_file(run, index=0)
+    log1_txt = get_job_log_file(run, index=1)
     assert "Downloading multiple files from run" in log0_txt
     assert "Downloading multiple files from run" not in log1_txt
     assert "Loading checkpoint that was created at (epoch = 2, global_step = 2)" in log0_txt
