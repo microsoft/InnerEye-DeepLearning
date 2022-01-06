@@ -3,12 +3,14 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from enum import Enum
+from pathlib import Path
 from typing import Any, List, Optional, Tuple
 
 import param
 import pytest
 
-from InnerEye.Common.generic_parsing import GenericConfig, IntTuple, create_from_matching_params
+from InnerEye.Common.generic_parsing import GenericConfig, IntTuple, PathOrPathList, StringOrStringList, \
+    create_from_matching_params
 
 
 class ParamEnum(Enum):
@@ -32,6 +34,39 @@ class ParamClass(GenericConfig):
     readonly: str = param.String("Nope", readonly=True)
     _non_override: str = param.String("Nope")
     constant: str = param.String("Nope", constant=True)
+
+
+class ParamOrList(GenericConfig):
+    string_param: List[str] = StringOrStringList(default=[])
+    path_param: List[Path] = PathOrPathList(default=[])
+
+
+def test_string_or_list() -> None:
+    c = ParamOrList()
+    v1 = "foo"
+    c.string_param = v1
+    assert c.string_param == [v1]
+    v2 = ["foo", "bar"]
+    c.string_param = v2
+    assert c.string_param == v2
+    with pytest.raises(ValueError):
+        c.string_param = 1
+    with pytest.raises(ValueError):
+        c.string_param = [1]
+
+
+def test_path_or_list() -> None:
+    c = ParamOrList()
+    v1 = Path.cwd()
+    c.path_param = v1
+    assert c.path_param == [v1]
+    v2 = [Path("foo"), Path("bar")]
+    c.path_param = v2
+    assert c.path_param == v2
+    with pytest.raises(ValueError):
+        c.path_param = 1
+    with pytest.raises(ValueError):
+        c.path_param = [1]
 
 
 def test_overridable_parameter() -> None:

@@ -1,17 +1,15 @@
 steps:
-  - template: checkout.yml
+  - template: inner_eye_env.yml
 
   - bash: |
-      conda env create --file environment.yml --name InnerEye --quiet
       source activate InnerEye
       echo Storing environment for later use by ComponentGovernance
       # This file is picked up later by ComponentGovernance
       pip freeze > requirements.txt
       echo Environment has been created with these packages:
       cat requirements.txt
-    failOnStderr: false # Conda env create does not have an option to suppress warnings generated in wheel.py
     condition: succeeded()
-    displayName: Create conda environment
+    displayName: List environment
 
   # Pytest needs subscription information directly in settings.yml. Local package install will cause use of
   # the wrong default project root, hence InnerEyePrivateSettings.yml can't be picked up.
@@ -37,7 +35,7 @@ steps:
   # work on the package
   - bash: |
       source activate InnerEye
-      pytest ./Tests/ -m "not (gpu or azureml or after_training_single_run or after_training_ensemble_run or inference or after_training_2node or after_training_glaucoma_cv_run or after_training_hello_container)" --doctest-modules --junitxml=junit/test-results.xml --cov=. --cov-config=.coveragerc --cov-report=xml -n 2 --dist=loadscope --verbose
+      pytest ./Tests/ -m "not (gpu or azureml or after_training_single_run or after_training_ensemble_run or inference or after_training_2node or after_training_glaucoma_cv_run or after_training_hello_container)" --doctest-modules --junitxml=junit/test-results.xml --cov=. --cov-config=.coveragerc --cov-report=xml --verbose
     env:
       APPLICATION_KEY: $(InnerEyeDeepLearningServicePrincipalKey)
       DATASETS_ACCOUNT_KEY: $(InnerEyePublicDatasetsStorageKey)

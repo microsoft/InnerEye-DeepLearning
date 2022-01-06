@@ -6,7 +6,7 @@
 import logging
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Iterable, Optional
 
 import torch
 from yacs.config import CfgNode
@@ -81,14 +81,10 @@ def create_ssl_image_classifier(num_classes: int,
     logging.info(f"Loading pretrained {ssl_type} weights from:\n {pl_checkpoint_path}")
 
     if ssl_type == SSLTrainingType.BYOL.value or ssl_type == SSLTrainingType.BYOL:
-        # Here we need to indicate how many classes where used for linear evaluator at training time, to load the
-        # checkpoint (incl. linear evaluator) with strict = True
-        byol_module = SSLModelLoader(BYOLInnerEye, loaded_params["num_classes"]).load_from_checkpoint(
-            pl_checkpoint_path)
+        byol_module = BYOLInnerEye.load_from_checkpoint(pl_checkpoint_path)
         encoder = byol_module.target_network.encoder
     elif ssl_type == SSLTrainingType.SimCLR.value or ssl_type == SSLTrainingType.SimCLR:
-        simclr_module = SSLModelLoader(SimCLRInnerEye, loaded_params["num_classes"]).load_from_checkpoint(
-            pl_checkpoint_path)
+        simclr_module = SimCLRInnerEye.load_from_checkpoint(pl_checkpoint_path)
         encoder = simclr_module.encoder
     else:
         raise NotImplementedError(f"Unknown unsupervised model: {ssl_type}")
@@ -123,3 +119,23 @@ def SSLModelLoader(ssl_class: Any, num_classes: int) -> Any:
                                                      n_hidden=None)
 
     return _wrap
+
+
+def add_submodules_to_same_device(module: torch.nn.Module,
+                                  submodules: Iterable[torch.nn.Module],
+                                  prefix: str = "") -> None:
+    """
+    Adds each of the given submodules to the "main" module, and moves them to the same device as the "main"
+    module. The submodules get a name derived from their class name, with the given prefix.
+
+    :param module: The module to which submodules should be added.
+    :param submodules: The submodules to add.
+    :param prefix: A string prefix that will be used to create the name of the submodule.
+    """
+
+    def _class_name(o: Any) -> str:
+        return type(o).__name__
+
+    for m in submodules:
+        m.to(device=module.device)  # type: ignore
+        module.add_module(f"{prefix}{_class_name(m)}", m)

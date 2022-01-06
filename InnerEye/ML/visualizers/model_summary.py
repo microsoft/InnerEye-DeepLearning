@@ -17,6 +17,7 @@ from InnerEye.Common.common_util import logging_only_to_file
 from InnerEye.Common.fixed_paths import DEFAULT_MODEL_SUMMARIES_DIR_PATH
 from InnerEye.ML.utils.device_aware_module import DeviceAwareModule
 from InnerEye.ML.utils.ml_util import RandomStateSnapshot
+from InnerEye.ML.utils.layer_util import set_model_to_eval_mode
 
 
 @dataclass
@@ -220,15 +221,11 @@ def forward_preserve_state(module: DeviceAwareModule, inputs: List[torch.Tensor]
         inputs = [input_tensor.cuda() for input_tensor in inputs]
 
     # collect the current state of the model
-    is_train = module.training
     module_state = RandomStateSnapshot.snapshot_random_state()
 
-    # set the model in evaluation mode and perform a forward pass
-    module.eval()
-    with torch.no_grad():
-        output = module.forward(*inputs)
-    if is_train:
-        module.train()
+    with set_model_to_eval_mode(module):
+        with torch.no_grad():
+            output = module.forward(*inputs)
 
     # restore the seed for torch and numpy
     module_state.restore_random_state()

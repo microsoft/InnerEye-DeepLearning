@@ -12,8 +12,10 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, LAST_CHECKPOINT_FILE_NAME, \
-    LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, RECOVERY_CHECKPOINT_FILE_NAME, create_best_checkpoint, \
-    extract_latest_checkpoint_and_epoch, find_all_recovery_checkpoints, find_recovery_checkpoint_and_epoch
+    LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, RECOVERY_CHECKPOINT_FILE_NAME
+from InnerEye.ML.utils.checkpoint_handling import create_best_checkpoint, extract_latest_checkpoint_and_epoch, \
+    find_all_recovery_checkpoints, \
+    find_recovery_checkpoint_and_epoch
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.lightning_base import InnerEyeContainer
 from InnerEye.ML.lightning_helpers import load_from_checkpoint_and_adjust_for_inference
@@ -44,9 +46,9 @@ def create_model_and_store_checkpoint(config: ModelConfigBase, checkpoint_path: 
         model = model.cuda()  # type: ignore
     trainer.model = model
     # Before saving, the values for epoch and step are incremented. Save them here in such a way that we can assert
-    # easily later.
-    trainer.current_epoch = FIXED_EPOCH - 1  # type: ignore
-    trainer.global_step = FIXED_GLOBAL_STEP - 1  # type: ignore
+    # easily later. We can't mock that because otherwise the mock object would be written to disk (that fails)
+    trainer.fit_loop.current_epoch = FIXED_EPOCH - 1  # type: ignore
+    trainer.fit_loop.global_step = FIXED_GLOBAL_STEP - 1  # type: ignore
     # In PL, it is the Trainer's responsibility to save the model. Checkpoint handling refers back to the trainer
     # to get a save_func. Mimicking that here.
     trainer.save_checkpoint(checkpoint_path, weights_only=weights_only)

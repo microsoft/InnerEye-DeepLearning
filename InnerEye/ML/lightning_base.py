@@ -243,20 +243,15 @@ class InnerEyeLightning(LightningModule):
     def configure_optimizers(self) -> Tuple[List[Optimizer], List[_LRScheduler]]:
         return [self.optimizer], [self.l_rate_scheduler]  # type: ignore
 
+    @rank_zero_only
     def on_fit_end(self) -> None:
         """
-        Flushes all logger objects that the present object holds.
+        Flushes all logger objects that the present object holds. This should only be run on rank zero, because
+        otherwise ranks != 0 will create empty log files that can clash with the non-empty log files written on
+        rank 0.
         """
         self.train_epoch_metrics_logger.flush()
         self.val_epoch_metrics_logger.flush()
-
-    @property
-    def use_sync_dist(self) -> bool:
-        """
-        Returns True if metric logging should use sync_dist=True. This is read off from the use_ddp flag of the trainer.
-        """
-        assert isinstance(self.trainer, Trainer)
-        return self.trainer.accelerator_connector.use_ddp
 
     def training_epoch_end(self, outputs: List[Any]) -> None:
         # Write out all the metrics that have been accumulated in the StoringLogger in the previous epoch.
@@ -311,32 +306,29 @@ class InnerEyeLightning(LightningModule):
                      name: Union[MetricType, str],
                      value: Any,
                      is_training: bool,
-                     reduce_fx: Callable = torch.mean,
-                     sync_dist_override: Optional[bool] = None,
-                     sync_dist_op: Any = "mean") -> None:
+                     reduce_fx: Union[str, Callable] = "mean",
+                     sync_dist_override: Optional[bool] = None) -> None:
         """
         Logs a metrics to Pytorch Lightning with the on_epoch flag set. The metric will get a prefix indicating
         if it is a training or a validation metric. A custom reducer function can be provided.
         The method also ensures that the correct synchronization across nodes is used. If the value to log is a
         floating point, it is converted to a Tensor on the current device to enable synchronization.
+
         :param sync_dist_override: If not None, use this value for the sync_dist argument to self.log. If None,
         set it automatically depending on the use of DDP.
         :param name: The name of the metric to log
         :param value: The value of the metric. This can be a tensor, floating point value, or a Metric class.
         :param is_training: If true, give the metric a "train/" prefix, otherwise a "val/" prefix.
-        :param reduce_fx: The reduce function to apply to step values. Default: torch.mean
-        :param sync_dist_op: The reduce operation to use when synchronizing the tensors across GPUs. This must be
-        a value recognized by sync_ddp: Either 'None' to use 'sum' as aggregate, or 'mean' or 'avg'
+        :param reduce_fx: The reduce function to use when synchronizing the tensors across GPUs. This must be
+        a value recognized by sync_ddp: "sum", "mean"
         """
         metric_name = name if isinstance(name, str) else name.value
         prefix = TRAIN_PREFIX if is_training else VALIDATION_PREFIX
-        sync_dist = self.use_sync_dist if sync_dist_override is None else sync_dist_override
         log_on_epoch(self,
                      name=prefix + metric_name,
                      value=value,
-                     sync_dist=sync_dist,
-                     reduce_fx=reduce_fx,
-                     sync_dist_op=sync_dist_op)
+                     sync_dist=sync_dist_override,
+                     reduce_fx=reduce_fx)
 
     def store_epoch_results(self, metrics: DictStrFloat, epoch: int, is_training: bool) -> None:
         """

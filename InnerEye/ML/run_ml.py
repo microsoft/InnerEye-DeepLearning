@@ -15,7 +15,6 @@ import stopit
 import torch.multiprocessing
 from azureml._restclient.constants import RunStatus
 from azureml.core import Model, Run, model
-from azureml.data import FileDataset
 from pytorch_lightning import LightningModule, seed_everything
 from pytorch_lightning.core.datamodule import LightningDataModule
 from torch.utils.data import DataLoader
@@ -37,10 +36,12 @@ from InnerEye.Common.common_util import (BASELINE_COMPARISONS_FOLDER, BASELINE_W
 from InnerEye.Common.fixed_paths import INNEREYE_PACKAGE_NAME, PYTHON_ENVIRONMENT_NAME
 from InnerEye.Common.type_annotations import PathOrString
 from InnerEye.ML.baselines_util import compare_folders_and_run_outputs
-from InnerEye.ML.common import ModelExecutionMode
+from InnerEye.ML.common import CHECKPOINT_FOLDER, EXTRA_RUN_SUBFOLDER, FINAL_ENSEMBLE_MODEL_FOLDER, \
+    FINAL_MODEL_FOLDER, \
+    ModelExecutionMode
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.deep_learning_config import CHECKPOINT_FOLDER, DeepLearningConfig, EXTRA_RUN_SUBFOLDER, \
-    FINAL_ENSEMBLE_MODEL_FOLDER, FINAL_MODEL_FOLDER, ModelCategory, MultiprocessingStartMethod, load_checkpoint
+from InnerEye.ML.deep_learning_config import DeepLearningConfig, ModelCategory, MultiprocessingStartMethod, \
+    load_checkpoint
 from InnerEye.ML.lightning_base import InnerEyeContainer
 from InnerEye.ML.lightning_container import InnerEyeInference, LightningContainer
 from InnerEye.ML.lightning_loggers import StoringLogger
@@ -54,64 +55,15 @@ from InnerEye.ML.reports.notebook_report import generate_classification_crossval
     get_ipynb_report_name, reports_folder
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.sequence_config import SequenceModelBase
-from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
-from InnerEye.ML.utils.run_recovery import RunRecovery
+from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler, download_all_checkpoints_from_run
 from InnerEye.ML.visualizers import activation_maps
 from InnerEye.ML.visualizers.plot_cross_validation import \
     get_config_and_results_for_offline_runs, plot_cross_validation_from_files
 from health_azure import AzureRunInfo
-from health_azure.datasets import get_or_create_dataset
 from health_azure.utils import ENVIRONMENT_VERSION, create_run_recovery_id, is_global_rank_zero, merge_conda_files
 
 ModelDeploymentHookSignature = Callable[[LightningContainer, AzureConfig, Model, ModelProcessing], Any]
 PostCrossValidationHookSignature = Callable[[ModelConfigBase, Path], None]
-
-
-def download_dataset(azure_dataset_id: str,
-                     target_folder: Path,
-                     dataset_csv: str,
-                     azure_config: AzureConfig) -> Path:
-    """
-    Downloads or checks for an existing dataset on the executing machine. If a local_dataset is supplied and the
-    directory is present, return that. Otherwise, download the dataset specified by the azure_dataset_id from the
-    AzureML dataset attached to the given AzureML workspace. The dataset is downloaded into the `target_folder`,
-    in a subfolder that has the same name as the dataset. If there already appears to be such a folder, and the folder
-    contains a dataset csv file, no download is started.
-    :param azure_dataset_id: The name of a dataset that is registered in the AzureML workspace.
-    :param target_folder: The folder in which to download the dataset from Azure.
-    :param dataset_csv: Name of the csv file describing the dataset. This is only used to check if the dataset has been
-    downloaded already.
-    :param azure_config: All Azure-related configuration options.
-    :return: A path on the local machine that contains the dataset.
-    """
-    logging.info("Trying to download dataset via AzureML datastore now.")
-    azure_dataset = get_or_create_dataset(workspace=azure_config.get_workspace(),
-                                          datastore_name=azure_config.azureml_datastore,
-                                          dataset_name=azure_dataset_id)
-    if not isinstance(azure_dataset, FileDataset):
-        raise ValueError(f"Expected to get a FileDataset, but got {type(azure_dataset)}")
-    # The downloaded dataset may already exist from a previous run.
-    expected_dataset_path = target_folder / azure_dataset_id
-    logging.info(f"Model training will use dataset '{azure_dataset_id}' in Azure.")
-    if expected_dataset_path.is_dir():
-        if dataset_csv:
-            if (expected_dataset_path / dataset_csv).is_file():
-                logging.info(f"The file {dataset_csv} is already downloaded in {expected_dataset_path}. Skipping.")
-                return expected_dataset_path
-        else:
-            existing_files = sum(1 for _ in expected_dataset_path.rglob("*"))
-            if existing_files > 1:
-                logging.info(f"There are already {existing_files} files in {expected_dataset_path}. Skipping.")
-                return expected_dataset_path
-
-    logging.info("Starting to download the dataset - WARNING, this could take very long!")
-    with logging_section("Downloading dataset"):
-        t0 = time.perf_counter()
-        azure_dataset.download(target_path=str(expected_dataset_path), overwrite=False)
-        t1 = time.perf_counter() - t0
-        logging.info(f"Azure dataset '{azure_dataset_id}' downloaded in {t1} seconds")
-    logging.info(f"Azure dataset '{azure_dataset_id}' is now available in {expected_dataset_path}")
-    return expected_dataset_path
 
 
 def check_dataset_folder_exists(local_dataset: PathOrString) -> Path:
@@ -202,30 +154,15 @@ class MLRunner:
         if self._has_setup_run:
             return
         if (not self.azure_config.only_register_model) and azure_run_info:
-            dataset_index = 0
-            # Set local_dataset to the mounted path specified in azure_runner.py, if any, or download it if that fails
-            # and config.local_dataset was not already set.
+            # Set up the paths to the datasets. azure_run_info already has all necessary information, using either
+            # the provided local datasets for VM runs, or the AzureML mount points when running in AML.
             # This must happen before container setup because that could already read datasets.
-            if self.container.azure_dataset_id:
-                mounted_dataset = azure_run_info.input_datasets[dataset_index]
-                if mounted_dataset is None:
-                    mounted_dataset = self.download_or_use_existing_dataset(self.container.azure_dataset_id,
-                                                                            self.container.local_dataset)
-                self.container.local_dataset = mounted_dataset
-                dataset_index += 1
-            if self.container.extra_azure_dataset_ids:
-                num_extra_local_datasets = len(self.container.extra_local_dataset_paths)
+            if len(azure_run_info.input_datasets) > 0:
+                self.container.local_dataset = check_dataset_folder_exists(azure_run_info.input_datasets[0])
                 extra_locals: List[Path] = []
-                for i, extra_azure_id in enumerate(self.container.extra_azure_dataset_ids):
-                    if num_extra_local_datasets > 0 and i < (num_extra_local_datasets - 1):
-                        raise ValueError(f"The model refers to an Azure dataset '{extra_azure_id}' at index {i}, "
-                                         f"but there are not enough local datasets given ")
-                    mounted_dataset = azure_run_info.input_datasets[dataset_index]
-                    if mounted_dataset is None:
-                        local = None if num_extra_local_datasets == 0 else self.container.extra_local_dataset_paths[i]
-                        mounted_dataset = self.download_or_use_existing_dataset(extra_azure_id, local_dataset=local)
-                    extra_locals.append(mounted_dataset)
-                self.container.extra_local_dataset_paths = extra_locals
+                for extra_datasets in azure_run_info.input_datasets[1:]:
+                    extra_locals.append(check_dataset_folder_exists(extra_datasets))
+                self.container.extra_local_dataset_paths = extra_locals  # type: ignore
         # Ensure that we use fixed seeds before initializing the PyTorch models
         seed_everything(self.container.get_effective_random_seed())
         # Creating the folder structure must happen before the LightningModule is created, because the output
@@ -247,10 +184,10 @@ class MLRunner:
         if self.container.pretraining_run_recovery_id is not None:
             run_to_recover = self.azure_config.fetch_run(self.container.pretraining_run_recovery_id.strip())
             only_return_path = not is_global_rank_zero()
-            run_recovery_object = RunRecovery.download_all_checkpoints_from_run(self.container,
-                                                                                run_to_recover,
-                                                                                EXTRA_RUN_SUBFOLDER,
-                                                                                only_return_path=only_return_path)
+            run_recovery_object = download_all_checkpoints_from_run(self.container,
+                                                                    run_to_recover,
+                                                                    EXTRA_RUN_SUBFOLDER,
+                                                                    only_return_path=only_return_path)
             self.container.pretraining_run_checkpoints = run_recovery_object
 
         # A lot of the code for the built-in InnerEye models expects the output paths directly in the config files.
@@ -440,7 +377,8 @@ class MLRunner:
             logging.info("Comparing the current results against stored results")
             if self.is_normal_run_or_crossval_child_0():
                 compare_folders_and_run_outputs(expected=self.container.regression_test_folder,
-                                                actual=self.container.outputs_folder)
+                                                actual=self.container.outputs_folder,
+                                                csv_relative_tolerance=self.container.regression_test_csv_tolerance)
             else:
                 logging.info("Skipping because this is not cross-validation child run 0.")
 
@@ -551,31 +489,6 @@ class MLRunner:
             activation_maps.extract_activation_maps(self.innereye_config)  # type: ignore
             logging.info("Successfully extracted and saved activation maps")
 
-    def download_or_use_existing_dataset(self,
-                                         azure_dataset_id: Optional[str],
-                                         local_dataset: Optional[Path]) -> Path:
-        """
-        Makes the dataset that the model uses available on the executing machine. If the present training run is outside
-        of AzureML, it expects that either the model has a `local_dataset` field set, in which case no action will be
-        taken. If a dataset is specified in `azure_dataset_id`, it will attempt to download the dataset from Azure
-        into the local repository, in the "datasets" folder.
-        :param azure_dataset_id: id of the dataset in AML workspace
-        :param local_dataset: alternatively local path for this dataset
-        :returns: The path of the dataset on the executing machine.
-        """
-        if not self.is_offline_run:
-            raise ValueError("This function should only be called in runs outside AzureML.")
-        if local_dataset:
-            return check_dataset_folder_exists(local_dataset)
-        if azure_dataset_id:
-            dataset_csv = ""
-            if isinstance(self.model_config, DeepLearningConfig):
-                dataset_csv = self.model_config.dataset_csv
-            return download_dataset(azure_dataset_id=azure_dataset_id,
-                                    target_folder=self.project_root / fixed_paths.DATASETS_DIR_NAME,
-                                    dataset_csv=dataset_csv, azure_config=self.azure_config)
-        raise ValueError("The model must contain either local_dataset or azure_dataset_id")
-
     def set_multiprocessing_start_method(self) -> None:
         """
         Set the (PyTorch) multiprocessing start method.
@@ -605,7 +518,7 @@ class MLRunner:
         """
         Registers a new model in the workspace's model registry on AzureML to be deployed further.
         The AzureML run's tags are updated to describe with information about ensemble creation and the parent run ID.
-        :param checkpoint_path: Checkpoint paths to register.
+        :param checkpoint_paths: Checkpoint paths to register.
         :param model_proc: whether it's a single or ensemble model.
         :returns Tuple element 1: AML model object, or None if no model could be registered.
         Tuple element 2: The result of running the model_deployment_hook, or None if no hook was supplied.
@@ -697,10 +610,11 @@ class MLRunner:
         :param python_environment: The Python environment that is used in the present AzureML run.
         """
 
-        def copy_folder(source_folder: Path, destination_folder: str = "") -> None:
+        def copy_folder(source_folder: Path, destination_folder: Optional[Path] = None) -> None:
             logging.info(f"Copying folder for registration: {source_folder}")
-            destination_folder = destination_folder or source_folder.name
-            shutil.copytree(str(source_folder), str(model_folder / destination_folder),
+            full_destination = model_folder / source_folder.name if destination_folder is None \
+                else model_folder / destination_folder
+            shutil.copytree(str(source_folder), str(full_destination),
                             ignore=shutil.ignore_patterns('*.pyc'))
 
         def copy_file(source: Path, destination_file: str) -> None:
@@ -743,6 +657,11 @@ class MLRunner:
         # we can identify it by going up the folder structure off a known file (repository_root does exactly that)
         repository_root = fixed_paths.repository_root_directory()
         copy_folder(repository_root / INNEREYE_PACKAGE_NAME)
+        # If hi-ml is used as a submodule, copy that too
+        for relative_path, _ in fixed_paths.get_hi_ml_submodule_relative_paths():
+            full_submodule_path = repository_root / relative_path
+            if full_submodule_path.is_dir():
+                copy_folder(full_submodule_path, relative_path)
         # Extra code directory is expected to be relative to the project root folder.
         if self.azure_config.extra_code_directory:
             extra_code_folder = self.project_root / self.azure_config.extra_code_directory
@@ -800,7 +719,9 @@ class MLRunner:
 
     def are_sibling_runs_finished(self) -> bool:
         """
-        Checks if all child runs (except the current run) of the current run's parent are completed or failed.
+        Checks if all child runs (except the current run) of the current run's parent are completed, failed,
+        or cancelled.
+
         :return: True if all sibling runs of the current run have finished (they either completed successfully,
         or failed). False if any of them is still pending (running or queued).
         """
@@ -811,7 +732,7 @@ class MLRunner:
                                                      expected_number_cross_validation_splits=n_splits)
             pending_runs = [x.id for x in child_runs
                             if (x.id != RUN_CONTEXT.id)
-                            and (x.get_status() not in [RunStatus.COMPLETED, RunStatus.FAILED])]
+                            and (x.get_status() not in [RunStatus.COMPLETED, RunStatus.FAILED, RunStatus.CANCELED])]
             all_runs_finished = len(pending_runs) == 0
             if not all_runs_finished:
                 logging.info(f"Waiting for sibling run(s) to finish: {pending_runs}")

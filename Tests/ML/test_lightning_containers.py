@@ -16,8 +16,8 @@ from pytorch_lightning import LightningModule
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.ML.common import ModelExecutionMode
-from InnerEye.ML.deep_learning_config import ARGS_TXT, DatasetParams, WorkflowParams
+from InnerEye.ML.common import ARGS_TXT, ModelExecutionMode
+from InnerEye.ML.deep_learning_config import DatasetParams, WorkflowParams
 from InnerEye.ML.lightning_base import InnerEyeContainer
 from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.model_config_base import ModelConfigBase
@@ -256,7 +256,7 @@ def test_extra_directory_available(test_output_dirs: OutputFolderForTests) -> No
                           extra_azure_dataset_ids: List[str] = []) -> LightningContainer:
         container = DummyContainerWithModel()
         container.local_dataset = test_output_dirs.root_dir
-        container.extra_local_dataset_paths = extra_local_dataset_paths
+        container.extra_local_dataset_paths = extra_local_dataset_paths  # type: ignore
         container.extra_azure_dataset_ids = extra_azure_dataset_ids
         runner = MLRunner(model_config=None, container=container)
         runner.setup()

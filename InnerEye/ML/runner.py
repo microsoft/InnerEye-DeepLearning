@@ -9,9 +9,6 @@ import uuid
 from pathlib import Path
 from typing import Optional, Tuple
 
-# Suppress all errors here because the imports after code cause loads of warnings. We can't specifically suppress
-# individual warnings only.
-# flake8: noqa
 # Workaround for an issue with how AzureML and Pytorch Lightning interact: When spawning additional processes for DDP,
 # the working directory is not correctly picked up in sys.path
 print(f"Starting InnerEye runner at {sys.argv[0]}")
@@ -23,9 +20,12 @@ if (innereye_root / "InnerEye").is_dir():
         sys.path.insert(0, innereye_root_str)
 from InnerEye.Common import fixed_paths
 
+# This must be added before all other imports because they might rely on hi-ml already, and that can optionally live
+# in a submodule
 fixed_paths.add_submodules_to_path()
 
 from azureml._base_sdk_common import user_agent
+from azureml._restclient.constants import RunStatus
 from azureml.core import Run, ScriptRunConfig
 from health_azure import AzureRunInfo, submit_to_azure_if_needed
 from health_azure.utils import create_run_recovery_id, is_global_rank_zero, is_local_rank_zero, merge_conda_files, \
@@ -45,7 +45,7 @@ from InnerEye.Azure.azure_util import (RUN_CONTEXT, RUN_RECOVERY_ID_KEY_NAME, ge
                                        is_offline_run_context)
 from InnerEye.Azure.run_pytest import download_pytest_result, run_pytest
 from InnerEye.Common.common_util import (FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE,
-                                         disable_logging_to_file, is_linux, logging_to_stdout)
+                                         is_linux, logging_to_stdout)
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
@@ -117,7 +117,6 @@ class Runner:
     :param model_deployment_hook: an optional function for deploying a model in an application-specific way.
     If present, it should take a model config (SegmentationModelBase), an AzureConfig, and an AzureML
     Model as arguments, and return an optional Path and a further object of any type.
-    :param command_line_args: command-line arguments to use; if None, use sys.argv.
     """
 
     def __init__(self,
@@ -230,6 +229,8 @@ class Runner:
                 and not self.lightning_container.azure_dataset_id:
             raise ValueError("When running an InnerEye built-in model in AzureML, the 'azure_dataset_id' "
                              "property must be set.")
+        # https://docs.nvidia.com/cuda/cublas/index.html#cublasApi_reproducibility
+        env_variables = {"CUBLAS_WORKSPACE_CONFIG": ":4096:8"} if self.lightning_container.pl_deterministic else {}
         source_config = SourceConfig(
             root_folder=self.project_root,
             entry_script=Path(sys.argv[0]).resolve(),
@@ -238,7 +239,8 @@ class Runner:
             hyperdrive_config_func=(self.model_config.get_hyperdrive_config if self.model_config
                                     else self.lightning_container.get_hyperdrive_config),
             # For large jobs, upload of results can time out because of large checkpoint files. Default is 600
-            upload_timeout_seconds=86400
+            upload_timeout_seconds=86400,
+            environment_variables=env_variables
         )
         # Reduce the size of the snapshot by adding unused folders to amlignore. The Test* subfolders are only needed
         # when running pytest.
@@ -248,14 +250,21 @@ class Runner:
         if not self.lightning_container.regression_test_folder:
             ignored_folders.append("RegressionTestResults")
 
-        input_datasets = create_dataset_configs(self.azure_config,
-                                                all_azure_dataset_ids=self.lightning_container.all_azure_dataset_ids(),
-                                                all_dataset_mountpoints=self.lightning_container.all_dataset_mountpoints())
+        all_local_datasets = self.lightning_container.all_local_dataset_paths()
+        input_datasets = \
+            create_dataset_configs(self.azure_config,
+                                   all_azure_dataset_ids=self.lightning_container.all_azure_dataset_ids(),
+                                   all_dataset_mountpoints=self.lightning_container.all_dataset_mountpoints(),
+                                   all_local_datasets=all_local_datasets)  # type: ignore
 
         def after_submission_hook(azure_run: Run) -> None:
             """
             A function that will be called right after job submission.
             """
+            # Set the default display name to what was provided as the "tag". This will affect single runs
+            # and Hyperdrive parent runs
+            if self.azure_config.tag:
+                azure_run.display_name = self.azure_config.tag
             # Add an extra tag that depends on the run that was actually submitted. This is used for later filtering
             # run in cross validation analysis
             recovery_id = create_run_recovery_id(azure_run)
@@ -271,15 +280,18 @@ class Runner:
                       f"InnerEye/Azure/tensorboard_monitor.py --run_ids={azure_run.id}")
 
             if self.azure_config.wait_for_completion:
-                # We want the job output to be visible on the console, but the program should not exit if the
-                # job fails because we need to download the pytest result file.
+                # We want the job output to be visible on the console. Do not exit yet if the job fails, because we
+                # may need to download the pytest result file.
                 azure_run.wait_for_completion(show_output=True, raise_on_error=False)
-            if self.azure_config.pytest_mark and self.azure_config.wait_for_completion:
-                # The AzureML job can optionally run pytest. Attempt to download it to the current directory.
-                # A build step will pick up that file and publish it to Azure DevOps.
-                # If pytest_mark is set, this file must exist.
-                logging.info("Downloading pytest result file.")
-                download_pytest_result(azure_run)
+                if self.azure_config.pytest_mark:
+                    # The AzureML job can optionally run pytest. Attempt to download it to the current directory.
+                    # A build step will pick up that file and publish it to Azure DevOps.
+                    # If pytest_mark is set, this file must exist.
+                    logging.info("Downloading pytest result file.")
+                    download_pytest_result(azure_run)
+                if azure_run.status == RunStatus.FAILED:
+                    raise ValueError(f"The AzureML run failed. Please check this URL for details: "
+                                     f"{azure_run.get_portal_url()}")
 
         hyperdrive_config = None
         if self.azure_config.hyperdrive:
@@ -326,12 +338,17 @@ class Runner:
                         commandline_args=" ".join(source_config.script_params)),
                     after_submission=after_submission_hook,
                     hyperdrive_config=hyperdrive_config)
+                if self.azure_config.tag and azure_run_info.run:
+                    if self.lightning_container.perform_cross_validation:
+                        # This code is only reached inside Azure. Set display name again - this will now affect
+                        # Hypdrive child runs (for other jobs, this has already been done after submission)
+                        cv_index = self.lightning_container.cross_validation_split_index
+                        full_display_name = f"{self.azure_config.tag} {cv_index}"
+                        azure_run_info.run.display_name = full_display_name
             else:
-                # compute_cluster_name is a required parameter in early versions of the HI-ML package
                 azure_run_info = submit_to_azure_if_needed(
                     input_datasets=input_datasets,
-                    submit_to_azureml=False,
-                    compute_cluster_name="")
+                    submit_to_azureml=False)
         finally:
             if temp_conda:
                 temp_conda.unlink()
