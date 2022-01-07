@@ -119,15 +119,16 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
 
     # Check the metrics that were recorded during training
     expected_metrics = {
-        'simclr/train/loss': 3.423144578933716,
+        'simclr/train/loss': 2.4446113109588623,
+        'simclr/val/loss': 2.9081358909606934,
         'simclr/learning_rate': 0.0,
-        'ssl_online_evaluator/train/loss': 2.6143882274627686,
+        'ssl_online_evaluator/train/loss': 2.9578170776367188,
         'ssl_online_evaluator/train/online_AccuracyAtThreshold05': 0.0,
+        'ssl_online_evaluator/val/loss': 2.303645133972168,
+        'ssl_online_evaluator/val/AccuracyAtThreshold05': 0.20000000298023224,
         'epoch_started': 0.0,
-        'simclr/val/loss': 2.886892795562744,
-        'ssl_online_evaluator/val/loss': 2.2472469806671143,
-        'ssl_online_evaluator/val/AccuracyAtThreshold05': 0.20000000298023224
     }
+
     _compare_stored_metrics(runner, expected_metrics, abs=5e-5)
 
     # Check that the checkpoint contains both the optimizer for the embedding and for the linear head
@@ -207,20 +208,21 @@ def test_innereye_ssl_container_rsna() -> None:
 
     expected_metrics = {
         'byol/train/loss': 0.00401744619011879,
+        'byol/val/loss': -0.07644838094711304,
         'byol/tau': 0.9899999499320984,
         'byol/learning_rate/0/0': 0.0,
         'byol/learning_rate/0/1': 0.0,
-        'ssl_online_evaluator/train/loss': 0.685592532157898,
-        'ssl_online_evaluator/train/online_AreaUnderRocCurve': 0.5,
-        'ssl_online_evaluator/train/online_AreaUnderPRCurve': 0.699999988079071,
-        'ssl_online_evaluator/train/online_AccuracyAtThreshold05': 0.4000000059604645,
-        'epoch_started': 0.0,
-        'byol/val/loss': -0.07644838094711304,
-        'ssl_online_evaluator/val/loss': 0.6965796947479248,
+        'ssl_online_evaluator/train/loss': 0.7112572193145752,
+        'ssl_online_evaluator/train/online_AreaUnderRocCurve': math.nan,
+        'ssl_online_evaluator/train/online_AreaUnderPRCurve': math.nan,
+        'ssl_online_evaluator/train/online_AccuracyAtThreshold05': 0.0,
+        'ssl_online_evaluator/val/loss': 0.6963790059089661,
         'ssl_online_evaluator/val/AreaUnderRocCurve': math.nan,
         'ssl_online_evaluator/val/AreaUnderPRCurve': math.nan,
-        'ssl_online_evaluator/val/AccuracyAtThreshold05': 0.0
+        'ssl_online_evaluator/val/AccuracyAtThreshold05': 0.0,
+        'epoch_started': 0.0,
     }
+
     _compare_stored_metrics(runner, expected_metrics)
 
     # Check that we are able to load the checkpoint and create classifier model
