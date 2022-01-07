@@ -119,12 +119,12 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
 
     # Check the metrics that were recorded during training
     expected_metrics = {
-        'simclr/train/loss': 2.4446113109588623,
-        'simclr/val/loss': 2.9081358909606934,
+        'simclr/train/loss': 3.6261894702911377,
+        'simclr/val/loss': 2.87369441986084,
         'simclr/learning_rate': 0.0,
-        'ssl_online_evaluator/train/loss': 2.9578170776367188,
+        'ssl_online_evaluator/train/loss': 3.1140332221984863,
         'ssl_online_evaluator/train/online_AccuracyAtThreshold05': 0.0,
-        'ssl_online_evaluator/val/loss': 2.303645133972168,
+        'ssl_online_evaluator/val/loss': 2.2684898376464844,
         'ssl_online_evaluator/val/AccuracyAtThreshold05': 0.20000000298023224,
         'epoch_started': 0.0,
     }
@@ -207,16 +207,16 @@ def test_innereye_ssl_container_rsna() -> None:
     assert loaded_config.datamodule_args[SSLDataModuleType.ENCODER].augmentation_params.augmentation.use_random_affine
 
     expected_metrics = {
-        'byol/train/loss': 0.00401744619011879,
-        'byol/val/loss': -0.07644838094711304,
+        'byol/train/loss': 0.004017443861812353,
+        'byol/val/loss': -0.07644892483949661,
         'byol/tau': 0.9899999499320984,
         'byol/learning_rate/0/0': 0.0,
         'byol/learning_rate/0/1': 0.0,
-        'ssl_online_evaluator/train/loss': 0.7112572193145752,
-        'ssl_online_evaluator/train/online_AreaUnderRocCurve': math.nan,
-        'ssl_online_evaluator/train/online_AreaUnderPRCurve': math.nan,
-        'ssl_online_evaluator/train/online_AccuracyAtThreshold05': 0.0,
-        'ssl_online_evaluator/val/loss': 0.6963790059089661,
+        'ssl_online_evaluator/train/loss': 0.6938587427139282,
+        'ssl_online_evaluator/train/online_AreaUnderRocCurve': 0.5,
+        'ssl_online_evaluator/train/online_AreaUnderPRCurve': 0.6000000238418579,
+        'ssl_online_evaluator/train/online_AccuracyAtThreshold05': 0.20000000298023224,
+        'ssl_online_evaluator/val/loss': 0.6963786482810974,
         'ssl_online_evaluator/val/AreaUnderRocCurve': math.nan,
         'ssl_online_evaluator/val/AreaUnderPRCurve': math.nan,
         'ssl_online_evaluator/val/AccuracyAtThreshold05': 0.0,
