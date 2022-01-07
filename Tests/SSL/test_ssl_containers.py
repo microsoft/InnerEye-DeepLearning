@@ -123,12 +123,12 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
     assert isinstance(loaded_config.model.encoder.cnn_model, ResNet)
 
     # Check the metrics that were recorded during training
-    expected_metrics = {'simclr/val/loss': 2.9081358909606934,
-                        'ssl_online_evaluator/val/loss': 2.303645133972168,
+    expected_metrics = {'simclr/val/loss': 2.8736939430236816,
+                        'ssl_online_evaluator/val/loss': 2.268489360809326,
                         'ssl_online_evaluator/val/AccuracyAtThreshold05': 0.20000000298023224,
-                        'simclr/train/loss': 2.4446113109588623,
+                        'simclr/train/loss': 3.6261844635009766,
                         'simclr/learning_rate': 0.0,
-                        'ssl_online_evaluator/train/loss': 2.9578170776367188,
+                        'ssl_online_evaluator/train/loss': 3.1140503883361816,
                         'ssl_online_evaluator/train/online_AccuracyAtThreshold05': 0.0,
                         'epoch_started': 0.0}
 
@@ -209,21 +209,20 @@ def test_innereye_ssl_container_rsna() -> None:
     assert loaded_config.datamodule_args[SSLDataModuleType.ENCODER].augmentation_params.augmentation.use_random_crop
     assert loaded_config.datamodule_args[SSLDataModuleType.ENCODER].augmentation_params.augmentation.use_random_affine
 
-    expected_metrics = {'byol/val/loss': -0.07644838094711304,
+    expected_metrics = {'byol/val/loss': -0.07644861936569214,
                         'ssl_online_evaluator/val/loss': 0.6963790059089661,
                         'ssl_online_evaluator/val/AreaUnderRocCurve': math.nan,
                         'ssl_online_evaluator/val/AreaUnderPRCurve': math.nan,
                         'ssl_online_evaluator/val/AccuracyAtThreshold05': 0.0,
-                        'byol/train/loss': 0.00401744619011879,
+                        'byol/train/loss': 0.004017443861812353,
                         'byol/tau': 0.9899999499320984,
                         'byol/learning_rate/0/0': 0.0,
                         'byol/learning_rate/0/1': 0.0,
-                        'ssl_online_evaluator/train/loss': 0.7112572193145752,
-                        'ssl_online_evaluator/train/online_AreaUnderRocCurve': math.nan,
-                        'ssl_online_evaluator/train/online_AreaUnderPRCurve': math.nan,
-                        'ssl_online_evaluator/train/online_AccuracyAtThreshold05': 0.0,
+                        'ssl_online_evaluator/train/loss': 0.6938587427139282,
+                        'ssl_online_evaluator/train/online_AreaUnderRocCurve': 0.5,
+                        'ssl_online_evaluator/train/online_AreaUnderPRCurve': 0.6000000238418579,
+                        'ssl_online_evaluator/train/online_AccuracyAtThreshold05': 0.20000000298023224,
                         'epoch_started': 0.0}
-
 
     _compare_stored_metrics(runner, expected_metrics)
 
