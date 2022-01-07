@@ -123,6 +123,8 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
     assert isinstance(loaded_config.model.encoder.cnn_model, ResNet)
 
     # Check the metrics that were recorded during training
+    # Note: It is possible that after the PyTorch 1.10 upgrade, we can't get parity between local runs and runs on
+    # the hosted build agents. If that suspicion is confirmed, we need to add branching for local and cloud results.
     expected_metrics = {'simclr/val/loss': 2.8736939430236816,
                         'ssl_online_evaluator/val/loss': 2.268489360809326,
                         'ssl_online_evaluator/val/AccuracyAtThreshold05': 0.20000000298023224,
@@ -209,6 +211,8 @@ def test_innereye_ssl_container_rsna() -> None:
     assert loaded_config.datamodule_args[SSLDataModuleType.ENCODER].augmentation_params.augmentation.use_random_crop
     assert loaded_config.datamodule_args[SSLDataModuleType.ENCODER].augmentation_params.augmentation.use_random_affine
 
+    # Note: It is possible that after the PyTorch 1.10 upgrade, we can't get parity between local runs and runs on
+    # the hosted build agents. If that suspicion is confirmed, we need to add branching for local and cloud results.
     expected_metrics = {'byol/val/loss': -0.07644861936569214,
                         'ssl_online_evaluator/val/loss': 0.6963790059089661,
                         'ssl_online_evaluator/val/AreaUnderRocCurve': math.nan,
