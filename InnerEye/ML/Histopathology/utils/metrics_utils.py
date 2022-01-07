@@ -142,6 +142,8 @@ def plot_heatmap_slide(slide: str, slide_image: np.array, results: Dict, tile_si
         tiles.append(np.array(load_pil_image(image_path)))
         coords.append(tile_coords)
 
+    #for all tiles in the slide
+    
     tiles = np.array(tiles)
     coords = np.array(coords)
     attentions = np.array(attentions.cpu()).reshape(-1)

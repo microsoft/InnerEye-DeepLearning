@@ -68,7 +68,7 @@ class DeepSMILEPanda(BaseMIL):
             mode="max",
         )
         self.callbacks = best_checkpoint_callback
-        self.slide_dir = "tmp/datasets/PANDA"
+        self.slide_dir = "/tmp/datasets/PANDA"
         self.magnification_level = 1
 
     @property
@@ -111,21 +111,20 @@ class DeepSMILEPanda(BaseMIL):
             cross_validation_split_index=self.cross_validation_split_index,
         )
 
-    def create_model(self) -> DeepMILModule_Panda:
-        self.data_module = self.get_data_module()
-        # Encoding is done in the datamodule, so here we provide instead a dummy
-        # no-op IdentityEncoder to be used inside the model
-        return DeepMILModule_Panda(encoder=IdentityEncoder(input_dim=(self.encoder.num_encoding,)),
-                             label_column=self.data_module.train_dataset.LABEL_COLUMN,
-                             n_classes=self.data_module.train_dataset.N_CLASSES,
-                             pooling_layer=self.get_pooling_layer(),
-                             class_weights=self.data_module.class_weights,
-                             l_rate=self.l_rate,
-                             weight_decay=self.weight_decay,
-                             adam_betas=self.adam_betas,
-                             panda_dir=self.slide_dir,
-                             tile_size=self.tile_size,
-                             level=self.magnification_level)
+    # def create_model(self) -> DeepMILModule_Panda:
+    #     self.data_module = self.get_data_module()
+    #     # Encoding is done in the datamodule, so here we provide instead a dummy
+    #     # no-op IdentityEncoder to be used inside the model
+    #     return DeepMILModule_Panda(panda_dir=self.slide_dir,
+    #                          tile_size=self.tile_size,
+    #                          encoder=IdentityEncoder(input_dim=(self.encoder.num_encoding,)),
+    #                          label_column=self.data_module.train_dataset.LABEL_COLUMN,
+    #                          n_classes=self.data_module.train_dataset.N_CLASSES,
+    #                          pooling_layer=self.get_pooling_layer(),
+    #                          class_weights=self.data_module.class_weights,
+    #                          l_rate=self.l_rate,
+    #                          weight_decay=self.weight_decay,
+    #                          adam_betas=self.adam_betas)
 
     def get_trainer_arguments(self) -> Dict[str, Any]:
         # These arguments will be passed through to the Lightning trainer.

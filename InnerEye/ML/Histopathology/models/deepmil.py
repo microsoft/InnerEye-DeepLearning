@@ -21,6 +21,7 @@ from InnerEye.ML.Histopathology.utils.metrics_utils import select_k_tiles, plot_
 from InnerEye.ML.Histopathology.utils.naming import ResultsKey
 
 from InnerEye.ML.Histopathology.datasets.panda_dataset import PandaDataset
+from InnerEye.ML.Histopathology.datasets.panda_tiles_dataset import PandaTilesDataset
 from monai.data.dataset import Dataset
 from InnerEye.ML.Histopathology.utils.viz_utils import load_image_dict
 from InnerEye.ML.Histopathology.utils.naming import SlideKey
@@ -284,6 +285,11 @@ class DeepMILModule(LightningModule):
         features_list = self.move_list_to_device(list_encoded_features, use_gpu=False)
         torch.save(features_list, encoded_features_filename)
 
+        panda_dir = "/tmp/datasets/PANDA"
+        panda_tiles_dir = "/tmp/datasets/PANDA_tiles"
+        panda_dataset = Dataset(PandaDataset(root=panda_dir))
+        panda_tiles_dataset = PandaTilesDataset(root=panda_tiles_dir)
+
         print("Selecting tiles ...")
         fn_top_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10, select=('lowest_pred', 'highest_att'))
         fn_bottom_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10, select=('lowest_pred', 'lowest_att'))
@@ -292,7 +298,7 @@ class DeepMILModule(LightningModule):
         report_cases = {'TP': [tp_top_tiles, tp_bottom_tiles], 'FN': [fn_top_tiles, fn_bottom_tiles]}
 
         for key in report_cases.keys():
-            print(f"Plotting {key} ...")
+            print(f"Plotting {key} (tiles, thumbnails, attention heatmaps)...")
             output_path = Path(fixed_paths.repository_root_directory(), f'outputs/fig/{key}/')
             Path(output_path).mkdir(parents=True, exist_ok=True)
             nslides = len(report_cases[key][0])
@@ -305,6 +311,18 @@ class DeepMILModule(LightningModule):
                 slide, score, paths, bottom_attn = report_cases[key][1][i]
                 fig = plot_slide_noxy(slide, score, paths, bottom_attn, key + '_bottom', ncols=4)
                 figpath = Path(output_path, f'{slide}_bottom.png')
+                fig.savefig(figpath, bbox_inches='tight')
+
+                slide_dict = list(filter(lambda entry: entry[SlideKey.SLIDE_ID] == slide, panda_dataset))[0]  # type: ignore
+                load_image_dict(slide_dict, level=slide_dict['level'], margin=0)
+                slide_image = slide_dict[SlideKey.IMAGE]
+
+                fig = plot_slide(slide_image=slide_image, scale=1.0)
+                figpath = Path(output_path, f'{slide}_thumbnail.png')
+                fig.savefig(figpath, bbox_inches='tight')
+
+                fig = plot_heatmap_slide(slide=slide, slide_image=slide_image, results=results)
+                figpath = Path(output_path, f'{slide}_heatmap.png')
                 fig.savefig(figpath, bbox_inches='tight')
 
         print("Plotting histogram ...")
@@ -345,12 +363,11 @@ class DeepMILModule_Panda(DeepMILModule):
     def __init__(self,
                 panda_dir: str,
                 tile_size: int = 224,
-                level: int = 1,
-                **kwargs: Any) -> None:
+                **kwargs: Any) -> None:     
+        super().__init__(**kwargs)  
         self.panda_dir = panda_dir
+        print("in child class")
         self.tile_size = tile_size
-        self.level = level
-        super().__init__(**kwargs)
 
     def test_epoch_end(self, outputs: List[Dict[str, Any]]) -> None:  # type: ignore
         # outputs object consists of a list of dictionaries (of metadata and results, including encoded features)
@@ -422,7 +439,7 @@ class DeepMILModule_Panda(DeepMILModule):
                 fig.savefig(figpath, bbox_inches='tight')
 
                 slide_dict = list(filter(lambda entry: entry[SlideKey.SLIDE_ID] == slide, panda_dataset))[0]  # type: ignore
-                load_image_dict(slide_dict, level=self.level, margin=0)
+                load_image_dict(slide_dict, level=slide_dict['level'], margin=0)
                 slide_image = slide_dict[SlideKey.IMAGE]
 
                 fig = plot_slide(slide_image=slide_image, scale=1.0)
