@@ -292,7 +292,6 @@ def model_train_unittest(config: Optional[DeepLearningConfig],
     :return: Tuple[StoringLogger, CheckpointHandler]
     """
     runner = MLRunner(model_config=config, container=lightning_container)
-    runner.container.pl_deterministic = True
     # Setup will set random seeds before model creation, and set the model in the container.
     # It will also set random seeds correctly. Later we use so initialized container.
     # For all tests running in AzureML, we need to skip the downloading of datasets that would otherwise happen,
