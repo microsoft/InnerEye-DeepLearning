@@ -64,9 +64,14 @@ def default_runner() -> Runner:
                   yaml_config_file=fixed_paths.SETTINGS_YAML_FILE)
 
 
-common_test_args = ["", "--is_debug_model=True", "--num_epochs=1", "--ssl_training_batch_size=10",
+common_test_args = ["",
+                    "--is_debug_model=True",
+                    "--num_epochs=1",
+                    "--ssl_training_batch_size=10",
                     "--linear_head_batch_size=5",
-                    "--num_workers=0"]
+                    "--num_workers=0",
+                    "--pl_deterministic"
+                    ""]
 
 
 def _compare_stored_metrics(runner: Runner, expected_metrics: Dict[str, float], abs: float = 1e-5) -> None:
@@ -118,16 +123,17 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
     assert isinstance(loaded_config.model.encoder.cnn_model, ResNet)
 
     # Check the metrics that were recorded during training
-    expected_metrics = {
-        'simclr/train/loss': 3.423144578933716,
-        'simclr/learning_rate': 0.0,
-        'ssl_online_evaluator/train/loss': 2.6143882274627686,
-        'ssl_online_evaluator/train/online_AccuracyAtThreshold05': 0.0,
-        'epoch_started': 0.0,
-        'simclr/val/loss': 2.886892795562744,
-        'ssl_online_evaluator/val/loss': 2.2472469806671143,
-        'ssl_online_evaluator/val/AccuracyAtThreshold05': 0.20000000298023224
-    }
+    # Note: It is possible that after the PyTorch 1.10 upgrade, we can't get parity between local runs and runs on
+    # the hosted build agents. If that suspicion is confirmed, we need to add branching for local and cloud results.
+    expected_metrics = {'simclr/val/loss': 2.8736939430236816,
+                        'ssl_online_evaluator/val/loss': 2.268489360809326,
+                        'ssl_online_evaluator/val/AccuracyAtThreshold05': 0.20000000298023224,
+                        'simclr/train/loss': 3.6261844635009766,
+                        'simclr/learning_rate': 0.0,
+                        'ssl_online_evaluator/train/loss': 3.1140503883361816,
+                        'ssl_online_evaluator/train/online_AccuracyAtThreshold05': 0.0,
+                        'epoch_started': 0.0}
+
     _compare_stored_metrics(runner, expected_metrics, abs=5e-5)
 
     # Check that the checkpoint contains both the optimizer for the embedding and for the linear head
@@ -205,22 +211,23 @@ def test_innereye_ssl_container_rsna() -> None:
     assert loaded_config.datamodule_args[SSLDataModuleType.ENCODER].augmentation_params.augmentation.use_random_crop
     assert loaded_config.datamodule_args[SSLDataModuleType.ENCODER].augmentation_params.augmentation.use_random_affine
 
-    expected_metrics = {
-        'byol/train/loss': 0.00401744619011879,
-        'byol/tau': 0.9899999499320984,
-        'byol/learning_rate/0/0': 0.0,
-        'byol/learning_rate/0/1': 0.0,
-        'ssl_online_evaluator/train/loss': 0.685592532157898,
-        'ssl_online_evaluator/train/online_AreaUnderRocCurve': 0.5,
-        'ssl_online_evaluator/train/online_AreaUnderPRCurve': 0.699999988079071,
-        'ssl_online_evaluator/train/online_AccuracyAtThreshold05': 0.4000000059604645,
-        'epoch_started': 0.0,
-        'byol/val/loss': -0.07644838094711304,
-        'ssl_online_evaluator/val/loss': 0.6965796947479248,
-        'ssl_online_evaluator/val/AreaUnderRocCurve': math.nan,
-        'ssl_online_evaluator/val/AreaUnderPRCurve': math.nan,
-        'ssl_online_evaluator/val/AccuracyAtThreshold05': 0.0
-    }
+    # Note: It is possible that after the PyTorch 1.10 upgrade, we can't get parity between local runs and runs on
+    # the hosted build agents. If that suspicion is confirmed, we need to add branching for local and cloud results.
+    expected_metrics = {'byol/val/loss': -0.07644861936569214,
+                        'ssl_online_evaluator/val/loss': 0.6963790059089661,
+                        'ssl_online_evaluator/val/AreaUnderRocCurve': math.nan,
+                        'ssl_online_evaluator/val/AreaUnderPRCurve': math.nan,
+                        'ssl_online_evaluator/val/AccuracyAtThreshold05': 0.0,
+                        'byol/train/loss': 0.004017443861812353,
+                        'byol/tau': 0.9899999499320984,
+                        'byol/learning_rate/0/0': 0.0,
+                        'byol/learning_rate/0/1': 0.0,
+                        'ssl_online_evaluator/train/loss': 0.6938587427139282,
+                        'ssl_online_evaluator/train/online_AreaUnderRocCurve': 0.5,
+                        'ssl_online_evaluator/train/online_AreaUnderPRCurve': 0.6000000238418579,
+                        'ssl_online_evaluator/train/online_AccuracyAtThreshold05': 0.20000000298023224,
+                        'epoch_started': 0.0}
+
     _compare_stored_metrics(runner, expected_metrics)
 
     # Check that we are able to load the checkpoint and create classifier model
