@@ -11,7 +11,7 @@ import numpy as np
 
 from InnerEye.ML.Histopathology.models.transforms import load_pil_image
 from InnerEye.ML.Histopathology.utils.naming import ResultsKey
-from InnerEye.ML.Histopathology.utils.heatmap_utils import plot_heatmap, assemble_heatmap
+from InnerEye.ML.Histopathology.utils.heatmap_utils import plot_heatmap_selected_tiles
 
 
 def select_k_tiles(results: Dict, n_tiles: int = 5, n_slides: int = 5, label: int = 1,
@@ -102,7 +102,7 @@ def plot_slide_noxy(slide: str, score: float, paths: List, attn: List, case: str
 
 
 def plot_slide(slide_image: np.array, scale: float) -> plt.figure:
-    """
+    """Plots a slide thumbnail from a given slide image and scale.
     :param slide_image: Numpy array of the slide image (shape: [3, H, W]).
     :return: matplotlib figure of the slide thumbnail.
     """
@@ -115,19 +115,18 @@ def plot_slide(slide_image: np.array, scale: float) -> plt.figure:
     return fig
 
 
-def plot_heatmap_slide(slide: str, slide_image: np.array, results: Dict, tile_size: int = 224, level: int = 1, origin: List = [0, 0]) -> plt.figure:
-    """
+def plot_heatmap_slide(slide: str, slide_image: np.array, results: Dict, location_bbox: List[int], tile_size: int = 224, level: int = 1) -> plt.figure:
+    """Plots heatmap of selected tiles overlay on a slide.
     :param slide: slide identifier.
     :param slide_image: Numpy array of the slide image (shape: [3, H, W]).
     :param results: List that contains slide_level dicts.
     :param tile_size: Size of each tile. Default 224.
-    :param level: Magnification at which tiles are available (e.g. PANDA levels are 0 for original, 1 for 4x downsampled, 2 for 16x downsampled).
-    :param origin: XY coordinates of the heatmap's top-left corner. Default [0, 0].
+    :param level: Magnification at which tiles are available (e.g. PANDA levels are 0 for original, 1 for 4x downsampled, 2 for 16x downsampled). Default 1.
+    :param location_bbox: Location of the bounding box of the slide.
     :return: matplotlib figure of the heatmap of the given tiles on slide.
     """
     fig, ax = plt.subplots()
     slide_image = slide_image.transpose(1, 2, 0)
-    tiles = []
     coords = []
 
     slide_ids = [item[0] for item in results[ResultsKey.SLIDE_ID]]
@@ -136,21 +135,15 @@ def plot_heatmap_slide(slide: str, slide_image: np.array, results: Dict, tile_si
 
     # for each tile in the bag
     for tile_idx in range(len(results[ResultsKey.IMAGE_PATH][slide_idx])):
-        image_path = results[ResultsKey.IMAGE_PATH][slide_idx][tile_idx]
         tile_coords = np.transpose(np.array([results[ResultsKey.TILE_X][slide_idx][tile_idx].cpu().numpy(),
                                     results[ResultsKey.TILE_Y][slide_idx][tile_idx].cpu().numpy()]))
-        tiles.append(np.array(load_pil_image(image_path)))
         coords.append(tile_coords)
 
-    #for all tiles in the slide
-    
-    tiles = np.array(tiles)
     coords = np.array(coords)
     attentions = np.array(attentions.cpu()).reshape(-1)
     ax.imshow(slide_image)
     ax.set_xlim(0, slide_image.shape[1])
     ax.set_ylim(slide_image.shape[0], 0)
-    heatmap, _ = assemble_heatmap(tile_coords=coords, tile_values=attentions, tile_size=tile_size, level=level)
-    plot_heatmap(100*heatmap, tile_size, origin=origin, alpha=.5, clim=(0, 100))
-    ax.set_title("Attention (%)")
+
+    plot_heatmap_selected_tiles(tile_coords=coords, tile_values=attentions, location_bbox=location_bbox, tile_size=tile_size, level=level)
     return fig
