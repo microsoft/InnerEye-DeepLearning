@@ -371,7 +371,7 @@ def run_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
 def test_logging_to_file(test_output_dirs: OutputFolderForTests) -> None:
     # Log file should go to a new, non-existent folder, 2 levels deep
     file_path = test_output_dirs.root_dir / "subdir1" / "subdir2" / "logfile.txt"
-    assert common_util.logging_to_file_handler is None
+    common_util.logging_to_file_handler = None
     common_util.logging_to_file(file_path)
     assert common_util.logging_to_file_handler is not None
     log_line = "foo bar"

@@ -2,10 +2,11 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+import math
 from pathlib import Path
+from typing import Dict
 from unittest import mock
 
-import math
 import numpy as np
 import pandas as pd
 import pytest
@@ -15,7 +16,6 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 from torch.nn import Module
 from torch.optim.lr_scheduler import _LRScheduler
-from typing import Dict
 
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import is_windows
@@ -29,6 +29,7 @@ from InnerEye.ML.SSL.lightning_modules.ssl_classifier_module import SSLClassifie
 from InnerEye.ML.SSL.lightning_modules.ssl_online_evaluator import SSLOnlineEvaluatorInnerEye
 from InnerEye.ML.SSL.utils import SSLDataModuleType, SSLTrainingType
 from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+from InnerEye.ML.configs.ssl.CIFAR_SSL_configs import CIFAR10SimCLR
 from InnerEye.ML.configs.ssl.CXR_SSL_configs import CXRImageClassifier
 from InnerEye.ML.runner import Runner
 from Tests.ML.configs.lightning_test_containers import DummyContainerWithModel
@@ -63,9 +64,14 @@ def default_runner() -> Runner:
                   yaml_config_file=fixed_paths.SETTINGS_YAML_FILE)
 
 
-common_test_args = ["", "--is_debug_model=True", "--num_epochs=1", "--ssl_training_batch_size=10",
+common_test_args = ["",
+                    "--is_debug_model=True",
+                    "--num_epochs=1",
+                    "--ssl_training_batch_size=10",
                     "--linear_head_batch_size=5",
-                    "--num_workers=0"]
+                    "--num_workers=0",
+                    "--pl_deterministic"
+                    ""]
 
 
 def _compare_stored_metrics(runner: Runner, expected_metrics: Dict[str, float], abs: float = 1e-5) -> None:
@@ -117,16 +123,17 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
     assert isinstance(loaded_config.model.encoder.cnn_model, ResNet)
 
     # Check the metrics that were recorded during training
-    expected_metrics = {
-        'simclr/train/loss': 3.423144578933716,
-        'simclr/learning_rate': 0.0,
-        'ssl_online_evaluator/train/loss': 2.6143882274627686,
-        'ssl_online_evaluator/train/online_AccuracyAtThreshold05': 0.0,
-        'epoch_started': 0.0,
-        'simclr/val/loss': 2.886892795562744,
-        'ssl_online_evaluator/val/loss': 2.2472469806671143,
-        'ssl_online_evaluator/val/AccuracyAtThreshold05': 0.20000000298023224
-    }
+    # Note: It is possible that after the PyTorch 1.10 upgrade, we can't get parity between local runs and runs on
+    # the hosted build agents. If that suspicion is confirmed, we need to add branching for local and cloud results.
+    expected_metrics = {'simclr/val/loss': 2.8736939430236816,
+                        'ssl_online_evaluator/val/loss': 2.268489360809326,
+                        'ssl_online_evaluator/val/AccuracyAtThreshold05': 0.20000000298023224,
+                        'simclr/train/loss': 3.6261844635009766,
+                        'simclr/learning_rate': 0.0,
+                        'ssl_online_evaluator/train/loss': 3.1140503883361816,
+                        'ssl_online_evaluator/train/online_AccuracyAtThreshold05': 0.0,
+                        'epoch_started': 0.0}
+
     _compare_stored_metrics(runner, expected_metrics, abs=5e-5)
 
     # Check that the checkpoint contains both the optimizer for the embedding and for the linear head
@@ -204,22 +211,23 @@ def test_innereye_ssl_container_rsna() -> None:
     assert loaded_config.datamodule_args[SSLDataModuleType.ENCODER].augmentation_params.augmentation.use_random_crop
     assert loaded_config.datamodule_args[SSLDataModuleType.ENCODER].augmentation_params.augmentation.use_random_affine
 
-    expected_metrics = {
-        'byol/train/loss': 0.00401744619011879,
-        'byol/tau': 0.9899999499320984,
-        'byol/learning_rate/0/0': 0.0,
-        'byol/learning_rate/0/1': 0.0,
-        'ssl_online_evaluator/train/loss': 0.685592532157898,
-        'ssl_online_evaluator/train/online_AreaUnderRocCurve': 0.5,
-        'ssl_online_evaluator/train/online_AreaUnderPRCurve': 0.699999988079071,
-        'ssl_online_evaluator/train/online_AccuracyAtThreshold05': 0.4000000059604645,
-        'epoch_started': 0.0,
-        'byol/val/loss': -0.07644838094711304,
-        'ssl_online_evaluator/val/loss': 0.6965796947479248,
-        'ssl_online_evaluator/val/AreaUnderRocCurve': math.nan,
-        'ssl_online_evaluator/val/AreaUnderPRCurve': math.nan,
-        'ssl_online_evaluator/val/AccuracyAtThreshold05': 0.0
-    }
+    # Note: It is possible that after the PyTorch 1.10 upgrade, we can't get parity between local runs and runs on
+    # the hosted build agents. If that suspicion is confirmed, we need to add branching for local and cloud results.
+    expected_metrics = {'byol/val/loss': -0.07644861936569214,
+                        'ssl_online_evaluator/val/loss': 0.6963790059089661,
+                        'ssl_online_evaluator/val/AreaUnderRocCurve': math.nan,
+                        'ssl_online_evaluator/val/AreaUnderPRCurve': math.nan,
+                        'ssl_online_evaluator/val/AccuracyAtThreshold05': 0.0,
+                        'byol/train/loss': 0.004017443861812353,
+                        'byol/tau': 0.9899999499320984,
+                        'byol/learning_rate/0/0': 0.0,
+                        'byol/learning_rate/0/1': 0.0,
+                        'ssl_online_evaluator/train/loss': 0.6938587427139282,
+                        'ssl_online_evaluator/train/online_AreaUnderRocCurve': 0.5,
+                        'ssl_online_evaluator/train/online_AreaUnderPRCurve': 0.6000000238418579,
+                        'ssl_online_evaluator/train/online_AccuracyAtThreshold05': 0.20000000298023224,
+                        'epoch_started': 0.0}
+
     _compare_stored_metrics(runner, expected_metrics)
 
     # Check that we are able to load the checkpoint and create classifier model
@@ -320,9 +328,6 @@ def test_online_evaluator_recovery(test_output_dirs: OutputFolderForTests) -> No
                                                    dataset="foo",
                                                    drop_p=0.2,
                                                    learning_rate=1e-5)
-            # Ensure that the parameters are really different initially
-            parameters2_before_training = list(callback2.evaluator.parameters())
-            assert not torch.allclose(parameters2_before_training[0], parameters1[0])
             # Start a second training run with recovery
             last_checkpoint = checkpoints.last_model_path
             trainer2 = Trainer(default_root_dir=str(test_output_dirs.root_dir),
@@ -363,19 +368,24 @@ def test_online_evaluator_not_distributed() -> None:
         # Test the flag that the internal logic of on_pretrain_routine_start uses
         assert hasattr(trainer, "_accelerator_connector")
         assert not trainer._accelerator_connector.is_distributed
-        mock_module = mock.MagicMock(device=torch.device("cpu"))
-        callback.on_pretrain_routine_start(trainer, mock_module)
+        cpu = torch.device("cpu")
+        callback.on_pretrain_routine_start(trainer, mock.MagicMock(device=cpu))
         assert isinstance(callback.evaluator, Module)
         mock_ddp.assert_not_called()
+        # Check that the evaluator is on the GPU before making any changes
+        assert list(callback.evaluator.parameters())[0].device == cpu
+        # Check that the evaluator is really moved to the right device
+        gpu0 = torch.device("cuda:0")
+        callback.on_pretrain_routine_start(trainer, mock.MagicMock(device=gpu0))
+        assert list(callback.evaluator.parameters())[0].device == gpu0
 
 
-@pytest.mark.gpu
 def test_online_evaluator_distributed() -> None:
     """
     Check if the online evaluator uses the DDP flag correctly when running distributed.
     """
-    mock_ddp_result = "mock_ddp_result"
-    mock_sync_result = "mock_sync_result"
+    mock_ddp_result = torch.nn.Linear(in_features=10, out_features=1)
+    mock_sync_result = torch.nn.Linear(in_features=20, out_features=2)
     with mock.patch("InnerEye.ML.SSL.lightning_modules.ssl_online_evaluator.SyncBatchNorm.convert_sync_batchnorm",
                     return_value=mock_sync_result) as mock_sync:
         with mock.patch("InnerEye.ML.SSL.lightning_modules.ssl_online_evaluator.DistributedDataParallel",
@@ -388,17 +398,39 @@ def test_online_evaluator_distributed() -> None:
                                                   learning_rate=1e-5)
 
             # Trainer with DDP
-            device = torch.device("cuda:0")
+            device = torch.device("cpu")
             mock_module = mock.MagicMock(device=device)
-            trainer = Trainer(accelerator="ddp", gpus=2)
+            trainer = Trainer(strategy="ddp", num_processes=2)
             # Test the two flags that the internal logic of on_pretrain_routine_start uses
             assert trainer._accelerator_connector.is_distributed
             assert trainer._accelerator_connector.use_ddp
-            original_evaluator = callback.evaluator
             callback.on_pretrain_routine_start(trainer, mock_module)
             # Check that SyncBatchNorm has been turned on
-            mock_sync.assert_called_once_with(original_evaluator)
+            mock_sync.assert_called_once()
             # Check that the evaluator has been turned into a DDP object
             # We still need to mock DDP here because the constructor relies on having a process group available
             mock_ddp.assert_called_once_with(mock_sync_result, device_ids=[device])
             assert callback.evaluator == mock_ddp_result
+
+
+def test_simclr_batch_size() -> None:
+    """
+    Test if the number of nodes is correctly passed through to the SIMCLR model. After an update of the semantics of
+    the "gpus" argument in LightningBolts, we had a regression, leading to incorrect use of the cosine
+    LR scheduler.
+    """
+    with mock.patch("InnerEye.ML.deep_learning_config.TrainerParams.num_gpus_per_node", return_value=1):
+        with mock.patch("InnerEye.ML.SSL.lightning_containers.ssl_container.get_encoder_output_dim", return_value=1):
+            container = CIFAR10SimCLR()
+            num_samples = 100
+            batch_size = 10
+            container.data_module = mock.MagicMock(num_samples=num_samples, batch_size=batch_size)
+            assert container.num_nodes == 1
+            model1 = container.create_model()
+            old_iters_per_epoch = model1.train_iters_per_epoch
+            assert old_iters_per_epoch == num_samples / batch_size
+            # Increasing the number of nodes should increase effective batch size, and hence reduce number of
+            # iterations per epoch
+            container.num_nodes = 2
+            model2 = container.create_model()
+            assert model2.train_iters_per_epoch == old_iters_per_epoch // container.num_nodes  # type:ignore
