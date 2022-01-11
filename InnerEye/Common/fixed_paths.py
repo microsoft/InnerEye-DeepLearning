@@ -25,6 +25,19 @@ def repository_root_directory(path: Optional[PathOrString] = None) -> Path:
         return root
 
 
+def repository_parent_directory(path: Optional[PathOrString] = None) -> Path:
+    """
+    Gets the full path to the parent directory that holds the present repository.
+    :param path: if provided, a relative path to append to the absolute path to the repository root.
+    :return: The full path to the repository's root directory, with symlinks resolved if any.
+    """
+    root = repository_root_directory().parent
+    if path:
+        return root / path
+    else:
+        return root
+
+
 INNEREYE_PACKAGE_NAME = "InnerEye"
 # Child paths to include in a registered model that live outside InnerEye/.
 ENVIRONMENT_YAML_FILE_NAME = "environment.yml"
