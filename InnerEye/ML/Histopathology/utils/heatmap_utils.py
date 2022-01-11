@@ -157,13 +157,12 @@ def plot_heatmap_selected_tiles(tile_coords: np.array,
     level_dict = {"0": 1, "1": 4, "2": 16}
     factor = level_dict[str(level)]
     x_tr, y_tr = location_bbox
-    x_min = x_tr//factor
-    y_min = y_tr//factor
+    tile_xs, tile_ys = tile_coords.T
+    tile_xs = tile_xs - x_tr 
+    tile_ys = tile_ys - y_tr 
+    tile_xs = tile_xs//factor
+    tile_ys = tile_ys//factor
 
-    tile_coords_scaled = tile_coords//factor
-    tile_xs, tile_ys = tile_coords_scaled.T
-    tile_xs = tile_xs - x_min 
-    tile_ys = tile_ys - y_min 
     cmap = plt.cm.get_cmap('jet')
     sel_coords = np.transpose([tile_xs.tolist(), tile_ys.tolist()])
     rects = []
