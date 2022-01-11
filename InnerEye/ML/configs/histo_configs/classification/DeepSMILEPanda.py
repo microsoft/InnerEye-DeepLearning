@@ -133,7 +133,7 @@ class DeepSMILEPanda(BaseMIL):
         if absolute_checkpoint_path_parent.is_file():
             return absolute_checkpoint_path_parent
 
-        checkpoint_path = get_best_checkpoint_path(self.checkpoint_folder_path)
+        checkpoint_path = get_best_checkpoint_path(Path(self.checkpoint_folder_path))
         if checkpoint_path.is_file():
             return checkpoint_path
 
