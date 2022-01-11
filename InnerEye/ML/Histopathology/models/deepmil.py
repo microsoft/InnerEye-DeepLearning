@@ -20,7 +20,6 @@ from InnerEye.ML.Histopathology.models.encoders import TileEncoder
 from InnerEye.ML.Histopathology.utils.metrics_utils import select_k_tiles, plot_slide_noxy, plot_scores_hist, plot_heatmap_slide, plot_slide
 from InnerEye.ML.Histopathology.utils.naming import ResultsKey
 
-from InnerEye.ML.Histopathology.datasets.panda_dataset import PandaDataset
 from monai.data.dataset import Dataset
 from InnerEye.ML.Histopathology.utils.viz_utils import load_image_dict
 from InnerEye.ML.Histopathology.utils.naming import SlideKey
@@ -51,6 +50,9 @@ class DeepMILModule(LightningModule):
                  weight_decay: float = 1e-4,
                  adam_betas: Tuple[float, float] = (0.9, 0.99),
                  verbose: bool = False,
+                 slide_dataset: Dataset = None,
+                 tile_size: int = 224,
+                 level: int = 1,
                  ) -> None:
         """
         :param label_column: Label key for input batch dictionary.
@@ -66,6 +68,9 @@ class DeepMILModule(LightningModule):
         :param weight_decay: Weight decay parameter for L2 regularisation.
         :param adam_betas: Beta parameters for Adam optimiser.
         :param verbose: if True statements about memory usage are output at each step
+        :param slide_dataset: Slide dataset object, if available (default=None).
+        :param tile_size: The size of each tile (default=224).
+        :param level: The magnification at which tiles are available (default=1).
         """
         super().__init__()
 
@@ -83,6 +88,10 @@ class DeepMILModule(LightningModule):
         self.l_rate = l_rate
         self.weight_decay = weight_decay
         self.adam_betas = adam_betas
+        
+        self.slide_dataset = slide_dataset
+        self.tile_size = tile_size
+        self.level = level
 
         self.save_hyperparameters()
         self.verbose = verbose
@@ -284,11 +293,6 @@ class DeepMILModule(LightningModule):
         features_list = self.move_list_to_device(list_encoded_features, use_gpu=False)
         torch.save(features_list, encoded_features_filename)
 
-        panda_dir = "/tmp/datasets/PANDA"
-        tile_size = 224
-        level = 1
-        panda_dataset = Dataset(PandaDataset(root=panda_dir))
-
         print("Selecting tiles ...")
         fn_top_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10, select=('lowest_pred', 'highest_att'))
         fn_bottom_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10, select=('lowest_pred', 'lowest_att'))
@@ -311,20 +315,21 @@ class DeepMILModule(LightningModule):
                 fig = plot_slide_noxy(slide, score, paths, bottom_attn, key + '_bottom', ncols=4)
                 figpath = Path(output_path, f'{slide}_bottom.png')
                 fig.savefig(figpath, bbox_inches='tight')
+                print("length=", len(self.slide_dataset))
+                if self.slide_dataset is not None:
+                    slide_dict = list(filter(lambda entry: entry[SlideKey.SLIDE_ID] == slide, self.slide_dataset))[0]  # type: ignore
+                    load_image_dict(slide_dict, level=self.level, margin=0)
+                    slide_image = slide_dict[SlideKey.IMAGE]
+                    location_bbox = slide_dict['location']
 
-                slide_dict = list(filter(lambda entry: entry[SlideKey.SLIDE_ID] == slide, panda_dataset))[0]  # type: ignore
-                load_image_dict(slide_dict, level=level, margin=0)
-                slide_image = slide_dict[SlideKey.IMAGE]
+                    fig = plot_slide(slide_image=slide_image, scale=1.0)
+                    figpath = Path(output_path, f'{slide}_thumbnail.png')
+                    fig.savefig(figpath, bbox_inches='tight')
 
-                fig = plot_slide(slide_image=slide_image, scale=1.0)
-                figpath = Path(output_path, f'{slide}_thumbnail.png')
-                fig.savefig(figpath, bbox_inches='tight')
-
-                location_bbox = slide_dict['location']
-                fig = plot_heatmap_slide(slide=slide, slide_image=slide_image, results=results, 
-                                         location_bbox=location_bbox, tile_size=tile_size, level=slide_dict['level'])
-                figpath = Path(output_path, f'{slide}_heatmap.png')
-                fig.savefig(figpath, bbox_inches='tight')
+                    fig = plot_heatmap_slide(slide=slide, slide_image=slide_image, results=results, 
+                                            location_bbox=location_bbox, tile_size=self.tile_size, level=slide_dict['level'])
+                    figpath = Path(output_path, f'{slide}_heatmap.png')
+                    fig.savefig(figpath, bbox_inches='tight')
 
         print("Plotting histogram ...")
         fig = plot_scores_hist(results)
@@ -355,103 +360,3 @@ class DeepMILModule(LightningModule):
             feature = feature.squeeze(0).to(device)
             features_list.append(feature)
         return features_list
-
-
-class DeepMILModule_Panda(DeepMILModule):
-    """
-    Child class of `DeepMILModule` for deep multiple-instance learning on PANDA dataset
-    """
-    def __init__(self,
-                panda_dir: str,
-                tile_size: int = 224,
-                **kwargs: Any) -> None:     
-        super().__init__(**kwargs)  
-        self.panda_dir = panda_dir
-        print("in child class")
-        self.tile_size = tile_size
-
-    def test_epoch_end(self, outputs: List[Dict[str, Any]]) -> None:  # type: ignore
-        # outputs object consists of a list of dictionaries (of metadata and results, including encoded features)
-        # It can be indexed as outputs[batch_idx][batch_key][bag_idx][tile_idx]
-        # example of batch_key ResultsKey.SLIDE_ID_COL
-        # for batch keys that contains multiple values for slides e.g. ResultsKey.BAG_ATTN_COL
-        # outputs[batch_idx][batch_key][bag_idx][tile_idx]
-        # contains the tile value
-
-        # collate the batches
-        results: Dict[str, List[Any]] = {}
-        [results.update({col: []}) for col in outputs[0].keys()]
-        for key in results.keys():
-            for batch_id in range(len(outputs)):
-                results[key] += outputs[batch_id][key]
-
-        print("Saving outputs ...")
-        # collate at slide level
-        list_slide_dicts = []
-        list_encoded_features = []
-        # any column can be used here, the assumption is that the first dimension is the N of slides
-        for slide_idx in range(len(results[ResultsKey.SLIDE_ID])):
-            slide_dict = dict()
-            for key in results.keys():
-                if key not in [ResultsKey.IMAGE, ResultsKey.LOSS]:
-                    slide_dict[key] = results[key][slide_idx]
-            list_slide_dicts.append(slide_dict)
-            list_encoded_features.append(results[ResultsKey.IMAGE][slide_idx])
-
-        print(f"Metrics results will be output to {fixed_paths.repository_root_directory()}/outputs")
-        csv_filename = fixed_paths.repository_root_directory() / Path('outputs/test_output.csv')
-        encoded_features_filename = fixed_paths.repository_root_directory() / Path('outputs/test_encoded_features.pickle')
-
-        # Collect the list of dictionaries in a list of pandas dataframe and save
-        df_list = []
-        for slide_dict in list_slide_dicts:
-            slide_dict = self.normalize_dict_for_df(slide_dict, use_gpu=False)
-            df_list.append(pd.DataFrame.from_dict(slide_dict))
-        df = pd.concat(df_list, ignore_index=True)
-        df.to_csv(csv_filename, mode='w', header=True)
-
-        # Collect all features in a list and save
-        features_list = self.move_list_to_device(list_encoded_features, use_gpu=False)
-        torch.save(features_list, encoded_features_filename)
-
-        panda_dataset = Dataset(PandaDataset(root=self.panda_dir))
-
-        print("Selecting tiles ...")
-        fn_top_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10, select=('lowest_pred', 'highest_att'))
-        fn_bottom_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10, select=('lowest_pred', 'lowest_att'))
-        tp_top_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10, select=('highest_pred', 'highest_att'))
-        tp_bottom_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10, select=('highest_pred', 'lowest_att'))
-        report_cases = {'TP': [tp_top_tiles, tp_bottom_tiles], 'FN': [fn_top_tiles, fn_bottom_tiles]}
-
-        for key in report_cases.keys():
-            print(f"Plotting {key} (tiles, thumbnails, attention heatmaps)...")
-            output_path = Path(fixed_paths.repository_root_directory(), f'outputs/fig/{key}/')
-            Path(output_path).mkdir(parents=True, exist_ok=True)
-            nslides = len(report_cases[key][0])
-            for i in range(nslides):
-                slide, score, paths, top_attn = report_cases[key][0][i]
-                fig = plot_slide_noxy(slide, score, paths, top_attn, key + '_top', ncols=4)
-                figpath = Path(output_path, f'{slide}_top.png')
-                fig.savefig(figpath, bbox_inches='tight')
-
-                slide, score, paths, bottom_attn = report_cases[key][1][i]
-                fig = plot_slide_noxy(slide, score, paths, bottom_attn, key + '_bottom', ncols=4)
-                figpath = Path(output_path, f'{slide}_bottom.png')
-                fig.savefig(figpath, bbox_inches='tight')
-
-                slide_dict = list(filter(lambda entry: entry[SlideKey.SLIDE_ID] == slide, panda_dataset))[0]  # type: ignore
-                load_image_dict(slide_dict, level=slide_dict['level'], margin=0)
-                slide_image = slide_dict[SlideKey.IMAGE]
-
-                fig = plot_slide(slide_image=slide_image, scale=1.0)
-                figpath = Path(output_path, f'{slide}_thumbnail.png')
-                fig.savefig(figpath, bbox_inches='tight')
-
-                fig = plot_heatmap_slide(slide=slide, slide_image=slide_image, results=results)
-                figpath = Path(output_path, f'{slide}_heatmap.png')
-                fig.savefig(figpath, bbox_inches='tight')
-
-        print("Plotting histogram ...")
-        fig = plot_scores_hist(results)
-        output_path = Path(fixed_paths.repository_root_directory(), 'outputs/fig/hist_scores.png')
-        fig.savefig(output_path, bbox_inches='tight')
