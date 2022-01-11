@@ -105,11 +105,11 @@ class DeepMILModule(LightningModule):
 
     def get_loss(self) -> Callable:
         if self.n_classes > 1:
-            if self.class_weights is not None:
-                class_weights = self.class_weights.float()
+            if self.class_weights is None:
+                return nn.CrossEntropyLoss
             else:
-                class_weights = self.class_weights
-            return nn.CrossEntropyLoss(weight=class_weights)
+                class_weights = self.class_weights.float()
+                return nn.CrossEntropyLoss(weight=class_weights)
         else:
             pos_weight = None
             if self.class_weights is not None:
@@ -267,9 +267,11 @@ class DeepMILModule(LightningModule):
             list_slide_dicts.append(slide_dict)
             list_encoded_features.append(results[ResultsKey.IMAGE][slide_idx])
 
-        print(f"Metrics results will be output to {fixed_paths.repository_parent_directory()}/outputs")
-        csv_filename = fixed_paths.repository_parent_directory() / Path('outputs/test_output.csv')
-        encoded_features_filename = fixed_paths.repository_parent_directory() / Path('outputs/test_encoded_features.pickle')
+        outputs_path = fixed_paths.repository_parent_directory() / 'outputs'
+        print(f"Metrics results will be output to {outputs_path}")
+        outputs_fig_path = outputs_path / 'fig'
+        csv_filename = outputs_path / 'test_output.csv'
+        encoded_features_filename = outputs_path / 'test_encoded_features.pickle'
 
         # Collect the list of dictionaries in a list of pandas dataframe and save
         df_list = []
@@ -292,24 +294,23 @@ class DeepMILModule(LightningModule):
 
         for key in report_cases.keys():
             print(f"Plotting {key} ...")
-            output_path = Path(fixed_paths.repository_parent_directory(), f'outputs/fig/{key}/')
-            Path(output_path).mkdir(parents=True, exist_ok=True)
+            key_folder_path = outputs_fig_path / f'{key}'
+            Path(key_folder_path).mkdir(parents=True, exist_ok=True)
             nslides = len(report_cases[key][0])
             for i in range(nslides):
                 slide, score, paths, top_attn = report_cases[key][0][i]
                 fig = plot_slide_noxy(slide, score, paths, top_attn, key + '_top', ncols=4)
-                figpath = Path(output_path, f'{slide}_top.png')
+                figpath = Path(key_folder_path, f'{slide}_top.png')
                 fig.savefig(figpath, bbox_inches='tight')
 
                 slide, score, paths, bottom_attn = report_cases[key][1][i]
                 fig = plot_slide_noxy(slide, score, paths, bottom_attn, key + '_bottom', ncols=4)
-                figpath = Path(output_path, f'{slide}_bottom.png')
+                figpath = Path(key_folder_path, f'{slide}_bottom.png')
                 fig.savefig(figpath, bbox_inches='tight')
 
         print("Plotting histogram ...")
         fig = plot_scores_hist(results)
-        output_path = Path(fixed_paths.repository_parent_directory(), 'outputs/fig/hist_scores.png')
-        fig.savefig(output_path, bbox_inches='tight')
+        fig.savefig(outputs_fig_path / 'hist_scores.png', bbox_inches='tight')
 
     @staticmethod
     def normalize_dict_for_df(dict_old: Dict[str, Any], use_gpu: bool) -> Dict:

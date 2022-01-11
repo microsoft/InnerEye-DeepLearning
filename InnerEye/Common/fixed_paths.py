@@ -31,8 +31,7 @@ def repository_parent_directory(path: Optional[PathOrString] = None) -> Path:
     :param path: if provided, a relative path to append to the absolute path to the repository root.
     :return: The full path to the repository's root directory, with symlinks resolved if any.
     """
-    current = Path(__file__)
-    root = current.parent.parent.parent.parent
+    root = repository_root_directory().parent
     if path:
         return root / path
     else:

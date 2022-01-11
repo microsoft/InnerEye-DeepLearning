@@ -99,7 +99,7 @@ class DeepSMILECrck(BaseMIL):
                 download_dir="outputs/",
                 remote_checkpoint_dir=Path("outputs/checkpoints")
             )
-            os.chdir(fixed_paths.repository_root_directory().parent)
+            os.chdir(fixed_paths.repository_parent_directory())
             self.downloader.download_checkpoint_if_necessary()
 
         self.encoder = self.get_encoder()

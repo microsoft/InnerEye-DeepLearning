@@ -85,7 +85,7 @@ class DeepSMILEPanda(BaseMIL):
                 download_dir="outputs/",
                 remote_checkpoint_dir=Path("outputs/checkpoints")
             )
-            os.chdir(fixed_paths.repository_root_directory().parent)
+            os.chdir(fixed_paths.repository_parent_directory())
             self.downloader.download_checkpoint_if_necessary()
         self.encoder = self.get_encoder()
         self.encoder.cuda()
@@ -127,7 +127,7 @@ class DeepSMILEPanda(BaseMIL):
         if absolute_checkpoint_path.is_file():
             return absolute_checkpoint_path
 
-        absolute_checkpoint_path_parent = Path(fixed_paths.repository_root_directory().parent,
+        absolute_checkpoint_path_parent = Path(fixed_paths.repository_parent_directory(),
                                     self.checkpoint_folder_path,
                                     self.best_checkpoint_filename_with_suffix)
         if absolute_checkpoint_path_parent.is_file():
