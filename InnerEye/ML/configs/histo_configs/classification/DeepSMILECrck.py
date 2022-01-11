@@ -94,7 +94,9 @@ class DeepSMILECrck(BaseMIL):
         if self.encoder_type == InnerEyeSSLEncoder.__name__:
             self.downloader = CheckpointDownloader(
                 azure_config_json_path=get_workspace(),
-                run_id="updated_transforms:updated_transforms_1636471522_5473e3ff",
+                run_id="ModifyOldSSLCheckpoint:a9259fdb-3964-4c5b-8962-4660e0b79d44",
+                #  checkpoint in RadiomicsNN "ModifyOldSSLCheckpoint:704b1af8-7c75-46ed-8460-d80a0e603194",
+                #  old checkpoint "updated_transforms:updated_transforms_1636471522_5473e3ff",
                 checkpoint_filename="best_checkpoint.ckpt",
                 download_dir="outputs/",
                 remote_checkpoint_dir=Path("outputs/checkpoints")
