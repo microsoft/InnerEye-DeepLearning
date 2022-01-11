@@ -106,7 +106,7 @@ class DeepMILModule(LightningModule):
     def get_loss(self) -> Callable:
         if self.n_classes > 1:
             if self.class_weights is None:
-                return nn.CrossEntropyLoss
+                return nn.CrossEntropyLoss()
             else:
                 class_weights = self.class_weights.float()
                 return nn.CrossEntropyLoss(weight=class_weights)
