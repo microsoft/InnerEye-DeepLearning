@@ -92,11 +92,10 @@ class DeepSMILECrck(BaseMIL):
 
     def setup(self) -> None:
         if self.encoder_type == InnerEyeSSLEncoder.__name__:
+            from InnerEye.ML.configs.histo_configs.run_ids import innereye_ssl_checkpoint_crck_4ws
             self.downloader = CheckpointDownloader(
                 azure_config_json_path=get_workspace(),
-                run_id="ModifyOldSSLCheckpoint:a9259fdb-3964-4c5b-8962-4660e0b79d44",
-                #  checkpoint in RadiomicsNN "ModifyOldSSLCheckpoint:704b1af8-7c75-46ed-8460-d80a0e603194",
-                #  old checkpoint "updated_transforms:updated_transforms_1636471522_5473e3ff",
+                run_id=innereye_ssl_checkpoint_crck_4ws,
                 checkpoint_filename="best_checkpoint.ckpt",
                 download_dir="outputs/",
                 remote_checkpoint_dir=Path("outputs/checkpoints")
