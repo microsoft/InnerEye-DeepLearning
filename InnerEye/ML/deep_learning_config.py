@@ -475,7 +475,6 @@ class OutputParams(param.Parameterized):
     @property
     def checkpoint_folder(self) -> Path:
         """Gets the full path in which the model checkpoints should be stored during training."""
-        print(f"Expected Checkpoint path {self.outputs_folder / CHECKPOINT_FOLDER}")
         return self.outputs_folder / CHECKPOINT_FOLDER
 
     @property

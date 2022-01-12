@@ -277,7 +277,7 @@ def get_default_workspace() -> Workspace:
 
 
 def model_train_unittest(config: Optional[DeepLearningConfig],
-                         dirs: OutputFolderForTests,
+                         dirs: Union[OutputFolderForTests, Path],
                          checkpoint_handler: Optional[CheckpointHandler] = None,
                          lightning_container: Optional[LightningContainer] = None) -> \
         Tuple[StoringLogger, CheckpointHandler]:
@@ -299,9 +299,10 @@ def model_train_unittest(config: Optional[DeepLearningConfig],
     runner.setup()
     if checkpoint_handler is None:
         azure_config = get_default_azure_config()
+        output_folder = dirs if isinstance(dirs, Path) else dirs.root_dir
         checkpoint_handler = CheckpointHandler(azure_config=azure_config,
                                                container=runner.container,
-                                               project_root=dirs.root_dir)
+                                               project_root=output_folder)
     _, storing_logger = model_train(checkpoint_path=checkpoint_handler.get_recovery_or_checkpoint_path_train(),
                                     container=runner.container)
     checkpoint_handler.additional_training_done()
