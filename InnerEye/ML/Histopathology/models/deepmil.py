@@ -42,6 +42,7 @@ class DeepMILModule(LightningModule):
                  label_column: str,
                  n_classes: int,
                  encoder: TileEncoder,
+                 slide_dataset: Dataset,
                  pooling_layer: Callable[[int, int, int], nn.Module],
                  pool_hidden_dim: int = 128,
                  pool_out_dim: int = 1,
@@ -50,10 +51,8 @@ class DeepMILModule(LightningModule):
                  weight_decay: float = 1e-4,
                  adam_betas: Tuple[float, float] = (0.9, 0.99),
                  verbose: bool = False,
-                 slide_dataset: Dataset = None,
                  tile_size: int = 224,
-                 level: int = 1,
-                 ) -> None:
+                 level: int = 1) -> None:
         """
         :param label_column: Label key for input batch dictionary.
         :param n_classes: Number of output classes for MIL prediction.
@@ -68,9 +67,9 @@ class DeepMILModule(LightningModule):
         :param weight_decay: Weight decay parameter for L2 regularisation.
         :param adam_betas: Beta parameters for Adam optimiser.
         :param verbose: if True statements about memory usage are output at each step
-        :param slide_dataset: Slide dataset object, if available (default=None).
+        :param slide_dataset: Slide dataset object, if available.
         :param tile_size: The size of each tile (default=224).
-        :param level: The magnification at which tiles are available (default=1).
+        :param level: The downsampling level (e.g. 0, 1, 2) of the tiles if available (default=1).
         """
         super().__init__()
 
@@ -88,12 +87,14 @@ class DeepMILModule(LightningModule):
         self.l_rate = l_rate
         self.weight_decay = weight_decay
         self.adam_betas = adam_betas
-        
+
+        # Slide specific attributes
         self.slide_dataset = slide_dataset
         self.tile_size = tile_size
         self.level = level
 
         self.save_hyperparameters()
+
         self.verbose = verbose
 
         self.aggregation_fn, self.num_pooling = self.get_pooling()
@@ -315,8 +316,7 @@ class DeepMILModule(LightningModule):
                 fig = plot_slide_noxy(slide, score, paths, bottom_attn, key + '_bottom', ncols=4)
                 figpath = Path(output_path, f'{slide}_bottom.png')
                 fig.savefig(figpath, bbox_inches='tight')
-                print("length=", len(self.slide_dataset))
-                if self.slide_dataset is not None:
+                if len(self.slide_dataset) > 0:
                     slide_dict = list(filter(lambda entry: entry[SlideKey.SLIDE_ID] == slide, self.slide_dataset))[0]  # type: ignore
                     load_image_dict(slide_dict, level=self.level, margin=0)
                     slide_image = slide_dict[SlideKey.IMAGE]

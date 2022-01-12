@@ -9,11 +9,12 @@ their datamodules and configure experiment-specific parameters.
 """
 import os
 from pathlib import Path
-from typing import Type
+from typing import Type, Optional
 
 import param
 from torch import nn
 from torchvision.models.resnet import resnet18
+from monai.data.dataset import Dataset
 
 from health_azure.utils import CheckpointDownloader, get_workspace
 from health_ml.networks.layers.attention_layers import AttentionLayer, GatedAttentionLayer
@@ -24,6 +25,7 @@ from InnerEye.ML.Histopathology.models.deepmil import DeepMILModule
 from InnerEye.ML.Histopathology.models.encoders import (HistoSSLEncoder, IdentityEncoder,
                                                         ImageNetEncoder, ImageNetSimCLREncoder,
                                                         InnerEyeSSLEncoder, TileEncoder)
+from InnerEye.ML.Histopathology.datasets.panda_dataset import PandaDataset
 
 
 class BaseMIL(LightningContainer):
@@ -49,6 +51,11 @@ class BaseMIL(LightningContainer):
     save_precache: bool = param.Boolean(True, doc="Whether to pre-cache the entire transformed "
                                                   "dataset upfront and save it to disk.")
     # local_dataset (used as data module root_path) is declared in DatasetParams superclass
+
+    # slide dataset parameters:
+    slide_datatype: Optional[str] = param.String(doc="Name of the slide dataset class if available.")
+    slide_path: Optional[Path] = param.ClassSelector(class_=Path, default=None, allow_None=True, doc="Path of the slide dataset if available.")
+    level: Optional[int] = param.Integer(doc="Downsampling level (e.g. 0, 1, 2) of the tiles if available.")
 
     @property
     def cache_dir(self) -> Path:
@@ -95,6 +102,12 @@ class BaseMIL(LightningContainer):
         else:
             raise ValueError(f"Unsupported pooling type: {self.pooling_type}")
 
+    def get_slide_dataset(self) -> Dataset:
+        if self.slide_datatype == PandaDataset.__name__:
+            return Dataset(PandaDataset(root=self.slide_path))
+        else:
+            raise ValueError(f"Unsupported slide datatype: {self.slide_datatype}")
+
     def create_model(self) -> DeepMILModule:
         self.data_module = self.get_data_module()
         # Encoding is done in the datamodule, so here we provide instead a dummy
@@ -106,7 +119,10 @@ class BaseMIL(LightningContainer):
                              class_weights=self.data_module.class_weights,
                              l_rate=self.l_rate,
                              weight_decay=self.weight_decay,
-                             adam_betas=self.adam_betas)
+                             adam_betas=self.adam_betas,
+                             slide_dataset=self.get_slide_dataset(),
+                             tile_size=self.tile_size,
+                             level=self.level)
 
     def get_data_module(self) -> TilesDataModule:
         raise NotImplementedError
