@@ -4,16 +4,14 @@
 #  ------------------------------------------------------------------------------------------
 import logging
 import os
-import re
 import tempfile
 import time
 import uuid
 from builtins import property
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional
 from urllib.parse import urlparse
 
-import numpy as np
 import requests
 from azureml.core import Model, Run, Workspace
 
@@ -22,8 +20,9 @@ from InnerEye.Azure.azure_util import RUN_CONTEXT, download_run_output_file, dow
     fetch_child_runs, tag_values_all_distinct
 from InnerEye.Common.common_util import OTHER_RUNS_SUBDIR_NAME
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, MODEL_INFERENCE_JSON_FILE_NAME
-from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, CHECKPOINT_FOLDER, \
-    LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, RECOVERY_CHECKPOINT_FILE_NAME
+from InnerEye.ML.common import (AUTOSAVE_CHECKPOINT_CANDIDATES,
+                                BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, CHECKPOINT_FOLDER,
+                                LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, RECOVERY_CHECKPOINT_FILE_NAME)
 from InnerEye.ML.deep_learning_config import OutputParams
 from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.model_inference_config import read_model_inference_config
@@ -105,13 +104,7 @@ class CheckpointHandler:
             logging.info(f"Available checkpoints: {len(checkpoints)}")
             for f in checkpoints:
                 logging.info(f)
-        recovery = find_recovery_checkpoint_and_epoch(self.container.checkpoint_folder)
-        if recovery is not None:
-            local_recovery_path, recovery_epoch = recovery
-            self.container._start_epoch = recovery_epoch
-            return local_recovery_path
-        else:
-            return None
+        return find_recovery_checkpoint_on_disk_or_cloud(self.container.checkpoint_folder)
 
     def get_best_checkpoints(self) -> List[Path]:
         """
@@ -278,10 +271,7 @@ def download_folder_from_run_to_temp_folder(folder: str,
     return temp_folder / cleaned_prefix
 
 
-PathAndEpoch = Tuple[Path, int]
-
-
-def find_recovery_checkpoint_and_epoch(path: Path) -> Optional[PathAndEpoch]:
+def find_recovery_checkpoint_on_disk_or_cloud(path: Path) -> Optional[Path]:
     """
     Looks at all the recovery files, extracts the epoch number for all of them and returns the most recent (latest
     epoch)
@@ -290,73 +280,67 @@ def find_recovery_checkpoint_and_epoch(path: Path) -> Optional[PathAndEpoch]:
     :return: None if there is no file matching the search pattern, or a Tuple with Path object and integer pointing to
     recovery checkpoint path and recovery epoch.
     """
-    available_checkpoints = find_all_recovery_checkpoints(path)
-    if available_checkpoints is None and is_running_in_azure_ml():
+    recovery_checkpoint = find_recovery_checkpoint(path)
+    if recovery_checkpoint is None and is_running_in_azure_ml():
         logging.info("No checkpoints available in the checkpoint folder. Trying to find checkpoints in AzureML.")
         # Download checkpoints from AzureML, then try to find recovery checkpoints among those.
         # Downloads should go to a temporary folder because downloading the files to the checkpoint folder might
         # cause artifact conflicts later.
         temp_folder = download_folder_from_run_to_temp_folder(folder=f"{DEFAULT_AML_UPLOAD_DIR}/{CHECKPOINT_FOLDER}/")
-        available_checkpoints = find_all_recovery_checkpoints(temp_folder)
-    if available_checkpoints is not None:
-        return extract_latest_checkpoint_and_epoch(available_checkpoints)
-    return None
+        recovery_checkpoint = find_recovery_checkpoint(temp_folder)
+    return recovery_checkpoint
 
 
 def get_recovery_checkpoint_path(path: Path) -> Path:
     """
     Returns the path to the last recovery checkpoint in the given folder or the provided filename. Raises a
-    FileNotFoundError if no
-    recovery checkpoint file is present.
+    FileNotFoundError if no recovery checkpoint file is present.
     :param path: Path to checkpoint folder
     """
-    recovery_ckpt_and_epoch = find_recovery_checkpoint_and_epoch(path)
-    if recovery_ckpt_and_epoch is not None:
-        return recovery_ckpt_and_epoch[0]
-    files = list(path.glob("*"))
-    raise FileNotFoundError(f"No checkpoint files found in {path}. Existing files: {' '.join(p.name for p in files)}")
+    recovery_checkpoint = find_recovery_checkpoint(path)
+    if recovery_checkpoint is None:
+        files = [f.name for f in path.glob("*")]
+        raise FileNotFoundError(f"No checkpoint files found in {path}. Existing files: {' '.join(files)}")
+    return recovery_checkpoint
 
 
-def find_all_recovery_checkpoints(path: Path) -> Optional[List[Path]]:
+def find_recovery_checkpoint(path: Path) -> Optional[Path]:
     """
-    Extracts all file starting with RECOVERY_CHECKPOINT_FILE_NAME in path
-    :param path:
-    :return:
+    Finds the checkpoint file in the given path that can be used for re-starting the present job.
+    This can be an autosave checkpoint, or the checkpoint considered "best"
+    :param path: The folder to search in.
+    :return: Returns the checkpoint file to use for re-starting, or None if no such file was found.
     """
-    all_recovery_files = [f for f in path.glob(RECOVERY_CHECKPOINT_FILE_NAME + "*")]
-    if len(all_recovery_files) == 0:
-        return None
-    return all_recovery_files
+    legacy_recovery_checkpoints = list(path.glob(RECOVERY_CHECKPOINT_FILE_NAME + "*"))
+    if len(legacy_recovery_checkpoints) > 0:
+        logging.warning(f"Found these legacy checkpoint files: {legacy_recovery_checkpoints}")
+        raise ValueError("The legacy recovery checkpoint setup is no longer supported. As a workaround, you can take "
+                         f"one of the legacy checkpoints and upload as '{AUTOSAVE_CHECKPOINT_CANDIDATES[0]}'")
+    candidates = [*AUTOSAVE_CHECKPOINT_CANDIDATES, BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX]
+    for f in candidates:
+        full_path = path / f
+        if full_path.is_file():
+            return full_path
+    return None
 
 
-def extract_latest_checkpoint_and_epoch(available_files: List[Path]) -> PathAndEpoch:
+def cleanup_checkpoints(path: Path) -> None:
     """
-     Checkpoints are saved as recovery_epoch={epoch}.ckpt, find the latest ckpt and epoch number.
-    :param available_files: all available checkpoints
-    :return: path the checkpoint from latest epoch and epoch number
-    """
-    recovery_epochs = [int(re.findall(r"[\d]+", f.stem)[0]) for f in available_files]
-    idx_max_epoch = int(np.argmax(recovery_epochs))
-    return available_files[idx_max_epoch], recovery_epochs[idx_max_epoch]
-
-
-def create_best_checkpoint(path: Path) -> Path:
-    """
-    Creates the best checkpoint file. "Best" is at the moment defined as being the last checkpoint, but could be
-    based on some defined policy.
-    The best checkpoint will be renamed to `best_checkpoint.ckpt`.
+    Remove autosave checkpoints from the given checkpoint folder, and check if a "last.ckpt" checkpoint is present.
     :param path: The folder that contains all checkpoint files.
     """
-    logging.debug(f"Files in checkpoint folder: {' '.join(p.name for p in path.glob('*'))}")
+    logging.info(f"Files in checkpoint folder: {' '.join(p.name for p in path.glob('*'))}")
     last_ckpt = path / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
     all_files = f"Existing files: {' '.join(p.name for p in path.glob('*'))}"
     if not last_ckpt.is_file():
         raise FileNotFoundError(f"Checkpoint file {LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX} not found. {all_files}")
-    logging.info(f"Using {LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX} as the best checkpoint: Renaming to "
-                 f"{BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX}")
-    best = path / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
-    last_ckpt.rename(best)
-    return best
+    # Training is finished now. To save storage, remove the autosave checkpoint which is now obsolete.
+    # Lightning does not overwrite checkpoints in-place. Rather, it writes "autosave.ckpt",
+    # then "autosave-1.ckpt" and deletes "autosave.ckpt", then "autosave.ckpt" and deletes "autosave-v1.ckpt"
+    for candidate in AUTOSAVE_CHECKPOINT_CANDIDATES:
+        autosave = path / candidate
+        if autosave.is_file():
+            autosave.unlink()
 
 
 def download_best_checkpoints_from_child_runs(config: OutputParams, run: Run) -> RunRecovery:

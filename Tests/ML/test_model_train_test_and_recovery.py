@@ -81,3 +81,20 @@ def test_recover_testing_from_run_recovery(mean_teacher_model: bool,
     assert isinstance(test_results_local_weights, InferenceMetricsForClassification)
     assert test_results.metrics.values()[MetricType.CROSS_ENTROPY.value] == \
            test_results_local_weights.metrics.values()[MetricType.CROSS_ENTROPY.value]
+
+
+@pytest.mark.parametrize("num_epochs", [1, 2])
+def test_autosave_checkpoints(test_output_dirs: OutputFolderForTests, num_epochs: int) -> None:
+    """
+    Tests that all autosave checkpoints are cleaned up after training.
+    """
+    # Lightning does not overwrite checkpoints in-place. Rather, it writes "autosave.ckpt",
+    # then "autosave-1.ckpt" and deletes "autosave.ckpt", then "autosave.ckpt" and deletes "autosave-v1.ckpt"
+    # All those checkpoints should be cleaned up after training, only the best checkpoint should remain.
+    config = DummyClassification()
+    config.autosave_every_n_val_epochs = 1
+    config.set_output_to(test_output_dirs.root_dir)
+    config.num_epochs = num_epochs
+    model_train_unittest(config, dirs=test_output_dirs)
+    assert len(list(config.checkpoint_folder.glob("*.*"))) == 1
+    assert (config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX).is_file()

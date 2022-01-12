@@ -2,7 +2,6 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-import time
 from pathlib import Path
 from typing import Any
 
@@ -11,17 +10,16 @@ import torch
 from pytorch_lightning.callbacks import ModelCheckpoint
 
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, LAST_CHECKPOINT_FILE_NAME, \
-    LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, RECOVERY_CHECKPOINT_FILE_NAME
-from InnerEye.ML.utils.checkpoint_handling import create_best_checkpoint, extract_latest_checkpoint_and_epoch, \
-    find_all_recovery_checkpoints, \
-    find_recovery_checkpoint_and_epoch
+from InnerEye.ML.common import (AUTOSAVE_CHECKPOINT_CANDIDATES, BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX,
+                                LAST_CHECKPOINT_FILE_NAME,
+                                LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, RECOVERY_CHECKPOINT_FILE_NAME)
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.lightning_base import InnerEyeContainer
 from InnerEye.ML.lightning_helpers import load_from_checkpoint_and_adjust_for_inference
 from InnerEye.ML.lightning_models import create_lightning_model
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_training import create_lightning_trainer
+from InnerEye.ML.utils.checkpoint_handling import (cleanup_checkpoints, find_recovery_checkpoint)
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import machine_has_gpu
@@ -98,66 +96,40 @@ def test_checkpoint_path() -> None:
     assert LAST_CHECKPOINT_FILE_NAME == ModelCheckpoint.CHECKPOINT_NAME_LAST
 
 
-def test_find_all_recovery_checkpoints(test_output_dirs: OutputFolderForTests) -> None:
+def test_recovery_checkpoints_fails(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Using old recovering checkpoints is not supported, and should raise an error.
+    """
     checkpoint_folder = test_output_dirs.root_dir
-    # No recovery yet available
-    (checkpoint_folder / "epoch=2.ckpt").touch()
-    assert find_all_recovery_checkpoints(checkpoint_folder) is None
-    # Add recovery file to fake folder
-    file_list = ["recovery_epoch=1.ckpt", "recovery.ckpt"]
-    for f in file_list:
-        (checkpoint_folder / f).touch()
-    found_file_names = set([f.stem for f in find_all_recovery_checkpoints(checkpoint_folder)])  # type: ignore
-    assert len(found_file_names.difference(found_file_names)) == 0
+    assert find_recovery_checkpoint(checkpoint_folder) is None
+    (checkpoint_folder / RECOVERY_CHECKPOINT_FILE_NAME).touch()
+    with pytest.raises(ValueError) as ex:
+        find_recovery_checkpoint(checkpoint_folder)
+    assert "The legacy recovery checkpoint setup is no longer supported." in str(ex)
 
 
-def test_find_latest_checkpoint_and_epoch() -> None:
-    file_list = [Path("epoch=1.ckpt"), Path("epoch=3.ckpt"), Path("epoch=2.ckpt")]
-    assert Path("epoch=3.ckpt"), 3 == extract_latest_checkpoint_and_epoch(file_list)
-    invalid_file_list = [Path("epoch.ckpt"), Path("epoch=3.ckpt"), Path("epoch=2.ckpt")]
-    with pytest.raises(IndexError):
-        extract_latest_checkpoint_and_epoch(invalid_file_list)
-
-
-def test_find_recovery_checkpoint(test_output_dirs: OutputFolderForTests) -> None:
+def test_find_all_recovery_checkpoints(test_output_dirs: OutputFolderForTests) -> None:
     """
-    Test if the logic to keep only the most recently modified file works.
+    Test if the search for recovery checkpoints respects the correct order of files
     """
-    folder = test_output_dirs.root_dir
-    prefix = RECOVERY_CHECKPOINT_FILE_NAME
-    file1 = folder / (prefix + "epoch=1.txt")
-    file2 = folder / (prefix + "epoch=2.txt")
-    # No file present yet
-    assert find_recovery_checkpoint_and_epoch(folder) is None
-    # Single file present: This should be returned.
-    file1.touch()
-    # Without sleeping, the test can fail in Azure build agents
-    time.sleep(0.1)
-    recovery = find_recovery_checkpoint_and_epoch(folder)
-    assert recovery is not None
-    latest_checkpoint, latest_epoch = recovery
-    assert latest_checkpoint == file1
-    assert latest_epoch == 1
-    assert latest_checkpoint.is_file()
-    # Two files present: keep file2 should be returned
-    file2.touch()
-    time.sleep(0.1)
-    recovery = find_recovery_checkpoint_and_epoch(folder)
-    assert recovery is not None
-    latest_checkpoint, latest_epoch = recovery
-    assert latest_checkpoint == file2
-    assert latest_checkpoint.is_file()
-    assert latest_epoch == 2
-    # Add file1 again: file should should still be returned as it has the
-    # highest epoch number
-    file1.touch()
-    time.sleep(0.1)
-    recovery = find_recovery_checkpoint_and_epoch(folder)
-    assert recovery is not None
-    latest_checkpoint, latest_epoch = recovery
-    assert latest_checkpoint == file2
-    assert latest_checkpoint.is_file()
-    assert latest_epoch == 2
+    checkpoint_folder = test_output_dirs.root_dir
+    # If the checkpoint folder only contains a single checkpoint file of whatever kind, return that.
+    single_files = [*AUTOSAVE_CHECKPOINT_CANDIDATES, BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX]
+    for i, file in enumerate(single_files):
+        subfolder = checkpoint_folder / str(i)
+        subfolder.mkdir()
+        (subfolder / file).touch()
+        result = find_recovery_checkpoint(subfolder)
+        assert result is not None
+        assert result.name == file
+
+    # If both "autosave" and "best_checkpoint" are present, return autosave
+    both = checkpoint_folder / "both"
+    both.mkdir()
+    for file in single_files:
+        (both / file).touch()
+    result_both = find_recovery_checkpoint(both)
+    assert result_both.name == AUTOSAVE_CHECKPOINT_CANDIDATES[0]
 
 
 def test_keep_best_checkpoint(test_output_dirs: OutputFolderForTests) -> None:
@@ -166,41 +138,18 @@ def test_keep_best_checkpoint(test_output_dirs: OutputFolderForTests) -> None:
     """
     folder = test_output_dirs.root_dir
     with pytest.raises(FileNotFoundError) as ex:
-        create_best_checkpoint(folder)
+        cleanup_checkpoints(folder)
     assert "Checkpoint file" in str(ex)
+    # Create a folder with a "last" and "autosave" checkpoint, as they come out of the trainer loop.
     last = folder / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
     last.touch()
-    actual = create_best_checkpoint(folder)
-    assert not last.is_file(), "Checkpoint file should have been renamed"
+    for autosave in AUTOSAVE_CHECKPOINT_CANDIDATES:
+        (folder / autosave).touch()
+    assert len(list(folder.glob("*"))) > 1
+    cleanup_checkpoints(folder)
+    # All code outside the trainer loop assumes that there is a checkpoint with this name. The constant actually
+    # matches "last.ckpt", but the constant is kept to reduce code changes from the legacy behaviour.
     expected = folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
-    assert actual == expected
-    assert actual.is_file()
-
-
-def test_cleanup_checkpoints1(test_output_dirs: OutputFolderForTests) -> None:
-    folder = test_output_dirs.root_dir
-    with pytest.raises(FileNotFoundError) as ex:
-        create_best_checkpoint(folder)
-    assert "Checkpoint file" in str(ex)
-    # Single checkpoint file, nothing else: This file should be rename to best_checkpoint
-    last = folder / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
-    last.touch()
-    create_best_checkpoint(folder)
+    assert expected.is_file()
+    # The autosave checkpoint should be deleted after training, only the single best checkpoint should remain
     assert len(list(folder.glob("*"))) == 1
-    assert (folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX).is_file()
-
-
-def test_cleanup_checkpoints2(test_output_dirs: OutputFolderForTests) -> None:
-    # Single checkpoint file and two recovery checkpoints: Should keep the last and rename it.
-    folder = test_output_dirs.root_dir
-    last = folder / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
-    last.touch()
-    (folder / f"{RECOVERY_CHECKPOINT_FILE_NAME}-epoch=3").touch()
-    (folder / f"{RECOVERY_CHECKPOINT_FILE_NAME}-epoch=6").touch()
-    # Before cleanup: last.ckpt, recovery-epoch=6.ckpt, recovery-epoch=3.ckpt
-    create_best_checkpoint(folder)
-    # After cleanup: best.ckpt, recovery-epoch=6.ckpt, recovery-epoch=3.ckpt
-    assert len(list(folder.glob("*"))) == 3
-    assert (folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX).is_file()
-    assert (folder / f"{RECOVERY_CHECKPOINT_FILE_NAME}-epoch=6").is_file()
-    assert (folder / f"{RECOVERY_CHECKPOINT_FILE_NAME}-epoch=3").is_file()

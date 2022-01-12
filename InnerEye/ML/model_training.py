@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 from typing import Any, List, Optional, Tuple, TypeVar
 
-from pytorch_lightning import Callback, LightningModule, Trainer, seed_everything
+from pytorch_lightning import Callback, Trainer, seed_everything
 from pytorch_lightning.callbacks import GPUStatsMonitor, ModelCheckpoint, TQDMProgressBar
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.plugins import DDPPlugin
@@ -17,15 +17,16 @@ from InnerEye.Azure.azure_runner import ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NOD
 from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, change_working_directory
 from InnerEye.Common.resource_monitor import ResourceMonitor
-from InnerEye.ML.common import ARGS_TXT, ModelExecutionMode, RECOVERY_CHECKPOINT_FILE_NAME, VISUALIZATION_FOLDER
+from InnerEye.ML.common import ARGS_TXT, AUTOSAVE_CHECKPOINT_FILE_NAME, ModelExecutionMode, \
+    VISUALIZATION_FOLDER
 from InnerEye.ML.lightning_base import InnerEyeContainer, InnerEyeLightning
 from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.lightning_loggers import StoringLogger
 from InnerEye.ML.lightning_models import SUBJECT_OUTPUT_PER_RANK_PREFIX, ScalarLightning, \
     get_subject_output_file_per_rank
-from InnerEye.ML.utils.checkpoint_handling import create_best_checkpoint
+from InnerEye.ML.utils.checkpoint_handling import cleanup_checkpoints
 from health_azure.utils import is_global_rank_zero, is_local_rank_zero
-from health_ml.utils import AzureMLLogger, AzureMLProgressBar, log_on_epoch
+from health_ml.utils import AzureMLLogger, AzureMLProgressBar
 
 TEMP_PREFIX = "temp/"
 
@@ -54,27 +55,12 @@ def write_args_file(config: Any, outputs_folder: Path) -> None:
     logging.info(output)
 
 
-class InnerEyeRecoveryCheckpointCallback(ModelCheckpoint):
-    """
-    This callback is used to save recovery checkpoints.
-    In particular, it makes sure we are logging "epoch", this is needed to the last k
-    checkpoints (here save_top_k is based on the epoch number instead of validation loss,
-    PL only allows to save_top_k for logged quantities).
-    """
-
+class AutoSaveCheckpointCallback(ModelCheckpoint):
     def __init__(self, container: LightningContainer):
         super().__init__(dirpath=str(container.checkpoint_folder),
-                         monitor="epoch_started",
-                         filename=RECOVERY_CHECKPOINT_FILE_NAME + "_{epoch}",
-                         every_n_epochs=container.recovery_checkpoint_save_interval,
-                         save_top_k=container.recovery_checkpoints_save_last_k,
-                         mode="max",
+                         filename=AUTOSAVE_CHECKPOINT_FILE_NAME,
+                         every_n_val_epochs=container.autosave_every_n_val_epochs,
                          save_last=False)
-
-    def on_train_epoch_end(self, trainer: Trainer, pl_module: LightningModule, unused: bool = None) -> None:
-        # The metric to monitor must be logged on all ranks in distributed training
-        log_on_epoch(pl_module, name="epoch_started", value=trainer.current_epoch, sync_dist=False)  # type: ignore
-        super().on_train_epoch_end(trainer, pl_module)
 
 
 def create_lightning_trainer(container: LightningContainer,
@@ -126,15 +112,12 @@ def create_lightning_trainer(container: LightningContainer,
         deterministic = False
         benchmark = True
 
-    # For now, stick with the legacy behaviour of always saving only the last epoch checkpoint. For large segmentation
+    # The last checkpoint is considered the "best" checkpoint. For large segmentation
     # models, this still appears to be the best way of choosing them because validation loss on the relatively small
     # training patches is not stable enough. Going by the validation loss somehow works for the Prostate model, but
     # not for the HeadAndNeck model.
     last_checkpoint_callback = ModelCheckpoint(dirpath=str(container.checkpoint_folder), save_last=True, save_top_k=0)
-    # Recovery checkpoints: {epoch} will turn into a string like "epoch=1"
-    # Store 1 recovery checkpoint every recovery_checkpoint_save_interval epochs, keep the last
-    # recovery_checkpoints_save_last_k.
-    recovery_checkpoint_callback = InnerEyeRecoveryCheckpointCallback(container)
+    recovery_checkpoint_callback = AutoSaveCheckpointCallback(container)
     callbacks: List[Callback] = [
         last_checkpoint_callback,
         recovery_checkpoint_callback,
@@ -288,7 +271,7 @@ def model_train(checkpoint_path: Optional[Path],
         sys.exit()
 
     logging.info("Choosing the best checkpoint and removing redundant files.")
-    create_best_checkpoint(container.checkpoint_folder)
+    cleanup_checkpoints(container.checkpoint_folder)
     # Lightning modifies a ton of environment variables. If we first run training and then the test suite,
     # those environment variables will mislead the training runs in the test suite, and make them crash.
     # Hence, restore the original environment after training.

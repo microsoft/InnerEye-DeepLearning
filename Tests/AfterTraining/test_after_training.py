@@ -36,8 +36,8 @@ from InnerEye.Common.fixed_paths import (DEFAULT_AML_UPLOAD_DIR, DEFAULT_RESULT_
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.spawn_subprocess import spawn_and_monitor_subprocess
-from InnerEye.ML.common import (CHECKPOINT_FOLDER, DATASET_CSV_FILE_NAME, ModelExecutionMode,
-                                RECOVERY_CHECKPOINT_FILE_NAME)
+from InnerEye.ML.common import (BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, CHECKPOINT_FOLDER, DATASET_CSV_FILE_NAME,
+                                ModelExecutionMode)
 from InnerEye.ML.configs.other.HelloContainer import HelloContainer
 from InnerEye.ML.configs.segmentation.BasicModel2Epochs import BasicModel2Epochs
 from InnerEye.ML.deep_learning_config import ModelCategory
@@ -47,7 +47,7 @@ from InnerEye.ML.reports.notebook_report import get_html_report_name
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.runner import main
 from InnerEye.ML.utils.checkpoint_handling import download_folder_from_run_to_temp_folder, \
-    find_recovery_checkpoint_and_epoch
+    find_recovery_checkpoint_on_disk_or_cloud
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.utils.image_util import get_unit_image_header
 from InnerEye.ML.utils.io_util import zip_random_dicom_series
@@ -232,7 +232,8 @@ def test_download_checkpoints_from_aml(test_output_dirs: OutputFolderForTests) -
                                                           run=run,
                                                           workspace=get_default_workspace())
     files = list(temp_folder.glob("*"))
-    assert len(files) == 2
+    assert len(files) == 1
+    assert (temp_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX).is_file()
     # Test if what's in the folder are really files, not directories
     for file in files:
         assert file.is_file()
@@ -243,13 +244,10 @@ def test_download_checkpoints_from_aml(test_output_dirs: OutputFolderForTests) -
                         return_value=temp_folder) as download:
             # Call the checkpoint finder with a temp folder that does not contain any files, so it should try to
             # download
-            result = find_recovery_checkpoint_and_epoch(test_output_dirs.root_dir)
+            result = find_recovery_checkpoint_on_disk_or_cloud(test_output_dirs.root_dir)
             download.assert_called_once_with(folder=checkpoint_folder)
             assert result is not None
-            p, epoch = result
-            # The basic model only writes one checkpoint at epoch 1
-            assert epoch == 1
-            assert RECOVERY_CHECKPOINT_FILE_NAME in p.stem
+            assert BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX in result.stem
 
 
 @pytest.mark.inference
