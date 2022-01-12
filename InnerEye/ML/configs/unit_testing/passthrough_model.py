@@ -12,7 +12,7 @@ from torch.nn.parameter import Parameter
 
 from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.config import ModelArchitectureConfig, SegmentationModelBase, equally_weighted_classes
-from InnerEye.ML.configs.segmentation.Lung import AZURE_DATASET_ID
+from InnerEye.ML.configs.segmentation.Lung import LUNG_AZURE_DATASET_ID
 from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel
 from InnerEye.ML.models.parallel.model_parallel import get_device_from_parameters, move_to_device
 from InnerEye.ML.utils.model_metadata_util import generate_random_colours_list
@@ -34,7 +34,7 @@ class PassThroughModel(SegmentationModelBase):
             should_validate=False,
             # Set as UNet3D only because this does not shrink patches in the forward pass.
             architecture=ModelArchitectureConfig.UNet3D,
-            azure_dataset_id=AZURE_DATASET_ID,
+            azure_dataset_id=LUNG_AZURE_DATASET_ID,
             crop_size=(64, 224, 224),
             num_dataload_workers=1,
             # Disable monitoring so that we can use VS Code remote debugging

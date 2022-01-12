@@ -114,7 +114,6 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
     assert loaded_config.encoder_output_dim == 2048
     assert loaded_config.l_rate == 1e-4
     assert loaded_config.num_epochs == 1
-    assert loaded_config.recovery_checkpoint_save_interval == 200
     assert loaded_config.ssl_training_type == SSLTrainingType.SimCLR
     assert loaded_config.online_eval.num_classes == 10
     assert loaded_config.online_eval.dataset == SSLDatasetName.CIFAR10.value

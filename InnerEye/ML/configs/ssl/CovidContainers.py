@@ -20,8 +20,6 @@ class NIH_COVID_BYOL(SSLContainer):
         super().__init__(ssl_training_dataset_name=SSLDatasetName.NIHCXR,
                          linear_head_dataset_name=SSLDatasetName.Covid,
                          random_seed=1,
-                         recovery_checkpoint_save_interval=50,
-                         recovery_checkpoints_save_last_k=3,
                          num_epochs=500,
                          ssl_training_batch_size=75,  # This runs  with 16 gpus (4 nodes)
                          num_workers=12,

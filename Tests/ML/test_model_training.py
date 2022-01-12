@@ -101,7 +101,6 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     train_config.random_seed = 42
     train_config.class_weights = [0.5, 0.25, 0.25]
     train_config.store_dataset_sample = no_mask_channel
-    train_config.recovery_checkpoint_save_interval = 1
     train_config.check_exclusive = False
 
     if machine_has_gpu:

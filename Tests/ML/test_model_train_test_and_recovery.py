@@ -32,7 +32,6 @@ def test_recover_testing_from_run_recovery(mean_teacher_model: bool,
         config.mean_teacher_alpha = 0.999
     config.set_output_to(test_output_dirs.root_dir / "original")
     os.makedirs(str(config.outputs_folder))
-    config.recovery_checkpoint_save_interval = 2
 
     train_results, checkpoint_handler = model_train_unittest(config, dirs=test_output_dirs)
     assert len(train_results.train_results_per_epoch()) == config.num_epochs
