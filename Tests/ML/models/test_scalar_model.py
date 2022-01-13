@@ -4,7 +4,6 @@
 #  ------------------------------------------------------------------------------------------
 import io
 import logging
-import os
 from io import StringIO
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -22,27 +21,22 @@ from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.metrics_constants import LoggingColumns, MetricType
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import model_testing, runner
-from InnerEye.ML.common import (AUTOSAVE_CHECKPOINT_CANDIDATES, BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX,
-                                CHECKPOINT_SUFFIX, ModelExecutionMode, RECOVERY_CHECKPOINT_FILE_NAME)
-from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
+from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.configs.classification.DummyMulticlassClassification import DummyMulticlassClassification
 from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
 from InnerEye.ML.metrics import InferenceMetricsForClassification, binary_classification_accuracy, \
     compute_scalar_metrics
 from InnerEye.ML.metrics_dict import MetricsDict, ScalarMetricsDict
-from InnerEye.ML.model_training import model_train
 from InnerEye.ML.reports.notebook_report import generate_classification_multilabel_notebook, \
     generate_classification_notebook, get_html_report_name, get_ipynb_report_name
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.scalar_config import ScalarLoss, ScalarModelBase
-from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
 from InnerEye.ML.visualizers.plot_cross_validation import (EpochMetricValues, get_config_and_results_for_offline_runs,
                                                            unroll_aggregate_metrics)
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.configs.DummyModel import DummyModel
 from Tests.ML.util import get_default_azure_config, machine_has_gpu, model_train_unittest
-from Tests.ML.utils.test_model_util import FIXED_EPOCH, create_model_and_store_checkpoint
 
 
 @pytest.mark.cpu_and_gpu

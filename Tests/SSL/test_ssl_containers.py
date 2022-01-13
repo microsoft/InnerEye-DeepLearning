@@ -130,8 +130,7 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
                         'simclr/train/loss': 3.6261844635009766,
                         'simclr/learning_rate': 0.0,
                         'ssl_online_evaluator/train/loss': 3.1140503883361816,
-                        'ssl_online_evaluator/train/online_AccuracyAtThreshold05': 0.0,
-                        'epoch_started': 0.0}
+                        'ssl_online_evaluator/train/online_AccuracyAtThreshold05': 0.0}
 
     _compare_stored_metrics(runner, expected_metrics, abs=5e-5)
 
@@ -224,8 +223,7 @@ def test_innereye_ssl_container_rsna() -> None:
                         'ssl_online_evaluator/train/loss': 0.6938587427139282,
                         'ssl_online_evaluator/train/online_AreaUnderRocCurve': 0.5,
                         'ssl_online_evaluator/train/online_AreaUnderPRCurve': 0.6000000238418579,
-                        'ssl_online_evaluator/train/online_AccuracyAtThreshold05': 0.20000000298023224,
-                        'epoch_started': 0.0}
+                        'ssl_online_evaluator/train/online_AccuracyAtThreshold05': 0.20000000298023224}
 
     _compare_stored_metrics(runner, expected_metrics)
 

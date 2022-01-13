@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 from typing import Generator, List, Optional, Tuple
 
-from azureml.core import Experiment, Run, Workspace, get_run
+from azureml.core import Experiment, Run, Workspace
 from azureml.exceptions import UserErrorException
 
 from InnerEye.Common import fixed_paths
