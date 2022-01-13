@@ -53,8 +53,7 @@ class BaseMIL(LightningContainer):
     # local_dataset (used as data module root_path) is declared in DatasetParams superclass
 
     # slide dataset parameters:
-    slide_datatype: Optional[str] = param.String(doc="Name of the slide dataset class if available.")
-    slide_path: Optional[Path] = param.ClassSelector(class_=Path, default=None, allow_None=True, doc="Path of the slide dataset if available.")
+    slide_datatype: Optional[str] = param.String(default=None, allow_None=True, doc="Name of the slide dataset class if available.")
     level: Optional[int] = param.Integer(doc="Downsampling level (e.g. 0, 1, 2) of the tiles if available.")
 
     @property
@@ -104,7 +103,9 @@ class BaseMIL(LightningContainer):
 
     def get_slide_dataset(self) -> Dataset:
         if self.slide_datatype == PandaDataset.__name__:
-            return Dataset(PandaDataset(root=self.slide_path))
+            return Dataset(PandaDataset(root=self.extra_local_dataset_paths[0]))
+        elif self.slide_datatype is None:
+            return Dataset(data=[])
         else:
             raise ValueError(f"Unsupported slide datatype: {self.slide_datatype}")
 
