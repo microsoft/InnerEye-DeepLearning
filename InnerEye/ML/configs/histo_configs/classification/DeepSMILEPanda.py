@@ -15,7 +15,7 @@ from health_ml.networks.layers.attention_layers import GatedAttentionLayer
 from InnerEye.Common import fixed_paths
 from InnerEye.ML.Histopathology.datamodules.panda_module import PandaTilesDataModule
 from InnerEye.ML.Histopathology.datasets.panda_tiles_dataset import PandaTilesDataset
-from InnerEye.ML.Histopathology.models.deepmil import DeepMILModule
+from InnerEye.ML.common import get_best_checkpoint_path
 
 from InnerEye.ML.Histopathology.models.transforms import (
     EncodeTilesBatchd,
@@ -30,6 +30,7 @@ from InnerEye.ML.Histopathology.models.encoders import (
 from InnerEye.ML.configs.histo_configs.classification.BaseMIL import BaseMIL
 from InnerEye.ML.configs.histo_configs.run_ids import innereye_ssl_checkpoint
 from InnerEye.ML.Histopathology.datasets.panda_dataset import PandaDataset
+
 
 local_mode = False
 path_local_data: Optional[Path]
@@ -64,6 +65,7 @@ class DeepSMILEPanda(BaseMIL):
             num_epochs=num_epochs,
             recovery_checkpoint_save_interval=10,
             recovery_checkpoints_save_last_k=-1,
+            # use_mixed_precision = True,
             # declared in WorkflowParams:
             number_of_cross_validation_splits=5,
             cross_validation_split_index=0,
@@ -96,13 +98,15 @@ class DeepSMILEPanda(BaseMIL):
 
     def setup(self) -> None:
         if self.encoder_type == InnerEyeSSLEncoder.__name__:
+            from InnerEye.ML.configs.histo_configs.run_ids import innereye_ssl_checkpoint_binary
             self.downloader = CheckpointDownloader(
-                azure_config_json_path=get_workspace(),
-                run_recovery_id=innereye_ssl_checkpoint,
-                checkpoint_filename="last.ckpt",
+                aml_workspace=get_workspace(),
+                run_id=innereye_ssl_checkpoint_binary,  # innereye_ssl_checkpoint
+                checkpoint_filename="best_checkpoint.ckpt",  # "last.ckpt",
                 download_dir="outputs/",
+                remote_checkpoint_dir=Path("outputs/checkpoints")
             )
-            os.chdir(fixed_paths.repository_root_directory())
+            os.chdir(fixed_paths.repository_parent_directory())
             self.downloader.download_checkpoint_if_necessary()
         self.encoder = self.get_encoder()
         self.encoder.cuda()
@@ -140,11 +144,23 @@ class DeepSMILEPanda(BaseMIL):
         was applied there.
         """
         # absolute path is required for registering the model.
-        return (
-            fixed_paths.repository_root_directory()
-            / self.checkpoint_folder_path
-            / self.best_checkpoint_filename_with_suffix
-        )
+        absolute_checkpoint_path = Path(fixed_paths.repository_root_directory(),
+                                        self.checkpoint_folder_path,
+                                        self.best_checkpoint_filename_with_suffix)
+        if absolute_checkpoint_path.is_file():
+            return absolute_checkpoint_path
+
+        absolute_checkpoint_path_parent = Path(fixed_paths.repository_parent_directory(),
+                                    self.checkpoint_folder_path,
+                                    self.best_checkpoint_filename_with_suffix)
+        if absolute_checkpoint_path_parent.is_file():
+            return absolute_checkpoint_path_parent
+
+        checkpoint_path = get_best_checkpoint_path(Path(self.checkpoint_folder_path))
+        if checkpoint_path.is_file():
+            return checkpoint_path
+
+        raise ValueError("Path to best checkpoint not found")
 
 
 class PandaImageNetMIL(DeepSMILEPanda):

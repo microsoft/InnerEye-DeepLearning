@@ -42,6 +42,7 @@ jobs that run in AzureML.
 
 ### Changed
 - ([#588](https://github.com/microsoft/InnerEye-DeepLearning/pull/588)) Replace SciPy with PIL.PngImagePlugin.PngImageFile to load png files.
+- ([#585](https://github.com/microsoft/InnerEye-DeepLearning/pull/585)) Switching to PyTorch 1.10.0 and torchvision 0.11.1
 - ([#576](https://github.com/microsoft/InnerEye-DeepLearning/pull/576)) The console output is no longer written to stdout.txt because AzureML handles that better now
 - ([#531](https://github.com/microsoft/InnerEye-DeepLearning/pull/531)) Updated PL to 1.3.8, torchmetrics and pl-bolts and changed relevant metrics and SSL code API.
 - ([#555](https://github.com/microsoft/InnerEye-DeepLearning/pull/555)) Make the SSLContainer compatible with new datasets
@@ -66,15 +67,18 @@ gets uploaded to AzureML, by skipping all test folders.
 - ([#566](https://github.com/microsoft/InnerEye-DeepLearning/pull/566)) Update `hi-ml` dependency to `hi-ml-azure`.
 - ([#591](https://github.com/microsoft/InnerEye-DeepLearning/pull/591)) Upgrade Pytorch Lightning to 1.5.0
 - ([#572](https://github.com/microsoft/InnerEye-DeepLearning/pull/572)) Updated to new version of hi-ml package
+- ([#623](https://github.com/microsoft/InnerEye-DeepLearning/pull/623)) Save checkpoints in SSLOnlineEvaluator without DDP wrapper code
 - ([#617](https://github.com/microsoft/InnerEye-DeepLearning/pull/617)) Provide an easier way for LightningContainers to add callbacks.
 - ([#596](https://github.com/microsoft/InnerEye-DeepLearning/pull/596)) Add `cudatoolkit=11.1` specification to environment.yml.
 - ([#615](https://github.com/microsoft/InnerEye-DeepLearning/pull/615)) Minor changes to checkpoint download from AzureML.
 - ([#605](https://github.com/microsoft/InnerEye-DeepLearning/pull/605)) Make build jobs deterministic for regression testing.
+- ([#632](https://github.com/microsoft/InnerEye-DeepLearning/pull/632)) Nifti test data is no longer stored in Git LFS
 
 ### Fixed
 - ([#606](https://github.com/microsoft/InnerEye-DeepLearning/pull/606)) Bug fix: registered models do not include the hi-ml submodule
 - ([#593](https://github.com/microsoft/InnerEye-DeepLearning/pull/593)) Bug fix for hi-ml 0.1.11 issue (#130): empty mount point is turned into ".", which fails the AML job
 - ([#587](https://github.com/microsoft/InnerEye-DeepLearning/pull/587)) Bug fix for regression in AzureML's handling of environments: upgrade to hi-ml 0.1.11
+- ([#625](https://github.com/microsoft/InnerEye-DeepLearning/pull/625)) updates to PandaDeepMIL to enable the use of a SSL pre-trained checkpoint and updated commit to hi-ml
 - ([#537](https://github.com/microsoft/InnerEye-DeepLearning/pull/537)) Print warning if inference is disabled but comparison requested.
 - ([#567](https://github.com/microsoft/InnerEye-DeepLearning/pull/567)) fix pillow version.
 - ([#546](https://github.com/microsoft/InnerEye-DeepLearning/pull/546)) Environment and hello_world_model documentation updated
@@ -101,6 +105,7 @@ in inference-only runs when using lightning containers.
 - ([#558](https://github.com/microsoft/InnerEye-DeepLearning/pull/558)) Fix issue with the CovidModel config where model
   weights from a finetuning run were incompatible with the model architecture created for non-finetuning runs.
 - ([#604](https://github.com/microsoft/InnerEye-DeepLearning/pull/604)) Fix issue where runs on a VM would download the dataset even when a local dataset is provided.
+- ([#628](https://github.com/microsoft/InnerEye-DeepLearning/pull/628)) SSL SimCLR using the wrong LR schedule when running on multiple nodes
 - ([#612](https://github.com/microsoft/InnerEye-DeepLearning/pull/612)) SSL online evaluator was not doing distributed training
 
 ### Removed
