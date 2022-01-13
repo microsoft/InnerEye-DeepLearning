@@ -324,7 +324,7 @@ class DeepMILModule(LightningModule):
                 fig.savefig(figpath, bbox_inches='tight')
                 if len(self.slide_dataset) > 0:
                     slide_dict = list(filter(lambda entry: entry[SlideKey.SLIDE_ID] == slide, self.slide_dataset))[0]  # type: ignore
-                    load_image_dict(slide_dict, level=self.level, margin=0)
+                    load_image_dict(slide_dict, level=self.level, margin=0)                                            # type: ignore
                     slide_image = slide_dict[SlideKey.IMAGE]
                     location_bbox = slide_dict['location']
 
