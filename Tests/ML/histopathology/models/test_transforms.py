@@ -126,8 +126,10 @@ def test_cached_loading(tmp_path: Path) -> None:
 
 @pytest.mark.skipif(not os.path.isdir(TCGA_CRCK_DATASET_DIR),
                     reason="TCGA-CRCk tiles dataset is unavailable")
-@pytest.mark.parametrize('use_gpu', [False, True])
-def test_encode_tiles(tmp_path: Path, use_gpu: bool) -> None:
+@pytest.mark.parametrize('use_gpu , chunk_size',
+                         [(False, 0), (False, 2), (True, 0), (True, 2)]
+                         )
+def test_encode_tiles(tmp_path: Path, use_gpu: bool, chunk_size: int) -> None:
     tiles_dataset = TcgaCrck_TilesDataset(TCGA_CRCK_DATASET_DIR)
     image_key = tiles_dataset.IMAGE_COLUMN
     max_bag_size = 5
@@ -138,7 +140,7 @@ def test_encode_tiles(tmp_path: Path, use_gpu: bool) -> None:
     if use_gpu:
         encoder.cuda()
 
-    encode_transform = EncodeTilesBatchd(image_key, encoder)
+    encode_transform = EncodeTilesBatchd(image_key, encoder, chunk_size)
     transform = Compose([LoadTilesBatchd(image_key), encode_transform])
     dataset = Dataset(bagged_dataset, transform=transform)  # type: ignore
     sample = dataset[0]

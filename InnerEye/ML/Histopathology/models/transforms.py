@@ -93,7 +93,7 @@ class EncodeTilesBatchd(MapTransform):
         :param encoder: The tile encoder to use for feature extraction.
         :param allow_missing_keys: If `False` (default), raises an exception when an input
         dictionary is missing any of the specified keys.
-        :param chunk_size: if > 0 extract features in chunks of size chunk_size
+        :param chunk_size: if > 0, extracts features in chunks of size chunk_size.
         """
         super().__init__(keys, allow_missing_keys)
         self.encoder = encoder
@@ -105,6 +105,7 @@ class EncodeTilesBatchd(MapTransform):
         if self.chunk_size > 0:
             embeddings = []
             chunks = torch.split(images, self.chunk_size)
+            # TODO add parallelization step here
             for chunk in chunks:
                 chunk_embeddings = self._encode_images(chunk, device)
                 embeddings.append(chunk_embeddings)
