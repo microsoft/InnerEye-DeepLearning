@@ -28,7 +28,6 @@ from InnerEye.ML.Histopathology.models.encoders import (
     InnerEyeSSLEncoder,
 )
 from InnerEye.ML.configs.histo_configs.classification.BaseMIL import BaseMIL
-from InnerEye.ML.configs.histo_configs.run_ids import innereye_ssl_checkpoint
 from InnerEye.ML.Histopathology.datasets.panda_dataset import PandaDataset
 
 

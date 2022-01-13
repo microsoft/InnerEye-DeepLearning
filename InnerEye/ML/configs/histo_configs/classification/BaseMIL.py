@@ -93,7 +93,7 @@ class BaseMIL(LightningContainer):
 
     def get_slide_dataset(self) -> Dataset:
         if self.slide_datatype == PandaDataset.__name__:
-            return Dataset(PandaDataset(root=self.extra_local_dataset_paths[0]))
+            return Dataset(PandaDataset(root=self.extra_local_dataset_paths[0]))                    # type: ignore       
         elif self.slide_datatype is None:
             return Dataset(data=[])
         else:

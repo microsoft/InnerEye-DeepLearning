@@ -42,7 +42,6 @@ class DeepMILModule(LightningModule):
                  label_column: str,
                  n_classes: int,
                  encoder: TileEncoder,
-                 slide_dataset: Dataset,
                  pooling_layer: Callable[[int, int, int], nn.Module],
                  pool_hidden_dim: int = 128,
                  pool_out_dim: int = 1,
@@ -51,8 +50,9 @@ class DeepMILModule(LightningModule):
                  weight_decay: float = 1e-4,
                  adam_betas: Tuple[float, float] = (0.9, 0.99),
                  verbose: bool = False,
+                 slide_dataset: Dataset = Dataset(data=[]),                
                  tile_size: int = 224,
-                 level: int = 1) -> None:
+                 level: Optional[int] = 1) -> None:
         """
         :param label_column: Label key for input batch dictionary.
         :param n_classes: Number of output classes for MIL prediction.
