@@ -45,7 +45,7 @@ else:
     azure_dataset_id = "PANDA_tiles"
     extra_local_dataset_paths = []
     extra_azure_dataset_ids = ["PANDA"]
-    num_epochs = 1
+    num_epochs = 100
 
 
 class DeepSMILEPanda(BaseMIL):
