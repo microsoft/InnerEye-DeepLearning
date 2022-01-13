@@ -56,11 +56,11 @@ from InnerEye.Scripts import submit_for_inference
 from Tests.ML.util import assert_nifti_content, get_default_azure_config, get_default_workspace, get_nifti_shape
 from health_azure.himl import RUN_RECOVERY_FILE
 
-FALLBACK_SINGLE_RUN = "refs_pull_606_merge:refs_pull_606_merge_1638867172_17ba8dc5"
-FALLBACK_ENSEMBLE_RUN = "refs_pull_606_merge:HD_b8a6ad93-8c19-45de-8ea1-f87fce92c3bd"
-FALLBACK_2NODE_RUN = "refs_pull_593_merge:refs_pull_591_merge_1639416130_e5d29ba7"
+FALLBACK_SINGLE_RUN = "refs_pull_633_merge_1642019743_f212b068"  # PR job TrainBasicModel
+FALLBACK_ENSEMBLE_RUN = "HD_5ebb378b-272b-4633-a5f8-23e958ddbf8f"  # PR job TrainEnsemble
+FALLBACK_2NODE_RUN = "refs_pull_633_merge_1642019739_a6dbe9e6"  # PR job Train2Nodes
 FALLBACK_CV_GLAUCOMA = "refs_pull_545_merge:HD_72ecc647-07c3-4353-a538-620346114ebd"
-FALLBACK_HELLO_CONTAINER_RUN = "refs_pull_606_merge:refs_pull_606_merge_1638867108_789991ac"
+FALLBACK_HELLO_CONTAINER_RUN = "refs_pull_633_merge_1642019742_0d8a7e73"  # PR job HelloContainerPR
 
 
 def get_most_recent_run_id(fallback_run_id_for_local_execution: str = FALLBACK_SINGLE_RUN) -> str:
@@ -247,7 +247,7 @@ def test_download_checkpoints_from_aml(test_output_dirs: OutputFolderForTests) -
             result = find_recovery_checkpoint_on_disk_or_cloud(test_output_dirs.root_dir)
             download.assert_called_once_with(folder=checkpoint_folder)
             assert result is not None
-            assert BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX in result.stem
+            assert result.name == BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
 
 
 @pytest.mark.inference

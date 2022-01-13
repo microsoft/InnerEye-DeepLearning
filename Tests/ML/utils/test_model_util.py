@@ -129,6 +129,7 @@ def test_find_all_recovery_checkpoints(test_output_dirs: OutputFolderForTests) -
     for file in single_files:
         (both / file).touch()
     result_both = find_recovery_checkpoint(both)
+    assert result_both is not None
     assert result_both.name == AUTOSAVE_CHECKPOINT_CANDIDATES[0]
 
 

@@ -13,7 +13,7 @@ from azureml.exceptions import UserErrorException
 
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME
-from health_azure.utils import create_run_recovery_id
+from health_azure.utils import create_run_recovery_id, get_aml_run_from_run_id
 
 DEFAULT_CROSS_VALIDATION_SPLIT_INDEX = -1
 EXPERIMENT_RUN_SEPARATOR = ":"
@@ -79,40 +79,7 @@ def fetch_run(workspace: Workspace, run_recovery_id: str) -> Run:
     or just the run_id
     :return: The AzureML run.
     """
-    experiment, run = split_recovery_id(run_recovery_id)
-    try:
-        experiment_to_recover = Experiment(workspace, experiment)
-    except Exception as ex:
-        raise Exception(
-            f"Unable to retrieve run {run} in experiment {experiment}: {str(ex)}"
-        )
-    run_to_recover = fetch_run_for_experiment(experiment_to_recover, run)
-    logging.info(
-        "Fetched run #{} {} from experiment {}.".format(
-            run, run_to_recover.number, experiment
-        )
-    )
-    return run_to_recover
-
-
-def fetch_run_for_experiment(experiment_to_recover: Experiment, run_id: str) -> Run:
-    """
-    :param experiment_to_recover: an experiment
-    :param run_id: a string representing the Run ID of one of the runs of the experiment
-    :return: the run matching run_id_or_number; raises an exception if not found
-    """
-    try:
-        return get_run(experiment=experiment_to_recover, run_id=run_id, rehydrate=True)
-    except Exception:
-        available_runs = experiment_to_recover.get_runs()
-        available_ids = ", ".join([run.id for run in available_runs])
-        raise (
-            Exception(
-                "Run {} not found for experiment: {}. Available runs are: {}".format(
-                    run_id, experiment_to_recover.name, available_ids
-                )
-            )
-        )
+    return get_aml_run_from_run_id(aml_workspace=workspace, run_id=run_recovery_id)
 
 
 def fetch_runs(experiment: Experiment, filters: List[str]) -> List[Run]:
@@ -133,9 +100,9 @@ def fetch_runs(experiment: Experiment, filters: List[str]) -> List[Run]:
 
 
 def fetch_child_runs(
-    run: Run,
-    status: Optional[str] = None,
-    expected_number_cross_validation_splits: int = 0,
+        run: Run,
+        status: Optional[str] = None,
+        expected_number_cross_validation_splits: int = 0,
 ) -> List[Run]:
     """
     Fetch child runs for the provided runs that have the provided AML status (or fetch all by default)
@@ -312,7 +279,7 @@ def download_run_output_file(blob_path: Path, destination: Path, run: Run) -> Pa
 
 
 def download_run_outputs_by_prefix(
-    blobs_prefix: Path, destination: Path, run: Run
+        blobs_prefix: Path, destination: Path, run: Run
 ) -> None:
     """
     Download all the blobs from the run's default output directory: DEFAULT_AML_UPLOAD_DIR ("outputs") that
@@ -354,7 +321,7 @@ def is_running_on_azure_agent() -> bool:
 
 
 def get_comparison_baseline_paths(
-    outputs_folder: Path, blob_path: Path, run: Run, dataset_csv_file_name: str
+        outputs_folder: Path, blob_path: Path, run: Run, dataset_csv_file_name: str
 ) -> Tuple[Optional[Path], Optional[Path]]:
     run_rec_id = run.id
     # We usually find dataset.csv in the same directory as metrics.csv, but we sometimes

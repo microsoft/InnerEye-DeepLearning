@@ -19,10 +19,8 @@ from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, is_windows, l
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.metrics_constants import MetricType, TrackedMetrics, VALIDATION_PREFIX
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.ML.common import AUTOSAVE_CHECKPOINT_FILE_NAME_WITH_SUFFIX, BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, \
-    DATASET_CSV_FILE_NAME, \
-    ModelExecutionMode, \
-    STORED_CSV_FILE_NAMES
+from InnerEye.ML.common import (BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX,
+                                DATASET_CSV_FILE_NAME, ModelExecutionMode, STORED_CSV_FILE_NAMES)
 from InnerEye.ML.config import MixtureLossComponent, SegmentationLoss
 from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
 from InnerEye.ML.dataset.sample import CroppedSample
@@ -193,8 +191,7 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     # Checkpoint folder
     assert train_config.checkpoint_folder.is_dir()
     actual_checkpoints = list(train_config.checkpoint_folder.rglob("*.ckpt"))
-    assert len(actual_checkpoints) == 2, f"Actual checkpoints: {actual_checkpoints}"
-    assert (train_config.checkpoint_folder / AUTOSAVE_CHECKPOINT_FILE_NAME_WITH_SUFFIX).is_file()
+    assert len(actual_checkpoints) == 1, f"Actual checkpoints: {actual_checkpoints}"
     assert (train_config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX).is_file()
     assert (train_config.outputs_folder / DATASET_CSV_FILE_NAME).is_file()
     assert (train_config.outputs_folder / STORED_CSV_FILE_NAMES[ModelExecutionMode.TRAIN]).is_file()

@@ -136,7 +136,7 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
     _compare_stored_metrics(runner, expected_metrics, abs=5e-5)
 
     # Check that the checkpoint contains both the optimizer for the embedding and for the linear head
-    checkpoint_path = loaded_config.outputs_folder / "checkpoints" / "best_checkpoint.ckpt"
+    checkpoint_path = loaded_config.outputs_folder / "checkpoints" / "last.ckpt"
     checkpoint = torch.load(checkpoint_path)
     assert len(checkpoint["optimizer_states"]) == 1
     assert len(checkpoint["lr_schedulers"]) == 1
