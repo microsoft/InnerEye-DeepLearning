@@ -13,6 +13,8 @@ from typing import List, Optional
 from urllib.parse import urlparse
 
 import requests
+import torch
+
 from azureml.core import Model, Run, Workspace
 
 from InnerEye.Azure.azure_config import AzureConfig
@@ -21,7 +23,7 @@ from InnerEye.Azure.azure_util import RUN_CONTEXT, download_run_output_file, dow
 from InnerEye.Common.common_util import OTHER_RUNS_SUBDIR_NAME
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, MODEL_INFERENCE_JSON_FILE_NAME
 from InnerEye.ML.common import (AUTOSAVE_CHECKPOINT_CANDIDATES, CHECKPOINT_FOLDER,
-                                LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, RECOVERY_CHECKPOINT_FILE_NAME)
+                                LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, LEGACY_RECOVERY_CHECKPOINT_FILE_NAME)
 from InnerEye.ML.deep_learning_config import OutputParams
 from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.model_inference_config import read_model_inference_config
@@ -304,21 +306,32 @@ def get_recovery_checkpoint_path(path: Path) -> Path:
 def find_recovery_checkpoint(path: Path) -> Optional[Path]:
     """
     Finds the checkpoint file in the given path that can be used for re-starting the present job.
-    This can be an autosave checkpoint, or the checkpoint considered "best"
+    This can be an autosave checkpoint, or the last checkpoint. All existing checkpoints are loaded, and the one
+    for the highest epoch is used for recovery.
     :param path: The folder to search in.
     :return: Returns the checkpoint file to use for re-starting, or None if no such file was found.
     """
-    legacy_recovery_checkpoints = list(path.glob(RECOVERY_CHECKPOINT_FILE_NAME + "*"))
+    legacy_recovery_checkpoints = list(path.glob(LEGACY_RECOVERY_CHECKPOINT_FILE_NAME + "*"))
     if len(legacy_recovery_checkpoints) > 0:
         logging.warning(f"Found these legacy checkpoint files: {legacy_recovery_checkpoints}")
         raise ValueError("The legacy recovery checkpoint setup is no longer supported. As a workaround, you can take "
                          f"one of the legacy checkpoints and upload as '{AUTOSAVE_CHECKPOINT_CANDIDATES[0]}'")
     candidates = [*AUTOSAVE_CHECKPOINT_CANDIDATES, LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX]
+    highest_epoch: Optional[int] = None
+    file_with_highest_epoch: Optional[Path] = None
     for f in candidates:
         full_path = path / f
         if full_path.is_file():
-            return full_path
-    return None
+            try:
+                checkpoint = torch.load(str(full_path))
+                epoch = checkpoint["epoch"]
+                logging.info(f"Checkpoint for epoch {epoch} in {full_path}")
+                if (highest_epoch is None) or (epoch > highest_epoch):
+                    highest_epoch = epoch
+                    file_with_highest_epoch = full_path
+            except Exception as ex:
+                logging.warning(f"Unable to load checkpoint file {full_path}: {ex}")
+    return file_with_highest_epoch
 
 
 def cleanup_checkpoints(path: Path) -> None:

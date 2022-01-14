@@ -11,7 +11,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import (AUTOSAVE_CHECKPOINT_CANDIDATES, LAST_CHECKPOINT_FILE_NAME,
-                                LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, RECOVERY_CHECKPOINT_FILE_NAME)
+                                LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, LEGACY_RECOVERY_CHECKPOINT_FILE_NAME)
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.lightning_base import InnerEyeContainer
 from InnerEye.ML.lightning_helpers import load_from_checkpoint_and_adjust_for_inference
@@ -101,7 +101,7 @@ def test_recovery_checkpoints_fails(test_output_dirs: OutputFolderForTests) -> N
     """
     checkpoint_folder = test_output_dirs.root_dir
     assert find_recovery_checkpoint(checkpoint_folder) is None
-    (checkpoint_folder / RECOVERY_CHECKPOINT_FILE_NAME).touch()
+    (checkpoint_folder / LEGACY_RECOVERY_CHECKPOINT_FILE_NAME).touch()
     with pytest.raises(ValueError) as ex:
         find_recovery_checkpoint(checkpoint_folder)
     assert "The legacy recovery checkpoint setup is no longer supported." in str(ex)
@@ -117,19 +117,23 @@ def test_find_all_recovery_checkpoints(test_output_dirs: OutputFolderForTests) -
     for i, file in enumerate(single_files):
         subfolder = checkpoint_folder / str(i)
         subfolder.mkdir()
-        (subfolder / file).touch()
+        full_file = subfolder / file
+        torch.save({"epoch": 1}, full_file)
         result = find_recovery_checkpoint(subfolder)
         assert result is not None
         assert result.name == file
 
-    # If both "autosave" and "best_checkpoint" are present, return autosave
+    # If both "autosave" and "best_checkpoint" are present, return the one with the highest epoch
     both = checkpoint_folder / "both"
     both.mkdir()
+    file_with_highest_epoch = AUTOSAVE_CHECKPOINT_CANDIDATES[1]
     for file in single_files:
-        (both / file).touch()
+        full_file = both / file
+        epoch = 100 if file == file_with_highest_epoch else 1
+        torch.save({"epoch": epoch}, full_file)
     result_both = find_recovery_checkpoint(both)
     assert result_both is not None
-    assert result_both.name == AUTOSAVE_CHECKPOINT_CANDIDATES[0]
+    assert result_both.name == file_with_highest_epoch
 
 
 def test_keep_best_checkpoint(test_output_dirs: OutputFolderForTests) -> None:

@@ -14,7 +14,7 @@ DATASET_CSV_FILE_NAME = "dataset.csv"
 CHECKPOINT_SUFFIX = ".ckpt"
 
 # The file names for the legacy "recovery" checkpoints behaviour, which stored the most recent N checkpoints
-RECOVERY_CHECKPOINT_FILE_NAME = "recovery"
+LEGACY_RECOVERY_CHECKPOINT_FILE_NAME = "recovery"
 
 # The file names for the new recovery checkpoint behaviour: A single fixed checkpoint that is written every N epochs.
 # Lightning does not overwrite files in place, and will hence create files "autosave.ckpt", "autosave-v1.ckpt"

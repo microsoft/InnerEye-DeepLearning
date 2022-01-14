@@ -108,6 +108,9 @@ def create_lightning_trainer(container: LightningContainer,
     # models, this still appears to be the best way of choosing them because validation loss on the relatively small
     # training patches is not stable enough. Going by the validation loss somehow works for the Prostate model, but
     # not for the HeadAndNeck model.
+    # Note that "last" is somehow a misnomer, it should rather be "latest". There is a "last" checkpoint written in
+    # every epoch. We could use that for recovery too, but it could happen that the job gets preempted right during
+    # writing that file, and we would end up with an invalid file.
     last_checkpoint_callback = ModelCheckpoint(dirpath=str(container.checkpoint_folder),
                                                save_last=True,
                                                save_top_k=0)
