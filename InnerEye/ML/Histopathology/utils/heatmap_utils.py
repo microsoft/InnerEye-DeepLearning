@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from matplotlib.axes import Axes
-from matplotlib.image import AxesImage
 import matplotlib.patches as patches 
 import matplotlib.collections as collection
 
@@ -14,7 +13,7 @@ def plot_heatmap_selected_tiles(tile_coords: np.ndarray,
                                 tile_size: int,
                                 level: int,
                                 ax: Optional[Axes] = None) -> None:
-    """Plots a 2D heatmap for selected tiles (e.g. tiles in a bag) to overlay on the slide.
+    """Plots a 2D heatmap for selected tiles (e.g. tiles in a bag).
     :param tile_coords: XY tile coordinates, assumed to be spaced by multiples of `tile_size` (shape: [N, 2]).
     :param tile_values: Scalar values of the tiles (shape: [N]).
     :param location_bbox: Location of the bounding box of the slide.

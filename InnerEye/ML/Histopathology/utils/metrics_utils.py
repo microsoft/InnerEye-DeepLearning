@@ -115,8 +115,13 @@ def plot_slide(slide_image: np.ndarray, scale: float) -> plt.figure:
     return fig
 
 
-def plot_heatmap_slide(slide: str, slide_image: np.ndarray, results: Dict[str, List[Any]], location_bbox: List[int], tile_size: int = 224, level: int = 1) -> plt.figure:
-    """Plots heatmap of selected tiles overlay on a slide.
+def plot_heatmap_slide(slide: str, 
+                       slide_image: np.ndarray,
+                       results: Dict[str, List[Any]],
+                       location_bbox: List[int],
+                       tile_size: int = 224,
+                       level: int = 1) -> plt.figure:
+    """Plots heatmap of selected tiles (e.g. tiles in a bag) overlay on the corresponding slide.
     :param slide: slide identifier.
     :param slide_image: Numpy array of the slide image (shape: [3, H, W]).
     :param results: Dict containing ResultsKey keys (e.g. slide id) and values as lists of output slides.
