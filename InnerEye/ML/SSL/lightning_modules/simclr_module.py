@@ -12,7 +12,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from health_ml.utils import log_learning_rate, log_on_epoch
 from pl_bolts.models.self_supervised.simclr.simclr_module import SimCLR
-
+import torch_ort
 from InnerEye.ML.SSL.encoders import SSLEncoder
 from InnerEye.ML.SSL.utils import SSLDataModuleType
 
@@ -53,7 +53,7 @@ class SimCLRInnerEye(SimCLR):
             kwargs.update({"dataset": dataset_name})
         super().__init__(**kwargs)
         self.save_hyperparameters()
-        self.encoder = SSLEncoder(encoder_name, use_7x7_first_conv_in_resnet)
+        self.encoder =  torch_ort.ORTModule(SSLEncoder(encoder_name, use_7x7_first_conv_in_resnet))
         self.projection = _Projection(input_dim=self.encoder.get_output_feature_dim(), hidden_dim=2048, output_dim=128)
 
     def configure_optimizers(self) -> Tuple[List[torch.optim.Optimizer], List[Dict[str, object]]]:

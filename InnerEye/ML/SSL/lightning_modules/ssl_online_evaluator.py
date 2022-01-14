@@ -94,6 +94,8 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
                                       p=self.drop_p,
                                       n_hidden=self.hidden_dim)
         self.evaluator.to(pl_module.device)
+        self.evaluator = self.evaluator.half()
+
         if hasattr(trainer, "accelerator_connector"):
             # This works with Lightning 1.3.8
             accelerator = trainer.accelerator_connector
@@ -140,6 +142,10 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
         """
         batch = batch[SSLDataModuleType.LINEAR_HEAD] if isinstance(batch, dict) else batch
         x, y = self.to_device(batch, pl_module.device)
+
+        if isinstance(x, (torch.FloatTensor, torch.cuda.FloatTensor)):
+            x = x.half()
+
         with torch.no_grad():
             representations = self.get_representations(pl_module, x)
         representations = representations.detach()
