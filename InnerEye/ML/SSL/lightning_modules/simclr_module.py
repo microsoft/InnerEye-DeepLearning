@@ -54,7 +54,7 @@ class SimCLRInnerEye(SimCLR):
         super().__init__(**kwargs)
         self.save_hyperparameters()
         self.encoder =  torch_ort.ORTModule(SSLEncoder(encoder_name, use_7x7_first_conv_in_resnet))
-        self.projection = _Projection(input_dim=self.encoder.get_output_feature_dim(), hidden_dim=2048, output_dim=128)
+        self.projection = torch_ort.ORTModule(_Projection(input_dim=self.encoder.get_output_feature_dim(), hidden_dim=2048, output_dim=128))
 
     def configure_optimizers(self) -> Tuple[List[torch.optim.Optimizer], List[Dict[str, object]]]:
         # DeepSpeedCPUAdam provides 5x to 7x speedup over torch.optim.adam(w)
