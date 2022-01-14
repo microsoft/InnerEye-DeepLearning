@@ -447,7 +447,6 @@ def test_simclr_num_gpus() -> None:
             with mock.patch("InnerEye.ML.SSL.lightning_containers.ssl_container.get_encoder_output_dim", return_value=1):
                 container = CIFAR10SimCLR()
                 container.num_epochs = num_epochs
-                container.l_rate_warmup_epochs
                 num_samples = 800
                 batch_size = 10
                 container.data_module = mock.MagicMock(num_samples=num_samples, batch_size=batch_size)
@@ -458,11 +457,10 @@ def test_simclr_num_gpus() -> None:
                 container.max_num_gpus = 4
                 model2 = container.create_model()
                 assert model2.train_iters_per_epoch == num_samples // (batch_size * container.max_num_gpus)
-
                 scheduler = model2.configure_optimizers()[1][0]["scheduler"]
 
-    total_training_steps = model2.train_iters_per_epoch * num_epochs
-    warmup_steps = model2.train_iters_per_epoch * warmup_epochs
+    total_training_steps = model2.train_iters_per_epoch * num_epochs  # type: ignore
+    warmup_steps = model2.train_iters_per_epoch * warmup_epochs  # type: ignore
     previous_lr = None
     for i in range(total_training_steps):
         lr = scheduler.get_last_lr()
