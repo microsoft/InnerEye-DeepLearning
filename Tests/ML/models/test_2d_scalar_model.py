@@ -30,7 +30,7 @@ def test_train_2d_classification_model(test_output_dirs: OutputFolderForTests,
     # Train for 4 epochs, checkpoints at epochs 2 and 4
     config.num_epochs = 4
     config.use_mixed_precision = use_mixed_precision
-    model_training_result, checkpoint_handler = model_train_unittest(config, dirs=test_output_dirs)
+    model_training_result, checkpoint_handler = model_train_unittest(config, output_folder=test_output_dirs)
     assert model_training_result is not None
     expected_learning_rates = [0.0001, 9.99971e-05, 9.99930e-05, 9.99861e-05]
 

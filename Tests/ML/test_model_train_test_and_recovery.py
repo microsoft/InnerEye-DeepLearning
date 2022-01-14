@@ -33,7 +33,7 @@ def test_recover_testing_from_run_recovery(mean_teacher_model: bool,
     config.set_output_to(test_output_dirs.root_dir / "original")
     os.makedirs(str(config.outputs_folder))
 
-    train_results, checkpoint_handler = model_train_unittest(config, dirs=test_output_dirs)
+    train_results, checkpoint_handler = model_train_unittest(config, output_folder=test_output_dirs)
     assert len(train_results.train_results_per_epoch()) == config.num_epochs
 
     # Run inference on this
@@ -94,7 +94,7 @@ def test_autosave_checkpoints(test_output_dirs: OutputFolderForTests, num_epochs
     config.autosave_every_n_val_epochs = 1
     config.set_output_to(test_output_dirs.root_dir)
     config.num_epochs = num_epochs
-    model_train_unittest(config, dirs=test_output_dirs)
+    model_train_unittest(config, output_folder=test_output_dirs)
     assert len(list(config.checkpoint_folder.glob("*.*"))) == 1
     assert (config.checkpoint_folder / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX).is_file()
 
@@ -108,13 +108,13 @@ def test_recovery_e2e(test_output_dirs: OutputFolderForTests) -> None:
     model_config.set_output_to(test_output_dirs.root_dir)
     num_epochs_1 = 5
     model_config.num_epochs = num_epochs_1
-    storing_logger_1, checkpoint_handler = model_train_unittest(model_config, dirs=test_output_dirs)
+    storing_logger_1, checkpoint_handler = model_train_unittest(model_config, output_folder=test_output_dirs)
     # Logger should have results for epochs 0..4
     assert list(storing_logger_1.epochs) == list(range(num_epochs_1))
     # Now restart the job, train to epoch 10
     num_epochs_2 = 10
     model_config.num_epochs = num_epochs_2
-    storing_logger_2, _ = model_train_unittest(model_config, dirs=test_output_dirs,
+    storing_logger_2, _ = model_train_unittest(model_config, output_folder=test_output_dirs,
                                                checkpoint_handler=checkpoint_handler)
     # Logger should have results only for epochs 5..9
     assert list(storing_logger_2.epochs) == list(range(num_epochs_1, num_epochs_2))

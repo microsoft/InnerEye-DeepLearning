@@ -53,7 +53,7 @@ def test_train_classification_model(class_name: str, test_output_dirs: OutputFol
     config.set_output_to(test_output_dirs.root_dir)
     # Train for 4 epochs, checkpoints at epochs 2 and 4
     config.num_epochs = 4
-    model_training_result, checkpoint_handler = model_train_unittest(config, dirs=test_output_dirs)
+    model_training_result, checkpoint_handler = model_train_unittest(config, output_folder=test_output_dirs)
     assert model_training_result is not None
     expected_learning_rates = [0.0001, 9.99971e-05, 9.99930e-05, 9.99861e-05]
     expected_train_loss = [0.686614, 0.686465, 0.686316, 0.686167]
@@ -162,7 +162,7 @@ def test_train_classification_multilabel_model(test_output_dirs: OutputFolderFor
     config.set_output_to(test_output_dirs.root_dir)
     # Train for 4 epochs, checkpoints at epochs 2 and 4
     config.num_epochs = 4
-    model_training_result, checkpoint_handler = model_train_unittest(config, dirs=test_output_dirs)
+    model_training_result, checkpoint_handler = model_train_unittest(config, output_folder=test_output_dirs)
     assert model_training_result is not None
     expected_learning_rates = [0.0001, 9.99971e-05, 9.99930e-05, 9.99861e-05]
     expected_train_loss = [0.699870228767395, 0.6239662170410156, 0.551329493522644, 0.4825132489204407]

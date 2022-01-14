@@ -110,7 +110,7 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     loss_absolute_tolerance = 1e-6
     expected_learning_rates = [train_config.l_rate, 5.3589e-4]
 
-    model_training_result, _ = model_train_unittest(train_config, dirs=output_dirs)
+    model_training_result, _ = model_train_unittest(train_config, output_folder=output_dirs)
     assert isinstance(model_training_result, StoringLogger)
     # Check that all metrics from the BatchTimeCallback are present
     # # TODO: re-enable once the BatchTimeCallback is fixed
@@ -328,7 +328,7 @@ def test_recover_training_mean_teacher_model(test_output_dirs: OutputFolderForTe
 
     # First round of training
     config.num_epochs = 4
-    model_train_unittest(config, dirs=test_output_dirs)
+    model_train_unittest(config, output_folder=test_output_dirs)
     assert len(list(config.checkpoint_folder.glob("*.*"))) == 1
     assert (config.checkpoint_folder / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX).is_file()
 
@@ -345,7 +345,7 @@ def test_recover_training_mean_teacher_model(test_output_dirs: OutputFolderForTe
                                                         project_root=test_output_dirs.root_dir)
     checkpoint_handler.run_recovery = RunRecovery([checkpoint_root])
 
-    model_train_unittest(config, dirs=test_output_dirs, checkpoint_handler=checkpoint_handler)
+    model_train_unittest(config, output_folder=test_output_dirs, checkpoint_handler=checkpoint_handler)
     # remove recovery checkpoints
     shutil.rmtree(checkpoint_root)
     assert len(list(config.checkpoint_folder.glob("*.ckpt"))) == 1
