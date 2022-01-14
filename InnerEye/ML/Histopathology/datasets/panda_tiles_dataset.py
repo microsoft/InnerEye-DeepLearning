@@ -54,9 +54,16 @@ class PandaTilesDatasetReturnImageLabel(VisionDataset):
                  transform: Optional[Callable] = None,
                  **kwargs: Any) -> None:
         super().__init__(root=root, transform=transform)
-        self.base_dataset = PandaTilesDataset(root=root,
+        # filter out tiles based on occupancy threshold
+        self.full_dataset = PandaTilesDataset(root=root,
                                               dataset_csv=dataset_csv,
                                               dataset_df=dataset_df)
+        self.occupancy_threshold = 0
+        dataset_df_filtered = self.full_dataset.dataset_df.loc[self.full_dataset.dataset_df['occupancy'] > self.occupancy_threshold]  # type: ignore
+        dataset_df_filtered.reset_index(inplace=True)
+        self.base_dataset = PandaTilesDataset(root=root, dataset_df=dataset_df_filtered)
+        print(len(self.full_dataset))
+        print(len(self.base_dataset))
 
     def __getitem__(self, index: int) -> Tuple:  # type: ignore
         sample = self.base_dataset[index]
@@ -64,7 +71,9 @@ class PandaTilesDatasetReturnImageLabel(VisionDataset):
         image = load_pil_image(sample[self.base_dataset.IMAGE_COLUMN])
         if self.transform:
             image = self.transform(image)
-        return image, 1
+        # get binary label
+        label = 0 if sample[self.base_dataset.LABEL_COLUMN] == 0 else 1
+        return image, label
 
     def __len__(self) -> int:
         return len(self.base_dataset)
