@@ -8,13 +8,13 @@ import matplotlib.patches as patches
 import matplotlib.collections as collection
 
 
-def plot_heatmap_selected_tiles(tile_coords: np.array,
+def plot_heatmap_selected_tiles(tile_coords: np.ndarray,
                                 tile_values: np.ndarray,
                                 location_bbox: List[int],
                                 tile_size: int,
                                 level: int,
-                                ax: Optional[Axes] = None) -> AxesImage:
-    """Plots a 2D heatmap for selected tiles to overlay on the slide.
+                                ax: Optional[Axes] = None) -> None:
+    """Plots a 2D heatmap for selected tiles (e.g. tiles in a bag) to overlay on the slide.
     :param tile_coords: XY tile coordinates, assumed to be spaced by multiples of `tile_size` (shape: [N, 2]).
     :param tile_values: Scalar values of the tiles (shape: [N]).
     :param location_bbox: Location of the bounding box of the slide.
@@ -46,4 +46,3 @@ def plot_heatmap_selected_tiles(tile_coords: np.array,
     pc.set_clim([0, 1])
     ax.add_collection(pc)
     plt.colorbar(pc, ax=ax)
-    return ax

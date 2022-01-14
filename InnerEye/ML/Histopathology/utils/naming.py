@@ -18,6 +18,7 @@ class SlideKey(str, Enum):
     ORIGIN = 'origin'
     FOREGROUND_THRESHOLD = 'foreground_threshold'
     METADATA = 'metadata'
+    LOCATION = 'location'
 
 
 class TileKey(str, Enum):

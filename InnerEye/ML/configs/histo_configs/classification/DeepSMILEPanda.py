@@ -3,11 +3,13 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-from typing import Any, Dict, Optional
+from typing import Any, Optional, List
 from pathlib import Path
 import os
 from monai.transforms import Compose
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
+from pytorch_lightning.callbacks import Callback
+from monai.data.dataset import Dataset
 
 from health_azure.utils import CheckpointDownloader
 from health_azure.utils import get_workspace
@@ -26,12 +28,14 @@ from InnerEye.ML.Histopathology.models.encoders import (
     ImageNetEncoder,
     ImageNetSimCLREncoder,
     InnerEyeSSLEncoder,
+    IdentityEncoder
 )
 from InnerEye.ML.configs.histo_configs.classification.BaseMIL import BaseMIL
 from InnerEye.ML.Histopathology.datasets.panda_dataset import PandaDataset
+from InnerEye.ML.Histopathology.models.deepmil import DeepMILModule
 
 
-local_mode = False
+local_mode = True
 path_local_data: Optional[Path]
 if local_mode:
     path_local_data = Path("/tmp/datasets/PANDA_tiles")
@@ -52,8 +56,6 @@ class DeepSMILEPanda(BaseMIL):
         default_kwargs = dict(
             # declared in BaseMIL:
             pooling_type=GatedAttentionLayer.__name__,
-            slide_datatype=PandaDataset.__name__,
-            level=1,
             # declared in DatasetParams:
             local_dataset=path_local_data,
             azure_dataset_id=azure_dataset_id,
@@ -131,11 +133,29 @@ class DeepSMILEPanda(BaseMIL):
             cross_validation_split_index=self.cross_validation_split_index,
         )
 
-    def get_trainer_arguments(self) -> Dict[str, Any]:
-        # These arguments will be passed through to the Lightning trainer.
-        kw_args = super().get_trainer_arguments()
-        kw_args["callbacks"] = self.callbacks
-        return kw_args
+    def create_model(self) -> DeepMILModule:
+        self.data_module = self.get_data_module()
+        # Encoding is done in the datamodule, so here we provide instead a dummy
+        # no-op IdentityEncoder to be used inside the model
+        self.slide_dataset = self.get_slide_dataset()
+        self.level = 1
+        return DeepMILModule(encoder=IdentityEncoder(input_dim=(self.encoder.num_encoding,)),
+                             label_column=self.data_module.train_dataset.LABEL_COLUMN,
+                             n_classes=self.data_module.train_dataset.N_CLASSES,
+                             pooling_layer=self.get_pooling_layer(),
+                             class_weights=self.data_module.class_weights,
+                             l_rate=self.l_rate,
+                             weight_decay=self.weight_decay,
+                             adam_betas=self.adam_betas,
+                             slide_dataset=self.get_slide_dataset(),
+                             tile_size=self.tile_size,
+                             level=self.level)
+
+    def get_slide_dataset(self) -> Dataset:
+        return Dataset(PandaDataset(root=self.extra_local_dataset_paths[0]))                    # type: ignore 
+
+    def get_callbacks(self) -> List[Callback]:
+        return super().get_callbacks() + [self.callbacks]
 
     def get_path_to_best_checkpoint(self) -> Path:
         """
@@ -159,7 +179,7 @@ class DeepSMILEPanda(BaseMIL):
         if checkpoint_path.is_file():
             return checkpoint_path
 
-        raise ValueError("Path to best checkpoint not found")
+        raise ValueError("Path to best checkpoint not found")      
 
 
 class PandaImageNetMIL(DeepSMILEPanda):

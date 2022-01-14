@@ -101,7 +101,7 @@ def plot_slide_noxy(slide: str, score: float, paths: List, attn: List, case: str
     return fig
 
 
-def plot_slide(slide_image: np.array, scale: float) -> plt.figure:
+def plot_slide(slide_image: np.ndarray, scale: float) -> plt.figure:
     """Plots a slide thumbnail from a given slide image and scale.
     :param slide_image: Numpy array of the slide image (shape: [3, H, W]).
     :return: matplotlib figure of the slide thumbnail.
@@ -115,11 +115,11 @@ def plot_slide(slide_image: np.array, scale: float) -> plt.figure:
     return fig
 
 
-def plot_heatmap_slide(slide: str, slide_image: np.array, results: Dict, location_bbox: List[int], tile_size: int = 224, level: int = 1) -> plt.figure:
+def plot_heatmap_slide(slide: str, slide_image: np.ndarray, results: Dict[str, List[Any]], location_bbox: List[int], tile_size: int = 224, level: int = 1) -> plt.figure:
     """Plots heatmap of selected tiles overlay on a slide.
     :param slide: slide identifier.
     :param slide_image: Numpy array of the slide image (shape: [3, H, W]).
-    :param results: List that contains slide_level dicts.
+    :param results: Dict containing ResultsKey keys (e.g. slide id) and values as lists of output slides.
     :param tile_size: Size of each tile. Default 224.
     :param level: Magnification at which tiles are available (e.g. PANDA levels are 0 for original, 1 for 4x downsampled, 2 for 16x downsampled). Default 1.
     :param location_bbox: Location of the bounding box of the slide.

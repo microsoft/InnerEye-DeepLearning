@@ -9,6 +9,7 @@ import pandas as pd
 import numpy as np
 from typing import Any, Callable, Dict, Optional, Tuple, List
 import torch
+import matplotlib.pyplot as plt
 
 from pytorch_lightning import LightningModule
 from torch import Tensor, argmax, mode, nn, no_grad, optim, round
@@ -315,31 +316,31 @@ class DeepMILModule(LightningModule):
             for i in range(nslides):
                 slide, score, paths, top_attn = report_cases[key][0][i]
                 fig = plot_slide_noxy(slide, score, paths, top_attn, key + '_top', ncols=4)
-                figpath = Path(key_folder_path, f'{slide}_top.png')
-                fig.savefig(figpath, bbox_inches='tight')
+                self.save_figure(fig=fig, figpath=Path(key_folder_path, f'{slide}_top.png'))
 
                 slide, score, paths, bottom_attn = report_cases[key][1][i]
                 fig = plot_slide_noxy(slide, score, paths, bottom_attn, key + '_bottom', ncols=4)
-                figpath = Path(key_folder_path, f'{slide}_bottom.png')
-                fig.savefig(figpath, bbox_inches='tight')
+                self.save_figure(fig=fig, figpath=Path(key_folder_path, f'{slide}_bottom.png'))
+
                 if len(self.slide_dataset) > 0:
                     slide_dict = list(filter(lambda entry: entry[SlideKey.SLIDE_ID] == slide, self.slide_dataset))[0]  # type: ignore
                     load_image_dict(slide_dict, level=self.level, margin=0)                                            # type: ignore
                     slide_image = slide_dict[SlideKey.IMAGE]
-                    location_bbox = slide_dict['location']
+                    location_bbox = slide_dict[SlideKey.LOCATION]
 
                     fig = plot_slide(slide_image=slide_image, scale=1.0)
-                    figpath = Path(key_folder_path, f'{slide}_thumbnail.png')
-                    fig.savefig(figpath, bbox_inches='tight')
-
+                    self.save_figure(fig=fig, figpath=Path(key_folder_path, f'{slide}_thumbnail.png'))
                     fig = plot_heatmap_slide(slide=slide, slide_image=slide_image, results=results, 
                                             location_bbox=location_bbox, tile_size=self.tile_size, level=slide_dict['level'])
-                    figpath = Path(key_folder_path, f'{slide}_heatmap.png')
-                    fig.savefig(figpath, bbox_inches='tight')
+                    self.save_figure(fig=fig, figpath=Path(key_folder_path, f'{slide}_heatmap.png'))
 
         print("Plotting histogram ...")
         fig = plot_scores_hist(results)
-        fig.savefig(outputs_fig_path / 'hist_scores.png', bbox_inches='tight')
+        self.save_figure(fig=fig, figpath=outputs_fig_path / 'hist_scores.png')
+
+    @staticmethod
+    def save_figure(fig: plt.figure, figpath: Path) -> None:
+        fig.savefig(figpath, bbox_inches='tight')
 
     @staticmethod
     def normalize_dict_for_df(dict_old: Dict[str, Any], use_gpu: bool) -> Dict:
