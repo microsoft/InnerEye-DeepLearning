@@ -55,14 +55,6 @@ def write_args_file(config: Any, outputs_folder: Path) -> None:
     logging.info(output)
 
 
-class AutoSaveCheckpointCallback(ModelCheckpoint):
-    def __init__(self, container: LightningContainer):
-        super().__init__(dirpath=str(container.checkpoint_folder),
-                         filename=AUTOSAVE_CHECKPOINT_FILE_NAME,
-                         every_n_val_epochs=container.autosave_every_n_val_epochs,
-                         save_last=False)
-
-
 def create_lightning_trainer(container: LightningContainer,
                              resume_from_checkpoint: Optional[Path] = None,
                              num_nodes: int = 1) -> \
@@ -116,8 +108,13 @@ def create_lightning_trainer(container: LightningContainer,
     # models, this still appears to be the best way of choosing them because validation loss on the relatively small
     # training patches is not stable enough. Going by the validation loss somehow works for the Prostate model, but
     # not for the HeadAndNeck model.
-    last_checkpoint_callback = ModelCheckpoint(dirpath=str(container.checkpoint_folder), save_last=True, save_top_k=0)
-    recovery_checkpoint_callback = AutoSaveCheckpointCallback(container)
+    last_checkpoint_callback = ModelCheckpoint(dirpath=str(container.checkpoint_folder),
+                                               save_last=True,
+                                               save_top_k=0)
+    recovery_checkpoint_callback = ModelCheckpoint(dirpath=str(container.checkpoint_folder),
+                                                   filename=AUTOSAVE_CHECKPOINT_FILE_NAME,
+                                                   every_n_val_epochs=container.autosave_every_n_val_epochs,
+                                                   save_last=False)
     callbacks: List[Callback] = [
         last_checkpoint_callback,
         recovery_checkpoint_callback,
@@ -270,7 +267,7 @@ def model_train(checkpoint_path: Optional[Path],
         logging.info(f"Terminating training thread with rank {lightning_model.global_rank}.")
         sys.exit()
 
-    logging.info("Choosing the best checkpoint and removing redundant files.")
+    logging.info("Removing redundant checkpoint files.")
     cleanup_checkpoints(container.checkpoint_folder)
     # Lightning modifies a ton of environment variables. If we first run training and then the test suite,
     # those environment variables will mislead the training runs in the test suite, and make them crash.

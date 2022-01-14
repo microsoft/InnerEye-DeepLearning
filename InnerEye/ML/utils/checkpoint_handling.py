@@ -20,8 +20,7 @@ from InnerEye.Azure.azure_util import RUN_CONTEXT, download_run_output_file, dow
     fetch_child_runs, tag_values_all_distinct
 from InnerEye.Common.common_util import OTHER_RUNS_SUBDIR_NAME
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, MODEL_INFERENCE_JSON_FILE_NAME
-from InnerEye.ML.common import (AUTOSAVE_CHECKPOINT_CANDIDATES,
-                                BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, CHECKPOINT_FOLDER,
+from InnerEye.ML.common import (AUTOSAVE_CHECKPOINT_CANDIDATES, CHECKPOINT_FOLDER,
                                 LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, RECOVERY_CHECKPOINT_FILE_NAME)
 from InnerEye.ML.deep_learning_config import OutputParams
 from InnerEye.ML.lightning_container import LightningContainer
@@ -273,12 +272,10 @@ def download_folder_from_run_to_temp_folder(folder: str,
 
 def find_recovery_checkpoint_on_disk_or_cloud(path: Path) -> Optional[Path]:
     """
-    Looks at all the recovery files, extracts the epoch number for all of them and returns the most recent (latest
-    epoch)
-    checkpoint path along with the corresponding epoch number. If no recovery checkpoint are found, return None.
+    Looks at all the checkpoint files and returns the path to the one that should be used for recovery.
+    If no checkpoint files are found on disk, the function attempts to download from the current AzureML run.
     :param path: The folder to start searching in.
-    :return: None if there is no file matching the search pattern, or a Tuple with Path object and integer pointing to
-    recovery checkpoint path and recovery epoch.
+    :return: None if there is no suitable recovery checkpoints, or else a full path to the checkpoint file.
     """
     recovery_checkpoint = find_recovery_checkpoint(path)
     if recovery_checkpoint is None and is_running_in_azure_ml():
@@ -316,7 +313,7 @@ def find_recovery_checkpoint(path: Path) -> Optional[Path]:
         logging.warning(f"Found these legacy checkpoint files: {legacy_recovery_checkpoints}")
         raise ValueError("The legacy recovery checkpoint setup is no longer supported. As a workaround, you can take "
                          f"one of the legacy checkpoints and upload as '{AUTOSAVE_CHECKPOINT_CANDIDATES[0]}'")
-    candidates = [*AUTOSAVE_CHECKPOINT_CANDIDATES, BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX]
+    candidates = [*AUTOSAVE_CHECKPOINT_CANDIDATES, LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX]
     for f in candidates:
         full_path = path / f
         if full_path.is_file():
@@ -369,7 +366,7 @@ def download_best_checkpoints_from_child_runs(config: OutputParams, run: Run) ->
             subdir = str(child.tags[tag_to_use] if can_use_split_indices else child.number)
             child_dst = config.checkpoint_folder / OTHER_RUNS_SUBDIR_NAME / subdir
             download_run_output_file(
-                blob_path=Path(CHECKPOINT_FOLDER) / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX,
+                blob_path=Path(CHECKPOINT_FOLDER) / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX,
                 destination=child_dst,
                 run=child
             )

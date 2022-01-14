@@ -19,7 +19,7 @@ from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, is_windows, l
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.metrics_constants import MetricType, TrackedMetrics, VALIDATION_PREFIX
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.ML.common import (BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX,
+from InnerEye.ML.common import (LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX,
                                 DATASET_CSV_FILE_NAME, ModelExecutionMode, STORED_CSV_FILE_NAMES)
 from InnerEye.ML.config import MixtureLossComponent, SegmentationLoss
 from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
@@ -192,7 +192,7 @@ def _test_model_train(output_dirs: OutputFolderForTests,
     assert train_config.checkpoint_folder.is_dir()
     actual_checkpoints = list(train_config.checkpoint_folder.rglob("*.ckpt"))
     assert len(actual_checkpoints) == 1, f"Actual checkpoints: {actual_checkpoints}"
-    assert (train_config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX).is_file()
+    assert (train_config.checkpoint_folder / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX).is_file()
     assert (train_config.outputs_folder / DATASET_CSV_FILE_NAME).is_file()
     assert (train_config.outputs_folder / STORED_CSV_FILE_NAMES[ModelExecutionMode.TRAIN]).is_file()
     assert (train_config.outputs_folder / STORED_CSV_FILE_NAMES[ModelExecutionMode.VAL]).is_file()
@@ -330,7 +330,7 @@ def test_recover_training_mean_teacher_model(test_output_dirs: OutputFolderForTe
     config.num_epochs = 4
     model_train_unittest(config, dirs=test_output_dirs)
     assert len(list(config.checkpoint_folder.glob("*.*"))) == 1
-    assert (config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX).is_file()
+    assert (config.checkpoint_folder / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX).is_file()
 
     # Restart training from previous run
     config.num_epochs = 3

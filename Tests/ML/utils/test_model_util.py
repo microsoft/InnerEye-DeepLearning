@@ -10,8 +10,7 @@ import torch
 from pytorch_lightning.callbacks import ModelCheckpoint
 
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.ML.common import (AUTOSAVE_CHECKPOINT_CANDIDATES, BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX,
-                                LAST_CHECKPOINT_FILE_NAME,
+from InnerEye.ML.common import (AUTOSAVE_CHECKPOINT_CANDIDATES, LAST_CHECKPOINT_FILE_NAME,
                                 LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, RECOVERY_CHECKPOINT_FILE_NAME)
 from InnerEye.ML.config import SegmentationModelBase
 from InnerEye.ML.lightning_base import InnerEyeContainer
@@ -114,7 +113,7 @@ def test_find_all_recovery_checkpoints(test_output_dirs: OutputFolderForTests) -
     """
     checkpoint_folder = test_output_dirs.root_dir
     # If the checkpoint folder only contains a single checkpoint file of whatever kind, return that.
-    single_files = [*AUTOSAVE_CHECKPOINT_CANDIDATES, BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX]
+    single_files = [*AUTOSAVE_CHECKPOINT_CANDIDATES, LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX]
     for i, file in enumerate(single_files):
         subfolder = checkpoint_folder / str(i)
         subfolder.mkdir()
@@ -150,7 +149,7 @@ def test_keep_best_checkpoint(test_output_dirs: OutputFolderForTests) -> None:
     cleanup_checkpoints(folder)
     # All code outside the trainer loop assumes that there is a checkpoint with this name. The constant actually
     # matches "last.ckpt", but the constant is kept to reduce code changes from the legacy behaviour.
-    expected = folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+    expected = folder / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
     assert expected.is_file()
     # The autosave checkpoint should be deleted after training, only the single best checkpoint should remain
     assert len(list(folder.glob("*"))) == 1

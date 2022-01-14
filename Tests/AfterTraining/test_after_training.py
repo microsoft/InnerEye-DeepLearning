@@ -36,7 +36,7 @@ from InnerEye.Common.fixed_paths import (DEFAULT_AML_UPLOAD_DIR, DEFAULT_RESULT_
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.spawn_subprocess import spawn_and_monitor_subprocess
-from InnerEye.ML.common import (BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, CHECKPOINT_FOLDER, DATASET_CSV_FILE_NAME,
+from InnerEye.ML.common import (LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, CHECKPOINT_FOLDER, DATASET_CSV_FILE_NAME,
                                 ModelExecutionMode)
 from InnerEye.ML.configs.other.HelloContainer import HelloContainer
 from InnerEye.ML.configs.segmentation.BasicModel2Epochs import BasicModel2Epochs
@@ -233,7 +233,7 @@ def test_download_checkpoints_from_aml(test_output_dirs: OutputFolderForTests) -
                                                           workspace=get_default_workspace())
     files = list(temp_folder.glob("*"))
     assert len(files) == 1
-    assert (temp_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX).is_file()
+    assert (temp_folder / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX).is_file()
     # Test if what's in the folder are really files, not directories
     for file in files:
         assert file.is_file()
@@ -247,7 +247,7 @@ def test_download_checkpoints_from_aml(test_output_dirs: OutputFolderForTests) -
             result = find_recovery_checkpoint_on_disk_or_cloud(test_output_dirs.root_dir)
             download.assert_called_once_with(folder=checkpoint_folder)
             assert result is not None
-            assert result.name == BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+            assert result.name == LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
 
 
 @pytest.mark.inference

@@ -10,7 +10,7 @@ import pytest
 
 from InnerEye.Common.metrics_constants import MetricType
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, ModelExecutionMode
+from InnerEye.ML.common import LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, ModelExecutionMode
 from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
 from InnerEye.ML.metrics import InferenceMetricsForClassification
 from InnerEye.ML.model_testing import model_test
@@ -68,7 +68,7 @@ def test_recover_testing_from_run_recovery(mean_teacher_model: bool,
     os.makedirs(str(config_local_weights.outputs_folder))
 
     local_weights_path = test_output_dirs.root_dir / "local_weights_file.pth"
-    shutil.copyfile(str(config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX),
+    shutil.copyfile(str(config.checkpoint_folder / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX),
                     local_weights_path)
     config_local_weights.local_weights_path = [local_weights_path]
 
@@ -96,7 +96,7 @@ def test_autosave_checkpoints(test_output_dirs: OutputFolderForTests, num_epochs
     config.num_epochs = num_epochs
     model_train_unittest(config, dirs=test_output_dirs)
     assert len(list(config.checkpoint_folder.glob("*.*"))) == 1
-    assert (config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX).is_file()
+    assert (config.checkpoint_folder / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX).is_file()
 
 
 def test_recovery_e2e(test_output_dirs: OutputFolderForTests) -> None:

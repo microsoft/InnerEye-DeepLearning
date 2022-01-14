@@ -28,10 +28,6 @@ AUTOSAVE_CHECKPOINT_CANDIDATES = [AUTOSAVE_CHECKPOINT_FILE_NAME + CHECKPOINT_SUF
 LAST_CHECKPOINT_FILE_NAME = "last"
 LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX = LAST_CHECKPOINT_FILE_NAME + CHECKPOINT_SUFFIX
 
-# The file names for what is retained as the "best" checkpoint: The checkpoint at the end of training.
-BEST_CHECKPOINT_FILE_NAME = LAST_CHECKPOINT_FILE_NAME
-BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX = BEST_CHECKPOINT_FILE_NAME + CHECKPOINT_SUFFIX
-
 FINAL_MODEL_FOLDER = "final_model"
 FINAL_ENSEMBLE_MODEL_FOLDER = "final_ensemble_model"
 CHECKPOINT_FOLDER = "checkpoints"
@@ -92,4 +88,4 @@ def get_best_checkpoint_path(path: Path) -> Path:
     Given a path and checkpoint, formats a path based on the checkpoint file name format.
     :param path to checkpoint folder
     """
-    return path / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+    return path / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
