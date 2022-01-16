@@ -4,12 +4,14 @@
 #  ------------------------------------------------------------------------------------------
 
 import math
+import numpy as np
 from typing import List
 
 import matplotlib
 from torch.functional import Tensor
+import pytest
 
-from InnerEye.ML.Histopathology.utils.metrics_utils import plot_scores_hist, select_k_tiles
+from InnerEye.ML.Histopathology.utils.metrics_utils import plot_scores_hist, select_k_tiles, plot_slide, plot_heatmap_slide
 from InnerEye.ML.Histopathology.utils.naming import ResultsKey
 
 
@@ -60,3 +62,31 @@ def test_select_k_tiles() -> None:
 def test_plot_scores_hist() -> None:
     fig = plot_scores_hist(test_dict)
     assert isinstance(fig, matplotlib.figure.Figure)
+
+@pytest.mark.parametrize("scale", [0.1, 1.2, 2.4, 3.6])
+def test_plot_slide(scale: int) -> None:
+    slide_image = np.random.rand(3, 1000, 2000)
+    fig = plot_slide(slide_image=slide_image, scale=scale)
+    assert isinstance(fig, matplotlib.figure.Figure)
+
+@pytest.mark.parametrize("level", [0, 1, 2])
+def test_plot_heatmap_slide(level: int) -> None:
+    slide_image = np.random.rand(3, 1000, 2000)
+    location_bbox = [100, 100]
+    slide = 1  
+    fig = plot_heatmap_slide(slide, slide_image, test_dict, location_bbox)
+    assert isinstance(fig, matplotlib.figure.Figure)
+
+    tile_coords = np.array([[100, 100], [200, 100], [200, 200]])
+    level_dict = {"0": 1, "1": 4, "2": 16}
+    factor = level_dict[str(level)]
+    x_tr, y_tr = location_bbox
+    tile_xs, tile_ys = tile_coords.T
+    tile_xs = tile_xs - x_tr 
+    tile_ys = tile_ys - y_tr 
+    tile_xs = tile_xs//factor
+    tile_ys = tile_ys//factor
+    assert min(tile_xs) >= 0 
+    assert max(tile_xs) <= slide_image.shape[1]//factor
+    assert min(tile_ys) >= 0 
+    assert max(tile_ys) <= slide_image.shape[2]//factor
