@@ -35,7 +35,7 @@ from InnerEye.ML.Histopathology.datasets.panda_dataset import PandaDataset
 from InnerEye.ML.Histopathology.models.deepmil import DeepMILModule
 
 
-local_mode = True
+local_mode = False
 path_local_data: Optional[Path]
 if local_mode:
     path_local_data = Path("/tmp/datasets/PANDA_tiles")

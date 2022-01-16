@@ -10,6 +10,7 @@ import numpy as np
 from typing import Any, Callable, Dict, Optional, Tuple, List
 import torch
 import matplotlib.pyplot as plt
+import more_itertools as mi
 
 from pytorch_lightning import LightningModule
 from torch import Tensor, argmax, mode, nn, no_grad, optim, round
@@ -323,8 +324,8 @@ class DeepMILModule(LightningModule):
                 self.save_figure(fig=fig, figpath=Path(key_folder_path, f'{slide}_bottom.png'))
 
                 if len(self.slide_dataset) > 0:
-                    slide_dict = list(filter(lambda entry: entry[SlideKey.SLIDE_ID] == slide, self.slide_dataset))[0]  # type: ignore
-                    load_image_dict(slide_dict, level=self.level, margin=0)                                            # type: ignore
+                    slide_dict = mi.first_true(self.slide_dataset, pred=lambda entry: entry[SlideKey.SLIDE_ID] == slide)  # type: ignore
+                    load_image_dict(slide_dict, level=self.level, margin=0)                                               # type: ignore
                     slide_image = slide_dict[SlideKey.IMAGE]
                     location_bbox = slide_dict[SlideKey.LOCATION]
 
