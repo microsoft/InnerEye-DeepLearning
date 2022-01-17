@@ -172,7 +172,7 @@ class SSLContainer(LightningContainer):
                 f"Found {self.ssl_training_type.value}")
         model.hparams.update({'ssl_type': self.ssl_training_type.value,
                               "num_classes": self.data_module.num_classes})
-
+        print(vars(model))
         self.encoder_output_dim = get_encoder_output_dim(model, self.data_module)
         return model
 
