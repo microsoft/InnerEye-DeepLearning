@@ -323,7 +323,7 @@ def find_recovery_checkpoint(path: Path) -> Optional[Path]:
         full_path = path / f
         if full_path.is_file():
             try:
-                checkpoint = torch.load(str(full_path))
+                checkpoint = torch.load(str(full_path), map_location=torch.device("cpu"))
                 epoch = checkpoint["epoch"]
                 logging.info(f"Checkpoint for epoch {epoch} in {full_path}")
                 if (highest_epoch is None) or (epoch > highest_epoch):
