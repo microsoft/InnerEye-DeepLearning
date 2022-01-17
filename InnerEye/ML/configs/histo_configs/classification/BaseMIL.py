@@ -7,7 +7,6 @@
 It is responsible for instantiating the encoder and full DeepMIL model. Subclasses should define
 their datamodules and configure experiment-specific parameters.
 """
-import os
 from pathlib import Path
 from typing import Type
 
@@ -15,9 +14,7 @@ import param
 from torch import nn
 from torchvision.models.resnet import resnet18
 
-from health_azure.utils import CheckpointDownloader, get_workspace
 from health_ml.networks.layers.attention_layers import AttentionLayer, GatedAttentionLayer
-from InnerEye.Common import fixed_paths
 from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.Histopathology.datamodules.base_module import CacheMode, TilesDataModule
 from InnerEye.ML.Histopathology.models.deepmil import DeepMILModule
@@ -56,14 +53,7 @@ class BaseMIL(LightningContainer):
 
     def setup(self) -> None:
         if self.encoder_type == InnerEyeSSLEncoder.__name__:
-            self.downloader = CheckpointDownloader(
-                aml_workspace=get_workspace(),
-                run_id="updated_transforms:updated_transforms_1636471522_5473e3ff",
-                checkpoint_filename="best_checkpoint.ckpt",
-                download_dir='outputs/'
-            )
-            os.chdir(fixed_paths.repository_root_directory())
-            self.downloader.download_checkpoint_if_necessary()
+            raise NotImplementedError("InnerEyeSSLEncoder requires a pre-trained checkpoint.")
 
         self.encoder = self.get_encoder()
         self.encoder.cuda()

@@ -4,7 +4,6 @@
 #  ------------------------------------------------------------------------------------------
 import io
 import logging
-import os
 from io import StringIO
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -15,34 +14,29 @@ import pytest
 import torch
 
 from InnerEye.Common import common_util, fixed_paths
-from InnerEye.Common.common_util import BEST_EPOCH_FOLDER_NAME, CROSSVAL_RESULTS_FOLDER, EPOCH_METRICS_FILE_NAME, \
-    METRICS_AGGREGATES_FILE, SUBJECT_METRICS_FILE_NAME, get_best_epoch_results_path, logging_to_stdout
+from InnerEye.Common.common_util import (BEST_EPOCH_FOLDER_NAME, CROSSVAL_RESULTS_FOLDER, EPOCH_METRICS_FILE_NAME,
+                                         METRICS_AGGREGATES_FILE, SUBJECT_METRICS_FILE_NAME,
+                                         get_best_epoch_results_path, logging_to_stdout)
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.metrics_constants import LoggingColumns, MetricType
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import model_testing, runner
-from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, CHECKPOINT_SUFFIX, ModelExecutionMode, \
-    RECOVERY_CHECKPOINT_FILE_NAME
-from InnerEye.ML.configs.classification.DummyClassification import DummyClassification
+from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.configs.classification.DummyMulticlassClassification import DummyMulticlassClassification
 from InnerEye.ML.dataset.scalar_dataset import ScalarDataset
 from InnerEye.ML.metrics import InferenceMetricsForClassification, binary_classification_accuracy, \
     compute_scalar_metrics
 from InnerEye.ML.metrics_dict import MetricsDict, ScalarMetricsDict
-from InnerEye.ML.model_training import model_train
 from InnerEye.ML.reports.notebook_report import generate_classification_multilabel_notebook, \
     generate_classification_notebook, get_html_report_name, get_ipynb_report_name
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.scalar_config import ScalarLoss, ScalarModelBase
-from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
-from InnerEye.ML.visualizers.plot_cross_validation import EpochMetricValues, get_config_and_results_for_offline_runs, \
-    unroll_aggregate_metrics
+from InnerEye.ML.visualizers.plot_cross_validation import (EpochMetricValues, get_config_and_results_for_offline_runs,
+                                                           unroll_aggregate_metrics)
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.util import get_default_azure_config, machine_has_gpu, \
-    model_train_unittest
-from Tests.ML.utils.test_model_util import FIXED_EPOCH, create_model_and_store_checkpoint
+from Tests.ML.util import get_default_azure_config, machine_has_gpu, model_train_unittest
 
 
 @pytest.mark.cpu_and_gpu
@@ -59,7 +53,7 @@ def test_train_classification_model(class_name: str, test_output_dirs: OutputFol
     config.set_output_to(test_output_dirs.root_dir)
     # Train for 4 epochs, checkpoints at epochs 2 and 4
     config.num_epochs = 4
-    model_training_result, checkpoint_handler = model_train_unittest(config, dirs=test_output_dirs)
+    model_training_result, checkpoint_handler = model_train_unittest(config, output_folder=test_output_dirs)
     assert model_training_result is not None
     expected_learning_rates = [0.0001, 9.99971e-05, 9.99930e-05, 9.99861e-05]
     expected_train_loss = [0.686614, 0.686465, 0.686316, 0.686167]
@@ -126,10 +120,10 @@ def test_train_classification_model(class_name: str, test_output_dirs: OutputFol
         f"""epoch,subject,prediction_target,model_output,label,data_split,cross_validation_split_index
 0,S2,{class_name},0.529514,1,Train,-1
 0,S4,{class_name},0.521659,0,Train,-1
-1,S4,{class_name},0.521482,0,Train,-1
 1,S2,{class_name},0.529475,1,Train,-1
-2,S4,{class_name},0.521305,0,Train,-1
+1,S4,{class_name},0.521482,0,Train,-1
 2,S2,{class_name},0.529437,1,Train,-1
+2,S4,{class_name},0.521305,0,Train,-1
 3,S2,{class_name},0.529399,1,Train,-1
 3,S4,{class_name},0.521128,0,Train,-1
 """
@@ -168,7 +162,7 @@ def test_train_classification_multilabel_model(test_output_dirs: OutputFolderFor
     config.set_output_to(test_output_dirs.root_dir)
     # Train for 4 epochs, checkpoints at epochs 2 and 4
     config.num_epochs = 4
-    model_training_result, checkpoint_handler = model_train_unittest(config, dirs=test_output_dirs)
+    model_training_result, checkpoint_handler = model_train_unittest(config, output_folder=test_output_dirs)
     assert model_training_result is not None
     expected_learning_rates = [0.0001, 9.99971e-05, 9.99930e-05, 9.99861e-05]
     expected_train_loss = [0.699870228767395, 0.6239662170410156, 0.551329493522644, 0.4825132489204407]
@@ -338,8 +332,6 @@ def test_runner1(test_output_dirs: OutputFolderForTests) -> None:
             "--non_image_feature_channels", scalar1,
             "--output_to", output_root,
             "--max_num_gpus", "1",
-            "--recovery_checkpoint_save_interval", "2",
-            "--recovery_checkpoints_save_last_k", "2",
             "--num_epochs", "6",
             ]
     with mock.patch("sys.argv", args):
@@ -350,53 +342,6 @@ def test_runner1(test_output_dirs: OutputFolderForTests) -> None:
     assert config.get_effective_random_seed() == set_from_commandline
     assert config.non_image_feature_channels == ["label"]
     assert str(config.outputs_folder).startswith(output_root)
-    # Check that we saved one checkpoint every second epoch and that we kept only that last 2 and that last.ckpt has
-    # been renamed to best.ckpt
-    assert len(os.listdir(config.checkpoint_folder)) == 3
-    assert (config.checkpoint_folder / str(RECOVERY_CHECKPOINT_FILE_NAME + "_epoch=3" + CHECKPOINT_SUFFIX)).exists()
-    assert (config.checkpoint_folder / str(RECOVERY_CHECKPOINT_FILE_NAME + "_epoch=5" + CHECKPOINT_SUFFIX)).exists()
-    assert (config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX).exists()
-
-
-@pytest.mark.skipif(common_util.is_windows(), reason="Has OOM issues on windows build")
-def test_runner_restart(test_output_dirs: OutputFolderForTests) -> None:
-    """
-    Test if starting training from a folder where the checkpoints folder already has recovery checkpoints picks up
-    that it is a recovery run. Also checks that we update the start epoch in the config at loading time.
-    """
-    model_config = DummyClassification()
-    model_config.set_output_to(test_output_dirs.root_dir)
-    model_config.num_epochs = FIXED_EPOCH + 2
-    # We save all checkpoints - if recovery works as expected we should have a new checkpoint for epoch 4, 5.
-    model_config.recovery_checkpoint_save_interval = 1
-    model_config.recovery_checkpoints_save_last_k = -1
-    runner = MLRunner(model_config=model_config)
-    runner.setup()
-    # Epochs are 0 based for saving
-    create_model_and_store_checkpoint(model_config,
-                                      runner.container.checkpoint_folder / f"{RECOVERY_CHECKPOINT_FILE_NAME}_epoch="
-                                                                           f"{FIXED_EPOCH - 1}{CHECKPOINT_SUFFIX}",
-                                      weights_only=False)
-    azure_config = get_default_azure_config()
-    checkpoint_handler = CheckpointHandler(azure_config=azure_config,
-                                           container=runner.container,
-                                           project_root=test_output_dirs.root_dir)
-    _, storing_logger = model_train(checkpoint_path=checkpoint_handler.get_recovery_or_checkpoint_path_train(),
-                                    container=runner.container)
-    # We expect to have 4 checkpoints, FIXED_EPOCH (recovery), FIXED_EPOCH+1, FIXED_EPOCH and best.
-    assert len(os.listdir(runner.container.checkpoint_folder)) == 4
-    assert (
-            runner.container.checkpoint_folder / f"{RECOVERY_CHECKPOINT_FILE_NAME}_epoch="
-                                                 f"{FIXED_EPOCH - 1}{CHECKPOINT_SUFFIX}").exists()
-    assert (
-            runner.container.checkpoint_folder / f"{RECOVERY_CHECKPOINT_FILE_NAME}_epoch="
-                                                 f"{FIXED_EPOCH}{CHECKPOINT_SUFFIX}").exists()
-    assert (
-            runner.container.checkpoint_folder / f"{RECOVERY_CHECKPOINT_FILE_NAME}_epoch="
-                                                 f"{FIXED_EPOCH + 1}{CHECKPOINT_SUFFIX}").exists()
-    assert (runner.container.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX).exists()
-    # Check that we really restarted epoch from epoch FIXED_EPOCH.
-    assert list(storing_logger.epochs) == [FIXED_EPOCH, FIXED_EPOCH + 1]  # type: ignore
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Has OOM issues on windows build")

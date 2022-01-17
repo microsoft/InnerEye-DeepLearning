@@ -15,11 +15,14 @@ damage response defect classification directly from H&E whole-slide images. arXi
 """
 from pathlib import Path
 from typing import Any, Dict
+import os
 
 from monai.transforms import Compose
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 
 from health_ml.networks.layers.attention_layers import GatedAttentionLayer
+from health_azure.utils import get_workspace
+from health_azure.utils import CheckpointDownloader
 from InnerEye.Common import fixed_paths
 from InnerEye.ML.configs.histo_configs.classification.BaseMIL import BaseMIL
 from InnerEye.ML.Histopathology.datamodules.base_module import TilesDataModule
@@ -53,8 +56,6 @@ class DeepSMILECrck(BaseMIL):
             # To mount the dataset instead of downloading in AML, pass --use_dataset_mount in the CLI
             # declared in TrainerParams:
             num_epochs=16,
-            recovery_checkpoint_save_interval=16,
-            recovery_checkpoints_save_last_k=-1,
             # declared in WorkflowParams:
             number_of_cross_validation_splits=5,
             cross_validation_split_index=0,
@@ -86,6 +87,23 @@ class DeepSMILECrck(BaseMIL):
         return Path(
             f"/tmp/innereye_cache1/{self.__class__.__name__}-{self.encoder_type}/"
         )
+
+    def setup(self) -> None:
+        if self.encoder_type == InnerEyeSSLEncoder.__name__:
+            from InnerEye.ML.configs.histo_configs.run_ids import innereye_ssl_checkpoint_crck_4ws
+            self.downloader = CheckpointDownloader(
+                azure_config_json_path=get_workspace(),
+                run_id=innereye_ssl_checkpoint_crck_4ws,
+                checkpoint_filename="best_checkpoint.ckpt",
+                download_dir="outputs/",
+                remote_checkpoint_dir=Path("outputs/checkpoints")
+            )
+            os.chdir(fixed_paths.repository_parent_directory())
+            self.downloader.download_checkpoint_if_necessary()
+
+        self.encoder = self.get_encoder()
+        self.encoder.cuda()
+        self.encoder.eval()
 
     def get_data_module(self) -> TilesDataModule:
         image_key = TcgaCrck_TilesDataset.IMAGE_COLUMN
