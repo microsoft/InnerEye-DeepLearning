@@ -47,9 +47,7 @@ class DeepSMILEPanda(BaseMIL):
             extra_local_dataset_paths=[Path("/tmp/datasets/PANDA")],
             # To mount the dataset instead of downloading in AML, pass --use_dataset_mount in the CLI
             # declared in TrainerParams:
-            num_epochs=100,
-            recovery_checkpoint_save_interval=10,
-            recovery_checkpoints_save_last_k=-1,
+            num_epochs=200,
             # use_mixed_precision = True,
             # declared in WorkflowParams:
             number_of_cross_validation_splits=5,

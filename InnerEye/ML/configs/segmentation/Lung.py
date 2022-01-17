@@ -13,7 +13,7 @@ from InnerEye.ML.deep_learning_config import OptimizerType
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 
 # Change this string to the name of your dataset on Azure blob storage.
-AZURE_DATASET_ID = "2339eba2-8ec5-4ccb-86ff-c170470ac6e2_geonorm_with_train_test_split_2020_05_26"
+LUNG_AZURE_DATASET_ID = "2339eba2-8ec5-4ccb-86ff-c170470ac6e2_geonorm_with_train_test_split_2020_05_26"
 
 
 class Lung(SegmentationModelBase):
@@ -29,7 +29,7 @@ class Lung(SegmentationModelBase):
             architecture="UNet3D",
             feature_channels=[32],
             kernel_size=3,
-            azure_dataset_id=AZURE_DATASET_ID,
+            azure_dataset_id=LUNG_AZURE_DATASET_ID,
             crop_size=(64, 224, 224),
             test_crop_size=(128, 512, 512),
             image_channels=["ct"],
@@ -56,7 +56,6 @@ class Lung(SegmentationModelBase):
             adam_betas=(0.9, 0.999),
             momentum=0.9,
             weight_decay=1e-4,
-            recovery_checkpoint_save_interval=10,
             use_mixed_precision=True,
             use_model_parallel=True,
             monitoring_interval_seconds=0,

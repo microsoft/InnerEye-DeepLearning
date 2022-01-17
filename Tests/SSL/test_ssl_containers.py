@@ -28,7 +28,7 @@ from InnerEye.ML.SSL.lightning_modules.simclr_module import SimCLRInnerEye
 from InnerEye.ML.SSL.lightning_modules.ssl_classifier_module import SSLClassifier
 from InnerEye.ML.SSL.lightning_modules.ssl_online_evaluator import SSLOnlineEvaluatorInnerEye
 from InnerEye.ML.SSL.utils import SSLDataModuleType, SSLTrainingType
-from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+from InnerEye.ML.common import LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
 from InnerEye.ML.configs.ssl.CIFAR_SSL_configs import CIFAR10SimCLR
 from InnerEye.ML.configs.ssl.CXR_SSL_configs import CXRImageClassifier
 from InnerEye.ML.runner import Runner
@@ -114,7 +114,6 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
     assert loaded_config.encoder_output_dim == 2048
     assert loaded_config.l_rate == 1e-4
     assert loaded_config.num_epochs == 1
-    assert loaded_config.recovery_checkpoint_save_interval == 200
     assert loaded_config.ssl_training_type == SSLTrainingType.SimCLR
     assert loaded_config.online_eval.num_classes == 10
     assert loaded_config.online_eval.dataset == SSLDatasetName.CIFAR10.value
@@ -131,13 +130,12 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
                         'simclr/train/loss': 3.6261844635009766,
                         'simclr/learning_rate': 0.0,
                         'ssl_online_evaluator/train/loss': 3.1140503883361816,
-                        'ssl_online_evaluator/train/online_AccuracyAtThreshold05': 0.0,
-                        'epoch_started': 0.0}
+                        'ssl_online_evaluator/train/online_AccuracyAtThreshold05': 0.0}
 
     _compare_stored_metrics(runner, expected_metrics, abs=5e-5)
 
     # Check that the checkpoint contains both the optimizer for the embedding and for the linear head
-    checkpoint_path = loaded_config.outputs_folder / "checkpoints" / "best_checkpoint.ckpt"
+    checkpoint_path = loaded_config.outputs_folder / "checkpoints" / "last.ckpt"
     checkpoint = torch.load(checkpoint_path)
     assert len(checkpoint["optimizer_states"]) == 1
     assert len(checkpoint["lr_schedulers"]) == 1
@@ -225,13 +223,12 @@ def test_innereye_ssl_container_rsna() -> None:
                         'ssl_online_evaluator/train/loss': 0.6938587427139282,
                         'ssl_online_evaluator/train/online_AreaUnderRocCurve': 0.5,
                         'ssl_online_evaluator/train/online_AreaUnderPRCurve': 0.6000000238418579,
-                        'ssl_online_evaluator/train/online_AccuracyAtThreshold05': 0.20000000298023224,
-                        'epoch_started': 0.0}
+                        'ssl_online_evaluator/train/online_AccuracyAtThreshold05': 0.20000000298023224}
 
     _compare_stored_metrics(runner, expected_metrics)
 
     # Check that we are able to load the checkpoint and create classifier model
-    checkpoint_path = loaded_config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+    checkpoint_path = loaded_config.checkpoint_folder / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
     args = common_test_args + ["--model=CXRImageClassifier",
                                f"--local_dataset={str(path_to_test_dataset)}",
                                "--use_balanced_binary_loss_for_linear_head=True",
@@ -413,7 +410,7 @@ def test_online_evaluator_distributed() -> None:
             assert callback.evaluator == mock_ddp_result
 
 
-def test_simclr_batch_size() -> None:
+def test_simclr_num_nodes() -> None:
     """
     Test if the number of nodes is correctly passed through to the SIMCLR model. After an update of the semantics of
     the "gpus" argument in LightningBolts, we had a regression, leading to incorrect use of the cosine
@@ -434,3 +431,44 @@ def test_simclr_batch_size() -> None:
             container.num_nodes = 2
             model2 = container.create_model()
             assert model2.train_iters_per_epoch == old_iters_per_epoch // container.num_nodes  # type:ignore
+
+
+def test_simclr_num_gpus() -> None:
+    """
+    Test if the number of GPUs is correctly passed through to the SIMCLR model.
+    """
+    device_count = 8
+    num_epochs = 30
+    # Warmup epochs == 10 is hardcoded in SIMClr. The core SIMClr module has an argument for it, but we are not
+    # passing that through.
+    warmup_epochs = 10
+    with mock.patch("torch.cuda.device_count", return_value=device_count):
+        with mock.patch("InnerEye.ML.deep_learning_config.TrainerParams.use_gpu", return_value=True):
+            with mock.patch("InnerEye.ML.SSL.lightning_containers.ssl_container.get_encoder_output_dim", return_value=1):
+                container = CIFAR10SimCLR()
+                container.num_epochs = num_epochs
+                num_samples = 800
+                batch_size = 10
+                container.data_module = mock.MagicMock(num_samples=num_samples, batch_size=batch_size)
+                model1 = container.create_model()
+                assert model1.train_iters_per_epoch == num_samples // (batch_size * device_count)
+                # Reducing the number of GPUs should decrease effective batch size, and hence increase number of
+                # iterations per epoch
+                container.max_num_gpus = 4
+                model2 = container.create_model()
+                assert model2.train_iters_per_epoch == num_samples // (batch_size * container.max_num_gpus)
+                scheduler = model2.configure_optimizers()[1][0]["scheduler"]
+
+    total_training_steps = model2.train_iters_per_epoch * num_epochs  # type: ignore
+    warmup_steps = model2.train_iters_per_epoch * warmup_epochs  # type: ignore
+    previous_lr = None
+    for i in range(total_training_steps):
+        lr = scheduler.get_last_lr()
+        if previous_lr is not None:
+            if i <= warmup_steps:
+                assert lr > previous_lr, "During warmup, LR should increase"
+            else:
+                assert lr < previous_lr, "After warmup, LR should decrease"
+        print(f"Iteration {i}: LR = {lr}")
+        scheduler.step()
+        previous_lr = lr

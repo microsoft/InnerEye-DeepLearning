@@ -59,7 +59,6 @@ class HelloWorld(SegmentationModelBase):
             num_dataload_workers=0,
             train_batch_size=2,
             num_epochs=2,
-            recovery_checkpoint_save_interval=1,
             use_mixed_precision=True,
 
             # Pre-processing - in this section we define how to normalize our inputs, in this case we are doing

@@ -21,7 +21,7 @@ from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, ModelProcessi
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.type_annotations import TupleInt3
-from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, DATASET_CSV_FILE_NAME, ModelExecutionMode
+from InnerEye.ML.common import LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.configs.unit_testing.passthrough_model import PassThroughModel
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.metrics import InferenceMetricsForSegmentation
@@ -282,7 +282,7 @@ def run_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
                                                                     train_and_test_data_small_dir,
                                                                     "data")
 
-    checkpoint_path = config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+    checkpoint_path = config.checkpoint_folder / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
     create_model_and_store_checkpoint(config, checkpoint_path)
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
                                                         project_root=test_output_dirs.root_dir)

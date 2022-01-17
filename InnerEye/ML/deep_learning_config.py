@@ -475,7 +475,6 @@ class OutputParams(param.Parameterized):
     @property
     def checkpoint_folder(self) -> Path:
         """Gets the full path in which the model checkpoints should be stored during training."""
-        print(f"Expected Checkpoint path {self.outputs_folder / CHECKPOINT_FOLDER}")
         return self.outputs_folder / CHECKPOINT_FOLDER
 
     @property
@@ -567,15 +566,11 @@ class OptimizerParams(param.Parameterized):
 
 class TrainerParams(param.Parameterized):
     num_epochs: int = param.Integer(100, bounds=(1, None), doc="Number of epochs to train.")
-    recovery_checkpoint_save_interval: int = param.Integer(10, bounds=(0, None),
-                                                           doc="Save epoch checkpoints when epoch number is a multiple "
-                                                               "of recovery_checkpoint_save_interval. The intended use "
-                                                               "is to allow restore training from failed runs.")
-    recovery_checkpoints_save_last_k: int = param.Integer(default=1, bounds=(-1, None),
-                                                          doc="Number of recovery checkpoints to keep. Recovery "
-                                                              "checkpoints will be stored as recovery_epoch:{"
-                                                              "epoch}.ckpt. If set to -1 keep all recovery "
-                                                              "checkpoints.")
+    autosave_every_n_val_epochs: int = param.Integer(1, bounds=(0, None),
+                                                     doc="Save epoch checkpoints every N validation epochs. "
+                                                         "If pl_check_val_every_n_epoch > 1, this means that "
+                                                         "checkpoints are saved every N * pl_check_val_every_n_epoch "
+                                                         "training epochs.")
     detect_anomaly: bool = param.Boolean(False, doc="If true, test gradients for anomalies (NaN or Inf) during "
                                                     "training.")
     use_mixed_precision: bool = param.Boolean(False, doc="If true, mixed precision training is activated during "

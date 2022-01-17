@@ -232,7 +232,7 @@ S3,week1,scan3.npy,True,6,60,Male,Val2
     summarizer.generate_summary(input_sizes=input_size)
     config.local_dataset = dataset_folder
     config.validate()
-    model_train_unittest(config, dirs=test_output_dirs)
+    model_train_unittest(config, output_folder=test_output_dirs)
     # No further asserts here because the models are still in experimental state. Most errors would come
     # from having invalid model architectures, which would throw runtime errors during training.
 
