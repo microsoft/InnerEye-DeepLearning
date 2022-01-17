@@ -3,6 +3,8 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
+from pathlib import Path
+
 import math
 import numpy as np
 from typing import List
@@ -13,7 +15,13 @@ import pytest
 
 from InnerEye.ML.Histopathology.utils.metrics_utils import plot_scores_hist, select_k_tiles, plot_slide, plot_heatmap_overlay
 from InnerEye.ML.Histopathology.utils.naming import ResultsKey
-from InnerEye.ML.Histopathology.utils.heatmap_utils import plot_heatmap_selected_tiles
+from InnerEye.ML.Histopathology.utils.heatmap_utils import location_selected_tiles
+from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
+from InnerEye.Common.output_directories import OutputFolderForTests
+from InnerEye.ML.plotting import resize_and_save
+from InnerEye.ML.utils.ml_util import set_random_seed
+from Tests.ML.util import assert_binary_files_match
+
 
 def assert_equal_lists(pred: List, expected: List) -> None:
     assert len(pred) == len(expected)
@@ -36,7 +44,7 @@ test_dict = {ResultsKey.SLIDE_ID: [[1, 1, 1, 1], [2, 2, 2, 2], [3, 3, 3, 3], [4,
              ResultsKey.PROB: [Tensor([0.5]), Tensor([0.7]), Tensor([0.4]), Tensor([1.0])],
              ResultsKey.TRUE_LABEL: [0, 1, 1, 1],
              ResultsKey.BAG_ATTN:
-                  [Tensor([[0.1, 0.0, 0.2, 0.15]]),
+                  [Tensor([[0.1, 0.3, 0.5, 0.8]]),
                   Tensor([[0.10, 0.18, 0.15, 0.13]]),
                   Tensor([[0.25, 0.23, 0.20, 0.21]]),
                   Tensor([[0.33, 0.31, 0.37, 0.35]])],
@@ -69,24 +77,40 @@ def test_select_k_tiles() -> None:
     assert_equal_lists(bottom_tp, [(4, 1.0, [2, 1], [Tensor([0.31]), Tensor([0.33])]), (2, 0.7, [1, 4], [Tensor([0.10]), Tensor([0.13])])])
 
 
-def test_plot_scores_hist() -> None:
+def test_plot_scores_hist(test_output_dirs: OutputFolderForTests) -> None:
     fig = plot_scores_hist(test_dict)
     assert isinstance(fig, matplotlib.figure.Figure)
+    file = Path(test_output_dirs.root_dir) / "plot_score_hist.png"
+    resize_and_save(5, 5, file)
+    assert file.exists()
+    expected = full_ml_test_data_path("histo_heatmaps") / "score_hist.png"
+    # To update the stored results, uncomment this line:
+    # expected.write_bytes(file.read_bytes())
+    assert_binary_files_match(file, expected)
 
 
 @pytest.mark.parametrize("scale", [0.1, 1.2, 2.4, 3.6])
-def test_plot_slide(scale: int) -> None:
+def test_plot_slide(test_output_dirs: OutputFolderForTests, scale: int) -> None:
+    set_random_seed(0)
     slide_image = np.random.rand(3, 1000, 2000)
     fig = plot_slide(slide_image=slide_image, scale=scale)
     assert isinstance(fig, matplotlib.figure.Figure)
+    file = Path(test_output_dirs.root_dir) / "plot_slide.png"
+    resize_and_save(5, 5, file)
+    assert file.exists()
+    expected = full_ml_test_data_path("histo_heatmaps") / f"slide_{scale}.png"
+    # To update the stored results, uncomment this line:
+    # expected.write_bytes(file.read_bytes())
+    assert_binary_files_match(file, expected)
 
 
-def test_plot_heatmap_overlay() -> None:
+def test_plot_heatmap_overlay(test_output_dirs: OutputFolderForTests) -> None:
+    set_random_seed(0)
     slide_image = np.random.rand(3, 1000, 2000)
     location_bbox = [100, 100]
     slide = 1 
     tile_size = 224
-    level = 1
+    level = 0
     fig = plot_heatmap_overlay(slide=slide,                                             # type: ignore
                                slide_image=slide_image,
                                results=test_dict,                                       # type: ignore
@@ -94,29 +118,32 @@ def test_plot_heatmap_overlay() -> None:
                                tile_size=tile_size,
                                level=level)
     assert isinstance(fig, matplotlib.figure.Figure)
+    file = Path(test_output_dirs.root_dir) / "plot_heatmap_overlay.png"
+    resize_and_save(5, 5, file)
+    assert file.exists()
+    expected = full_ml_test_data_path("histo_heatmaps") / "heatmap_overlay.png"
+    # To update the stored results, uncomment this line:
+    # expected.write_bytes(file.read_bytes())
+    assert_binary_files_match(file, expected)
 
 @pytest.mark.parametrize("level", [0, 1, 2])
-def test_plot_heatmap_selected_tiles(level: int) -> None:
+def test_location_selected_tiles(level: int) -> None:
+    set_random_seed(0)
     slide = 1 
-    tile_size = 224
     location_bbox = [100, 100]
     slide_image = np.random.rand(3, 1000, 2000)
 
     coords = []
     slide_ids = [item[0] for item in test_dict[ResultsKey.SLIDE_ID]]                                            # type: ignore
     slide_idx = slide_ids.index(slide)
-    attentions = test_dict[ResultsKey.BAG_ATTN][slide_idx]                                                      # type: ignore
     for tile_idx in range(len(test_dict[ResultsKey.IMAGE_PATH][slide_idx])):                                    # type: ignore
         tile_coords = np.transpose(np.array([test_dict[ResultsKey.TILE_X][slide_idx][tile_idx].cpu().numpy(),   # type: ignore
                                     test_dict[ResultsKey.TILE_Y][slide_idx][tile_idx].cpu().numpy()]))          # type: ignore
         coords.append(tile_coords)
 
     coords = np.array(coords)
-    attentions = np.array(attentions.cpu()).reshape(-1)
-    tile_coords_transformed = plot_heatmap_selected_tiles(tile_coords=coords, 
-                                                          tile_values=attentions,
+    tile_coords_transformed = location_selected_tiles(tile_coords=coords, 
                                                           location_bbox=location_bbox,
-                                                          tile_size=tile_size,
                                                           level=level)
     tile_xs, tile_ys = tile_coords_transformed.T
     level_dict = {0: 1, 1: 4, 2: 16}

@@ -8,10 +8,12 @@ import torch
 import matplotlib.pyplot as plt
 from math import ceil
 import numpy as np
+import matplotlib.patches as patches 
+import matplotlib.collections as collection
 
 from InnerEye.ML.Histopathology.models.transforms import load_pil_image
 from InnerEye.ML.Histopathology.utils.naming import ResultsKey
-from InnerEye.ML.Histopathology.utils.heatmap_utils import plot_heatmap_selected_tiles
+from InnerEye.ML.Histopathology.utils.heatmap_utils import location_selected_tiles
 
 
 def select_k_tiles(results: Dict, n_tiles: int = 5, n_slides: int = 5, label: int = 1,
@@ -149,5 +151,17 @@ def plot_heatmap_overlay(slide: str,
 
     coords = np.array(coords)
     attentions = np.array(attentions.cpu()).reshape(-1)
-    _ = plot_heatmap_selected_tiles(tile_coords=coords, tile_values=attentions, location_bbox=location_bbox, tile_size=tile_size, level=level)
+
+    sel_coords = location_selected_tiles(tile_coords=coords, location_bbox=location_bbox, level=level)
+    cmap = plt.cm.get_cmap('jet')
+    rects = []
+    for i in range(sel_coords.shape[0]):
+        rect = patches.Rectangle((sel_coords[i][0], sel_coords[i][1]), tile_size, tile_size)
+        rects.append(rect)
+
+    pc = collection.PatchCollection(rects, match_original=True, cmap=cmap, alpha=.5, edgecolor=None)
+    pc.set_array(np.array(attentions))
+    pc.set_clim([0, 1])
+    ax.add_collection(pc)
+    plt.colorbar(pc, ax=ax)
     return fig
