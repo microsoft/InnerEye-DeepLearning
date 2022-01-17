@@ -11,9 +11,9 @@ import matplotlib
 from torch.functional import Tensor
 import pytest
 
-from InnerEye.ML.Histopathology.utils.metrics_utils import plot_scores_hist, select_k_tiles, plot_slide, plot_heatmap_slide
+from InnerEye.ML.Histopathology.utils.metrics_utils import plot_scores_hist, select_k_tiles, plot_slide, plot_heatmap_overlay
 from InnerEye.ML.Histopathology.utils.naming import ResultsKey
-
+from InnerEye.ML.Histopathology.utils.heatmap_utils import plot_heatmap_selected_tiles
 
 def assert_equal_lists(pred: List, expected: List) -> None:
     assert len(pred) == len(expected)
@@ -39,7 +39,17 @@ test_dict = {ResultsKey.SLIDE_ID: [[1, 1, 1, 1], [2, 2, 2, 2], [3, 3, 3, 3], [4,
                   [Tensor([[0.1, 0.0, 0.2, 0.15]]),
                   Tensor([[0.10, 0.18, 0.15, 0.13]]),
                   Tensor([[0.25, 0.23, 0.20, 0.21]]),
-                  Tensor([[0.33, 0.31, 0.37, 0.35]])]
+                  Tensor([[0.33, 0.31, 0.37, 0.35]])],
+             ResultsKey.TILE_X:
+                  [Tensor([200, 200, 424, 424]), 
+                  Tensor([200, 200, 424, 424]),
+                  Tensor([200, 200, 424, 424]), 
+                  Tensor([200, 200, 424, 424])],
+             ResultsKey.TILE_Y: 
+                  [Tensor([200, 424, 200, 424]),
+                  Tensor([200, 200, 424, 424]),
+                  Tensor([200, 200, 424, 424]), 
+                  Tensor([200, 200, 424, 424])]
              }
 
 def test_select_k_tiles() -> None:
@@ -63,29 +73,54 @@ def test_plot_scores_hist() -> None:
     fig = plot_scores_hist(test_dict)
     assert isinstance(fig, matplotlib.figure.Figure)
 
+
 @pytest.mark.parametrize("scale", [0.1, 1.2, 2.4, 3.6])
 def test_plot_slide(scale: int) -> None:
     slide_image = np.random.rand(3, 1000, 2000)
     fig = plot_slide(slide_image=slide_image, scale=scale)
     assert isinstance(fig, matplotlib.figure.Figure)
 
-@pytest.mark.parametrize("level", [0, 1, 2])
-def test_plot_heatmap_slide(level: int) -> None:
+
+def test_plot_heatmap_overlay() -> None:
     slide_image = np.random.rand(3, 1000, 2000)
     location_bbox = [100, 100]
-    slide = 1  
-    fig = plot_heatmap_slide(slide, slide_image, test_dict, location_bbox)
+    slide = 1 
+    tile_size = 224
+    level = 1
+    fig = plot_heatmap_overlay(slide=slide,                                             # type: ignore
+                               slide_image=slide_image,
+                               results=test_dict,                                       # type: ignore
+                               location_bbox=location_bbox,
+                               tile_size=tile_size,
+                               level=level)
     assert isinstance(fig, matplotlib.figure.Figure)
 
-    tile_coords = np.array([[100, 100], [200, 100], [200, 200]])
-    level_dict = {"0": 1, "1": 4, "2": 16}
-    factor = level_dict[str(level)]
-    x_tr, y_tr = location_bbox
-    tile_xs, tile_ys = tile_coords.T
-    tile_xs = tile_xs - x_tr 
-    tile_ys = tile_ys - y_tr 
-    tile_xs = tile_xs//factor
-    tile_ys = tile_ys//factor
+@pytest.mark.parametrize("level", [0, 1, 2])
+def test_plot_heatmap_selected_tiles(level: int) -> None:
+    slide = 1 
+    tile_size = 224
+    location_bbox = [100, 100]
+    slide_image = np.random.rand(3, 1000, 2000)
+
+    coords = []
+    slide_ids = [item[0] for item in test_dict[ResultsKey.SLIDE_ID]]                                            # type: ignore
+    slide_idx = slide_ids.index(slide)
+    attentions = test_dict[ResultsKey.BAG_ATTN][slide_idx]                                                      # type: ignore
+    for tile_idx in range(len(test_dict[ResultsKey.IMAGE_PATH][slide_idx])):                                    # type: ignore
+        tile_coords = np.transpose(np.array([test_dict[ResultsKey.TILE_X][slide_idx][tile_idx].cpu().numpy(),   # type: ignore
+                                    test_dict[ResultsKey.TILE_Y][slide_idx][tile_idx].cpu().numpy()]))          # type: ignore
+        coords.append(tile_coords)
+
+    coords = np.array(coords)
+    attentions = np.array(attentions.cpu()).reshape(-1)
+    tile_coords_transformed = plot_heatmap_selected_tiles(tile_coords=coords, 
+                                                          tile_values=attentions,
+                                                          location_bbox=location_bbox,
+                                                          tile_size=tile_size,
+                                                          level=level)
+    tile_xs, tile_ys = tile_coords_transformed.T
+    level_dict = {0: 1, 1: 4, 2: 16}
+    factor = level_dict[level]
     assert min(tile_xs) >= 0 
     assert max(tile_xs) <= slide_image.shape[1]//factor
     assert min(tile_ys) >= 0 
