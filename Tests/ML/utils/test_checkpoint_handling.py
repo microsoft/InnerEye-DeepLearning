@@ -14,7 +14,7 @@ from InnerEye.Common.common_util import OTHER_RUNS_SUBDIR_NAME
 from InnerEye.Common.fixed_paths import MODEL_INFERENCE_JSON_FILE_NAME
 from InnerEye.ML.utils.checkpoint_handling import MODEL_WEIGHTS_DIR_NAME, get_recovery_checkpoint_path
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, FINAL_ENSEMBLE_MODEL_FOLDER, FINAL_MODEL_FOLDER
+from InnerEye.ML.common import LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, FINAL_ENSEMBLE_MODEL_FOLDER, FINAL_MODEL_FOLDER
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import read_model_inference_config
 from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler
@@ -86,7 +86,7 @@ def test_download_recovery_checkpoints_from_single_run(test_output_dirs: OutputF
 
     expected_checkpoint_root = config.checkpoint_folder
     expected_paths = [get_recovery_checkpoint_path(path=expected_checkpoint_root),
-                      expected_checkpoint_root / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX]
+                      expected_checkpoint_root / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX]
     assert checkpoint_handler.run_recovery.checkpoints_roots == [expected_checkpoint_root]
     for path in expected_paths:
         assert path.is_file()
@@ -199,7 +199,7 @@ def test_get_best_checkpoint_single_run(test_output_dirs: OutputFolderForTests) 
     # in the run, into a subfolder of the checkpoint folder
     checkpoint_handler.azure_config.run_recovery_id = run_recovery_id
     checkpoint_handler.download_recovery_checkpoints_or_weights()
-    expected_checkpoint = config.checkpoint_folder / f"{BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX}"
+    expected_checkpoint = config.checkpoint_folder / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
     checkpoint_paths = checkpoint_handler.get_best_checkpoints()
     assert checkpoint_paths
     assert len(checkpoint_paths) == 1
@@ -215,13 +215,13 @@ def test_get_best_checkpoint_single_run(test_output_dirs: OutputFolderForTests) 
 
     # There is no checkpoint in the current run - use the one from run_recovery
     checkpoint_paths = checkpoint_handler.get_best_checkpoints()
-    expected_checkpoint = config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+    expected_checkpoint = config.checkpoint_folder / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
     assert checkpoint_paths
     assert len(checkpoint_paths) == 1
     assert checkpoint_paths[0] == expected_checkpoint
 
     # Copy over checkpoints to make it look like training has happened and a better checkpoint written
-    expected_checkpoint = config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+    expected_checkpoint = config.checkpoint_folder / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
     expected_checkpoint.touch()
     checkpoint_paths = checkpoint_handler.get_best_checkpoints()
     assert checkpoint_paths
@@ -238,7 +238,7 @@ def test_download_checkpoints_from_hyperdrive_child_runs(test_output_dirs: Outpu
     hyperdrive_run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_ENSEMBLE_RUN)
     checkpoint_handler.download_checkpoints_from_hyperdrive_child_runs(hyperdrive_run)
     expected_checkpoints = [config.checkpoint_folder / OTHER_RUNS_SUBDIR_NAME / str(i)
-                            / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX for i in range(2)]
+                            / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX for i in range(2)]
     checkpoint_paths = checkpoint_handler.get_best_checkpoints()
     assert checkpoint_paths
     assert len(checkpoint_paths) == 2
@@ -266,7 +266,7 @@ def test_get_checkpoints_to_test(test_output_dirs: OutputFolderForTests) -> None
     checkpoint_handler.container.checkpoint_folder.mkdir(parents=True)
 
     # Copy checkpoint to make it seem like training has happened
-    expected_checkpoint = config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+    expected_checkpoint = config.checkpoint_folder / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
     expected_checkpoint.touch()
     checkpoint_and_paths = checkpoint_handler.get_checkpoints_to_test()
 
@@ -295,10 +295,10 @@ def test_get_checkpoints_to_test_single_run(test_output_dirs: OutputFolderForTes
 
     assert checkpoint_and_paths
     assert len(checkpoint_and_paths) == 1
-    assert checkpoint_and_paths[0] == config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+    assert checkpoint_and_paths[0] == config.checkpoint_folder / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
 
     # Copy checkpoint to make it seem like training has happened
-    expected_checkpoint = config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+    expected_checkpoint = config.checkpoint_folder / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
     expected_checkpoint.touch()
     checkpoint_and_paths = checkpoint_handler.get_checkpoints_to_test()
 

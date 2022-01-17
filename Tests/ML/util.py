@@ -277,7 +277,7 @@ def get_default_workspace() -> Workspace:
 
 
 def model_train_unittest(config: Optional[DeepLearningConfig],
-                         dirs: OutputFolderForTests,
+                         output_folder: Union[OutputFolderForTests, Path],
                          checkpoint_handler: Optional[CheckpointHandler] = None,
                          lightning_container: Optional[LightningContainer] = None) -> \
         Tuple[StoringLogger, CheckpointHandler]:
@@ -285,7 +285,7 @@ def model_train_unittest(config: Optional[DeepLearningConfig],
     A shortcut for running model training in the unit test suite. It runs training for the given config, with the
     default checkpoint handler initialized to point to the test output folder specified in dirs.
     :param config: The configuration of the model to train.
-    :param dirs: The test fixture that provides an output folder for the test.
+    :param output_folder: The test fixture that provides an output folder for the test.
     :param lightning_container: An optional LightningContainer object that will be pass through to the training routine.
     :param checkpoint_handler: The checkpoint handler that should be used for training. If not provided, it will be
     created via get_default_checkpoint_handler.
@@ -299,9 +299,10 @@ def model_train_unittest(config: Optional[DeepLearningConfig],
     runner.setup()
     if checkpoint_handler is None:
         azure_config = get_default_azure_config()
+        output_folder = output_folder if isinstance(output_folder, Path) else output_folder.root_dir
         checkpoint_handler = CheckpointHandler(azure_config=azure_config,
                                                container=runner.container,
-                                               project_root=dirs.root_dir)
+                                               project_root=output_folder)
     _, storing_logger = model_train(checkpoint_path=checkpoint_handler.get_recovery_or_checkpoint_path_train(),
                                     container=runner.container)
     checkpoint_handler.additional_training_done()

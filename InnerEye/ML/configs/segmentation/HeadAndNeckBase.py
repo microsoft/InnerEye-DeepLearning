@@ -86,7 +86,6 @@ class HeadAndNeckBase(SegmentationModelBase):
         super().__init__(
             should_validate=False,  # we'll validate after kwargs are added
             num_epochs=num_epochs,
-            recovery_checkpoint_save_interval=10,
             architecture="UNet3D",
             kernel_size=3,
             train_batch_size=1,

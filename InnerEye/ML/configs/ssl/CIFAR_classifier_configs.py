@@ -11,7 +11,6 @@ class SSLClassifierCIFAR(SSLClassifierContainer):
         super().__init__(
             linear_head_dataset_name=SSLDatasetName.CIFAR10,
             random_seed=1,
-            recovery_checkpoint_save_interval=5,
             num_epochs=100,
             l_rate=1e-4,
             num_workers=6)
