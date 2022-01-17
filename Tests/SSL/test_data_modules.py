@@ -212,7 +212,7 @@ def test_combined_data_module() -> None:
 
     assert combined_loader.num_classes == 2
     # num samples has to return number of training samples in encoder data.
-    assert combined_loader.num_samples == 240
+    assert combined_loader.num_train_samples == 240
     # we don't want to compute the weights for balanced loss
     assert combined_loader.class_weights is None
 

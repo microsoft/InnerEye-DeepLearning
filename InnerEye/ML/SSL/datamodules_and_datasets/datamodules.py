@@ -155,7 +155,7 @@ class CombinedDataModule(LightningDataModule):
         return CombinedLoader(dataloaders, mode="max_size_cycle")
 
     @property
-    def num_samples(self) -> int:
+    def num_train_samples(self) -> int:
         """
         Returns number of samples in training set
         """
