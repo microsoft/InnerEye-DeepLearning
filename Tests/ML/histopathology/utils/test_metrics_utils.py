@@ -122,6 +122,6 @@ def test_plot_heatmap_selected_tiles(level: int) -> None:
     level_dict = {0: 1, 1: 4, 2: 16}
     factor = level_dict[level]
     assert min(tile_xs) >= 0 
-    assert max(tile_xs) <= slide_image.shape[1]//factor
+    assert max(tile_xs) <= slide_image.shape[2]//factor
     assert min(tile_ys) >= 0 
-    assert max(tile_ys) <= slide_image.shape[2]//factor
+    assert max(tile_ys) <= slide_image.shape[1]//factor
