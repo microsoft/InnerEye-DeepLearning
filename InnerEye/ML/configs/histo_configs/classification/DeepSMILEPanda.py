@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-from typing import Any, Optional, List
+from typing import Any, List
 from pathlib import Path
 import os
 from monai.transforms import Compose
@@ -12,7 +12,7 @@ from pytorch_lightning.callbacks import Callback
 from monai.data.dataset import Dataset
 
 from health_azure.utils import CheckpointDownloader
-from health_azure.utils import get_workspace
+from health_azure.utils import get_workspace, is_running_in_azure_ml
 from health_ml.networks.layers.attention_layers import GatedAttentionLayer
 from InnerEye.Common import fixed_paths
 from InnerEye.ML.Histopathology.datamodules.panda_module import PandaTilesDataModule
@@ -35,35 +35,19 @@ from InnerEye.ML.Histopathology.datasets.panda_dataset import PandaDataset
 from InnerEye.ML.Histopathology.models.deepmil import DeepMILModule
 
 
-local_mode = False
-path_local_data: Optional[Path]
-if local_mode:
-    path_local_data = Path("/tmp/datasets/PANDA_tiles")
-    azure_dataset_id = "Dummy"
-    extra_local_dataset_paths = [Path("/tmp/datasets/PANDA")]
-    extra_azure_dataset_ids = ["Dummy"]
-    num_epochs = 1
-else:
-    path_local_data = None
-    azure_dataset_id = "PANDA_tiles"
-    extra_local_dataset_paths = []
-    extra_azure_dataset_ids = ["PANDA"]
-    num_epochs = 100
-
-
 class DeepSMILEPanda(BaseMIL):
     def __init__(self, **kwargs: Any) -> None:
         default_kwargs = dict(
             # declared in BaseMIL:
             pooling_type=GatedAttentionLayer.__name__,
             # declared in DatasetParams:
-            local_dataset=path_local_data,
-            azure_dataset_id=azure_dataset_id,
-            extra_azure_dataset_ids=extra_azure_dataset_ids,
-            extra_local_dataset_paths=extra_local_dataset_paths,
+            local_dataset=Path("/tmp/datasets/PANDA_tiles"),
+            azure_dataset_id="PANDA_tiles",
+            extra_azure_dataset_ids=["PANDA"],
+            extra_local_dataset_paths=[Path("/tmp/datasets/PANDA")],
             # To mount the dataset instead of downloading in AML, pass --use_dataset_mount in the CLI
             # declared in TrainerParams:
-            num_epochs=num_epochs,
+            num_epochs=100,
             recovery_checkpoint_save_interval=10,
             recovery_checkpoints_save_last_k=-1,
             # use_mixed_precision = True,
@@ -77,6 +61,8 @@ class DeepSMILEPanda(BaseMIL):
         default_kwargs.update(kwargs)
         super().__init__(**default_kwargs)
         super().__init__(**default_kwargs)
+        if not is_running_in_azure_ml():
+            self.num_epochs = 1
         self.best_checkpoint_filename = "checkpoint_max_val_auroc"
         self.best_checkpoint_filename_with_suffix = (
             self.best_checkpoint_filename + ".ckpt"

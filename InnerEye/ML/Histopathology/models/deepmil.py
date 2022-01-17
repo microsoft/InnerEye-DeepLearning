@@ -19,7 +19,7 @@ from torchmetrics import AUROC, F1, Accuracy, Precision, Recall
 from InnerEye.Common import fixed_paths
 from InnerEye.ML.Histopathology.datasets.base_dataset import TilesDataset
 from InnerEye.ML.Histopathology.models.encoders import TileEncoder
-from InnerEye.ML.Histopathology.utils.metrics_utils import select_k_tiles, plot_slide_noxy, plot_scores_hist, plot_heatmap_slide, plot_slide
+from InnerEye.ML.Histopathology.utils.metrics_utils import select_k_tiles, plot_slide_noxy, plot_scores_hist, plot_heatmap_overlay, plot_slide
 from InnerEye.ML.Histopathology.utils.naming import ResultsKey
 
 from monai.data.dataset import Dataset
@@ -331,7 +331,7 @@ class DeepMILModule(LightningModule):
 
                     fig = plot_slide(slide_image=slide_image, scale=1.0)
                     self.save_figure(fig=fig, figpath=Path(key_folder_path, f'{slide}_thumbnail.png'))
-                    fig = plot_heatmap_slide(slide=slide, slide_image=slide_image, results=results, 
+                    fig = plot_heatmap_overlay(slide=slide, slide_image=slide_image, results=results, 
                                             location_bbox=location_bbox, tile_size=self.tile_size, level=slide_dict['level'])
                     self.save_figure(fig=fig, figpath=Path(key_folder_path, f'{slide}_heatmap.png'))
 

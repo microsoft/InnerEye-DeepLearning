@@ -12,20 +12,21 @@ def plot_heatmap_selected_tiles(tile_coords: np.ndarray,
                                 location_bbox: List[int],
                                 tile_size: int,
                                 level: int,
-                                ax: Optional[Axes] = None) -> None:
+                                ax: Optional[Axes] = None) -> np.ndarray:
     """Plots a 2D heatmap for selected tiles (e.g. tiles in a bag).
     :param tile_coords: XY tile coordinates, assumed to be spaced by multiples of `tile_size` (shape: [N, 2]).
     :param tile_values: Scalar values of the tiles (shape: [N]).
     :param location_bbox: Location of the bounding box of the slide.
-    :param level: Magnification at which tiles are available (e.g. PANDA levels are 0 for original, 1 for 4x downsampled, 2 for 16x downsampled).
+    :param level: The downsampling level (e.g. 0, 1, 2) of the tiles if available 
+    (e.g. PANDA levels are 0 for original, 1 for 4x downsampled, 2 for 16x downsampled).
     :param tile_size: Size of each tile.
     :param ax: Axes onto which to plot the heatmap (default: current axes).
     """
     if ax is None:
         ax = plt.gca()
 
-    level_dict = {"0": 1, "1": 4, "2": 16}
-    factor = level_dict[str(level)]
+    level_dict = {0: 1, 1: 4, 2: 16}
+    factor = level_dict[level]
     x_tr, y_tr = location_bbox
     tile_xs, tile_ys = tile_coords.T
     tile_xs = tile_xs - x_tr 
@@ -45,3 +46,4 @@ def plot_heatmap_selected_tiles(tile_coords: np.ndarray,
     pc.set_clim([0, 1])
     ax.add_collection(pc)
     plt.colorbar(pc, ax=ax)
+    return sel_coords

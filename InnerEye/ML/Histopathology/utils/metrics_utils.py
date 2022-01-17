@@ -115,7 +115,7 @@ def plot_slide(slide_image: np.ndarray, scale: float) -> plt.figure:
     return fig
 
 
-def plot_heatmap_slide(slide: str, 
+def plot_heatmap_overlay(slide: str, 
                        slide_image: np.ndarray,
                        results: Dict[str, List[Any]],
                        location_bbox: List[int],
@@ -132,8 +132,11 @@ def plot_heatmap_slide(slide: str,
     """
     fig, ax = plt.subplots()
     slide_image = slide_image.transpose(1, 2, 0)
-    coords = []
+    ax.imshow(slide_image)
+    ax.set_xlim(0, slide_image.shape[1])
+    ax.set_ylim(slide_image.shape[0], 0)
 
+    coords = []
     slide_ids = [item[0] for item in results[ResultsKey.SLIDE_ID]]
     slide_idx = slide_ids.index(slide)
     attentions = results[ResultsKey.BAG_ATTN][slide_idx]
@@ -146,9 +149,5 @@ def plot_heatmap_slide(slide: str,
 
     coords = np.array(coords)
     attentions = np.array(attentions.cpu()).reshape(-1)
-    ax.imshow(slide_image)
-    ax.set_xlim(0, slide_image.shape[1])
-    ax.set_ylim(slide_image.shape[0], 0)
-
-    plot_heatmap_selected_tiles(tile_coords=coords, tile_values=attentions, location_bbox=location_bbox, tile_size=tile_size, level=level)
+    _ = plot_heatmap_selected_tiles(tile_coords=coords, tile_values=attentions, location_bbox=location_bbox, tile_size=tile_size, level=level)
     return fig
