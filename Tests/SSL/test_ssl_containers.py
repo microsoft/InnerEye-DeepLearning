@@ -4,7 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 import math
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List, Tuple
 from unittest import mock
 
 import numpy as np
@@ -12,6 +12,7 @@ import pandas as pd
 import pytest
 import torch
 from pl_bolts.models.self_supervised.resnets import ResNet
+from pl_bolts.optimizers import linear_warmup_decay
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 from torch.nn import Module
@@ -471,3 +472,52 @@ def test_simclr_num_gpus() -> None:
         print(f"Iteration {i}: LR = {lr}")
         scheduler.step()
         previous_lr = lr
+
+
+@pytest.mark.parametrize("interrupt_at_epoch", [5, 10, 14, 20, 24])
+def test_simclr_lr_scheduler_recovery(interrupt_at_epoch: int) -> None:
+    """
+    Test if the LR scheduler in the SimCLR model correctly handles recovery at different parts of the schedule:
+    during warmup, during cosine
+    """
+
+    total_steps = 30
+    warmup_steps = 10
+    assert interrupt_at_epoch < total_steps
+
+    def create_scheduler() -> Tuple[_LRScheduler, torch.optim.SGD]:
+        optimizer = torch.optim.SGD({torch.empty((2, 3))}, lr=1.0)
+        scheduler = torch.optim.lr_scheduler.LambdaLR(
+                    optimizer,
+                    linear_warmup_decay(warmup_steps=warmup_steps, total_steps=total_steps, cosine=True),
+                )
+        return scheduler, optimizer
+
+    def enumerate_scheduler(scheduler: _LRScheduler, n: int) -> List[float]:
+        learning_rates = []
+        for _ in range(n):
+            learning_rates.append(scheduler.get_last_lr()[0])
+            scheduler.step()
+        return learning_rates
+
+    # Normal run
+    scheduler1, _ = create_scheduler()
+    normal_lrs = enumerate_scheduler(scheduler1, total_steps)
+
+    # Short run
+    scheduler2, optimizer2 = create_scheduler()
+    short_lrs = enumerate_scheduler(scheduler2, interrupt_at_epoch)
+
+    scheduler_saved_state = scheduler2.state_dict()
+    optimizer_saved_state = optimizer2.state_dict()
+
+    # Resumed run
+    scheduler3, optimizer3 = create_scheduler()
+    optimizer3.load_state_dict(optimizer_saved_state)
+    scheduler3.load_state_dict(scheduler_saved_state)
+
+    resumed_lrs = enumerate_scheduler(scheduler3, total_steps - interrupt_at_epoch)
+
+    resumed_lrs = short_lrs + resumed_lrs
+    assert resumed_lrs == normal_lrs
+
