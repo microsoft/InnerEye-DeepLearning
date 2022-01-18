@@ -201,7 +201,7 @@ def test_innereye_ssl_container_rsna() -> None:
     assert loaded_config.model.hparams["use_7x7_first_conv_in_resnet"]
     assert loaded_config.model.hparams["encoder_name"] == EncoderName.densenet121.value
     assert loaded_config.model.hparams["learning_rate"] == 1e-4
-    assert loaded_config.model.hparams["num_samples"] == 180
+    assert loaded_config.model.hparams["num_train_samples"] == 180
 
     # Check some augmentation params
     assert loaded_config.datamodule_args[
@@ -246,16 +246,16 @@ def test_simclr_lr_scheduler() -> None:
     """
     Test if the LR scheduler has the expected warmup behaviour.
     """
-    num_samples = 100
+    num_train_samples = 100
     batch_size = 20
     gpus = 1
     max_epochs = 10
     warmup_epochs = 2
     model = SimCLRInnerEye(encoder_name="resnet18", dataset_name="CIFAR10",
-                           gpus=gpus, num_samples=num_samples, batch_size=batch_size,
+                           gpus=gpus, num_samples=num_train_samples, batch_size=batch_size,
                            max_epochs=max_epochs, warmup_epochs=warmup_epochs)
     # The LR scheduler used here works per step. Scheduler computes the total number of steps, in this example that's 5
-    train_iters_per_epoch = num_samples / (batch_size * gpus)
+    train_iters_per_epoch = num_train_samples / (batch_size * gpus)
     assert model.train_iters_per_epoch == train_iters_per_epoch
     # Mock a second optimizer that is normally created in the SSL container
     linear_head_optimizer = mock.MagicMock()
@@ -419,13 +419,13 @@ def test_simclr_num_nodes() -> None:
     with mock.patch("InnerEye.ML.deep_learning_config.TrainerParams.num_gpus_per_node", return_value=1):
         with mock.patch("InnerEye.ML.SSL.lightning_containers.ssl_container.get_encoder_output_dim", return_value=1):
             container = CIFAR10SimCLR()
-            num_samples = 100
+            num_train_samples = 100
             batch_size = 10
-            container.data_module = mock.MagicMock(num_samples=num_samples, batch_size=batch_size)
+            container.data_module = mock.MagicMock(num_train_samples=num_train_samples, batch_size=batch_size)
             assert container.num_nodes == 1
             model1 = container.create_model()
             old_iters_per_epoch = model1.train_iters_per_epoch
-            assert old_iters_per_epoch == num_samples / batch_size
+            assert old_iters_per_epoch == num_train_samples / batch_size
             # Increasing the number of nodes should increase effective batch size, and hence reduce number of
             # iterations per epoch
             container.num_nodes = 2
@@ -447,16 +447,16 @@ def test_simclr_num_gpus() -> None:
             with mock.patch("InnerEye.ML.SSL.lightning_containers.ssl_container.get_encoder_output_dim", return_value=1):
                 container = CIFAR10SimCLR()
                 container.num_epochs = num_epochs
-                num_samples = 800
+                num_train_samples = 800
                 batch_size = 10
-                container.data_module = mock.MagicMock(num_samples=num_samples, batch_size=batch_size)
+                container.data_module = mock.MagicMock(num_train_samples=num_train_samples, batch_size=batch_size)
                 model1 = container.create_model()
-                assert model1.train_iters_per_epoch == num_samples // (batch_size * device_count)
+                assert model1.train_iters_per_epoch == num_train_samples // (batch_size * device_count)
                 # Reducing the number of GPUs should decrease effective batch size, and hence increase number of
                 # iterations per epoch
                 container.max_num_gpus = 4
                 model2 = container.create_model()
-                assert model2.train_iters_per_epoch == num_samples // (batch_size * container.max_num_gpus)
+                assert model2.train_iters_per_epoch == num_train_samples // (batch_size * container.max_num_gpus)
                 scheduler = model2.configure_optimizers()[1][0]["scheduler"]
 
     total_training_steps = model2.train_iters_per_epoch * num_epochs  # type: ignore
