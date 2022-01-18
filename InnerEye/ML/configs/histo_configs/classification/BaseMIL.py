@@ -13,10 +13,10 @@ from typing import Type
 import param
 from torch import nn
 from torchvision.models.resnet import resnet18
-from monai.data.dataset import Dataset
 
 from health_ml.networks.layers.attention_layers import AttentionLayer, GatedAttentionLayer
 from InnerEye.ML.lightning_container import LightningContainer
+from InnerEye.ML.Histopathology.datasets.base_dataset import SlidesDataset
 from InnerEye.ML.Histopathology.datamodules.base_module import CacheMode, TilesDataModule
 from InnerEye.ML.Histopathology.models.deepmil import DeepMILModule
 from InnerEye.ML.Histopathology.models.encoders import (HistoSSLEncoder, IdentityEncoder,
@@ -102,5 +102,5 @@ class BaseMIL(LightningContainer):
     def get_data_module(self) -> TilesDataModule:
         raise NotImplementedError
 
-    def get_slide_dataset(self) -> Dataset:
+    def get_slide_dataset(self) -> SlidesDataset:
         raise NotImplementedError

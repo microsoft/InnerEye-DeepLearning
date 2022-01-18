@@ -79,7 +79,7 @@ def plot_scores_hist(results: Dict, prob_col: str = ResultsKey.PROB,
     return fig
 
 
-def plot_slide_noxy(slide: str, score: float, paths: List, attn: List, case: str, ncols: int = 5,
+def plot_attention_tiles(slide: str, score: float, paths: List, attn: List, case: str, ncols: int = 5,
                     size: Tuple = (10, 10)) -> plt.figure:
     """
     :param slide: slide identifier
@@ -154,7 +154,9 @@ def plot_heatmap_overlay(slide: str,
 
     sel_coords = location_selected_tiles(tile_coords=coords, location_bbox=location_bbox, level=level)
     cmap = plt.cm.get_cmap('jet')
-    rects = []
+
+    tile_xs, tile_ys = sel_coords.T
+    rects = [patches.Rectangle(xy, tile_size, tile_size) for xy in zip(tile_xs, tile_ys)]
     for i in range(sel_coords.shape[0]):
         rect = patches.Rectangle((sel_coords[i][0], sel_coords[i][1]), tile_size, tile_size)
         rects.append(rect)

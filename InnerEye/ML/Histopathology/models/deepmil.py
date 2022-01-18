@@ -17,12 +17,11 @@ from torch import Tensor, argmax, mode, nn, no_grad, optim, round
 from torchmetrics import AUROC, F1, Accuracy, Precision, Recall
 
 from InnerEye.Common import fixed_paths
-from InnerEye.ML.Histopathology.datasets.base_dataset import TilesDataset
+from InnerEye.ML.Histopathology.datasets.base_dataset import TilesDataset, SlidesDataset
 from InnerEye.ML.Histopathology.models.encoders import TileEncoder
-from InnerEye.ML.Histopathology.utils.metrics_utils import select_k_tiles, plot_slide_noxy, plot_scores_hist, plot_heatmap_overlay, plot_slide
+from InnerEye.ML.Histopathology.utils.metrics_utils import select_k_tiles, plot_attention_tiles, plot_scores_hist, plot_heatmap_overlay, plot_slide
 from InnerEye.ML.Histopathology.utils.naming import ResultsKey
 
-from monai.data.dataset import Dataset
 from InnerEye.ML.Histopathology.utils.viz_utils import load_image_dict
 from InnerEye.ML.Histopathology.utils.naming import SlideKey
 
@@ -52,9 +51,9 @@ class DeepMILModule(LightningModule):
                  weight_decay: float = 1e-4,
                  adam_betas: Tuple[float, float] = (0.9, 0.99),
                  verbose: bool = False,
-                 slide_dataset: Dataset = Dataset(data=[]),                
+                 slide_dataset: SlidesDataset = None,                
                  tile_size: int = 224,
-                 level: Optional[int] = 1) -> None:
+                 level: int = 1) -> None:
         """
         :param label_column: Label key for input batch dictionary.
         :param n_classes: Number of output classes for MIL prediction.
@@ -316,16 +315,16 @@ class DeepMILModule(LightningModule):
             nslides = len(report_cases[key][0])
             for i in range(nslides):
                 slide, score, paths, top_attn = report_cases[key][0][i]
-                fig = plot_slide_noxy(slide, score, paths, top_attn, key + '_top', ncols=4)
+                fig = plot_attention_tiles(slide, score, paths, top_attn, key + '_top', ncols=4)
                 self.save_figure(fig=fig, figpath=Path(key_folder_path, f'{slide}_top.png'))
 
                 slide, score, paths, bottom_attn = report_cases[key][1][i]
-                fig = plot_slide_noxy(slide, score, paths, bottom_attn, key + '_bottom', ncols=4)
+                fig = plot_attention_tiles(slide, score, paths, bottom_attn, key + '_bottom', ncols=4)
                 self.save_figure(fig=fig, figpath=Path(key_folder_path, f'{slide}_bottom.png'))
 
-                if len(self.slide_dataset) > 0:
+                if self.slide_dataset is not None:
                     slide_dict = mi.first_true(self.slide_dataset, pred=lambda entry: entry[SlideKey.SLIDE_ID] == slide)  # type: ignore
-                    _ = load_image_dict(slide_dict, level=self.level, margin=0)                                         
+                    _ = load_image_dict(slide_dict, level=self.level, margin=0)                                           # type: ignore                    
                     slide_image = slide_dict[SlideKey.IMAGE]
                     location_bbox = slide_dict[SlideKey.LOCATION]
 

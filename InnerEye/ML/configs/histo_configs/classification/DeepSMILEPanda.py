@@ -9,7 +9,6 @@ import os
 from monai.transforms import Compose
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from pytorch_lightning.callbacks import Callback
-from monai.data.dataset import Dataset
 
 from health_azure.utils import CheckpointDownloader
 from health_azure.utils import get_workspace, is_running_in_azure_ml
@@ -135,8 +134,8 @@ class DeepSMILEPanda(BaseMIL):
                              tile_size=self.tile_size,
                              level=self.level)
 
-    def get_slide_dataset(self) -> Dataset:
-        return Dataset(PandaDataset(root=self.extra_local_dataset_paths[0]))                    # type: ignore 
+    def get_slide_dataset(self) -> PandaDataset:                                                
+        return PandaDataset(root=self.extra_local_dataset_paths[0])                             # type: ignore
 
     def get_callbacks(self) -> List[Callback]:
         return super().get_callbacks() + [self.callbacks]
