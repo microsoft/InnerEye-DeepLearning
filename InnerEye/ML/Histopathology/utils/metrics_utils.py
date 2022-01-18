@@ -153,7 +153,7 @@ def plot_heatmap_overlay(slide: str,
     attentions = np.array(attentions.cpu()).reshape(-1)
 
     sel_coords = location_selected_tiles(tile_coords=coords, location_bbox=location_bbox, level=level)
-    cmap = plt.cm.get_cmap('jet')
+    cmap = plt.cm.get_cmap('Reds')
 
     tile_xs, tile_ys = sel_coords.T
     rects = [patches.Rectangle(xy, tile_size, tile_size) for xy in zip(tile_xs, tile_ys)]
