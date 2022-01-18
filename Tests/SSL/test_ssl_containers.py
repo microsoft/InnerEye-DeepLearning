@@ -4,6 +4,8 @@
 #  ------------------------------------------------------------------------------------------
 import math
 from pathlib import Path
+from stat import FILE_ATTRIBUTE_INTEGRITY_STREAM
+from tkinter.ttk import setup_master
 from typing import Dict
 from unittest import mock
 
@@ -32,6 +34,8 @@ from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
 from InnerEye.ML.configs.ssl.CIFAR_SSL_configs import CIFAR10SimCLR
 from InnerEye.ML.configs.ssl.CXR_SSL_configs import CXRImageClassifier
 from InnerEye.ML.runner import Runner
+from pl_bolts.optimizers.lr_scheduler import linear_warmup_decay
+from Tests.ML.util import model_train_unittest
 from Tests.ML.configs.lightning_test_containers import DummyContainerWithModel
 from Tests.ML.utils.test_io_util import write_test_dicom
 
@@ -281,6 +285,77 @@ def test_simclr_lr_scheduler() -> None:
         assert lr[i] < lr[i + 1], f"Not strictly monotonically increasing at index {i}"
     for i in range(highest_lr, len(lr) - 1):
         assert lr[i] > lr[i + 1], f"Not strictly monotonically decreasing at index {i}"
+
+
+def test_simclr_lr_scheduler_recovery(test_output_dirs: OutputFolderForTests) -> None:
+    # init scheduler, 5 warmup epochs, 10 real epochs
+    # step through 15 epochs and save the learning rates as a list
+    # Brand new scheduler for 10 epochs (5 warm up, 5 constant), stop and save state_dict
+    # new scheduler, load state_dict run for 5 more epochs, concatenate with previous run and compare to first run
+
+    # SimCLR code
+    # Normal run
+    optimizer = torch.optim.SGD({torch.empty((2, 3))}, lr=1.0)
+    scheduler = {
+            "scheduler": torch.optim.lr_scheduler.LambdaLR(
+                optimizer,
+                linear_warmup_decay(10, 15, cosine=True),
+            ),
+            "interval": "step",
+            "frequency": 1,
+        }
+
+    normal_lrs = []                                   
+    for _ in range(15):
+        normal_lrs.append(scheduler['scheduler'].get_lr()[0])
+        scheduler['scheduler'].step()
+
+    # Short run
+    optimizer = torch.optim.SGD({torch.empty((2, 3))}, lr=1.0)
+    scheduler = {
+            "scheduler": torch.optim.lr_scheduler.LambdaLR(
+                optimizer,
+                linear_warmup_decay(10, 15, cosine=True),
+            ),
+            "interval": "step",
+            "frequency": 1,
+        }
+
+    short_lrs = []                                   
+    for _ in range(5):
+        short_lrs.append(scheduler['scheduler'].get_lr()[0])
+        scheduler['scheduler'].step()
+
+    scheduler_saved_state = scheduler['scheduler'].state_dict()
+    optimizer_saved_state = optimizer.state_dict()
+
+    # Resumed run
+    optimizer = torch.optim.SGD({torch.empty((2, 3))}, lr=1.0)
+    scheduler = {
+            "scheduler": torch.optim.lr_scheduler.LambdaLR(
+                optimizer,
+                linear_warmup_decay(10, 15, cosine=True),
+            ),
+            "interval": "step",
+            "frequency": 1,
+        }
+    optimizer.load_state_dict(optimizer_saved_state)
+    scheduler['scheduler'].load_state_dict(scheduler_saved_state)
+    
+    resumed_lrs = []                                   
+    for _ in range(10):
+        resumed_lrs.append(scheduler['scheduler'].get_lr()[0])
+        scheduler['scheduler'].step()
+
+    resumed_lrs = short_lrs + resumed_lrs
+    assert resumed_lrs == normal_lrs
+
+    # # Now try with runner:
+    # 1. Create simclr model, with mock encoder that is a single layer: something like this container.data_module = mock.MagicMock(num_samples=num_samples, batch_size=batch_size)
+    #                         and with mock dataset with e.g. two small tensors
+    # 2. Run normal simclr training
+    # 3. Save checkpoint
+    # 4. Load checkpoint, compare
 
 
 def test_online_evaluator_recovery(test_output_dirs: OutputFolderForTests) -> None:
