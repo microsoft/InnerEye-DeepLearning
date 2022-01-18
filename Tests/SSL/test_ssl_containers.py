@@ -96,7 +96,6 @@ def _compare_stored_metrics(runner: Runner, expected_metrics: Dict[str, float], 
             assert actual == expected, f"Mismatch for metric {metric}"
 
 
-@pytest.mark.skipif(is_windows(), reason="Too slow on windows")
 def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
     """
     Tests:
