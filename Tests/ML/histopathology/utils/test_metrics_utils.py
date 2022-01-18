@@ -44,7 +44,7 @@ test_dict = {ResultsKey.SLIDE_ID: [[1, 1, 1, 1], [2, 2, 2, 2], [3, 3, 3, 3], [4,
              ResultsKey.PROB: [Tensor([0.5]), Tensor([0.7]), Tensor([0.4]), Tensor([1.0])],
              ResultsKey.TRUE_LABEL: [0, 1, 1, 1],
              ResultsKey.BAG_ATTN:
-                  [Tensor([[0.1, 0.3, 0.5, 0.8]]),
+                  [Tensor([[0.1, 0.0, 0.2, 0.15]]),
                   Tensor([[0.10, 0.18, 0.15, 0.13]]),
                   Tensor([[0.25, 0.23, 0.20, 0.21]]),
                   Tensor([[0.33, 0.31, 0.37, 0.35]])],
