@@ -8,7 +8,7 @@ It is responsible for instantiating the encoder and full DeepMIL model. Subclass
 their datamodules and configure experiment-specific parameters.
 """
 from pathlib import Path
-from typing import Type
+from typing import Type  # noqa
 
 import param
 from torch import nn
@@ -17,7 +17,7 @@ from torchvision.models.resnet import resnet18
 from health_ml.networks.layers.attention_layers import AttentionLayer, GatedAttentionLayer
 from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.Histopathology.datasets.base_dataset import SlidesDataset
-from InnerEye.ML.Histopathology.datamodules.base_module import CacheMode, TilesDataModule
+from InnerEye.ML.Histopathology.datamodules.base_module import CacheMode, CacheLocation, TilesDataModule
 from InnerEye.ML.Histopathology.models.deepmil import DeepMILModule
 from InnerEye.ML.Histopathology.models.encoders import (HistoSSLEncoder, IdentityEncoder,
                                                         ImageNetEncoder, ImageNetSimCLREncoder,
@@ -44,9 +44,11 @@ class BaseMIL(LightningContainer):
     cache_mode: CacheMode = param.ClassSelector(default=CacheMode.MEMORY, class_=CacheMode,
                                                 doc="The type of caching to perform: "
                                                     "'memory' (default), 'disk', or 'none'.")
-    save_precache: bool = param.Boolean(True, doc="Whether to pre-cache the entire transformed "
-                                                  "dataset upfront and save it to disk.")
-    enconding_chunk_size: int = param.Boolean(0, doc="If > 0 performs encoding in chunks, by loading"
+    precache_location: str = param.ClassSelector(default=CacheLocation.NONE, class_=CacheLocation,
+                                                 doc="Whether to pre-cache the entire transformed dataset upfront "
+                                                 "and save it to disk and if re-load in cpu or gpu. Options:"
+                                                 "`none` (default),`cpu`, `gpu`")
+    enconding_chunk_size: int = param.Integer(0, doc="If > 0 performs encoding in chunks, by loading"
                                                      "enconding_chunk_size tiles per chunk")
     # local_dataset (used as data module root_path) is declared in DatasetParams superclass
 

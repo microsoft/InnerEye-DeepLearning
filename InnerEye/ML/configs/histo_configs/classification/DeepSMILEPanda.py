@@ -115,7 +115,7 @@ class DeepSMILEPanda(BaseMIL):
             batch_size=self.batch_size,
             transform=transform,
             cache_mode=self.cache_mode,
-            save_precache=self.save_precache,
+            precache_locatiom=self.precache_location,
             cache_dir=self.cache_dir,
             number_of_cross_validation_splits=self.number_of_cross_validation_splits,
             cross_validation_split_index=self.cross_validation_split_index,
