@@ -105,7 +105,7 @@ class EncodeTilesBatchd(MapTransform):
         if self.chunk_size > 0:
             embeddings = []
             chunks = torch.split(images, self.chunk_size)
-            # TODO add parallelization step here
+            # TODO parallelize encoding - keep metadata and images aligned
             for chunk in chunks:
                 chunk_embeddings = self._encode_images(chunk, device)
                 embeddings.append(chunk_embeddings)
