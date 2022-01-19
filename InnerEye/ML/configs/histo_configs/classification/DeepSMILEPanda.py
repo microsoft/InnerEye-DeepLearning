@@ -3,14 +3,15 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-from typing import Any, Dict
+from typing import Any, List
 from pathlib import Path
 import os
 from monai.transforms import Compose
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
+from pytorch_lightning.callbacks import Callback
 
 from health_azure.utils import CheckpointDownloader
-from health_azure.utils import get_workspace
+from health_azure.utils import get_workspace, is_running_in_azure_ml
 from health_ml.networks.layers.attention_layers import GatedAttentionLayer
 from InnerEye.Common import fixed_paths
 from InnerEye.ML.Histopathology.datamodules.panda_module import PandaTilesDataModule
@@ -26,8 +27,11 @@ from InnerEye.ML.Histopathology.models.encoders import (
     ImageNetEncoder,
     ImageNetSimCLREncoder,
     InnerEyeSSLEncoder,
+    IdentityEncoder
 )
 from InnerEye.ML.configs.histo_configs.classification.BaseMIL import BaseMIL
+from InnerEye.ML.Histopathology.datasets.panda_dataset import PandaDataset
+from InnerEye.ML.Histopathology.models.deepmil import DeepMILModule
 
 
 class DeepSMILEPanda(BaseMIL):
@@ -41,11 +45,11 @@ class DeepSMILEPanda(BaseMIL):
             # declared in DatasetParams:
             local_dataset=Path("/tmp/datasets/PANDA_tiles"),
             azure_dataset_id="PANDA_tiles",
+            extra_azure_dataset_ids=["PANDA"],
+            extra_local_dataset_paths=[Path("/tmp/datasets/PANDA")],
             # To mount the dataset instead of downloading in AML, pass --use_dataset_mount in the CLI
             # declared in TrainerParams:
             num_epochs=200,
-            recovery_checkpoint_save_interval=10,
-            recovery_checkpoints_save_last_k=-1,
             # use_mixed_precision = True,
 
             # declared in WorkflowParams:
@@ -55,11 +59,12 @@ class DeepSMILEPanda(BaseMIL):
             # declared in OptimizerParams:
             l_rate=5e-4,
             weight_decay=1e-4,
-            adam_betas=(0.9, 0.99),
-        )
+            adam_betas=(0.9, 0.99))
         default_kwargs.update(kwargs)
         super().__init__(**default_kwargs)
         super().__init__(**default_kwargs)
+        if not is_running_in_azure_ml():
+            self.num_epochs = 1
         self.best_checkpoint_filename = "checkpoint_max_val_auroc"
         self.best_checkpoint_filename_with_suffix = (
             self.best_checkpoint_filename + ".ckpt"
@@ -116,9 +121,29 @@ class DeepSMILEPanda(BaseMIL):
             cross_validation_split_index=self.cross_validation_split_index,
         )
 
-    def get_trainer_arguments(self) -> Dict[str, Any]:
-        # These arguments will be passed through to the Lightning trainer.
-        return {"callbacks": self.callbacks}
+    def create_model(self) -> DeepMILModule:
+        self.data_module = self.get_data_module()
+        # Encoding is done in the datamodule, so here we provide instead a dummy
+        # no-op IdentityEncoder to be used inside the model
+        self.slide_dataset = self.get_slide_dataset()
+        self.level = 1
+        return DeepMILModule(encoder=IdentityEncoder(input_dim=(self.encoder.num_encoding,)),
+                             label_column=self.data_module.train_dataset.LABEL_COLUMN,
+                             n_classes=self.data_module.train_dataset.N_CLASSES,
+                             pooling_layer=self.get_pooling_layer(),
+                             class_weights=self.data_module.class_weights,
+                             l_rate=self.l_rate,
+                             weight_decay=self.weight_decay,
+                             adam_betas=self.adam_betas,
+                             slide_dataset=self.get_slide_dataset(),
+                             tile_size=self.tile_size,
+                             level=self.level)
+
+    def get_slide_dataset(self) -> PandaDataset:
+        return PandaDataset(root=self.extra_local_dataset_paths[0])                             # type: ignore
+
+    def get_callbacks(self) -> List[Callback]:
+        return super().get_callbacks() + [self.callbacks]
 
     def get_path_to_best_checkpoint(self) -> Path:
         """
@@ -143,7 +168,6 @@ class DeepSMILEPanda(BaseMIL):
             return checkpoint_path
 
         raise ValueError("Path to best checkpoint not found")
-
 
 class PandaImageNetMIL(DeepSMILEPanda):
     def __init__(self, **kwargs: Any) -> None:

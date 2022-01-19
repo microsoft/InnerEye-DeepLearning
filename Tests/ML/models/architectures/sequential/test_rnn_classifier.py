@@ -217,7 +217,7 @@ def test_rnn_classifier_via_config_1(use_combined_model: bool,
     image_and_seg = ImageAndSegmentations[np.ndarray](images=np.random.uniform(0, 1, SCAN_SIZE),
                                                       segmentations=np.random.randint(0, 2, SCAN_SIZE))
     with mock.patch('InnerEye.ML.utils.io_util.load_image_in_known_formats', return_value=image_and_seg):
-        model_train_unittest(config, dirs=test_output_dirs)
+        model_train_unittest(config, output_folder=test_output_dirs)
 
 
 @pytest.mark.skipif(common_util.is_windows(), reason="Has issues on windows build")
@@ -384,7 +384,7 @@ def test_rnn_classifier_via_config_2(test_output_dirs: OutputFolderForTests) -> 
     config.num_epochs = 2
     config.set_output_to(test_output_dirs.root_dir)
     config.dataset_data_frame = _get_mock_sequence_dataset(dataset_contents)
-    results, _ = model_train_unittest(config, dirs=test_output_dirs)
+    results, _ = model_train_unittest(config, output_folder=test_output_dirs)
 
     actual_train_loss = results.get_metric(is_training=True, metric_type=MetricType.LOSS.value)[-1]
     actual_val_loss = results.get_metric(is_training=False, metric_type=MetricType.LOSS.value)[-1]
