@@ -140,7 +140,7 @@ def test_encode_tiles(tmp_path: Path, use_gpu: bool, chunk_size: int) -> None:
     if use_gpu:
         encoder.cuda()
 
-    encode_transform = EncodeTilesBatchd(image_key, encoder, chunk_size)
+    encode_transform = EncodeTilesBatchd(image_key, encoder, chunk_size=chunk_size)
     transform = Compose([LoadTilesBatchd(image_key), encode_transform])
     dataset = Dataset(bagged_dataset, transform=transform)  # type: ignore
     sample = dataset[0]

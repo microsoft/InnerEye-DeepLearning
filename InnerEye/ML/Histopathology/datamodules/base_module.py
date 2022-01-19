@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-import pickle
+import torch
 from enum import Enum
 from pathlib import Path
 from typing import Any, Callable, Optional, Sequence, Tuple, Union
@@ -90,14 +90,16 @@ class TilesDataModule(LightningDataModule):
     def _dataset_pickle_path(self, stage: str) -> Optional[Path]:
         if self.cache_dir is None:
             return None
-        return self.cache_dir / f"{stage}_dataset.pkl"
+        return self.cache_dir / f"{stage}_dataset.pt"
+        # return self.cache_dir / f"{stage}_dataset.pkl"
 
     def _load_dataset(self, tiles_dataset: TilesDataset, stage: str, shuffle: bool) -> Dataset:
         dataset_pickle_path = self._dataset_pickle_path(stage)
 
         if dataset_pickle_path and dataset_pickle_path.exists():
             with dataset_pickle_path.open('rb') as f:
-                return pickle.load(f)
+                return torch.load(f, map_location=torch.device('cpu'))
+                # return pickle.load(f)
 
         generator = _create_generator(self.seed)
         bag_dataset = BagDataset(tiles_dataset,  # type: ignore
@@ -115,7 +117,8 @@ class TilesDataModule(LightningDataModule):
         if dataset_pickle_path:
             dataset_pickle_path.parent.mkdir(parents=True, exist_ok=True)
             with dataset_pickle_path.open('wb') as f:
-                pickle.dump(transformed_bag_dataset, f)
+                torch.save(transformed_bag_dataset, f)
+                # pickle.dump(transformed_bag_dataset, f)
 
         return transformed_bag_dataset
 

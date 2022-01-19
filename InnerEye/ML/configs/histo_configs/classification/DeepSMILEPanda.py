@@ -68,6 +68,7 @@ class DeepSMILEPanda(BaseMIL):
             mode="max",
         )
         self.callbacks = best_checkpoint_callback
+        self.enconding_chunk_size = 60
 
     @property
     def cache_dir(self) -> Path:
@@ -96,7 +97,7 @@ class DeepSMILEPanda(BaseMIL):
         transform = Compose(
             [
                 LoadTilesBatchd(image_key, progress=True),
-                EncodeTilesBatchd(image_key, self.encoder),
+                EncodeTilesBatchd(image_key, self.encoder, chunk_size=self.enconding_chunk_size),
             ]
         )
         return PandaTilesDataModule(
