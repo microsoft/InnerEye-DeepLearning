@@ -9,16 +9,21 @@ import pandas as pd
 import numpy as np
 from typing import Any, Callable, Dict, Optional, Tuple, List
 import torch
+import matplotlib.pyplot as plt
+import more_itertools as mi
 
 from pytorch_lightning import LightningModule
 from torch import Tensor, argmax, mode, nn, no_grad, optim, round
 from torchmetrics import AUROC, F1, Accuracy, Precision, Recall
 
 from InnerEye.Common import fixed_paths
-from InnerEye.ML.Histopathology.datasets.base_dataset import TilesDataset
+from InnerEye.ML.Histopathology.datasets.base_dataset import TilesDataset, SlidesDataset
 from InnerEye.ML.Histopathology.models.encoders import TileEncoder
-from InnerEye.ML.Histopathology.utils.metrics_utils import select_k_tiles, plot_slide_noxy, plot_scores_hist
+from InnerEye.ML.Histopathology.utils.metrics_utils import select_k_tiles, plot_attention_tiles, plot_scores_hist, plot_heatmap_overlay, plot_slide
 from InnerEye.ML.Histopathology.utils.naming import ResultsKey
+
+from InnerEye.ML.Histopathology.utils.viz_utils import load_image_dict
+from InnerEye.ML.Histopathology.utils.naming import SlideKey
 
 
 RESULTS_COLS = [ResultsKey.SLIDE_ID, ResultsKey.TILE_ID, ResultsKey.IMAGE_PATH, ResultsKey.PROB,
@@ -46,7 +51,9 @@ class DeepMILModule(LightningModule):
                  weight_decay: float = 1e-4,
                  adam_betas: Tuple[float, float] = (0.9, 0.99),
                  verbose: bool = False,
-                 ) -> None:
+                 slide_dataset: SlidesDataset = None,                
+                 tile_size: int = 224,
+                 level: int = 1) -> None:
         """
         :param label_column: Label key for input batch dictionary.
         :param n_classes: Number of output classes for MIL prediction.
@@ -61,6 +68,9 @@ class DeepMILModule(LightningModule):
         :param weight_decay: Weight decay parameter for L2 regularisation.
         :param adam_betas: Beta parameters for Adam optimiser.
         :param verbose: if True statements about memory usage are output at each step
+        :param slide_dataset: Slide dataset object, if available.
+        :param tile_size: The size of each tile (default=224).
+        :param level: The downsampling level (e.g. 0, 1, 2) of the tiles if available (default=1).
         """
         super().__init__()
 
@@ -79,7 +89,13 @@ class DeepMILModule(LightningModule):
         self.weight_decay = weight_decay
         self.adam_betas = adam_betas
 
+        # Slide specific attributes
+        self.slide_dataset = slide_dataset
+        self.tile_size = tile_size
+        self.level = level
+
         self.save_hyperparameters()
+
         self.verbose = verbose
 
         self.aggregation_fn, self.num_pooling = self.get_pooling()
@@ -288,29 +304,43 @@ class DeepMILModule(LightningModule):
         print("Selecting tiles ...")
         fn_top_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10, select=('lowest_pred', 'highest_att'))
         fn_bottom_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10, select=('lowest_pred', 'lowest_att'))
-        tp_top_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10, select=('highes_pred', 'highest_att'))
+        tp_top_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10, select=('highest_pred', 'highest_att'))
         tp_bottom_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10, select=('highest_pred', 'lowest_att'))
         report_cases = {'TP': [tp_top_tiles, tp_bottom_tiles], 'FN': [fn_top_tiles, fn_bottom_tiles]}
 
         for key in report_cases.keys():
-            print(f"Plotting {key} ...")
+            print(f"Plotting {key} (tiles, thumbnails, attention heatmaps)...")
             key_folder_path = outputs_fig_path / f'{key}'
             Path(key_folder_path).mkdir(parents=True, exist_ok=True)
             nslides = len(report_cases[key][0])
             for i in range(nslides):
                 slide, score, paths, top_attn = report_cases[key][0][i]
-                fig = plot_slide_noxy(slide, score, paths, top_attn, key + '_top', ncols=4)
-                figpath = Path(key_folder_path, f'{slide}_top.png')
-                fig.savefig(figpath, bbox_inches='tight')
+                fig = plot_attention_tiles(slide, score, paths, top_attn, key + '_top', ncols=4)
+                self.save_figure(fig=fig, figpath=Path(key_folder_path, f'{slide}_top.png'))
 
                 slide, score, paths, bottom_attn = report_cases[key][1][i]
-                fig = plot_slide_noxy(slide, score, paths, bottom_attn, key + '_bottom', ncols=4)
-                figpath = Path(key_folder_path, f'{slide}_bottom.png')
-                fig.savefig(figpath, bbox_inches='tight')
+                fig = plot_attention_tiles(slide, score, paths, bottom_attn, key + '_bottom', ncols=4)
+                self.save_figure(fig=fig, figpath=Path(key_folder_path, f'{slide}_bottom.png'))
+
+                if self.slide_dataset is not None:
+                    slide_dict = mi.first_true(self.slide_dataset, pred=lambda entry: entry[SlideKey.SLIDE_ID] == slide)  # type: ignore
+                    _ = load_image_dict(slide_dict, level=self.level, margin=0)                                           # type: ignore                    
+                    slide_image = slide_dict[SlideKey.IMAGE]
+                    location_bbox = slide_dict[SlideKey.LOCATION]
+
+                    fig = plot_slide(slide_image=slide_image, scale=1.0)
+                    self.save_figure(fig=fig, figpath=Path(key_folder_path, f'{slide}_thumbnail.png'))
+                    fig = plot_heatmap_overlay(slide=slide, slide_image=slide_image, results=results, 
+                                            location_bbox=location_bbox, tile_size=self.tile_size, level=self.level)
+                    self.save_figure(fig=fig, figpath=Path(key_folder_path, f'{slide}_heatmap.png'))
 
         print("Plotting histogram ...")
         fig = plot_scores_hist(results)
-        fig.savefig(outputs_fig_path / 'hist_scores.png', bbox_inches='tight')
+        self.save_figure(fig=fig, figpath=outputs_fig_path / 'hist_scores.png')
+
+    @staticmethod
+    def save_figure(fig: plt.figure, figpath: Path) -> None:
+        fig.savefig(figpath, bbox_inches='tight')
 
     @staticmethod
     def normalize_dict_for_df(dict_old: Dict[str, Any], use_gpu: bool) -> Dict:
