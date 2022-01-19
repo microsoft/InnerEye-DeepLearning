@@ -13,10 +13,12 @@ import pytest
 import torch
 from pl_bolts.models.self_supervised.resnets import ResNet
 from pl_bolts.optimizers import linear_warmup_decay
-from pytorch_lightning import Trainer
+from pytorch_lightning import LightningDataModule, LightningModule, Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.trainer.supporters import CombinedLoader
 from torch.nn import Module
 from torch.optim.lr_scheduler import _LRScheduler
+from torch.utils.data import DataLoader, Dataset
 
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import is_windows
@@ -35,6 +37,7 @@ from InnerEye.ML.configs.ssl.CXR_SSL_configs import CXRImageClassifier
 from InnerEye.ML.runner import Runner
 from Tests.ML.configs.lightning_test_containers import DummyContainerWithModel
 from Tests.ML.utils.test_io_util import write_test_dicom
+from health_ml.utils import AzureMLProgressBar
 
 path_to_test_dataset = full_ml_test_data_path("cxr_test_dataset")
 
@@ -444,7 +447,8 @@ def test_simclr_num_gpus() -> None:
     warmup_epochs = 10
     with mock.patch("torch.cuda.device_count", return_value=device_count):
         with mock.patch("InnerEye.ML.deep_learning_config.TrainerParams.use_gpu", return_value=True):
-            with mock.patch("InnerEye.ML.SSL.lightning_containers.ssl_container.get_encoder_output_dim", return_value=1):
+            with mock.patch("InnerEye.ML.SSL.lightning_containers.ssl_container.get_encoder_output_dim",
+                            return_value=1):
                 container = CIFAR10SimCLR()
                 container.num_epochs = num_epochs
                 num_train_samples = 800
@@ -488,9 +492,9 @@ def test_simclr_lr_scheduler_recovery(interrupt_at_epoch: int) -> None:
     def create_scheduler() -> Tuple[_LRScheduler, torch.optim.SGD]:
         optimizer = torch.optim.SGD({torch.empty((2, 3))}, lr=1.0)
         scheduler = torch.optim.lr_scheduler.LambdaLR(
-                    optimizer,
-                    linear_warmup_decay(warmup_steps=warmup_steps, total_steps=total_steps, cosine=True),
-                )
+            optimizer,
+            linear_warmup_decay(warmup_steps=warmup_steps, total_steps=total_steps, cosine=True),
+        )
         return scheduler, optimizer
 
     def enumerate_scheduler(scheduler: _LRScheduler, n: int) -> List[float]:
@@ -521,3 +525,68 @@ def test_simclr_lr_scheduler_recovery(interrupt_at_epoch: int) -> None:
     resumed_lrs = short_lrs + resumed_lrs
     assert resumed_lrs == normal_lrs
 
+
+@pytest.mark.skip("For manual inspection: Check if the number of training steps is as expected")
+def test_combined_loader(test_output_dirs: OutputFolderForTests) -> None:
+    """
+    Test if a combined data loader with unequal dataset length cycles as expected. Manually inspect how many steps
+    are run.
+    """
+    dim = 4
+    # Training should go over n_long // batch_size == 3 steps
+    n_long = 15
+    n_short = 9
+    batch_size = 4
+
+    class RandomDataset(Dataset):
+        def __init__(self, size, length):
+            self.len = length
+            self.data = torch.randn(length, size)
+            for i in range(length):
+                self.data[i, 0] = i
+
+        def __getitem__(self, index):
+            return self.data[index]
+
+        def __len__(self):
+            return self.len
+
+    class BoringModel(LightningModule):
+        def __init__(self):
+            super().__init__()
+            self.layer = torch.nn.Linear(dim, 2)
+
+        def forward(self, x):
+            return self.layer(x)
+
+        def training_step(self, batch, batch_idx):
+            loss = self(batch["a"]).sum()
+            self.log("train_loss", loss)
+            return {"loss": loss}
+
+        def validation_step(self, batch, batch_idx):
+            loss = self(batch["a"]).sum()
+            self.log("valid_loss", loss)
+
+        def configure_optimizers(self):
+            return torch.optim.SGD(self.layer.parameters(), lr=0.1)
+
+    class MyData(LightningDataModule):
+
+        def train_dataloader(self):
+            # Two datasets where the length of the larger one is not a multiple of the
+            return {"a": DataLoader(RandomDataset(dim, n_long), batch_size=batch_size, drop_last=True),
+                    "b": DataLoader(RandomDataset(dim, n_short), batch_size=batch_size, drop_last=True)}
+
+        def val_dataloader(self):
+            return CombinedLoader({"a": DataLoader(RandomDataset(dim, n_long), batch_size=batch_size, drop_last=True),
+                                   "b": DataLoader(RandomDataset(dim, n_short), batch_size=batch_size, drop_last=True)},
+                                  mode="max_size_cycle")
+
+    model = BoringModel()
+    trainer = Trainer(
+        default_root_dir=test_output_dirs.root_dir,
+        max_epochs=2,
+        callbacks=[AzureMLProgressBar()]
+    )
+    trainer.fit(model, datamodule=MyData())
