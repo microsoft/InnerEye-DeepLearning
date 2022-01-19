@@ -45,6 +45,8 @@ class BaseMIL(LightningContainer):
                                                     "'memory' (default), 'disk', or 'none'.")
     save_precache: bool = param.Boolean(True, doc="Whether to pre-cache the entire transformed "
                                                   "dataset upfront and save it to disk.")
+    enconding_chunk_size: int = param.Boolean(0, doc="If > 0 performs encoding in chunks, by loading"
+                                                     "enconding_chunk_size tiles per chunk")
     # local_dataset (used as data module root_path) is declared in DatasetParams superclass
 
     @property

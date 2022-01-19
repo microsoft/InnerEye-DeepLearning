@@ -35,6 +35,9 @@ class DeepSMILEPanda(BaseMIL):
         default_kwargs = dict(
             # declared in BaseMIL:
             pooling_type=GatedAttentionLayer.__name__,
+            # average number of tiles is 56 for PANDA
+            enconding_chunk_size=60,
+
             # declared in DatasetParams:
             local_dataset=Path("/tmp/datasets/PANDA_tiles"),
             azure_dataset_id="PANDA_tiles",
@@ -44,9 +47,11 @@ class DeepSMILEPanda(BaseMIL):
             recovery_checkpoint_save_interval=10,
             recovery_checkpoints_save_last_k=-1,
             # use_mixed_precision = True,
+
             # declared in WorkflowParams:
             number_of_cross_validation_splits=5,
             cross_validation_split_index=0,
+
             # declared in OptimizerParams:
             l_rate=5e-4,
             weight_decay=1e-4,
@@ -68,7 +73,6 @@ class DeepSMILEPanda(BaseMIL):
             mode="max",
         )
         self.callbacks = best_checkpoint_callback
-        self.enconding_chunk_size = 60
 
     @property
     def cache_dir(self) -> Path:
