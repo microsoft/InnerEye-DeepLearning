@@ -95,6 +95,7 @@ def _get_datamodule(cache_mode: CacheMode, save_precache: bool,
                     cache_dir_provided: bool, data_dir: Path) -> TilesDataModule:
     if (cache_mode is CacheMode.NONE and save_precache) \
             or (cache_mode is CacheMode.DISK and not cache_dir_provided) \
+            or (cache_mode is CacheMode.DISK_CPU and not cache_dir_provided) \
             or (save_precache and not cache_dir_provided):
         pytest.skip("Unsupported combination of caching arguments")
 
@@ -112,7 +113,7 @@ def _get_datamodule(cache_mode: CacheMode, save_precache: bool,
                                cache_dir=cache_dir)
 
 
-@pytest.mark.parametrize('cache_mode', [CacheMode.MEMORY, CacheMode.DISK, CacheMode.NONE])
+@pytest.mark.parametrize('cache_mode', [CacheMode.MEMORY, CacheMode.DISK, CacheMode.DISK_CPU, CacheMode.NONE])
 @pytest.mark.parametrize('save_precache', [True, False])
 @pytest.mark.parametrize('cache_dir_provided', [True, False])
 def test_caching_consistency(mock_data_dir: Path, cache_mode: CacheMode, save_precache: bool,

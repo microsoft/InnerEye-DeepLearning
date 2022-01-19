@@ -22,6 +22,7 @@ class CacheMode(Enum):
     NONE = 'none'
     MEMORY = 'memory'
     DISK = 'disk'
+    DISK_CPU = 'disk_cpu'
 
 
 class TilesDataModule(LightningDataModule):
@@ -47,7 +48,8 @@ class TilesDataModule(LightningDataModule):
         transforms up to the first randomised one should be computed only once and reused in
         subsequent iterations:
           - `MEMORY`: the entire transformed dataset is kept in memory for fastest access;
-          - `DISK`: each transformed sample is saved to disk and loaded on-demand;
+          - `DISK`: each transformed sample is saved to disk and loaded into GPU memory on-demand;
+          - `DISK_CPU`: each transformed sample is saved to disk and loaded into CPU memory on-demand;
           - `NONE` (default): no caching is performed.
         :param save_precache: Whether to pre-cache the entire transformed dataset upfront and save
         it to disk. This is done once in `prepare_data()` only on the local rank-0 process, so
@@ -60,7 +62,7 @@ class TilesDataModule(LightningDataModule):
             raise ValueError("Can only pre-cache if caching is enabled")
         if save_precache and cache_dir is None:
             raise ValueError("A cache directory is required for pre-caching")
-        if cache_mode is CacheMode.DISK and cache_dir is None:
+        if cache_mode in [CacheMode.DISK, CacheMode.DISK_CPU] and cache_dir is None:
             raise ValueError("A cache directory is required for on-disk caching")
         super().__init__()
 
@@ -87,19 +89,19 @@ class TilesDataModule(LightningDataModule):
             self._load_dataset(self.val_dataset, stage='val', shuffle=True)
             self._load_dataset(self.test_dataset, stage='test', shuffle=True)
 
-    def _dataset_pickle_path(self, stage: str) -> Optional[Path]:
+    def _dataset_pt_path(self, stage: str) -> Optional[Path]:
         if self.cache_dir is None:
             return None
         return self.cache_dir / f"{stage}_dataset.pt"
-        # return self.cache_dir / f"{stage}_dataset.pkl"
 
     def _load_dataset(self, tiles_dataset: TilesDataset, stage: str, shuffle: bool) -> Dataset:
-        dataset_pickle_path = self._dataset_pickle_path(stage)
+        dataset_pt_path = self._dataset_pt_path(stage)
 
-        if dataset_pickle_path and dataset_pickle_path.exists():
-            with dataset_pickle_path.open('rb') as f:
-                return torch.load(f, map_location=torch.device('cpu'))
-                # return pickle.load(f)
+        if dataset_pt_path and dataset_pt_path.exists():
+            # torch.load will reload on GPU by default, same device it was saved from
+            memory_location = torch.device('cpu') if self.cache_mode == CacheMode.DISK_CPU else None
+            with dataset_pt_path.open('rb') as f:
+                return torch.load(f, map_location=memory_location)
 
         generator = _create_generator(self.seed)
         bag_dataset = BagDataset(tiles_dataset,  # type: ignore
@@ -114,11 +116,10 @@ class TilesDataModule(LightningDataModule):
         transformed_bag_dataset = self._get_transformed_dataset(bag_dataset, transform)  # type: ignore
         generator.set_state(generator_state)
 
-        if dataset_pickle_path:
-            dataset_pickle_path.parent.mkdir(parents=True, exist_ok=True)
-            with dataset_pickle_path.open('wb') as f:
+        if dataset_pt_path:
+            dataset_pt_path.parent.mkdir(parents=True, exist_ok=True)
+            with dataset_pt_path.open('wb') as f:
                 torch.save(transformed_bag_dataset, f)
-                # pickle.dump(transformed_bag_dataset, f)
 
         return transformed_bag_dataset
 
@@ -126,7 +127,7 @@ class TilesDataModule(LightningDataModule):
                                  transform: Union[Sequence[Callable], Callable]) -> Dataset:
         if self.cache_mode is CacheMode.MEMORY:
             dataset = CacheDataset(base_dataset, transform, num_workers=1)  # type: ignore
-        elif self.cache_mode is CacheMode.DISK:
+        elif self.cache_mode in [CacheMode.DISK, CacheMode.DISK_CPU]:
             dataset = PersistentDataset(base_dataset, transform, cache_dir=self.cache_dir)  # type: ignore
             if self.save_precache:
                 import tqdm  # TODO: Make optional
