@@ -152,12 +152,12 @@ def test_caching_consistency(mock_data_dir: Path, cache_mode: CacheMode, precach
 
 
 @pytest.mark.parametrize('cache_mode', [CacheMode.MEMORY, CacheMode.DISK, CacheMode.NONE])
-@pytest.mark.parametrize('save_precache', [True, False])
+@pytest.mark.parametrize('precache_location', [CacheLocation.NONE, CacheLocation.CPU, CacheLocation.GPU])
 @pytest.mark.parametrize('cache_dir_provided', [True, False])
-def test_tile_id_coverage(mock_data_dir: Path, cache_mode: CacheMode, save_precache: bool,
+def test_tile_id_coverage(mock_data_dir: Path, cache_mode: CacheMode, precache_location: CacheLocation,
                           cache_dir_provided: bool) -> None:
     datamodule = _get_datamodule(cache_mode=cache_mode,
-                                 save_precache=save_precache,
+                                 precache_location=precache_location,
                                  cache_dir_provided=cache_dir_provided,
                                  data_dir=mock_data_dir)
     datamodule.prepare_data()
