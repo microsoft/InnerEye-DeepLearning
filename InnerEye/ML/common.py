@@ -13,11 +13,15 @@ from typing import Any, Dict, List
 DATASET_CSV_FILE_NAME = "dataset.csv"
 CHECKPOINT_SUFFIX = ".ckpt"
 
-RECOVERY_CHECKPOINT_FILE_NAME = "recovery"
-RECOVERY_CHECKPOINT_FILE_NAME_WITH_SUFFIX = RECOVERY_CHECKPOINT_FILE_NAME + CHECKPOINT_SUFFIX
+# The file names for the legacy "recovery" checkpoints behaviour, which stored the most recent N checkpoints
+LEGACY_RECOVERY_CHECKPOINT_FILE_NAME = "recovery"
 
-BEST_CHECKPOINT_FILE_NAME = "best_checkpoint"
-BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX = BEST_CHECKPOINT_FILE_NAME + CHECKPOINT_SUFFIX
+# The file names for the new recovery checkpoint behaviour: A single fixed checkpoint that is written every N epochs.
+# Lightning does not overwrite files in place, and will hence create files "autosave.ckpt", "autosave-v1.ckpt"
+# alternatingly
+AUTOSAVE_CHECKPOINT_FILE_NAME = "autosave"
+AUTOSAVE_CHECKPOINT_CANDIDATES = [AUTOSAVE_CHECKPOINT_FILE_NAME + CHECKPOINT_SUFFIX,
+                                  AUTOSAVE_CHECKPOINT_FILE_NAME + "-v1" + CHECKPOINT_SUFFIX]
 
 # This is a constant that must match a filename defined in pytorch_lightning.ModelCheckpoint, but we don't want
 # to import that here.
@@ -84,4 +88,4 @@ def get_best_checkpoint_path(path: Path) -> Path:
     Given a path and checkpoint, formats a path based on the checkpoint file name format.
     :param path to checkpoint folder
     """
-    return path / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+    return path / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX

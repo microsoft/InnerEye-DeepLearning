@@ -189,7 +189,7 @@ def test_compare_folder_against_run(test_output_dirs: OutputFolderForTests) -> N
             FINAL_MODEL_FOLDER / MODEL_INFERENCE_JSON_FILE_NAME
     create_folder_and_write_text(file1,
                                  '{"model_name": "BasicModel2Epochs", "checkpoint_paths": ['
-                                 '"checkpoints/best_checkpoint.ckpt"], '
+                                 '"checkpoints/last.ckpt"], '
                                  '"model_configs_namespace": "InnerEye.ML.configs.segmentation.BasicModel2Epochs"}')
     with mock.patch("InnerEye.ML.baselines_util.RUN_CONTEXT", run):
         # First comparison only on the .json file should pass

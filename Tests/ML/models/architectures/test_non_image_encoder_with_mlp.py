@@ -71,7 +71,7 @@ def test_non_image_encoder(test_output_dirs: OutputFolderForTests,
     config.max_batch_grad_cam = 1
     config.validate()
     # run model training
-    _, checkpoint_handler = model_train_unittest(config, dirs=test_output_dirs)
+    _, checkpoint_handler = model_train_unittest(config, output_folder=test_output_dirs)
     # run model inference
     runner = MLRunner(config)
     runner.setup()
