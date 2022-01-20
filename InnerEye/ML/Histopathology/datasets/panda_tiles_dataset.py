@@ -10,7 +10,7 @@ import pandas as pd
 from torchvision.datasets.vision import VisionDataset
 
 from InnerEye.ML.Histopathology.datasets.base_dataset import TilesDataset
-from InnerEye.ML.Histopathology.models.transforms import load_pil_image
+from InnerEye.ML.utils.io_util import load_pil_image
 from InnerEye.ML.SSL.datamodules_and_datasets.dataset_cls_utils import InnerEyeDataClassBaseWithReturnIndex
 
 
@@ -47,6 +47,7 @@ class PandaTilesDatasetReturnImageLabel(VisionDataset):
     Any dataset used in SSL needs to return a tuple where the first element is the image and the second is a
     class label.
     """
+
     def __init__(self,
                  root: Path,
                  dataset_csv: Optional[Union[str, Path]] = None,

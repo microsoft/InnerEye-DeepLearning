@@ -459,9 +459,16 @@ def load_labels_from_dataset_source(dataset_source: PatientDatasetSource, check_
     return np.vstack((background, labels))
 
 
+def load_pil_image(image_path: PathOrString) -> PIL.Image.Image:
+    """Load a PIL image from the given path - see https://hi-ml.readthedocs.io/en/latest/loading_images.html"""
+    with PIL.PngImagePlugin.PngImageFile(image_path) as pil_png:
+        image = np.asarray(pil_png)
+    return image
+
+
 def load_image(path: PathOrString, image_type: Optional[Type] = float) -> ImageWithHeader:
     """
-    Loads an image with extension numpy or nifti
+    Loads an image with extension numpy or nifti or png
     For HDF5 path suffix
         For images |<dataset_name>|<channel index>
         For segmentation binary |<dataset_name>|<channel index>
@@ -496,8 +503,7 @@ def load_image(path: PathOrString, image_type: Optional[Type] = float) -> ImageW
             header = get_unit_image_header()
             return ImageWithHeader(image, header)
     elif is_png(path):
-        with PIL.PngImagePlugin.PngImageFile(path) as pil_png:
-            image = np.asarray(pil_png, np.float)
+        image = load_pil_image(path)
         header = get_unit_image_header()
         return ImageWithHeader(image, header)
     raise ValueError(f"Invalid file type {path}")

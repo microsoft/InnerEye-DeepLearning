@@ -8,10 +8,10 @@ import torch
 import matplotlib.pyplot as plt
 from math import ceil
 import numpy as np
-import matplotlib.patches as patches 
+import matplotlib.patches as patches
 import matplotlib.collections as collection
 
-from InnerEye.ML.Histopathology.models.transforms import load_pil_image
+from InnerEye.ML.utils.io_util import load_pil_image
 from InnerEye.ML.Histopathology.utils.naming import ResultsKey
 from InnerEye.ML.Histopathology.utils.heatmap_utils import location_selected_tiles
 
@@ -117,7 +117,7 @@ def plot_slide(slide_image: np.ndarray, scale: float) -> plt.figure:
     return fig
 
 
-def plot_heatmap_overlay(slide: str, 
+def plot_heatmap_overlay(slide: str,
                        slide_image: np.ndarray,
                        results: Dict[str, List[Any]],
                        location_bbox: List[int],

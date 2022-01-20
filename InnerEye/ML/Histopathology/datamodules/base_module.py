@@ -108,7 +108,7 @@ class TilesDataModule(LightningDataModule):
     def _load_dataset(self, tiles_dataset: TilesDataset, stage: str, shuffle: bool) -> Dataset:
         dataset_pt_path = self._dataset_pt_path(stage)
 
-        if dataset_pt_path and dataset_pt_path.exists():
+        if dataset_pt_path and dataset_pt_path.is_file():
             # torch.load will reload on GPU by default, same device it was saved from
             memory_location = torch.device('cpu') if self.save_precache == CacheLocation.CPU else None
             with dataset_pt_path.open('rb') as f:
