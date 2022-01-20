@@ -27,7 +27,6 @@ def load_pil_image(image_path: PathOrString) -> PIL.Image.Image:
 
 def load_image_as_tensor(image_path: PathOrString) -> torch.Tensor:
     """Load an image as a tensor from the given path"""
-    # pil_image = load_pil_image(image_path)
     pil_image = load_pil_image(image_path)
     return to_tensor(pil_image)
 

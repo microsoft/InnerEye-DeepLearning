@@ -33,7 +33,6 @@ class TcgaCrck_TilesDatasetReturnImageLabel(VisionDataset):
     Any dataset used in SSL needs to return a tuple where the first element is the image and the second is a
     class label.
     """
-
     def __init__(self,
                  root: Union[str, Path],
                  dataset_csv: Optional[Union[str, Path]] = None,
