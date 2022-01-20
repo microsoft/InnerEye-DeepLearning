@@ -35,18 +35,23 @@ class PandaTilesDataset(TilesDataset):
     def __init__(self,
                  root: Path,
                  dataset_csv: Optional[Union[str, Path]] = None,
-                 dataset_df: Optional[pd.DataFrame] = None) -> None:
+                 dataset_df: Optional[pd.DataFrame] = None,
+                 occupancy_threshold: Optional[float] = None) -> None:
         super().__init__(root=Path(root) / self._RELATIVE_ROOT_FOLDER,
                          dataset_csv=dataset_csv,
                          dataset_df=dataset_df,
                          train=None)
-
+        if occupancy_threshold is not None:
+            dataset_df_filtered = self.dataset_df.loc[self.dataset_df['occupancy'] > occupancy_threshold]  # type: ignore
+            dataset_df_filtered.reset_index(inplace=True)
+            self.dataset_df = dataset_df_filtered
 
 class PandaTilesDatasetReturnImageLabel(VisionDataset):
     """
     Any dataset used in SSL needs to return a tuple where the first element is the image and the second is a
     class label.
     """
+    occupancy_threshold = 0
     def __init__(self,
                  root: Path,
                  dataset_csv: Optional[Union[str, Path]] = None,
@@ -54,16 +59,11 @@ class PandaTilesDatasetReturnImageLabel(VisionDataset):
                  transform: Optional[Callable] = None,
                  **kwargs: Any) -> None:
         super().__init__(root=root, transform=transform)
-        # filter out tiles based on occupancy threshold
-        self.full_dataset = PandaTilesDataset(root=root,
+
+        self.base_dataset = PandaTilesDataset(root=root,
                                               dataset_csv=dataset_csv,
-                                              dataset_df=dataset_df)
-        self.occupancy_threshold = 0
-        dataset_df_filtered = self.full_dataset.dataset_df.loc[self.full_dataset.dataset_df['occupancy'] > self.occupancy_threshold]  # type: ignore
-        dataset_df_filtered.reset_index(inplace=True)
-        self.base_dataset = PandaTilesDataset(root=root, dataset_df=dataset_df_filtered)
-        print(len(self.full_dataset))
-        print(len(self.base_dataset))
+                                              dataset_df=dataset_df,
+                                              occupancy_threshold=self.occupancy_threshold)
 
     def __getitem__(self, index: int) -> Tuple:  # type: ignore
         sample = self.base_dataset[index]
