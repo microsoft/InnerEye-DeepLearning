@@ -21,11 +21,9 @@ from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data import DataLoader, Dataset
 
 from InnerEye.Common import fixed_paths
-from InnerEye.Common.common_util import is_windows
 from InnerEye.Common.fixed_paths import repository_root_directory
-from InnerEye.Common.fixed_paths_for_tests import TEST_OUTPUTS_PATH, full_ml_test_data_path
+from InnerEye.Common.fixed_paths_for_tests import TEST_OUTPUTS_PATH
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.ML.SSL.datamodules_and_datasets.datamodules import CombinedDataModule
 from InnerEye.ML.SSL.lightning_containers.ssl_container import EncoderName, SSLDatasetName
 from InnerEye.ML.SSL.lightning_modules.byol.byol_module import BYOLInnerEye
 from InnerEye.ML.SSL.lightning_modules.simclr_module import SimCLRInnerEye
@@ -527,72 +525,6 @@ def test_simclr_lr_scheduler_recovery(interrupt_at_epoch: int) -> None:
 
     resumed_lrs = short_lrs + resumed_lrs
     assert resumed_lrs == normal_lrs
-
-
-@pytest.mark.skip("For manual inspection: Check if the number of training steps is as expected")
-def test_combined_loader(test_output_dirs: OutputFolderForTests) -> None:
-    """
-    Test if a combined data loader with unequal dataset length cycles as expected. Manually inspect how many steps
-    are run.
-    """
-    dim = 4
-    # Training should go over n_long // batch_size == 3 steps
-    n_long = 15
-    n_short = 9
-    batch_size = 4
-
-    class RandomDataset(Dataset):
-        def __init__(self, size, length):
-            self.len = length
-            self.data = torch.randn(length, size)
-            for i in range(length):
-                self.data[i, 0] = i
-
-        def __getitem__(self, index):
-            return self.data[index]
-
-        def __len__(self):
-            return self.len
-
-    class BoringModel(LightningModule):
-        def __init__(self):
-            super().__init__()
-            self.layer = torch.nn.Linear(dim, 2)
-
-        def forward(self, x):
-            return self.layer(x)
-
-        def training_step(self, batch, batch_idx):
-            loss = self(batch["a"]).sum()
-            self.log("train_loss", loss)
-            return {"loss": loss}
-
-        def validation_step(self, batch, batch_idx):
-            loss = self(batch["a"]).sum()
-            self.log("valid_loss", loss)
-
-        def configure_optimizers(self):
-            return torch.optim.SGD(self.layer.parameters(), lr=0.1)
-
-    class MyData(LightningDataModule):
-
-        def train_dataloader(self):
-            # Two datasets where the length of the larger one is not a multiple of the
-            return {"a": DataLoader(RandomDataset(dim, n_long), batch_size=batch_size, drop_last=True),
-                    "b": DataLoader(RandomDataset(dim, n_short), batch_size=batch_size, drop_last=True)}
-
-        def val_dataloader(self):
-            return CombinedLoader({"a": DataLoader(RandomDataset(dim, n_long), batch_size=batch_size, drop_last=True),
-                                   "b": DataLoader(RandomDataset(dim, n_short), batch_size=batch_size, drop_last=True)},
-                                  mode="max_size_cycle")
-
-    model = BoringModel()
-    trainer = Trainer(
-        default_root_dir=test_output_dirs.root_dir,
-        max_epochs=2,
-        callbacks=[AzureMLProgressBar()]
-    )
-    trainer.fit(model, datamodule=MyData())
 
 
 @pytest.mark.parametrize(("num_encoder_images", "num_labelled_images"),
