@@ -55,23 +55,19 @@ class TilesDataModule(LightningDataModule):
           - `NONE` (default): standard MONAI dataset is used, no caching is performed.
         :param precache_location: Whether to pre-cache the entire transformed dataset upfront and save
         it to disk. This is done once in `prepare_data()` only on the local rank-0 process, so
-        multiple processes can afterwards access the same cache without contention in DDP settings. 3 options are
-        available:
-          - `CPU`: each transformed sample is saved to disk and loaded into CPU memory on-demand;
-          - `GPU`: each transformed sample is saved to disk and loaded into GPU memory on-demand;
+        multiple processes can afterwards access the same cache without contention in DDP settings. This parameter also allow to
+        choose if the cache will be re-loaded into CPU or GPU memory:
           - `NONE (default)`: no pre-cache is performed;
+          - `CPU`: each transformed sample is saved to disk and, if cache_mode is `MEMORY`, reloaded into CPU;
+          - `GPU`: each transformed sample is saved to disk and, if cache_mode is `MEMORY`, reloaded into GPU memory;
+        If cache_mode is `DISK` precache_location `CPU` and `GPU` are equivalent.
         :param cache_dir: The directory onto which to cache data if caching is enabled.
         :param number_of_cross_validation_splits: Number of folds to perform.
         :param cross_validation_split_index: Index of the cross validation split to be performed.
         """
-        if precache_location == CacheLocation.NONE:
-            save_precache = None
-        else:
-            save_precache = precache_location
-
-        if save_precache and cache_mode is CacheMode.NONE:
+        if precache_location is not CacheLocation.NONE and cache_mode is CacheMode.NONE:
             raise ValueError("Can only pre-cache if caching is enabled")
-        if save_precache and cache_dir is None:
+        if precache_location is not CacheLocation.NONE and cache_dir is None:
             raise ValueError("A cache directory is required for pre-caching")
         if cache_mode is CacheMode.DISK and cache_dir is None:
             raise ValueError("A cache directory is required for on-disk caching")
@@ -81,7 +77,7 @@ class TilesDataModule(LightningDataModule):
         self.max_bag_size = max_bag_size
         self.transform = transform
         self.cache_mode = cache_mode
-        self.save_precache = save_precache
+        self.precache_location = precache_location
         self.cache_dir = cache_dir
         self.batch_size = batch_size
         self.number_of_cross_validation_splits = number_of_cross_validation_splits
@@ -95,24 +91,24 @@ class TilesDataModule(LightningDataModule):
         raise NotImplementedError
 
     def prepare_data(self) -> None:
-        if self.save_precache:
+        if self.precache_location != CacheLocation.NONE:
             self._load_dataset(self.train_dataset, stage='train', shuffle=True)
             self._load_dataset(self.val_dataset, stage='val', shuffle=True)
             self._load_dataset(self.test_dataset, stage='test', shuffle=True)
 
-    def _dataset_pt_path(self, stage: str) -> Optional[Path]:
+    def _dataset_pickle_path(self, stage: str) -> Optional[Path]:
         if self.cache_dir is None:
             return None
         return self.cache_dir / f"{stage}_dataset.pt"
 
     def _load_dataset(self, tiles_dataset: TilesDataset, stage: str, shuffle: bool) -> Dataset:
-        dataset_pt_path = self._dataset_pt_path(stage)
+        dataset_pickle_path = self._dataset_pickle_path(stage)
 
-        if dataset_pt_path and dataset_pt_path.is_file():
+        if dataset_pickle_path and dataset_pickle_path.is_file():
             # torch.load will reload on GPU by default, same device it was saved from
-            memory_location = torch.device('cpu') if self.save_precache == CacheLocation.CPU else None
-            with dataset_pt_path.open('rb') as f:
-                print(f"Loading dataset from {dataset_pt_path} into {memory_location}")
+            memory_location = torch.device('cpu') if self.precache_location == CacheLocation.CPU else None
+            with dataset_pickle_path.open('rb') as f:
+                print(f"Loading dataset from {dataset_pickle_path} into {memory_location}")
                 return torch.load(f, map_location=memory_location)
 
         generator = _create_generator(self.seed)
@@ -129,9 +125,9 @@ class TilesDataModule(LightningDataModule):
         generator.set_state(generator_state)
 
         # Dataset is saved if cache_dir is True, regardless of CacheMode
-        if dataset_pt_path:
-            dataset_pt_path.parent.mkdir(parents=True, exist_ok=True)
-            with dataset_pt_path.open('wb') as f:
+        if dataset_pickle_path:
+            dataset_pickle_path.parent.mkdir(parents=True, exist_ok=True)
+            with dataset_pickle_path.open('wb') as f:
                 torch.save(transformed_bag_dataset, f)
 
         return transformed_bag_dataset
@@ -142,7 +138,7 @@ class TilesDataModule(LightningDataModule):
             dataset = CacheDataset(base_dataset, transform, num_workers=1)  # type: ignore
         elif self.cache_mode is CacheMode.DISK:
             dataset = PersistentDataset(base_dataset, transform, cache_dir=self.cache_dir)  # type: ignore
-            if self.save_precache:
+            if self.precache_location != CacheLocation.NONE:
                 import tqdm  # TODO: Make optional
 
                 for i in tqdm.trange(len(dataset), desc="Loading dataset"):

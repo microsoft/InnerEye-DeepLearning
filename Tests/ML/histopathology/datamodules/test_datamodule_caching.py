@@ -97,7 +97,7 @@ def _get_datamodule(cache_mode: CacheMode, precache_location: CacheLocation,
         save_precache = None
     else:
         save_precache = precache_location
-    if (cache_mode is CacheMode.NONE and save_precache) \
+    if (cache_mode is CacheMode.NONE and precache_location is not CacheLocation.NONE) \
             or (cache_mode is CacheMode.DISK and not cache_dir_provided) \
             or (save_precache and not cache_dir_provided):
         pytest.skip("Unsupported combination of caching arguments")
