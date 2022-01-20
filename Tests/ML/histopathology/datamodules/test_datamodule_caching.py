@@ -93,13 +93,9 @@ def mock_data_dir(tmp_path: Path) -> Path:
 
 def _get_datamodule(cache_mode: CacheMode, precache_location: CacheLocation,
                     cache_dir_provided: bool, data_dir: Path) -> TilesDataModule:
-    if precache_location == CacheLocation.NONE:
-        save_precache = None
-    else:
-        save_precache = precache_location
     if (cache_mode is CacheMode.NONE and precache_location is not CacheLocation.NONE) \
             or (cache_mode is CacheMode.DISK and not cache_dir_provided) \
-            or (save_precache and not cache_dir_provided):
+            or (precache_location is not CacheLocation.NONE and not cache_dir_provided):
         pytest.skip("Unsupported combination of caching arguments")
 
     cache_dir = data_dir / f"datamodule_cache_{cache_mode.value}" if cache_dir_provided else None
@@ -150,9 +146,14 @@ def test_caching_consistency(mock_data_dir: Path, cache_mode: CacheMode, precach
     compare_dataloaders(train_dataloader, reloaded_train_dataloader)
 
 
-@pytest.mark.parametrize('cache_mode', [CacheMode.MEMORY, CacheMode.DISK, CacheMode.NONE])
-@pytest.mark.parametrize('precache_location', [CacheLocation.NONE, CacheLocation.CPU, CacheLocation.GPU])
-@pytest.mark.parametrize('cache_dir_provided', [True, False])
+@pytest.mark.parametrize('cache_mode, precache_location, cache_dir_provided',
+                         [(CacheMode.MEMORY, CacheLocation.CPU, True),
+                          (CacheMode.MEMORY, CacheLocation.GPU, True),
+                          (CacheMode.MEMORY, CacheLocation.NONE, False),
+                          (CacheMode.DISK, CacheLocation.GPU, True),
+                          (CacheMode.DISK, CacheLocation.NONE, True),
+                          (CacheMode.NONE, CacheLocation.NONE, False)
+                          ])
 def test_tile_id_coverage(mock_data_dir: Path, cache_mode: CacheMode, precache_location: CacheLocation,
                           cache_dir_provided: bool) -> None:
     datamodule = _get_datamodule(cache_mode=cache_mode,
