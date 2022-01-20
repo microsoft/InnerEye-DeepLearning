@@ -2,6 +2,7 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
+from json import encoder
 import math
 from pathlib import Path
 from stat import FILE_ATTRIBUTE_INTEGRITY_STREAM
@@ -34,8 +35,6 @@ from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
 from InnerEye.ML.configs.ssl.CIFAR_SSL_configs import CIFAR10SimCLR
 from InnerEye.ML.configs.ssl.CXR_SSL_configs import CXRImageClassifier
 from InnerEye.ML.runner import Runner
-from pl_bolts.optimizers.lr_scheduler import linear_warmup_decay
-from Tests.ML.util import model_train_unittest
 from Tests.ML.configs.lightning_test_containers import DummyContainerWithModel
 from Tests.ML.utils.test_io_util import write_test_dicom
 
@@ -287,76 +286,186 @@ def test_simclr_lr_scheduler() -> None:
         assert lr[i] > lr[i + 1], f"Not strictly monotonically decreasing at index {i}"
 
 
-def test_simclr_lr_scheduler_recovery(test_output_dirs: OutputFolderForTests) -> None:
-    # init scheduler, 5 warmup epochs, 10 real epochs
-    # step through 15 epochs and save the learning rates as a list
-    # Brand new scheduler for 10 epochs (5 warm up, 5 constant), stop and save state_dict
-    # new scheduler, load state_dict run for 5 more epochs, concatenate with previous run and compare to first run
+# Dummy data
+from torchvision.datasets.vision import VisionDataset
+from InnerEye.ML.SSL.datamodules_and_datasets.dataset_cls_utils import InnerEyeDataClassBaseWithReturnIndex
+from InnerEye.ML.SSL.lightning_containers.ssl_container import EncoderName, SSLContainer
+from InnerEye.ML.SSL.datamodules_and_datasets.transforms_utils import DualViewTransformWrapper
+from InnerEye.ML.augmentations.transform_pipeline import ImageTransformationPipeline
+from torchvision.transforms import Lambda
+from InnerEye.ML.lightning_loggers import StoringLogger
 
-    # SimCLR code
-    # Normal run
-    optimizer = torch.optim.SGD({torch.empty((2, 3))}, lr=1.0)
-    scheduler = {
-            "scheduler": torch.optim.lr_scheduler.LambdaLR(
-                optimizer,
-                linear_warmup_decay(10, 15, cosine=True),
-            ),
-            "interval": "step",
-            "frequency": 1,
-        }
+from enum import Enum
 
-    normal_lrs = []                                   
-    for _ in range(15):
-        normal_lrs.append(scheduler['scheduler'].get_lr()[0])
-        scheduler['scheduler'].step()
 
-    # Short run
-    optimizer = torch.optim.SGD({torch.empty((2, 3))}, lr=1.0)
-    scheduler = {
-            "scheduler": torch.optim.lr_scheduler.LambdaLR(
-                optimizer,
-                linear_warmup_decay(10, 15, cosine=True),
-            ),
-            "interval": "step",
-            "frequency": 1,
-        }
+class DummyData(VisionDataset):
+    def __init__(
+                self,
+                root: str,
+                train: bool = True,
+                transform = None,
+                target_transform = None,
+                download: bool = False):
 
-    short_lrs = []                                   
-    for _ in range(5):
-        short_lrs.append(scheduler['scheduler'].get_lr()[0])
-        scheduler['scheduler'].step()
+        super(DummyData, self).__init__(root, transform=transform,
+                                    target_transform=target_transform)
 
-    scheduler_saved_state = scheduler['scheduler'].state_dict()
-    optimizer_saved_state = optimizer.state_dict()
+        self.train = train  # training set or test set
+        self.data = torch.empty(20, 1, 1, 3)
+        
+    def __getitem__(self, index: int):
+        """
+        Args:
+            index (int): Index
 
-    # Resumed run
-    optimizer = torch.optim.SGD({torch.empty((2, 3))}, lr=1.0)
-    scheduler = {
-            "scheduler": torch.optim.lr_scheduler.LambdaLR(
-                optimizer,
-                linear_warmup_decay(10, 15, cosine=True),
-            ),
-            "interval": "step",
-            "frequency": 1,
-        }
-    optimizer.load_state_dict(optimizer_saved_state)
-    scheduler['scheduler'].load_state_dict(scheduler_saved_state)
+        Returns:
+            (Any): Sample and meta data, optionally transformed by the respective transforms.
+        """
+        # item = (self.data[index], self.data[index]), torch.Tensor([0])
+        image = self.data[index]
+        if self.transform:
+            image = self.transform(image)
+        return image, 0
+
+    def __len__(self) -> int:
+        return self.data.shape[0]
+
+class InnerEyeDummyData(InnerEyeDataClassBaseWithReturnIndex, DummyData):
+    """
+    Wrapper class around torchvision CIFAR10 class to optionally return the
+    index on top of the image and the label in __getitem__ as well as defining num_classes property.
+    """
+
+    @property
+    def num_classes(self) -> int:
+        return 2
+
+class SSLDatasetNameDummy(SSLDatasetName, Enum):
+    DUMMY = "DUMMY"
+
+class DummySimCLR(SSLContainer):
+    """
+    This module trains an SSL encoder using SimCLR on CIFAR10 and finetunes a linear head on CIFAR10 too.
+    """
+    SSLContainer._SSLDataClassMappings.update({SSLDatasetNameDummy.DUMMY.value:
+                                                   InnerEyeDummyData})
+
+    def __init__(self) -> None:
+        super().__init__(ssl_training_dataset_name=SSLDatasetNameDummy.DUMMY,
+                         linear_head_dataset_name=SSLDatasetNameDummy.DUMMY,
+                         # We usually train this model with 4 GPUs, giving an effective batch size of 512
+                         ssl_training_batch_size=2,
+                         linear_head_batch_size=2,
+                         ssl_encoder=EncoderName.resnet50,
+                         ssl_training_type=SSLTrainingType.SimCLR,
+                         random_seed=1,
+                         num_epochs=20, # TODO: check how this is used?
+                         num_workers=0)
     
-    resumed_lrs = []                                   
-    for _ in range(10):
-        resumed_lrs.append(scheduler['scheduler'].get_lr()[0])
-        scheduler['scheduler'].step()
+    def _get_transforms(self, augmentation_config,
+                    dataset_name: str, is_ssl_encoder_module: bool):
 
-    resumed_lrs = short_lrs + resumed_lrs
-    assert resumed_lrs == normal_lrs
+        # is_ssl_encoder_module will be True for ssl training, False for linear head training
+        train_transforms = ImageTransformationPipeline([Lambda(lambda x: x)])
+        val_transforms = ImageTransformationPipeline([Lambda(lambda x: x + 1)])
 
+        if is_ssl_encoder_module:
+            train_transforms = DualViewTransformWrapper(train_transforms)
+            val_transforms = DualViewTransformWrapper(val_transforms)
+        return train_transforms, val_transforms
+
+
+def test_simclr_lr_scheduler_recovery(test_output_dirs: OutputFolderForTests):
     # # Now try with runner:
     # 1. Create simclr model, with mock encoder that is a single layer: something like this container.data_module = mock.MagicMock(num_samples=num_samples, batch_size=batch_size)
     #                         and with mock dataset with e.g. two small tensors
     # 2. Run normal simclr training
     # 3. Save checkpoint
     # 4. Load checkpoint, compare
+    # small_encoder = torch.nn.Sequential(torch.nn.Conv2d(3,1,5,1,0), torch.nn.Flatten(), torch.nn.Linear(1,2))
+    small_encoder = torch.nn.Sequential(torch.nn.Flatten(), torch.nn.Linear(3,2))
+    with mock.patch("InnerEye.ML.SSL.encoders.create_ssl_encoder", return_value=small_encoder):
+        with mock.patch("InnerEye.ML.SSL.encoders.SSLEncoder.get_output_feature_dim", return_value=2): # TODO: is this necessary
+            with mock.patch("InnerEye.ML.SSL.encoders.get_encoder_output_dim", return_value=2):
+                
+                # TODO: how is warm up length calculated ???
+                # Normal run
+                container = DummySimCLR()
+                container.setup()
+                model = container.create_model()
+                data = container.get_data_module()
 
+                # add logger
+                logger = StoringLogger()
+                checkpoint_folder = test_output_dirs.create_file_or_folder_path("checkpoints")
+                checkpoint_folder.mkdir(exist_ok=True)
+                checkpoints = ModelCheckpoint(dirpath=checkpoint_folder,
+                                            every_n_val_epochs=1,
+                                            save_last=True)
+                trainer = Trainer(default_root_dir=str(test_output_dirs.root_dir),
+                                  logger=logger,
+                                  callbacks=[checkpoints],
+                                  max_epochs=20)
+                trainer.fit(model, datamodule=data)
+
+                normal_lrs = []
+                for item in logger.results_per_epoch:
+                    normal_lrs.append(logger.results_per_epoch[item]['simclr/learning_rate'])
+                
+                # Short run
+                container = DummySimCLR()
+                container.setup()
+                model = container.create_model()
+                data = container.get_data_module()
+
+                # add logger
+                logger = StoringLogger()
+                checkpoint_folder = test_output_dirs.create_file_or_folder_path("checkpoints")
+                checkpoint_folder.mkdir(exist_ok=True)
+                checkpoints = ModelCheckpoint(dirpath=checkpoint_folder,
+                                            every_n_val_epochs=1,
+                                            save_last=True)
+                trainer = Trainer(default_root_dir=str(test_output_dirs.root_dir),
+                                  logger=logger,
+                                  callbacks=[checkpoints],
+                                  max_epochs=15)
+                trainer.fit(model, datamodule=data)
+
+                short_lrs = []
+                for item in logger.results_per_epoch:
+                    short_lrs.append(logger.results_per_epoch[item]['simclr/learning_rate'])
+
+                # Resumed run
+                container = DummySimCLR()
+                container.setup()
+                model = container.create_model()
+                data = container.get_data_module()
+
+                # add logger
+                logger = StoringLogger()
+                last_checkpoint = checkpoints.last_model_path
+                trainer = Trainer(default_root_dir=str(test_output_dirs.root_dir),
+                                  logger=logger,
+                                  max_epochs=20,
+                                  resume_from_checkpoint=last_checkpoint)
+                trainer.fit(model, datamodule=data)
+
+                resumed_lrs = []
+                for item in logger.results_per_epoch:
+                    resumed_lrs.append(logger.results_per_epoch[item]['simclr/learning_rate'])
+
+                resumed_lrs = short_lrs + resumed_lrs
+                assert resumed_lrs == normal_lrs
+
+    # # Create data module
+    # with small tensor
+    # create with train and val loader
+
+    # # Encoder
+    # one layer encoder
+
+    # # Add these methods to container using Mock
+    # Mock create_encoder method and make it return the one layer encoder
 
 def test_online_evaluator_recovery(test_output_dirs: OutputFolderForTests) -> None:
     """
