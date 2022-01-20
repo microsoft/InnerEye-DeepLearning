@@ -7,9 +7,13 @@ from typing import Tuple, List, Any, Dict
 import torch
 import matplotlib.pyplot as plt
 from math import ceil
+import numpy as np
+import matplotlib.patches as patches 
+import matplotlib.collections as collection
 
 from InnerEye.ML.Histopathology.models.transforms import load_pil_image
 from InnerEye.ML.Histopathology.utils.naming import ResultsKey
+from InnerEye.ML.Histopathology.utils.heatmap_utils import location_selected_tiles
 
 
 def select_k_tiles(results: Dict, n_tiles: int = 5, n_slides: int = 5, label: int = 1,
@@ -75,7 +79,7 @@ def plot_scores_hist(results: Dict, prob_col: str = ResultsKey.PROB,
     return fig
 
 
-def plot_slide_noxy(slide: str, score: float, paths: List, attn: List, case: str, ncols: int = 5,
+def plot_attention_tiles(slide: str, score: float, paths: List, attn: List, case: str, ncols: int = 5,
                     size: Tuple = (10, 10)) -> plt.figure:
     """
     :param slide: slide identifier
@@ -96,4 +100,67 @@ def plot_slide_noxy(slide: str, score: float, paths: List, attn: List, case: str
         axs.ravel()[i].set_title("%.6f" % attn[i].cpu().item())
     for i in range(len(axs.ravel())):
         axs.ravel()[i].set_axis_off()
+    return fig
+
+
+def plot_slide(slide_image: np.ndarray, scale: float) -> plt.figure:
+    """Plots a slide thumbnail from a given slide image and scale.
+    :param slide_image: Numpy array of the slide image (shape: [3, H, W]).
+    :return: matplotlib figure of the slide thumbnail.
+    """
+    fig, ax = plt.subplots()
+    slide_image = slide_image.transpose(1, 2, 0)
+    ax.imshow(slide_image)
+    ax.set_axis_off()
+    original_size = fig.get_size_inches()
+    fig.set_size_inches((original_size[0]*scale, original_size[1]*scale))
+    return fig
+
+
+def plot_heatmap_overlay(slide: str, 
+                       slide_image: np.ndarray,
+                       results: Dict[str, List[Any]],
+                       location_bbox: List[int],
+                       tile_size: int = 224,
+                       level: int = 1) -> plt.figure:
+    """Plots heatmap of selected tiles (e.g. tiles in a bag) overlay on the corresponding slide.
+    :param slide: slide identifier.
+    :param slide_image: Numpy array of the slide image (shape: [3, H, W]).
+    :param results: Dict containing ResultsKey keys (e.g. slide id) and values as lists of output slides.
+    :param tile_size: Size of each tile. Default 224.
+    :param level: Magnification at which tiles are available (e.g. PANDA levels are 0 for original, 1 for 4x downsampled, 2 for 16x downsampled). Default 1.
+    :param location_bbox: Location of the bounding box of the slide.
+    :return: matplotlib figure of the heatmap of the given tiles on slide.
+    """
+    fig, ax = plt.subplots()
+    slide_image = slide_image.transpose(1, 2, 0)
+    ax.imshow(slide_image)
+    ax.set_xlim(0, slide_image.shape[1])
+    ax.set_ylim(slide_image.shape[0], 0)
+
+    coords = []
+    slide_ids = [item[0] for item in results[ResultsKey.SLIDE_ID]]
+    slide_idx = slide_ids.index(slide)
+    attentions = results[ResultsKey.BAG_ATTN][slide_idx]
+
+    # for each tile in the bag
+    for tile_idx in range(len(results[ResultsKey.IMAGE_PATH][slide_idx])):
+        tile_coords = np.transpose(np.array([results[ResultsKey.TILE_X][slide_idx][tile_idx].cpu().numpy(),
+                                    results[ResultsKey.TILE_Y][slide_idx][tile_idx].cpu().numpy()]))
+        coords.append(tile_coords)
+
+    coords = np.array(coords)
+    attentions = np.array(attentions.cpu()).reshape(-1)
+
+    sel_coords = location_selected_tiles(tile_coords=coords, location_bbox=location_bbox, level=level)
+    cmap = plt.cm.get_cmap('Reds')
+
+    tile_xs, tile_ys = sel_coords.T
+    rects = [patches.Rectangle(xy, tile_size, tile_size) for xy in zip(tile_xs, tile_ys)]
+
+    pc = collection.PatchCollection(rects, match_original=True, cmap=cmap, alpha=.5, edgecolor=None)
+    pc.set_array(np.array(attentions))
+    pc.set_clim([0, 1])
+    ax.add_collection(pc)
+    plt.colorbar(pc, ax=ax)
     return fig

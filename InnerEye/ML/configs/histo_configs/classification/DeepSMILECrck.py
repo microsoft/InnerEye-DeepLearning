@@ -14,11 +14,12 @@ Reference:
 damage response defect classification directly from H&E whole-slide images. arXiv:2107.09405
 """
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, List
 import os
 
 from monai.transforms import Compose
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
+from pytorch_lightning.callbacks import Callback
 
 from health_ml.networks.layers.attention_layers import GatedAttentionLayer
 from health_azure.utils import get_workspace
@@ -125,9 +126,8 @@ class DeepSMILECrck(BaseMIL):
             cross_validation_split_index=self.cross_validation_split_index,
         )
 
-    def get_trainer_arguments(self) -> Dict[str, Any]:
-        # These arguments will be passed through to the Lightning trainer.
-        return {"callbacks": self.callbacks}
+    def get_callbacks(self) -> List[Callback]:
+        return super().get_callbacks() + [self.callbacks]
 
     def get_path_to_best_checkpoint(self) -> Path:
         """
