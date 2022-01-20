@@ -112,7 +112,7 @@ def _get_datamodule(cache_mode: CacheMode, precache_location: CacheLocation,
                                seed=0,
                                batch_size=2,
                                cache_mode=cache_mode,
-                               precache_location=save_precache,
+                               precache_location=precache_location,
                                cache_dir=cache_dir)
 
 
