@@ -525,34 +525,37 @@ def test_simclr_lr_scheduler_recovery(interrupt_at_epoch: int) -> None:
     assert resumed_lrs == normal_lrs
 
 
-@pytest.mark.parametrize(("num_encoder_images", "num_labelled_images"),
-                         [(10, 20), (20, 10)])
+@pytest.mark.parametrize(("num_encoder_images", "num_labelled_images", "linear_head_batch_size"),
+                         [(40, 80, 1), (40, 80, 4), (80, 40, 1)])
 def test_simclr_dataset_length(test_output_dirs: OutputFolderForTests,
                                num_encoder_images: int,
-                               num_labelled_images: int) -> None:
+                               num_labelled_images: int,
+                               linear_head_batch_size: int) -> None:
     """
     Tests how the dataloaders in the Simclr model handle different length of labelled and unlabelled data.
+    Argument combinations are chosen such that the linear head dataset can be longer than the encoder dataset before
+    batching, but can become shorter than the linear head when taking batching into account.
     """
     container = NIH_RSNA_SimCLR()
     dataset_folder = test_output_dirs.root_dir / "dataset"
-    batch_size = 1
+    encoder_batch_size = 1
     create_cxr_test_dataset(dataset_folder,
                             num_encoder_images=num_encoder_images,
                             num_labelled_images=num_labelled_images)
     container.local_dataset = dataset_folder
     container.extra_local_dataset_paths = [dataset_folder]
     container.ssl_encoder = EncoderName.resnet18
-    container.ssl_training_batch_size = batch_size
-    container.linear_head_batch_size = batch_size
+    container.ssl_training_batch_size = encoder_batch_size
+    container.linear_head_batch_size = linear_head_batch_size
     container.setup()
     with mock.patch("InnerEye.ML.SSL.lightning_containers.ssl_container.get_encoder_output_dim", return_value=1):
         model = container.create_model()
-        expected_num_train_iters = (num_encoder_images * 0.9) // batch_size
+        expected_num_train_iters = (num_encoder_images * 0.9) // encoder_batch_size
         assert model.train_iters_per_epoch == expected_num_train_iters
         train_loaders = container.get_data_module().train_dataloader()
         assert isinstance(train_loaders, CombinedLoader)
         assert len(train_loaders) == expected_num_train_iters
-        expected_num_val_iters = (num_encoder_images * 0.1) // batch_size
+        expected_num_val_iters = (num_encoder_images * 0.1) // encoder_batch_size
         val_loaders = container.get_data_module().val_dataloader()
         assert isinstance(val_loaders, CombinedLoader)
         assert len(val_loaders) == expected_num_val_iters
