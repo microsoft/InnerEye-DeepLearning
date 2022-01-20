@@ -112,12 +112,11 @@ def _get_datamodule(cache_mode: CacheMode, precache_location: CacheLocation,
                                seed=0,
                                batch_size=2,
                                cache_mode=cache_mode,
-                               precache_location=precache_location,
+                               precache_location=save_precache,
                                cache_dir=cache_dir)
 
 
 @pytest.mark.parametrize('cache_mode', [CacheMode.MEMORY, CacheMode.DISK, CacheMode.NONE])
-@pytest.mark.parametrize('precache_location', [CacheLocation.NONE, CacheLocation.CPU, ])
 @pytest.mark.parametrize('precache_location', [CacheLocation.NONE, CacheLocation.CPU, CacheLocation.GPU])
 @pytest.mark.parametrize('cache_dir_provided', [True, False])
 def test_caching_consistency(mock_data_dir: Path, cache_mode: CacheMode, precache_location: CacheLocation,
