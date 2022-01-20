@@ -48,7 +48,7 @@ class BaseMIL(LightningContainer):
                                                  doc="Whether to pre-cache the entire transformed dataset upfront "
                                                  "and save it to disk and if re-load in cpu or gpu. Options:"
                                                  "`none` (default),`cpu`, `gpu`")
-    enconding_chunk_size: int = param.Integer(0, doc="If > 0 performs encoding in chunks, by loading"
+    encoding_chunk_size: int = param.Integer(0, doc="If > 0 performs encoding in chunks, by loading"
                                                      "enconding_chunk_size tiles per chunk")
     # local_dataset (used as data module root_path) is declared in DatasetParams superclass
 
