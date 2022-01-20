@@ -11,7 +11,7 @@ import numpy as np
 import matplotlib.patches as patches
 import matplotlib.collections as collection
 
-from InnerEye.ML.utils.io_util import load_pil_image
+from InnerEye.ML.Histopathology.models.transforms import load_pil_image
 from InnerEye.ML.Histopathology.utils.naming import ResultsKey
 from InnerEye.ML.Histopathology.utils.heatmap_utils import location_selected_tiles
 

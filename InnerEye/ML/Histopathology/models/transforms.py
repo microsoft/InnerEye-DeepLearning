@@ -7,21 +7,22 @@ from pathlib import Path
 from typing import Mapping, Sequence, Union
 
 import torch
+import numpy as np
+import PIL
 from monai.config.type_definitions import KeysCollection
 from monai.transforms.transform import MapTransform
 from torchvision.transforms.functional import to_tensor
 
 from InnerEye.ML.Histopathology.models.encoders import TileEncoder
-from InnerEye.ML.utils.io_util import load_pil_image
 
 PathOrString = Union[Path, str]
 
 
-# def load_pil_image(image_path: PathOrString) -> PIL.Image.Image:
-#    """Load a PIL image in RGB format from the given path"""
-#    with PIL.PngImagePlugin.PngImageFile(image_path) as pil_png:
-#        image = np.asarray(pil_png, np.float)
-#    return image
+def load_pil_image(image_path: PathOrString) -> PIL.Image.Image:
+    """Load a PIL image in RGB format from the given path"""
+    with PIL.PngImagePlugin.PngImageFile(image_path) as pil_png:
+        image = np.asarray(pil_png)
+    return image
 
 
 def load_image_as_tensor(image_path: PathOrString) -> torch.Tensor:
