@@ -106,7 +106,7 @@ class DeepSMILEPanda(BaseMIL):
         transform = Compose(
             [
                 LoadTilesBatchd(image_key, progress=True),
-                EncodeTilesBatchd(image_key, self.encoder, chunk_size=self.enconding_chunk_size),
+                EncodeTilesBatchd(image_key, self.encoder, chunk_size=self.encoding_chunk_size),
             ]
         )
         return PandaTilesDataModule(
