@@ -40,7 +40,7 @@ class DeepSMILEPanda(BaseMIL):
             # declared in BaseMIL:
             pooling_type=GatedAttentionLayer.__name__,
             # average number of tiles is 56 for PANDA
-            enconding_chunk_size=60,
+            encoding_chunk_size=60,
 
             # declared in DatasetParams:
             local_dataset=Path("/tmp/datasets/PANDA_tiles"),
