@@ -20,10 +20,10 @@ from InnerEye.ML.SSL.datamodules_and_datasets.transforms_utils import InnerEyeCI
 from InnerEye.ML.SSL.lightning_containers.ssl_container import SSLContainer, SSLDatasetName
 from InnerEye.ML.SSL.utils import SSLDataModuleType, load_yaml_augmentation_config
 from InnerEye.ML.configs.ssl.CXR_SSL_configs import path_encoder_augmentation_cxr
-from Tests.SSL.test_ssl_containers import _create_test_cxr_data
+from Tests.SSL.test_ssl_containers import create_cxr_test_dataset
 
 path_to_test_dataset = full_ml_test_data_path("cxr_test_dataset")
-_create_test_cxr_data(path_to_test_dataset)
+create_cxr_test_dataset(path_to_test_dataset)
 cxr_augmentation_config = load_yaml_augmentation_config(path_encoder_augmentation_cxr)
 
 

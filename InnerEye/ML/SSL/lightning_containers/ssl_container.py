@@ -172,7 +172,6 @@ class SSLContainer(LightningContainer):
                 f"Found {self.ssl_training_type.value}")
         model.hparams.update({'ssl_type': self.ssl_training_type.value,
                               "num_classes": self.data_module.num_classes})
-        print(vars(model))
         self.encoder_output_dim = get_encoder_output_dim(model, self.data_module)
         return model
 
@@ -185,10 +184,6 @@ class SSLContainer(LightningContainer):
             return self.data_module
         encoder_data_module = self._create_ssl_data_modules(is_ssl_encoder_module=True)
         linear_data_module = self._create_ssl_data_modules(is_ssl_encoder_module=False)
-        encoder_loader = encoder_data_module.train_dataloader()
-        head_loader = linear_data_module.train_dataloader()
-        print(f"Encoder: {len(encoder_loader)} training batches")
-        print(f"Linear head: {len(head_loader)} training batches")
         return CombinedDataModule(encoder_data_module, linear_data_module,
                                   self.use_balanced_binary_loss_for_linear_head)
 

@@ -23,8 +23,9 @@ from torch.utils.data import DataLoader, Dataset
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import is_windows
 from InnerEye.Common.fixed_paths import repository_root_directory
-from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
+from InnerEye.Common.fixed_paths_for_tests import TEST_OUTPUTS_PATH, full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
+from InnerEye.ML.SSL.datamodules_and_datasets.datamodules import CombinedDataModule
 from InnerEye.ML.SSL.lightning_containers.ssl_container import EncoderName, SSLDatasetName
 from InnerEye.ML.SSL.lightning_modules.byol.byol_module import BYOLInnerEye
 from InnerEye.ML.SSL.lightning_modules.simclr_module import SimCLRInnerEye
@@ -33,28 +34,32 @@ from InnerEye.ML.SSL.lightning_modules.ssl_online_evaluator import SSLOnlineEval
 from InnerEye.ML.SSL.utils import SSLDataModuleType, SSLTrainingType
 from InnerEye.ML.common import LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
 from InnerEye.ML.configs.ssl.CIFAR_SSL_configs import CIFAR10SimCLR
-from InnerEye.ML.configs.ssl.CXR_SSL_configs import CXRImageClassifier
+from InnerEye.ML.configs.ssl.CXR_SSL_configs import CXRImageClassifier, NIH_RSNA_SimCLR
 from InnerEye.ML.runner import Runner
 from Tests.ML.configs.lightning_test_containers import DummyContainerWithModel
 from Tests.ML.utils.test_io_util import write_test_dicom
 from health_ml.utils import AzureMLProgressBar
 
-path_to_test_dataset = full_ml_test_data_path("cxr_test_dataset")
+path_to_cxr_test_dataset = TEST_OUTPUTS_PATH / "cxr_test_dataset"
 
 
-def _create_test_cxr_data(path_to_test_dataset: Path) -> None:
+def create_cxr_test_dataset(path_to_test_dataset: Path,
+                            num_encoder_images: int = 200,
+                            num_labelled_images: int = 300) -> None:
     """
     Creates fake datasets dataframe and dicom images mimicking the expected structure of the datasets
     of NIHCXR and RSNAKaggleCXR
     :param path_to_test_dataset: folder to which we want to save the mock data.
+    :param num_encoder_images: The number of unlabelled images that the dataset should contain (for encoder training)
+    :param num_labelled_images: The number of labelled images that the dataset should contain (for the linear head).
     """
     if path_to_test_dataset.exists():
         return
     path_to_test_dataset.mkdir(exist_ok=True)
-    df = pd.DataFrame({"Image Index": np.repeat("1.dcm", 200)})
+    df = pd.DataFrame({"Image Index": np.repeat("1.dcm", num_encoder_images)})
     df.to_csv(path_to_test_dataset / "Data_Entry_2017.csv", index=False)
-    df = pd.DataFrame({"subject": np.repeat("1", 300),
-                       "label": np.random.RandomState(42).binomial(n=1, p=0.2, size=300)})
+    df = pd.DataFrame({"subject": np.repeat("1", num_labelled_images),
+                       "label": np.random.RandomState(42).binomial(n=1, p=0.2, size=num_labelled_images)})
     df.to_csv(path_to_test_dataset / "dataset.csv", index=False)
     write_test_dicom(array=np.ones([256, 256], dtype="uint16"), path=path_to_test_dataset / "1.dcm")
 
@@ -127,12 +132,12 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
     # Check the metrics that were recorded during training
     # Note: It is possible that after the PyTorch 1.10 upgrade, we can't get parity between local runs and runs on
     # the hosted build agents. If that suspicion is confirmed, we need to add branching for local and cloud results.
-    expected_metrics = {'simclr/val/loss': 2.8736939430236816,
-                        'ssl_online_evaluator/val/loss': 2.268489360809326,
+    expected_metrics = {'simclr/val/loss': 2.8797268867492676,
+                        'ssl_online_evaluator/val/loss': 2.272602081298828,
                         'ssl_online_evaluator/val/AccuracyAtThreshold05': 0.20000000298023224,
-                        'simclr/train/loss': 3.6261844635009766,
+                        'simclr/train/loss': 3.6261773109436035,
                         'simclr/learning_rate': 0.0,
-                        'ssl_online_evaluator/train/loss': 3.1140503883361816,
+                        'ssl_online_evaluator/train/loss': 3.1140334606170654,
                         'ssl_online_evaluator/train/online_AccuracyAtThreshold05': 0.0}
 
     _compare_stored_metrics(runner, expected_metrics, abs=5e-5)
@@ -159,7 +164,6 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
     assert loaded_config.model.num_classes == 10
 
 
-@pytest.mark.skipif(is_windows(), reason="Too slow on windows")
 def test_load_innereye_ssl_container_cifar10_cifar100_resnet_byol() -> None:
     """
     Tests that the parameters feed into the BYOL model and online evaluator are
@@ -176,17 +180,16 @@ def test_load_innereye_ssl_container_cifar10_cifar100_resnet_byol() -> None:
     assert loaded_config.ssl_training_type == SSLTrainingType.BYOL
 
 
-@pytest.mark.skipif(is_windows(), reason="Too slow on windows")
 def test_innereye_ssl_container_rsna() -> None:
     """
     Test if we can get the config loader to load a Lightning container model, and then train locally.
     """
     runner = default_runner()
-    _create_test_cxr_data(path_to_test_dataset)
+    create_cxr_test_dataset(path_to_cxr_test_dataset)
     # Test training of SSL model
     args = common_test_args + ["--model=NIH_RSNA_BYOL",
-                               f"--local_dataset={str(path_to_test_dataset)}",
-                               f"--extra_local_dataset_paths={str(path_to_test_dataset)}",
+                               f"--local_dataset={str(path_to_cxr_test_dataset)}",
+                               f"--extra_local_dataset_paths={str(path_to_cxr_test_dataset)}",
                                "--use_balanced_binary_loss_for_linear_head=True",
                                f"--ssl_encoder={EncoderName.densenet121.value}"]
     with mock.patch("sys.argv", args):
@@ -204,7 +207,7 @@ def test_innereye_ssl_container_rsna() -> None:
     assert loaded_config.model.hparams["use_7x7_first_conv_in_resnet"]
     assert loaded_config.model.hparams["encoder_name"] == EncoderName.densenet121.value
     assert loaded_config.model.hparams["learning_rate"] == 1e-4
-    assert loaded_config.model.hparams["num_train_samples"] == 180
+    assert loaded_config.model.hparams["num_samples"] == 180
 
     # Check some augmentation params
     assert loaded_config.datamodule_args[
@@ -233,7 +236,7 @@ def test_innereye_ssl_container_rsna() -> None:
     # Check that we are able to load the checkpoint and create classifier model
     checkpoint_path = loaded_config.checkpoint_folder / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
     args = common_test_args + ["--model=CXRImageClassifier",
-                               f"--local_dataset={str(path_to_test_dataset)}",
+                               f"--local_dataset={str(path_to_cxr_test_dataset)}",
                                "--use_balanced_binary_loss_for_linear_head=True",
                                f"--local_ssl_weights_path={checkpoint_path}"]
     with mock.patch("sys.argv", args):
@@ -590,3 +593,36 @@ def test_combined_loader(test_output_dirs: OutputFolderForTests) -> None:
         callbacks=[AzureMLProgressBar()]
     )
     trainer.fit(model, datamodule=MyData())
+
+
+@pytest.mark.parametrize(("num_encoder_images", "num_labelled_images"),
+                         [(10, 20), (20, 10)])
+def test_simclr_dataset_length(test_output_dirs: OutputFolderForTests,
+                               num_encoder_images: int,
+                               num_labelled_images: int) -> None:
+    """
+    Tests how the dataloaders in the Simclr model handle different length of labelled and unlabelled data.
+    """
+    container = NIH_RSNA_SimCLR()
+    dataset_folder = test_output_dirs.root_dir / "dataset"
+    batch_size = 1
+    create_cxr_test_dataset(dataset_folder,
+                            num_encoder_images=num_encoder_images,
+                            num_labelled_images=num_labelled_images)
+    container.local_dataset = dataset_folder
+    container.extra_local_dataset_paths = [dataset_folder]
+    container.ssl_encoder = EncoderName.resnet18
+    container.ssl_training_batch_size = batch_size
+    container.linear_head_batch_size = batch_size
+    container.setup()
+    with mock.patch("InnerEye.ML.SSL.lightning_containers.ssl_container.get_encoder_output_dim", return_value=1):
+        model = container.create_model()
+        expected_num_train_iters = (num_encoder_images * 0.9) // batch_size
+        assert model.train_iters_per_epoch == expected_num_train_iters
+        train_loaders = container.get_data_module().train_dataloader()
+        assert isinstance(train_loaders, CombinedLoader)
+        assert len(train_loaders) == expected_num_train_iters
+        expected_num_val_iters = (num_encoder_images * 0.1) // batch_size
+        val_loaders = container.get_data_module().val_dataloader()
+        assert isinstance(val_loaders, CombinedLoader)
+        assert len(val_loaders) == expected_num_val_iters

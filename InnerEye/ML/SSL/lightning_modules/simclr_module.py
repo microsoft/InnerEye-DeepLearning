@@ -49,7 +49,6 @@ class SimCLRInnerEye(SimCLR):
         """
         if "dataset" not in kwargs:  # needed for the new version of lightning-bolts
             kwargs.update({"dataset": dataset_name})
-        print(kwargs)
         super().__init__(**kwargs)
         self.save_hyperparameters()
         self.encoder = SSLEncoder(encoder_name, use_7x7_first_conv_in_resnet)

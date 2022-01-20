@@ -5,14 +5,14 @@
 
 import logging
 import os
-from typing import Any, Callable, Dict, Optional, Union
+from typing import Any, Callable, Optional, Sized, Union
 
 import numpy as np
 import torch
 from pl_bolts.datamodules.vision_datamodule import VisionDataModule
 from pytorch_lightning import LightningDataModule
 from pytorch_lightning.trainer.supporters import CombinedLoader
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import Dataset
 
 from InnerEye.ML.SSL.utils import SSLDataModuleType
 
@@ -107,9 +107,9 @@ class CombinedDataModule(LightningDataModule):
                  **kwargs: Any) -> None:
         """
         Combined data module to use different datamodules for training SSL encoder and finetuning the linear head.
-        Each batch returned by this data module, will be a dictionary of type Dict[SSLDataModuleType, Any]. If one
-        dataloader is shorter than the other, combined dataloader will start looping again from the start of the shorter
-        one until we looped through the longest one.
+        Each batch returned by this data module, will be a dictionary of type Dict[SSLDataModuleType, Any].
+        The dataloader will ensure that each iteration only loops once through the encoder data module, even
+        if the linear head data module is longer.
 
         :param encoder_module: datamodule to use for training of SSL.
         :param linear_head_module: datamodule to use for training of linear head on top of frozen encoder. Can use a
@@ -132,27 +132,39 @@ class CombinedDataModule(LightningDataModule):
         logging.info(f"Len encoder train dataloader {len(self.encoder_module.train_dataloader())}")
         logging.info(f"Len total train dataloader {len(self.train_dataloader())}")
 
-    def train_dataloader(self, *args: Any, **kwargs: Any) -> Dict[SSLDataModuleType, DataLoader]:  # type: ignore
+    def _get_cycle_mode(self, encoder_dataset: Sized, linear_head_dataset: Sized) -> str:
+        """
+        Gets the right cycle mode for a CombinedLoader, based on the size of the encoder and linear head datasets.
+        The cycle mode is chosen such that in all cases the encoder dataset is only cycled through once.
+        :param encoder_dataset: The dataset to use for the SSL encoder.
+        :param linear_head_dataset: The dataset to use for the linear had.
+        """
+        len_encoder = len(encoder_dataset)
+        len_head = len(linear_head_dataset)
+        return "max_size_cycle" if len_encoder > len_head else "min_size"
+
+    def train_dataloader(self, *args: Any, **kwargs: Any) -> CombinedLoader:  # type: ignore
         """
         The train dataloaders
         """
-        # This code may be superseded in current versions of PL. Using this dictionary syntax will effectively
-        # use a CombinedLoader(dataloaders, mode="max_size_cycle"), similar to what we need to do explicitly for
-        # the validation data loader.
+        mode = self._get_cycle_mode(encoder_dataset=self.encoder_module.dataset_train,
+                                    linear_head_dataset=self.linear_head_module.dataset_train)
         dataloaders = {
             SSLDataModuleType.ENCODER: self.encoder_module.train_dataloader(),
-            SSLDataModuleType.LINEAR_HEAD: self.linear_head_module.train_dataloader()}
-        return dataloaders
+            SSLDataModuleType.LINEAR_HEAD: self.linear_head_module.train_dataloader()
+        }
+        return CombinedLoader(dataloaders, mode=mode)
 
     def val_dataloader(self, *args: Any, **kwargs: Any) -> CombinedLoader:  # type: ignore
         """
         The val dataloader
         """
+        mode = self._get_cycle_mode(encoder_dataset=self.encoder_module.dataset_val,
+                                    linear_head_dataset=self.linear_head_module.dataset_val)
         dataloaders = {
             SSLDataModuleType.ENCODER: self.encoder_module.val_dataloader(),
             SSLDataModuleType.LINEAR_HEAD: self.linear_head_module.val_dataloader()}
-
-        return CombinedLoader(dataloaders, mode="max_size_cycle")
+        return CombinedLoader(dataloaders, mode=mode)
 
     @property
     def num_train_samples(self) -> int:

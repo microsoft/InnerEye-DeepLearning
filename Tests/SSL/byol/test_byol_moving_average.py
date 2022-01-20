@@ -15,9 +15,9 @@ from torch.utils.data import DataLoader
 from InnerEye.ML.SSL.datamodules_and_datasets.cxr_datasets import RSNAKaggleCXR
 from InnerEye.ML.SSL.lightning_modules.byol.byol_module import BYOLInnerEye
 from InnerEye.ML.SSL.lightning_modules.byol.byol_moving_average import ByolMovingAverageWeightUpdate
-from Tests.SSL.test_ssl_containers import _create_test_cxr_data, path_to_test_dataset
+from Tests.SSL.test_ssl_containers import create_cxr_test_dataset, path_to_cxr_test_dataset
 
-_create_test_cxr_data(path_to_test_dataset)
+create_cxr_test_dataset(path_to_cxr_test_dataset)
 
 
 def test_update_tau() -> None:
@@ -27,7 +27,7 @@ def test_update_tau() -> None:
                     torch.rand([3, 224, 224], dtype=torch.float32)), \
                    randint(0, 1)
 
-    dataset_dir = str(path_to_test_dataset)
+    dataset_dir = str(path_to_cxr_test_dataset)
     dummy_rsna_train_dataloader: DataLoader = torch.utils.data.DataLoader(
         DummyRSNADataset(root=dataset_dir, return_index=False, train=True),
         batch_size=20,
