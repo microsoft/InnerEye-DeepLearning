@@ -13,12 +13,11 @@ import pytest
 import torch
 from pl_bolts.models.self_supervised.resnets import ResNet
 from pl_bolts.optimizers import linear_warmup_decay
-from pytorch_lightning import LightningDataModule, LightningModule, Trainer
+from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.trainer.supporters import CombinedLoader
 from torch.nn import Module
 from torch.optim.lr_scheduler import _LRScheduler
-from torch.utils.data import DataLoader, Dataset
 
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.fixed_paths import repository_root_directory
@@ -36,7 +35,6 @@ from InnerEye.ML.configs.ssl.CXR_SSL_configs import CXRImageClassifier, NIH_RSNA
 from InnerEye.ML.runner import Runner
 from Tests.ML.configs.lightning_test_containers import DummyContainerWithModel
 from Tests.ML.utils.test_io_util import write_test_dicom
-from health_ml.utils import AzureMLProgressBar
 
 path_to_cxr_test_dataset = TEST_OUTPUTS_PATH / "cxr_test_dataset"
 

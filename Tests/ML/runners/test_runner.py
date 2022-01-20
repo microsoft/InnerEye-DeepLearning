@@ -156,7 +156,6 @@ def create_mock_run(mock_upload_path: Path, config: DeepLearningConfig) -> Run:
     return run
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("perform_cross_validation", [True, False])
 def test_model_inference_train_and_test_default(test_output_dirs: OutputFolderForTests,
                                                 perform_cross_validation: bool) -> None:
@@ -172,7 +171,6 @@ def test_model_inference_train_and_test_default(test_output_dirs: OutputFolderFo
                                        model_proc=ModelProcessing.DEFAULT)
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("perform_cross_validation", [True, False])
 @pytest.mark.parametrize("inference_on_set", [(True, False, False), (False, True, False), (False, False, True)])
 def test_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
@@ -195,7 +193,6 @@ def test_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
                                        model_proc=ModelProcessing.DEFAULT)
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 def test_ensemble_model_inference_train_and_test_default(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test inference defaults with ModelProcessing.ENSEMBLE_CREATION.
@@ -208,7 +205,6 @@ def test_ensemble_model_inference_train_and_test_default(test_output_dirs: Outpu
                                        model_proc=ModelProcessing.ENSEMBLE_CREATION)
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("ensemble_inference_on_set", [(True, False, False), (False, True, False), (False, False, True)])
 def test_ensemble_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
                                                  ensemble_inference_on_set: Tuple[bool, bool, bool]) -> None:
