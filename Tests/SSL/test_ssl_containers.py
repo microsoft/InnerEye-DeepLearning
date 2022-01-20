@@ -49,9 +49,9 @@ def create_cxr_test_dataset(path_to_test_dataset: Path,
     :param num_encoder_images: The number of unlabelled images that the dataset should contain (for encoder training)
     :param num_labelled_images: The number of labelled images that the dataset should contain (for the linear head).
     """
-    if path_to_test_dataset.exists():
+    if path_to_test_dataset.is_dir():
         return
-    path_to_test_dataset.mkdir(exist_ok=True)
+    path_to_test_dataset.mkdir(exist_ok=True, parents=True)
     df = pd.DataFrame({"Image Index": np.repeat("1.dcm", num_encoder_images)})
     df.to_csv(path_to_test_dataset / "Data_Entry_2017.csv", index=False)
     df = pd.DataFrame({"subject": np.repeat("1", num_labelled_images),
