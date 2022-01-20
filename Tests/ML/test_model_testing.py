@@ -8,13 +8,12 @@ import pandas as pd
 import pytest
 from pytorch_lightning import seed_everything
 
-from InnerEye.Common import common_util
 from InnerEye.Common.common_util import METRICS_AGGREGATES_FILE, SUBJECT_METRICS_FILE_NAME, get_best_epoch_results_path
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.metrics_constants import MetricsFileColumns
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML import model_testing
-from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, DATASET_CSV_FILE_NAME, ModelExecutionMode
+from InnerEye.ML.common import LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.config import DATASET_ID_FILE, GROUND_TRUTH_IDS_FILE, ModelArchitectureConfig
 from InnerEye.ML.dataset.full_image_dataset import FullImageDataset
 from InnerEye.ML.model_config_base import ModelConfigBase
@@ -31,7 +30,6 @@ from Tests.ML.util import (assert_file_contains_string, assert_nifti_content, as
 from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize(["use_partial_ground_truth", "allow_partial_ground_truth"], [[True, True], [True, False], [False, False]])
 def test_model_test(
         test_output_dirs: OutputFolderForTests,
@@ -98,7 +96,7 @@ def test_model_test(
     execution_mode = ModelExecutionMode.TEST
     checkpoint_handler = get_default_checkpoint_handler(model_config=config, project_root=test_output_dirs.root_dir)
     # Mimic the behaviour that checkpoints are downloaded from blob storage into the checkpoints folder.
-    create_model_and_store_checkpoint(config, config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX)
+    create_model_and_store_checkpoint(config, config.checkpoint_folder / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX)
     checkpoint_handler.additional_training_done()
     inference_results = model_testing.segmentation_model_test(config,
                                                               execution_mode=execution_mode,

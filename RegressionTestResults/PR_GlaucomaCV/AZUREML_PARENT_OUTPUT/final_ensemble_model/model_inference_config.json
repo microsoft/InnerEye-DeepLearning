@@ -1,1 +1,1 @@
-{"model_name": "GlaucomaPublic", "checkpoint_paths": ["checkpoints/OTHER_RUNS/1/best_checkpoint.ckpt", "checkpoints/best_checkpoint.ckpt"], "model_configs_namespace": "InnerEye.ML.configs.classification.GlaucomaPublic"}
+{"model_name": "GlaucomaPublic", "checkpoint_paths": ["checkpoints/OTHER_RUNS/1/last.ckpt", "checkpoints/last.ckpt"], "model_configs_namespace": "InnerEye.ML.configs.classification.GlaucomaPublic"}

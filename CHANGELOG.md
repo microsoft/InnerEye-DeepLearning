@@ -39,6 +39,7 @@ jobs that run in AzureML.
 - ([#613](https://github.com/microsoft/InnerEye-DeepLearning/pull/613)) Add additional tests for histopathology datasets
 - ([#616](https://github.com/microsoft/InnerEye-DeepLearning/pull/616)) Add more histopathology configs and tests
 - ([#621](https://github.com/microsoft/InnerEye-DeepLearning/pull/621)) Add WSI preprocessing functions and enable tiling more generic slide datasets
+- ([#634](https://github.com/microsoft/InnerEye-DeepLearning/pull/634)) Add WSI heatmaps and thumbnails to standard test outputs
 
 ### Changed
 - ([#588](https://github.com/microsoft/InnerEye-DeepLearning/pull/588)) Replace SciPy with PIL.PngImagePlugin.PngImageFile to load png files.
@@ -72,6 +73,8 @@ gets uploaded to AzureML, by skipping all test folders.
 - ([#596](https://github.com/microsoft/InnerEye-DeepLearning/pull/596)) Add `cudatoolkit=11.1` specification to environment.yml.
 - ([#615](https://github.com/microsoft/InnerEye-DeepLearning/pull/615)) Minor changes to checkpoint download from AzureML.
 - ([#605](https://github.com/microsoft/InnerEye-DeepLearning/pull/605)) Make build jobs deterministic for regression testing.
+- ([#633](https://github.com/microsoft/InnerEye-DeepLearning/pull/633)) Model training now only writes one recovery checkpoint, rather than multiple ones. Frequency is controlled by
+  `autosave_every_n_val_epochs`.
 - ([#632](https://github.com/microsoft/InnerEye-DeepLearning/pull/632)) Nifti test data is no longer stored in Git LFS
 
 ### Fixed
@@ -106,6 +109,7 @@ in inference-only runs when using lightning containers.
   weights from a finetuning run were incompatible with the model architecture created for non-finetuning runs.
 - ([#604](https://github.com/microsoft/InnerEye-DeepLearning/pull/604)) Fix issue where runs on a VM would download the dataset even when a local dataset is provided.
 - ([#628](https://github.com/microsoft/InnerEye-DeepLearning/pull/628)) SSL SimCLR using the wrong LR schedule when running on multiple nodes
+- ([#638](https://github.com/microsoft/InnerEye-DeepLearning/pull/638)) SimClr cosine LR scheduler was using wrong length information when using with long linear head datasets
 - ([#612](https://github.com/microsoft/InnerEye-DeepLearning/pull/612)) SSL online evaluator was not doing distributed training
 
 ### Removed
@@ -124,6 +128,9 @@ in inference-only runs when using lightning containers.
 - ([#604](https://github.com/microsoft/InnerEye-DeepLearning/pull/604)) Removed all code that downloads datasets, this is now all handled by hi-ml
 
 ### Deprecated
+
+- ([#633](https://github.com/microsoft/InnerEye-DeepLearning/pull/633)) Model fields `recovery_checkpoint_save_interval` and `recovery_checkpoints_save_last_k` have been retired. 
+  Recovery checkpoint handling is now controlled by `autosave_every_n_val_epochs`.
 
 
 ## 0.3 (2021-06-01)

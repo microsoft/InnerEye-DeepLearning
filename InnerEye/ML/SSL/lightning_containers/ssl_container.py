@@ -151,7 +151,7 @@ class SSLContainer(LightningContainer):
             model: LightningModule = SimCLRInnerEye(encoder_name=self.ssl_encoder.value,
                                                     dataset_name=self.ssl_training_dataset_name.value,
                                                     use_7x7_first_conv_in_resnet=use_7x7_first_conv_in_resnet,
-                                                    num_samples=self.data_module.num_samples,
+                                                    num_samples=self.data_module.num_train_samples,
                                                     batch_size=self.data_module.batch_size,
                                                     gpus=self.num_gpus_per_node(),
                                                     num_nodes=self.num_nodes,
@@ -159,7 +159,7 @@ class SSLContainer(LightningContainer):
                                                     max_epochs=self.num_epochs)
         elif self.ssl_training_type == SSLTrainingType.BYOL:
             model = BYOLInnerEye(encoder_name=self.ssl_encoder.value,
-                                 num_samples=self.data_module.num_samples,
+                                 num_samples=self.data_module.num_train_samples,
                                  batch_size=self.data_module.batch_size,
                                  learning_rate=self.l_rate,
                                  use_7x7_first_conv_in_resnet=use_7x7_first_conv_in_resnet,
@@ -172,7 +172,6 @@ class SSLContainer(LightningContainer):
                 f"Found {self.ssl_training_type.value}")
         model.hparams.update({'ssl_type': self.ssl_training_type.value,
                               "num_classes": self.data_module.num_classes})
-
         self.encoder_output_dim = get_encoder_output_dim(model, self.data_module)
         return model
 

@@ -7,7 +7,6 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from InnerEye.Common.common_util import is_windows
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.config import SegmentationModelBase
@@ -60,7 +59,6 @@ def run_inference_on_unet(size: TupleInt3) -> None:
         image_util.check_array_range(p)
 
 
-@pytest.mark.skipif(is_windows(), reason="Too slow on windows")
 def test_inference_on_too_small_image() -> None:
     """
     Running inference on a simplified Unet model when the input image is too small along an axis.
@@ -70,7 +68,6 @@ def test_inference_on_too_small_image() -> None:
     assert "input image must have at least a size of (16, 16, 16)" in str(ex)
 
 
-@pytest.mark.skipif(is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("size", [(26, 20, 50), (16, 16, 16)])
 def test_inference_on_small_image(size: TupleInt3) -> None:
     """

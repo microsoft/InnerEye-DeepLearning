@@ -7,7 +7,7 @@ import math
 from pathlib import Path
 from stat import FILE_ATTRIBUTE_INTEGRITY_STREAM
 from tkinter.ttk import setup_master
-from typing import Dict
+from typing import Dict, List, Tuple
 from unittest import mock
 
 import numpy as np
@@ -15,15 +15,16 @@ import pandas as pd
 import pytest
 import torch
 from pl_bolts.models.self_supervised.resnets import ResNet
+from pl_bolts.optimizers import linear_warmup_decay
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.trainer.supporters import CombinedLoader
 from torch.nn import Module
 from torch.optim.lr_scheduler import _LRScheduler
 
 from InnerEye.Common import fixed_paths
-from InnerEye.Common.common_util import is_windows
 from InnerEye.Common.fixed_paths import repository_root_directory
-from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
+from InnerEye.Common.fixed_paths_for_tests import TEST_OUTPUTS_PATH
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.SSL.lightning_containers.ssl_container import EncoderName, SSLDatasetName
 from InnerEye.ML.SSL.lightning_modules.byol.byol_module import BYOLInnerEye
@@ -31,29 +32,34 @@ from InnerEye.ML.SSL.lightning_modules.simclr_module import SimCLRInnerEye
 from InnerEye.ML.SSL.lightning_modules.ssl_classifier_module import SSLClassifier
 from InnerEye.ML.SSL.lightning_modules.ssl_online_evaluator import SSLOnlineEvaluatorInnerEye
 from InnerEye.ML.SSL.utils import SSLDataModuleType, SSLTrainingType
-from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+from InnerEye.ML.common import LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
 from InnerEye.ML.configs.ssl.CIFAR_SSL_configs import CIFAR10SimCLR
-from InnerEye.ML.configs.ssl.CXR_SSL_configs import CXRImageClassifier
+from InnerEye.ML.configs.ssl.CXR_SSL_configs import CXRImageClassifier, NIH_RSNA_SimCLR
 from InnerEye.ML.runner import Runner
 from Tests.ML.configs.lightning_test_containers import DummyContainerWithModel
 from Tests.ML.utils.test_io_util import write_test_dicom
+from health_ml.utils import AzureMLProgressBar
 
-path_to_test_dataset = full_ml_test_data_path("cxr_test_dataset")
+path_to_cxr_test_dataset = TEST_OUTPUTS_PATH / "cxr_test_dataset"
 
 
-def _create_test_cxr_data(path_to_test_dataset: Path) -> None:
+def create_cxr_test_dataset(path_to_test_dataset: Path,
+                            num_encoder_images: int = 200,
+                            num_labelled_images: int = 300) -> None:
     """
     Creates fake datasets dataframe and dicom images mimicking the expected structure of the datasets
     of NIHCXR and RSNAKaggleCXR
     :param path_to_test_dataset: folder to which we want to save the mock data.
+    :param num_encoder_images: The number of unlabelled images that the dataset should contain (for encoder training)
+    :param num_labelled_images: The number of labelled images that the dataset should contain (for the linear head).
     """
     if path_to_test_dataset.exists():
         return
     path_to_test_dataset.mkdir(exist_ok=True)
-    df = pd.DataFrame({"Image Index": np.repeat("1.dcm", 200)})
+    df = pd.DataFrame({"Image Index": np.repeat("1.dcm", num_encoder_images)})
     df.to_csv(path_to_test_dataset / "Data_Entry_2017.csv", index=False)
-    df = pd.DataFrame({"subject": np.repeat("1", 300),
-                       "label": np.random.RandomState(42).binomial(n=1, p=0.2, size=300)})
+    df = pd.DataFrame({"subject": np.repeat("1", num_labelled_images),
+                       "label": np.random.RandomState(42).binomial(n=1, p=0.2, size=num_labelled_images)})
     df.to_csv(path_to_test_dataset / "dataset.csv", index=False)
     write_test_dicom(array=np.ones([256, 256], dtype="uint16"), path=path_to_test_dataset / "1.dcm")
 
@@ -99,7 +105,6 @@ def _compare_stored_metrics(runner: Runner, expected_metrics: Dict[str, float], 
             assert actual == expected, f"Mismatch for metric {metric}"
 
 
-@pytest.mark.skipif(is_windows(), reason="Too slow on windows")
 def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
     """
     Tests:
@@ -117,7 +122,6 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
     assert loaded_config.encoder_output_dim == 2048
     assert loaded_config.l_rate == 1e-4
     assert loaded_config.num_epochs == 1
-    assert loaded_config.recovery_checkpoint_save_interval == 200
     assert loaded_config.ssl_training_type == SSLTrainingType.SimCLR
     assert loaded_config.online_eval.num_classes == 10
     assert loaded_config.online_eval.dataset == SSLDatasetName.CIFAR10.value
@@ -128,19 +132,18 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
     # Check the metrics that were recorded during training
     # Note: It is possible that after the PyTorch 1.10 upgrade, we can't get parity between local runs and runs on
     # the hosted build agents. If that suspicion is confirmed, we need to add branching for local and cloud results.
-    expected_metrics = {'simclr/val/loss': 2.8736939430236816,
-                        'ssl_online_evaluator/val/loss': 2.268489360809326,
+    expected_metrics = {'simclr/val/loss': 2.8797268867492676,
+                        'ssl_online_evaluator/val/loss': 2.272602081298828,
                         'ssl_online_evaluator/val/AccuracyAtThreshold05': 0.20000000298023224,
-                        'simclr/train/loss': 3.6261844635009766,
+                        'simclr/train/loss': 3.6261773109436035,
                         'simclr/learning_rate': 0.0,
-                        'ssl_online_evaluator/train/loss': 3.1140503883361816,
-                        'ssl_online_evaluator/train/online_AccuracyAtThreshold05': 0.0,
-                        'epoch_started': 0.0}
+                        'ssl_online_evaluator/train/loss': 3.1140334606170654,
+                        'ssl_online_evaluator/train/online_AccuracyAtThreshold05': 0.0}
 
     _compare_stored_metrics(runner, expected_metrics, abs=5e-5)
 
     # Check that the checkpoint contains both the optimizer for the embedding and for the linear head
-    checkpoint_path = loaded_config.outputs_folder / "checkpoints" / "best_checkpoint.ckpt"
+    checkpoint_path = loaded_config.outputs_folder / "checkpoints" / "last.ckpt"
     checkpoint = torch.load(checkpoint_path)
     assert len(checkpoint["optimizer_states"]) == 1
     assert len(checkpoint["lr_schedulers"]) == 1
@@ -161,7 +164,6 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
     assert loaded_config.model.num_classes == 10
 
 
-@pytest.mark.skipif(is_windows(), reason="Too slow on windows")
 def test_load_innereye_ssl_container_cifar10_cifar100_resnet_byol() -> None:
     """
     Tests that the parameters feed into the BYOL model and online evaluator are
@@ -178,17 +180,16 @@ def test_load_innereye_ssl_container_cifar10_cifar100_resnet_byol() -> None:
     assert loaded_config.ssl_training_type == SSLTrainingType.BYOL
 
 
-@pytest.mark.skipif(is_windows(), reason="Too slow on windows")
 def test_innereye_ssl_container_rsna() -> None:
     """
     Test if we can get the config loader to load a Lightning container model, and then train locally.
     """
     runner = default_runner()
-    _create_test_cxr_data(path_to_test_dataset)
+    create_cxr_test_dataset(path_to_cxr_test_dataset)
     # Test training of SSL model
     args = common_test_args + ["--model=NIH_RSNA_BYOL",
-                               f"--local_dataset={str(path_to_test_dataset)}",
-                               f"--extra_local_dataset_paths={str(path_to_test_dataset)}",
+                               f"--local_dataset={str(path_to_cxr_test_dataset)}",
+                               f"--extra_local_dataset_paths={str(path_to_cxr_test_dataset)}",
                                "--use_balanced_binary_loss_for_linear_head=True",
                                f"--ssl_encoder={EncoderName.densenet121.value}"]
     with mock.patch("sys.argv", args):
@@ -228,15 +229,14 @@ def test_innereye_ssl_container_rsna() -> None:
                         'ssl_online_evaluator/train/loss': 0.6938587427139282,
                         'ssl_online_evaluator/train/online_AreaUnderRocCurve': 0.5,
                         'ssl_online_evaluator/train/online_AreaUnderPRCurve': 0.6000000238418579,
-                        'ssl_online_evaluator/train/online_AccuracyAtThreshold05': 0.20000000298023224,
-                        'epoch_started': 0.0}
+                        'ssl_online_evaluator/train/online_AccuracyAtThreshold05': 0.20000000298023224}
 
     _compare_stored_metrics(runner, expected_metrics)
 
     # Check that we are able to load the checkpoint and create classifier model
-    checkpoint_path = loaded_config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+    checkpoint_path = loaded_config.checkpoint_folder / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
     args = common_test_args + ["--model=CXRImageClassifier",
-                               f"--local_dataset={str(path_to_test_dataset)}",
+                               f"--local_dataset={str(path_to_cxr_test_dataset)}",
                                "--use_balanced_binary_loss_for_linear_head=True",
                                f"--local_ssl_weights_path={checkpoint_path}"]
     with mock.patch("sys.argv", args):
@@ -252,16 +252,16 @@ def test_simclr_lr_scheduler() -> None:
     """
     Test if the LR scheduler has the expected warmup behaviour.
     """
-    num_samples = 100
+    num_train_samples = 100
     batch_size = 20
     gpus = 1
     max_epochs = 10
     warmup_epochs = 2
     model = SimCLRInnerEye(encoder_name="resnet18", dataset_name="CIFAR10",
-                           gpus=gpus, num_samples=num_samples, batch_size=batch_size,
+                           gpus=gpus, num_samples=num_train_samples, batch_size=batch_size,
                            max_epochs=max_epochs, warmup_epochs=warmup_epochs)
     # The LR scheduler used here works per step. Scheduler computes the total number of steps, in this example that's 5
-    train_iters_per_epoch = num_samples / (batch_size * gpus)
+    train_iters_per_epoch = num_train_samples / (batch_size * gpus)
     assert model.train_iters_per_epoch == train_iters_per_epoch
     # Mock a second optimizer that is normally created in the SSL container
     linear_head_optimizer = mock.MagicMock()
@@ -312,7 +312,7 @@ class DummyData(VisionDataset):
 
         self.train = train  # training set or test set
         self.data = torch.empty(20, 1, 1, 3)
-        
+
     def __getitem__(self, index: int):
         """
         Args:
@@ -359,9 +359,10 @@ class DummySimCLR(SSLContainer):
                          ssl_encoder=EncoderName.resnet50,
                          ssl_training_type=SSLTrainingType.SimCLR,
                          random_seed=1,
-                         num_epochs=20, # TODO: check how this is used?
-                         num_workers=0)
-    
+                         num_epochs=20,
+                         num_workers=0,
+                         max_num_gpus=1)
+
     def _get_transforms(self, augmentation_config,
                     dataset_name: str, is_ssl_encoder_module: bool):
 
@@ -374,98 +375,58 @@ class DummySimCLR(SSLContainer):
             val_transforms = DualViewTransformWrapper(val_transforms)
         return train_transforms, val_transforms
 
+def run_simclr_dummy_container(test_output_dirs, num_epochs, last_checkpoint=None):
+    container = DummySimCLR()
+    container.setup()
+    model = container.create_model()
+    data = container.get_data_module()
 
-def test_simclr_lr_scheduler_recovery(test_output_dirs: OutputFolderForTests):
-    # # Now try with runner:
-    # 1. Create simclr model, with mock encoder that is a single layer: something like this container.data_module = mock.MagicMock(num_samples=num_samples, batch_size=batch_size)
-    #                         and with mock dataset with e.g. two small tensors
-    # 2. Run normal simclr training
-    # 3. Save checkpoint
-    # 4. Load checkpoint, compare
-    # small_encoder = torch.nn.Sequential(torch.nn.Conv2d(3,1,5,1,0), torch.nn.Flatten(), torch.nn.Linear(1,2))
+    # add logger
+    logger = StoringLogger()
+    progress = AzureMLProgressBar(refresh_rate=1)
+    checkpoint_folder = test_output_dirs.create_file_or_folder_path("checkpoints")
+    checkpoint_folder.mkdir(exist_ok=True)
+    checkpoint = ModelCheckpoint(dirpath=checkpoint_folder,
+                                every_n_val_epochs=1,
+                                save_last=True)
+
+    if last_checkpoint:
+        last_checkpoint = last_checkpoint.last_model_path
+        trainer = Trainer(default_root_dir=str(test_output_dirs.root_dir),
+                          logger=logger,
+                          callbacks=[progress],
+                          max_epochs=num_epochs,
+                          resume_from_checkpoint=last_checkpoint)
+
+    else:
+        trainer = Trainer(default_root_dir=str(test_output_dirs.root_dir),
+                          logger=logger,
+                          callbacks=[checkpoint, progress],
+                          max_epochs=num_epochs)
+    trainer.fit(model, datamodule=data)
+
+    lrs = []
+    for item in logger.results_per_epoch:
+        lrs.append(logger.results_per_epoch[item]['simclr/learning_rate'])
+
+    return lrs, checkpoint
+
+def test_simclr_training_recovery(test_output_dirs: OutputFolderForTests):
     small_encoder = torch.nn.Sequential(torch.nn.Flatten(), torch.nn.Linear(3,2))
     with mock.patch("InnerEye.ML.SSL.encoders.create_ssl_encoder", return_value=small_encoder):
-        with mock.patch("InnerEye.ML.SSL.encoders.SSLEncoder.get_output_feature_dim", return_value=2): # TODO: is this necessary
-            with mock.patch("InnerEye.ML.SSL.encoders.get_encoder_output_dim", return_value=2):
-                
-                # TODO: how is warm up length calculated ???
+        with mock.patch("InnerEye.ML.SSL.encoders.SSLEncoder.get_output_feature_dim", return_value=2): # TODO: is this still necessary?
+            with mock.patch("InnerEye.ML.SSL.encoders.get_encoder_output_dim", return_value=2):         
                 # Normal run
-                container = DummySimCLR()
-                container.setup()
-                model = container.create_model()
-                data = container.get_data_module()
+                normal_lrs, _ = run_simclr_dummy_container(test_output_dirs, 20, last_checkpoint=None)
 
-                # add logger
-                logger = StoringLogger()
-                checkpoint_folder = test_output_dirs.create_file_or_folder_path("checkpoints")
-                checkpoint_folder.mkdir(exist_ok=True)
-                checkpoints = ModelCheckpoint(dirpath=checkpoint_folder,
-                                            every_n_val_epochs=1,
-                                            save_last=True)
-                trainer = Trainer(default_root_dir=str(test_output_dirs.root_dir),
-                                  logger=logger,
-                                  callbacks=[checkpoints],
-                                  max_epochs=20)
-                trainer.fit(model, datamodule=data)
-
-                normal_lrs = []
-                for item in logger.results_per_epoch:
-                    normal_lrs.append(logger.results_per_epoch[item]['simclr/learning_rate'])
-                
                 # Short run
-                container = DummySimCLR()
-                container.setup()
-                model = container.create_model()
-                data = container.get_data_module()
-
-                # add logger
-                logger = StoringLogger()
-                checkpoint_folder = test_output_dirs.create_file_or_folder_path("checkpoints")
-                checkpoint_folder.mkdir(exist_ok=True)
-                checkpoints = ModelCheckpoint(dirpath=checkpoint_folder,
-                                            every_n_val_epochs=1,
-                                            save_last=True)
-                trainer = Trainer(default_root_dir=str(test_output_dirs.root_dir),
-                                  logger=logger,
-                                  callbacks=[checkpoints],
-                                  max_epochs=15)
-                trainer.fit(model, datamodule=data)
-
-                short_lrs = []
-                for item in logger.results_per_epoch:
-                    short_lrs.append(logger.results_per_epoch[item]['simclr/learning_rate'])
+                short_lrs, short_checkpoint = run_simclr_dummy_container(test_output_dirs, 15, last_checkpoint=None)
 
                 # Resumed run
-                container = DummySimCLR()
-                container.setup()
-                model = container.create_model()
-                data = container.get_data_module()
-
-                # add logger
-                logger = StoringLogger()
-                last_checkpoint = checkpoints.last_model_path
-                trainer = Trainer(default_root_dir=str(test_output_dirs.root_dir),
-                                  logger=logger,
-                                  max_epochs=20,
-                                  resume_from_checkpoint=last_checkpoint)
-                trainer.fit(model, datamodule=data)
-
-                resumed_lrs = []
-                for item in logger.results_per_epoch:
-                    resumed_lrs.append(logger.results_per_epoch[item]['simclr/learning_rate'])
+                resumed_lrs, _ = run_simclr_dummy_container(test_output_dirs, 20, last_checkpoint=short_checkpoint)
 
                 resumed_lrs = short_lrs + resumed_lrs
                 assert resumed_lrs == normal_lrs
-
-    # # Create data module
-    # with small tensor
-    # create with train and val loader
-
-    # # Encoder
-    # one layer encoder
-
-    # # Add these methods to container using Mock
-    # Mock create_encoder method and make it return the one layer encoder
 
 def test_online_evaluator_recovery(test_output_dirs: OutputFolderForTests) -> None:
     """
@@ -597,7 +558,7 @@ def test_online_evaluator_distributed() -> None:
             assert callback.evaluator == mock_ddp_result
 
 
-def test_simclr_batch_size() -> None:
+def test_simclr_num_nodes() -> None:
     """
     Test if the number of nodes is correctly passed through to the SIMCLR model. After an update of the semantics of
     the "gpus" argument in LightningBolts, we had a regression, leading to incorrect use of the cosine
@@ -606,15 +567,141 @@ def test_simclr_batch_size() -> None:
     with mock.patch("InnerEye.ML.deep_learning_config.TrainerParams.num_gpus_per_node", return_value=1):
         with mock.patch("InnerEye.ML.SSL.lightning_containers.ssl_container.get_encoder_output_dim", return_value=1):
             container = CIFAR10SimCLR()
-            num_samples = 100
+            num_train_samples = 100
             batch_size = 10
-            container.data_module = mock.MagicMock(num_samples=num_samples, batch_size=batch_size)
+            container.data_module = mock.MagicMock(num_train_samples=num_train_samples, batch_size=batch_size)
             assert container.num_nodes == 1
             model1 = container.create_model()
             old_iters_per_epoch = model1.train_iters_per_epoch
-            assert old_iters_per_epoch == num_samples / batch_size
+            assert old_iters_per_epoch == num_train_samples / batch_size
             # Increasing the number of nodes should increase effective batch size, and hence reduce number of
             # iterations per epoch
             container.num_nodes = 2
             model2 = container.create_model()
             assert model2.train_iters_per_epoch == old_iters_per_epoch // container.num_nodes  # type:ignore
+
+
+def test_simclr_num_gpus() -> None:
+    """
+    Test if the number of GPUs is correctly passed through to the SIMCLR model.
+    """
+    device_count = 8
+    num_epochs = 30
+    # Warmup epochs == 10 is hardcoded in SIMClr. The core SIMClr module has an argument for it, but we are not
+    # passing that through.
+    warmup_epochs = 10
+    with mock.patch("torch.cuda.device_count", return_value=device_count):
+        with mock.patch("InnerEye.ML.deep_learning_config.TrainerParams.use_gpu", return_value=True):
+            with mock.patch("InnerEye.ML.SSL.lightning_containers.ssl_container.get_encoder_output_dim",
+                            return_value=1):
+                container = CIFAR10SimCLR()
+                container.num_epochs = num_epochs
+                num_train_samples = 800
+                batch_size = 10
+                container.data_module = mock.MagicMock(num_train_samples=num_train_samples, batch_size=batch_size)
+                model1 = container.create_model()
+                assert model1.train_iters_per_epoch == num_train_samples // (batch_size * device_count)
+                # Reducing the number of GPUs should decrease effective batch size, and hence increase number of
+                # iterations per epoch
+                container.max_num_gpus = 4
+                model2 = container.create_model()
+                assert model2.train_iters_per_epoch == num_train_samples // (batch_size * container.max_num_gpus)
+                scheduler = model2.configure_optimizers()[1][0]["scheduler"]
+
+    total_training_steps = model2.train_iters_per_epoch * num_epochs  # type: ignore
+    warmup_steps = model2.train_iters_per_epoch * warmup_epochs  # type: ignore
+    previous_lr = None
+    for i in range(total_training_steps):
+        lr = scheduler.get_last_lr()
+        if previous_lr is not None:
+            if i <= warmup_steps:
+                assert lr > previous_lr, "During warmup, LR should increase"
+            else:
+                assert lr < previous_lr, "After warmup, LR should decrease"
+        print(f"Iteration {i}: LR = {lr}")
+        scheduler.step()
+        previous_lr = lr
+
+
+@pytest.mark.parametrize("interrupt_at_epoch", [5, 10, 14, 20, 24])
+def test_simclr_lr_scheduler_recovery(interrupt_at_epoch: int) -> None:
+    """
+    Test if the LR scheduler in the SimCLR model correctly handles recovery at different parts of the schedule:
+    during warmup, during cosine
+    """
+
+    total_steps = 30
+    warmup_steps = 10
+    assert interrupt_at_epoch < total_steps
+
+    def create_scheduler() -> Tuple[_LRScheduler, torch.optim.SGD]:
+        optimizer = torch.optim.SGD({torch.empty((2, 3))}, lr=1.0)
+        scheduler = torch.optim.lr_scheduler.LambdaLR(
+            optimizer,
+            linear_warmup_decay(warmup_steps=warmup_steps, total_steps=total_steps, cosine=True),
+        )
+        return scheduler, optimizer
+
+    def enumerate_scheduler(scheduler: _LRScheduler, n: int) -> List[float]:
+        learning_rates = []
+        for _ in range(n):
+            learning_rates.append(scheduler.get_last_lr()[0])
+            scheduler.step()
+        return learning_rates
+
+    # Normal run
+    scheduler1, _ = create_scheduler()
+    normal_lrs = enumerate_scheduler(scheduler1, total_steps)
+
+    # Short run
+    scheduler2, optimizer2 = create_scheduler()
+    short_lrs = enumerate_scheduler(scheduler2, interrupt_at_epoch)
+
+    scheduler_saved_state = scheduler2.state_dict()
+    optimizer_saved_state = optimizer2.state_dict()
+
+    # Resumed run
+    scheduler3, optimizer3 = create_scheduler()
+    optimizer3.load_state_dict(optimizer_saved_state)
+    scheduler3.load_state_dict(scheduler_saved_state)
+
+    resumed_lrs = enumerate_scheduler(scheduler3, total_steps - interrupt_at_epoch)
+
+    resumed_lrs = short_lrs + resumed_lrs
+    assert resumed_lrs == normal_lrs
+
+
+@pytest.mark.parametrize(("num_encoder_images", "num_labelled_images", "linear_head_batch_size"),
+                         [(40, 80, 1), (40, 80, 4), (80, 40, 1)])
+def test_simclr_dataset_length(test_output_dirs: OutputFolderForTests,
+                               num_encoder_images: int,
+                               num_labelled_images: int,
+                               linear_head_batch_size: int) -> None:
+    """
+    Tests how the dataloaders in the Simclr model handle different length of labelled and unlabelled data.
+    Argument combinations are chosen such that the linear head dataset can be longer than the encoder dataset before
+    batching, but can become shorter than the linear head when taking batching into account.
+    """
+    container = NIH_RSNA_SimCLR()
+    dataset_folder = test_output_dirs.root_dir / "dataset"
+    encoder_batch_size = 1
+    create_cxr_test_dataset(dataset_folder,
+                            num_encoder_images=num_encoder_images,
+                            num_labelled_images=num_labelled_images)
+    container.local_dataset = dataset_folder
+    container.extra_local_dataset_paths = [dataset_folder]
+    container.ssl_encoder = EncoderName.resnet18
+    container.ssl_training_batch_size = encoder_batch_size
+    container.linear_head_batch_size = linear_head_batch_size
+    container.setup()
+    with mock.patch("InnerEye.ML.SSL.lightning_containers.ssl_container.get_encoder_output_dim", return_value=1):
+        model = container.create_model()
+        expected_num_train_iters = (num_encoder_images * 0.9) // encoder_batch_size
+        assert model.train_iters_per_epoch == expected_num_train_iters
+        train_loaders = container.get_data_module().train_dataloader()
+        assert isinstance(train_loaders, CombinedLoader)
+        assert len(train_loaders) == expected_num_train_iters
+        expected_num_val_iters = (num_encoder_images * 0.1) // encoder_batch_size
+        val_loaders = container.get_data_module().val_dataloader()
+        assert isinstance(val_loaders, CombinedLoader)
+        assert len(val_loaders) == expected_num_val_iters
