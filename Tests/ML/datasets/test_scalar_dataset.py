@@ -15,7 +15,6 @@ import pytest
 import torch
 from pandas.util.testing import assert_frame_equal
 
-from InnerEye.Common import common_util
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.type_annotations import TupleInt3
@@ -769,7 +768,6 @@ def test_categorical_and_numerical_columns_are_mutually_exclusive(test_output_di
                              categorical_columns=["scalar1"])
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 def test_imbalanced_sampler() -> None:
     # Simulate a highly imbalanced dataset with only one data point
     # with a negative label.
