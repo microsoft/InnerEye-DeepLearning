@@ -5,13 +5,11 @@
 
 import pytest
 
-from InnerEye.Common import common_util
 from InnerEye.ML.deep_learning_config import DeepLearningConfig, TrainerParams
 from InnerEye.ML.lightning_container import LightningContainer
 from Tests.ML.util import machine_has_gpu
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Has issues on windows build")
 @pytest.mark.cpu_and_gpu
 @pytest.mark.parametrize("config", [DeepLearningConfig(should_validate=False),
                                     LightningContainer()])

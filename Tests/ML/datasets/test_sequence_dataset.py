@@ -13,7 +13,6 @@ import pandas as pd
 import pytest
 import torch
 
-from InnerEye.Common.common_util import is_windows
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.dataset.full_image_dataset import collate_with_metadata
@@ -342,8 +341,6 @@ def test_filter_valid_items() -> None:
 
 
 # noinspection PyUnresolvedReferences
-@pytest.mark.skipif(is_windows(),
-                    reason="This test runs fine on local Windows boxes, but leads to odd timeouts in Azure")
 def test_sequence_dataloader() -> None:
     """
     Test if we can create a data loader from the dataset, and recover the items as expected in batched form.

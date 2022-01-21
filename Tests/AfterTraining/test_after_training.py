@@ -27,7 +27,7 @@ from InnerEye.Azure.azure_util import MODEL_ID_KEY_NAME, download_run_output_fil
     download_run_outputs_by_prefix, \
     get_comparison_baseline_paths, \
     is_running_on_azure_agent, to_azure_friendly_string
-from InnerEye.Common import common_util, fixed_paths, fixed_paths_for_tests
+from InnerEye.Common import fixed_paths, fixed_paths_for_tests
 from InnerEye.Common.common_util import BEST_EPOCH_FOLDER_NAME, CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, \
     get_best_epoch_results_path
 from InnerEye.Common.fixed_paths import (DEFAULT_AML_UPLOAD_DIR, DEFAULT_RESULT_IMAGE_NAME,
@@ -292,7 +292,6 @@ def _check_presence_cross_val_metrics_file(split: str, mode: ModelExecutionMode,
     return f"{CROSSVAL_RESULTS_FOLDER}/{split}/{mode.value}/metrics.csv" in available_files
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on Windows")
 @pytest.mark.after_training_glaucoma_cv_run
 def test_expected_cv_files_classification(test_output_dirs: OutputFolderForTests) -> None:
     run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_CV_GLAUCOMA)
@@ -309,7 +308,6 @@ def test_expected_cv_files_classification(test_output_dirs: OutputFolderForTests
     assert crossval_report_file in available_files
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on Windows")
 @pytest.mark.after_training_ensemble_run
 def test_expected_cv_files_segmentation() -> None:
     run = get_most_recent_run(fallback_run_id_for_local_execution=FALLBACK_ENSEMBLE_RUN)
@@ -323,7 +321,6 @@ def test_expected_cv_files_segmentation() -> None:
     assert not _check_presence_cross_val_metrics_file(ENSEMBLE_SPLIT_NAME, ModelExecutionMode.VAL, available_files)
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on Windows")
 @pytest.mark.after_training_ensemble_run
 def test_register_and_score_model(test_output_dirs: OutputFolderForTests) -> None:
     """

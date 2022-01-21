@@ -7,7 +7,6 @@ import logging
 import pytest
 import torch
 
-from InnerEye.Common import common_util
 from InnerEye.ML.models.architectures.unet_3d import UNet3D
 from InnerEye.ML.visualizers.model_summary import ModelSummary
 from Tests.ML.util import machine_has_gpu, no_gpu_available
@@ -27,7 +26,6 @@ def test_unet_summary_generation() -> None:
     assert summary is not None
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Has issues on windows build")
 @pytest.mark.gpu
 def test_unet_model_parallel() -> None:
     """Checks model parallel utilises all the available GPU devices for forward pass"""

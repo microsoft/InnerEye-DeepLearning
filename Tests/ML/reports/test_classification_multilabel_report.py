@@ -6,11 +6,9 @@ from pathlib import Path
 
 import pandas as pd
 import numpy as np
-import pytest
 
 from InnerEye.Common.metrics_constants import LoggingColumns
 from InnerEye.Common.output_directories import OutputFolderForTests
-from InnerEye.Common.common_util import is_windows
 from InnerEye.ML.configs.classification.DummyMulticlassClassification import DummyMulticlassClassification
 from InnerEye.ML.metrics_dict import MetricsDict
 from InnerEye.ML.reports.classification_multilabel_report import get_dataframe_with_exact_label_matches, \
@@ -21,7 +19,6 @@ from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.Azure.azure_util import DEFAULT_CROSS_VALIDATION_SPLIT_INDEX
 
 
-@pytest.mark.skipif(is_windows(), reason="Random timeout errors on windows.")
 def test_generate_classification_multilabel_report(test_output_dirs: OutputFolderForTests) -> None:
     hues = ["Hue1", "Hue2"]
 
@@ -63,7 +60,8 @@ def test_generate_classification_multilabel_report(test_output_dirs: OutputFolde
                             config.channel_column: ["image1", "image2"] * 6,
                             config.image_file_column: [f for f in [f"0_{image_file_name}", f"1_{image_file_name}"]
                                                        for _ in range(6)],
-                            config.label_value_column: ["", "", "1", "1", "1", "1", "0|1", "0|1", "0|1", "0|1", "0", "0"]
+                            config.label_value_column: ["", "", "1", "1", "1", "1", "0|1", "0|1", "0|1", "0|1", "0",
+                                                        "0"]
                             }).to_csv(dataset_csv_path, index=False)
 
     np.save(str(Path(config.local_dataset / f"0_{image_file_name}")),
@@ -104,8 +102,8 @@ def test_get_pseudo_labels_and_predictions_multiple_hues(test_output_dirs: Outpu
     hues = ["Hue1", "Hue2"]
     csv.loc[::2, LoggingColumns.Hue.value] = hues[0]
     csv.loc[1::2, LoggingColumns.Hue.value] = hues[1]
-    csv.loc[::2, LoggingColumns.Patient.value] = list(range(len(csv)//2))
-    csv.loc[1::2, LoggingColumns.Patient.value] = list(range(len(csv)//2))
+    csv.loc[::2, LoggingColumns.Patient.value] = list(range(len(csv) // 2))
+    csv.loc[1::2, LoggingColumns.Patient.value] = list(range(len(csv) // 2))
     csv.loc[::2, LoggingColumns.Label.value] = [0, 0, 0, 1, 1, 1]
     csv.loc[1::2, LoggingColumns.Label.value] = [0, 1, 1, 1, 1, 0]
     csv.loc[::2, LoggingColumns.ModelOutput.value] = [0.1, 0.1, 0.1, 0.9, 0.9, 0.9]
@@ -126,7 +124,6 @@ def test_get_pseudo_labels_and_predictions_multiple_hues(test_output_dirs: Outpu
 
 
 def test_generate_pseudo_labels() -> None:
-
     metrics_df = pd.DataFrame.from_dict({"prediction_target": ["Hue1", "Hue2", "Hue3"] * 4,
                                          "epoch": [0] * 12,
                                          "subject": [i for i in range(4) for _ in range(3)],
@@ -149,7 +146,6 @@ def test_generate_pseudo_labels() -> None:
 
 
 def test_generate_pseudo_labels_negative_class() -> None:
-
     metrics_df = pd.DataFrame.from_dict({"prediction_target": ["Hue1", "Hue2", "Hue3"] * 4,
                                          "epoch": [0] * 12,
                                          "subject": [i for i in range(4) for _ in range(3)],
