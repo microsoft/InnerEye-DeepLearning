@@ -94,11 +94,6 @@ class DeepMILModule(LightningModule):
         self.tile_size = tile_size
         self.level = level
 
-        # Metrics Objects
-        self.train_metrics = self.get_metrics()
-        self.val_metrics = self.get_metrics()
-        self.test_metrics = self.get_metrics()
-        
         self.save_hyperparameters()
 
         self.verbose = verbose
@@ -108,6 +103,10 @@ class DeepMILModule(LightningModule):
         self.loss_fn = self.get_loss()
         self.activation_fn = self.get_activation()
 
+        # Metrics Objects
+        self.train_metrics = self.get_metrics()
+        self.val_metrics = self.get_metrics()
+        self.test_metrics = self.get_metrics()
 
     def get_pooling(self) -> Tuple[Callable, int]:
         pooling_layer = self.pooling_layer(self.num_encoding,
@@ -167,14 +166,16 @@ class DeepMILModule(LightningModule):
             if metric_name == "confusion_matrix":  # and stage in ['val']:
                 #  We can't log tensors in the normal way - just print it to console
                 metric_value = metric_object.compute()
-                print(f'{stage}/{metric_name}:')
-                print(np.array(metric_value.cpu()))
+                if stage == 'test':
+                    print(f'{stage}/{metric_name}:')
+                    print(np.array(metric_value.cpu()))
             else:
                 self.log(f'{stage}/{metric_name}', metric_object, on_epoch=True, on_step=False, logger=True, sync_dist=True)
 
     def forward(self, images: Tensor) -> Tuple[Tensor, Tensor]:  # type: ignore
-        with no_grad():
-            H = self.encoder(images)                        # N X L x 1 x 1
+        # with no_grad():
+        print(self.encoder)
+        H = self.encoder(images)                        # N X L x 1 x 1
         A, M = self.aggregation_fn(H)                       # A: K x N | M: K x L
         M = M.view(-1, self.num_encoding * self.pool_out_dim)
         Y_prob = self.classifier_fn(M)

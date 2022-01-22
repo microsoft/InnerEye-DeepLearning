@@ -122,7 +122,7 @@ class DeepSMILEPanda(BaseMIL):
         # no-op IdentityEncoder to be used inside the model
         self.slide_dataset = self.get_slide_dataset()
         self.level = 1
-        return DeepMILModule(encoder=IdentityEncoder(input_dim=(self.encoder.num_encoding,)),
+        return DeepMILModule(encoder=self.encoder, # IdentityEncoder(input_dim=(self.encoder.num_encoding,)),
                              label_column=self.data_module.train_dataset.LABEL_COLUMN,
                              n_classes=self.data_module.train_dataset.N_CLASSES,
                              pooling_layer=self.get_pooling_layer(),

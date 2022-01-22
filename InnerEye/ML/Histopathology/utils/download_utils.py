@@ -30,7 +30,7 @@ def download_file_if_necessary(run_id: str, remote_dir: Path, download_dir: Path
         download_files_from_run_id(run_id=run_id,
                                output_folder=local_dir,
                                prefix=str(remote_path),
-                               aml_workspace=aml_workspace,
+                               workspace=aml_workspace,
                                validate_checksum=True)
         assert local_path.exists()
         print("File is downloaded at", local_path)
