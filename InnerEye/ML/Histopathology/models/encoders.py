@@ -137,7 +137,12 @@ class HistoSSLEncoder(TileEncoder):
     WEIGHTS_URL = ("https://github.com/ozanciga/self-supervised-histopathology/releases/"
                    "download/tenpercent/tenpercent_resnet18.ckpt")
 
+    def _get_preprocessing(self) -> Callable:
+        return get_imagenet_preprocessing()
+
     def _get_encoder(self) -> Tuple[Callable, int]:
         resnet18_model = resnet18(pretrained=False)
         histossl_encoder = load_weights_to_model(self.WEIGHTS_URL, resnet18_model)
-        return setup_feature_extractor(histossl_encoder, self.input_dim)  # type: ignore
+        histossl_encoder.fc = torch.nn.Sequential()
+        _, num_features = setup_feature_extractor(histossl_encoder, self.input_dim)
+        return histossl_encoder, num_features  # type: ignore

@@ -14,7 +14,7 @@ import more_itertools as mi
 
 from pytorch_lightning import LightningModule
 from torch import Tensor, argmax, mode, nn, no_grad, optim, round
-from torchmetrics import AUROC, F1, Accuracy, Precision, Recall
+from torchmetrics import AUROC, F1, Accuracy, Precision, Recall, ConfusionMatrix
 
 from InnerEye.Common import fixed_paths
 from InnerEye.ML.Histopathology.datasets.base_dataset import TilesDataset, SlidesDataset
@@ -94,6 +94,11 @@ class DeepMILModule(LightningModule):
         self.tile_size = tile_size
         self.level = level
 
+        # Metrics Objects
+        self.train_metrics = self.get_metrics()
+        self.val_metrics = self.get_metrics()
+        self.test_metrics = self.get_metrics()
+        
         self.save_hyperparameters()
 
         self.verbose = verbose
@@ -103,10 +108,6 @@ class DeepMILModule(LightningModule):
         self.loss_fn = self.get_loss()
         self.activation_fn = self.get_activation()
 
-        # Metrics Objects
-        self.train_metrics = self.get_metrics()
-        self.val_metrics = self.get_metrics()
-        self.test_metrics = self.get_metrics()
 
     def get_pooling(self) -> Tuple[Callable, int]:
         pooling_layer = self.pooling_layer(self.num_encoding,
@@ -148,7 +149,8 @@ class DeepMILModule(LightningModule):
         if self.n_classes > 1:
             return nn.ModuleDict({'accuracy': Accuracy(num_classes=self.n_classes, average='micro'),
                                   'macro_accuracy': Accuracy(num_classes=self.n_classes, average='macro'),
-                                  'weighted_accuracy': Accuracy(num_classes=self.n_classes, average='weighted')})
+                                  'weighted_accuracy': Accuracy(num_classes=self.n_classes, average='weighted'),
+                                  'confusion_matrix': ConfusionMatrix(num_classes=self.n_classes)})
         else:
             return nn.ModuleDict({'accuracy': Accuracy(),
                                    'auroc': AUROC(num_classes=self.n_classes),
@@ -162,7 +164,13 @@ class DeepMILModule(LightningModule):
         if stage not in valid_stages:
             raise Exception(f"Invalid stage. Chose one of {valid_stages}")
         for metric_name, metric_object in self.get_metrics_dict(stage).items():
-            self.log(f'{stage}/{metric_name}', metric_object, on_epoch=True, on_step=False, logger=True, sync_dist=True)
+            if metric_name == "confusion_matrix":  # and stage in ['val']:
+                #  We can't log tensors in the normal way - just print it to console
+                metric_value = metric_object.compute()
+                print(f'{stage}/{metric_name}:')
+                print(np.array(metric_value.cpu()))
+            else:
+                self.log(f'{stage}/{metric_name}', metric_object, on_epoch=True, on_step=False, logger=True, sync_dist=True)
 
     def forward(self, images: Tensor) -> Tuple[Tensor, Tensor]:  # type: ignore
         with no_grad():

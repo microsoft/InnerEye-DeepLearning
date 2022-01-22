@@ -52,7 +52,7 @@ class DeepSMILEPanda(BaseMIL):
             number_of_cross_validation_splits=5,
             cross_validation_split_index=0,
             # declared in OptimizerParams:
-            l_rate=5e-4,
+            l_rate=1e-3,
             weight_decay=1e-4,
             adam_betas=(0.9, 0.99))
         default_kwargs.update(kwargs)
