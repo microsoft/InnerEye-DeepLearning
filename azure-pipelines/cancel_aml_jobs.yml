@@ -1,5 +1,5 @@
 steps:
-  - template: checkout.yml
+  - checkout: self
 
   - template: prepare_conda.yml
 
