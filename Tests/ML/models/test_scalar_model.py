@@ -255,7 +255,6 @@ def check_log_file(path: Path, expected_csv: str, ignore_columns: List[str]) -> 
     pd.testing.assert_frame_equal(df_expected, df_epoch_metrics_actual, check_less_precise=True, check_like=True)
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("model_name", ["DummyClassification", "DummyRegression"])
 @pytest.mark.parametrize("number_of_offline_cross_validation_splits", [2])
 def test_run_ml_with_classification_model(test_output_dirs: OutputFolderForTests,
@@ -291,7 +290,6 @@ def test_run_ml_with_classification_model(test_output_dirs: OutputFolderForTests
             assert file.metrics_file.exists()
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 def test_run_ml_with_segmentation_model(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test training and testing of segmentation models, when it is started together via run_ml.
@@ -365,7 +363,6 @@ def test_runner2(test_output_dirs: OutputFolderForTests) -> None:
     assert config.name.startswith("DummyClassification")
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Has issues on windows build")
 @pytest.mark.gpu
 @pytest.mark.parametrize(["output_values_list", "expected_accuracy"],
                          [([0.4, 0.9], 1.0),
