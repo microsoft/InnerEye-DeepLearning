@@ -105,8 +105,14 @@ class TilesDataModule(LightningDataModule):
         dataset_pickle_path = self._dataset_pickle_path(stage)
 
         if dataset_pickle_path and dataset_pickle_path.is_file():
-            # torch.load will reload on GPU by default, same device it was saved from
-            memory_location = torch.device('cpu') if self.precache_location == CacheLocation.CPU else None
+            if self.precache_location == CacheLocation.CPU:
+                memory_location = torch.device('cpu')
+            elif self.precache_location == CacheLocation.GPU:
+                memory_location = torch.device('cuda')
+            else:
+                # by default torch.load will reload on the same device it was saved from
+                memory_location = None  # type: ignore
+
             with dataset_pickle_path.open('rb') as f:
                 print(f"Loading dataset from {dataset_pickle_path} into {memory_location}")
                 return torch.load(f, map_location=memory_location)
