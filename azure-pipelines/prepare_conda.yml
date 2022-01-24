@@ -7,12 +7,6 @@ steps:
     condition: succeeded()
 
   - bash: |
-      conda install conda=4.8.3 -y
-      conda --version
-      conda list
-    displayName: Print conda version and initial package list
-
-  - bash: |
       sudo chown -R $USER /usr/share/miniconda
     condition: and(succeeded(), eq( variables['Agent.OS'], 'Linux' ))
     displayName: Take ownership of conda installation

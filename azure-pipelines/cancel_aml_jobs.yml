@@ -2,11 +2,8 @@ steps:
   - template: checkout.yml
 
   - bash: |
-      python -m pip install --upgrade pip
-      pip install azureml-sdk==1.36.0 azure-mgmt-resource==12.1.0
-    displayName: Install AzureML SDK
-
-  - bash: python azure-pipelines/cancel_jobs.py
+      conda activate AzureML_SDK
+      python azure-pipelines/cancel_jobs.py
     displayName: Cancel jobs from previous run
     env:
       SUBSCRIPTION_ID: $(InnerEyeDevSubscriptionID)
