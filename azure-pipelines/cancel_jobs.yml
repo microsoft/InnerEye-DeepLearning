@@ -1,7 +1,7 @@
 steps:
   - template: checkout.yml
 
-  - bash: pip install azureml-sdk
+  - bash: pip install azureml-sdk==1.36.0 azure-mgmt-resource==12.1.0
     displayName: Install AzureML SDK
 
   - bash: python azure-pipelines/cancel_jobs.py

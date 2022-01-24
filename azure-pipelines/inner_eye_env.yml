@@ -1,6 +1,8 @@
 steps:
   - template: checkout.yml
 
+  - template: prepare_conda.yml
+
   - template: store_settings.yml
 
   # https://docs.microsoft.com/en-us/azure/devops/pipelines/release/caching?view=azure-devops#pythonanaconda
