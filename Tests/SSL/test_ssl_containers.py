@@ -286,11 +286,14 @@ def test_simclr_lr_scheduler() -> None:
     for i in range(highest_lr, len(lr) - 1):
         assert lr[i] > lr[i + 1], f"Not strictly monotonically decreasing at index {i}"
 
-
+@pytest.mark.gpu
 def test_simclr_training_recovery(test_output_dirs: OutputFolderForTests) -> None:
+    """ Describe what we testing here
+    """
     def run_simclr_dummy_container(test_output_dirs: OutputFolderForTests,
                                    num_epochs: int,
                                    last_checkpoint: Optional[ModelCheckpoint] = None) -> Tuple[list, list, ModelCheckpoint]:
+        seed_everything(0, workers=True)
         container = DummySimCLR()
         container.setup()
         model = container.create_model()
@@ -322,22 +325,6 @@ def test_simclr_training_recovery(test_output_dirs: OutputFolderForTests) -> Non
             loss.append(logger.results_per_epoch[item]['simclr/train/loss'])
 
         return lrs, loss, checkpoint
-
-    # seed everything
-    # import random
-    # random.seed(0)
-    # import os
-    # os.environ['PYTHONHASHSEED'] = str(0)
-    # np.random.seed(0)
-    # torch.manual_seed(0)
-    # torch.cuda.manual_seed(0)
-    # torch.cuda.manual_seed_all(0)
-    # torch.backends.cudnn.deterministic = True
-    # torch.backends.cudnn.benchmark = False
-    # torch.backends.cudnn.enabled = False
-    # torch.use_deterministic_algorithms(True)
-    # torch.manual_seed(0)
-    seed_everything(0, workers=True)
 
     small_encoder = torch.nn.Sequential(torch.nn.Flatten(), torch.nn.Linear(3, 2))
     with mock.patch("InnerEye.ML.SSL.encoders.create_ssl_encoder", return_value=small_encoder):
