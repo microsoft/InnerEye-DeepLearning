@@ -50,6 +50,7 @@ class MockTilesDataset(TilesDataset):
 
 
 def generate_mock_dataset_df(n_slides: int, n_tiles: int, n_classes: int) -> pd.DataFrame:
+    np.random.seed(1234)
     slide_ids = np.random.randint(n_slides, size=n_tiles)
     slide_labels = np.random.randint(n_classes, size=n_slides)
     tile_labels = slide_labels[slide_ids]
