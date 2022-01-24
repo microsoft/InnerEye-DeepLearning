@@ -18,7 +18,7 @@ steps:
 
   - bash: |
       source activate AzureML_SDK
-      python azure-pipelines/cancel_jobs.py
+      python azure-pipelines/cancel_aml_jobs.py
     displayName: Cancel jobs from previous run
     env:
       SUBSCRIPTION_ID: $(InnerEyeDevSubscriptionID)
