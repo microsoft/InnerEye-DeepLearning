@@ -25,7 +25,7 @@ def cancel_running_and_queued_jobs() -> None:
     branch = environ["BRANCH"]
     print(f"Branch: {branch}")
     if not branch.startswith("refs/pull/"):
-        print(f"This branch is not a PR branch, hence not cancelling anything.")
+        print("This branch is not a PR branch, hence not cancelling anything.")
         exit(0)
     experiment_name = branch.replace("/", "_")
     print(f"Experiment: {experiment_name}")
