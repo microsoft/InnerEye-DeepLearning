@@ -12,7 +12,6 @@ import pytest
 import torch
 from torchvision.transforms import ColorJitter, RandomAffine
 
-from InnerEye.Common import common_util
 from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, logging_to_stdout
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.metrics_constants import LoggingColumns, MetricType, SEQUENCE_POSITION_HUE_NAME_PREFIX
@@ -220,7 +219,6 @@ def test_rnn_classifier_via_config_1(use_combined_model: bool,
         model_train_unittest(config, output_folder=test_output_dirs)
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Has issues on windows build")
 @pytest.mark.parametrize(["use_combined_model", "imaging_feature_type"],
                          [(False, ImagingFeatureType.Image),
                           (True, ImagingFeatureType.Image),
@@ -253,7 +251,6 @@ def test_run_ml_with_sequence_model(use_combined_model: bool,
         MLRunner(config, azure_config=azure_config).run()
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize(["use_combined_model", "imaging_feature_type"],
                          [(False, ImagingFeatureType.Image),
                           (True, ImagingFeatureType.Image),
@@ -356,13 +353,12 @@ class ToySequenceModel2(SequenceModelBase):
                              target_indices=self.get_target_indices())
 
 
-# Only test the non-combined model because otherwise the build takes too much time.
-@pytest.mark.skipif(common_util.is_windows(), reason="Has issues on windows build")
 @pytest.mark.gpu
 def test_rnn_classifier_via_config_2(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test if we can build an RNN classifier that learns sequences, of the same kind as in
     test_rnn_classifier_toy_problem, but built via the config.
+    Only test the non-combined model because otherwise the build takes too much time.
     """
     expected_max_train_loss = 0.71
     expected_max_val_loss = 0.71
@@ -434,7 +430,6 @@ class ToyMultiLabelSequenceModel(SequenceModelBase):
                              target_indices=self.get_target_indices())
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Has issues on windows build")
 def test_run_ml_with_multi_label_sequence_model(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test training and testing of sequence models that predicts at multiple time points,

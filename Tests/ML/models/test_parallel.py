@@ -8,7 +8,6 @@ import pytest
 import torch
 from torch import Tensor
 
-from InnerEye.Common import common_util
 from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel, CropSizeConstraints
 from InnerEye.ML.models.parallel.model_parallel import group_layers_with_balanced_memory, \
     move_to_device, partition_layers
@@ -46,7 +45,6 @@ class SimpleModel(BaseSegmentationModel):
         return list(self._model.children())
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Has issues on windows build")
 @pytest.mark.gpu
 @pytest.mark.skipif(no_gpu, reason="CUDA capable GPU is not available")
 def test_move_to_device() -> None:

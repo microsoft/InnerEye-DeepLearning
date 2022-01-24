@@ -3,7 +3,9 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Callable, Optional
+from enum import Enum
+from yacs.config import CfgNode
 
 import pandas as pd
 import param
@@ -13,10 +15,17 @@ from torchmetrics.regression import MeanSquaredError
 from torch import Tensor
 from torch.nn import Identity
 from torch.utils.data import DataLoader, Dataset
+from torchvision.datasets.vision import VisionDataset
+from torchvision.transforms import Lambda
 
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.lightning_container import InnerEyeInference, LightningContainer, LightningModuleWithOptimizer
+from InnerEye.ML.SSL.datamodules_and_datasets.dataset_cls_utils import InnerEyeDataClassBaseWithReturnIndex
+from InnerEye.ML.SSL.datamodules_and_datasets.transforms_utils import DualViewTransformWrapper
+from InnerEye.ML.SSL.lightning_containers.ssl_container import EncoderName, SSLContainer, SSLDatasetName
+from InnerEye.ML.SSL.utils import SSLTrainingType
+from InnerEye.ML.augmentations.transform_pipeline import ImageTransformationPipeline
 
 
 class DummyContainerWithDatasets(LightningContainer):
@@ -262,3 +271,84 @@ class DummyContainerWithHooks(LightningContainer):
         assert self.hook_local_zero.is_file(), "before_training_on_local_rank_zero should have been called already"
         assert not self.hook_all.is_file(), "before_training_on_all_ranks should only be called once"
         self.hook_all.touch()
+
+
+class DummySimCLRData(VisionDataset):
+    """
+    Returns a constant vector of size three [1., 1., 1.]
+    """
+    def __init__(
+            self,
+            root: str,
+            train: bool = True,
+            transform: Optional[Callable] = None,
+            target_transform: Optional[Callable] = None,
+            download: bool = False,
+    ) -> None:
+        super(DummySimCLRData, self).__init__(root, transform=transform,
+                                    target_transform=target_transform)
+
+        self.train = train
+        self.data = torch.ones(20, 1, 1, 3)
+
+    def __getitem__(self, index: int) -> Tuple[Any, Any]:
+        """
+        Args:
+            index (int): Index
+
+        Returns:
+            (Any): Sample and meta data, optionally transformed by the respective transforms.
+        """
+        # item = (self.data[index], self.data[index]), torch.Tensor([0])
+        image = self.data[index]
+        if self.transform:
+            image = self.transform(image)
+        return image, 0
+
+    def __len__(self) -> int:
+        return self.data.shape[0]
+
+class DummySimCLRInnerEyeData(InnerEyeDataClassBaseWithReturnIndex, DummySimCLRData):
+    """
+    Wrapper class around the DummySimCLRData class to optionally return the
+    index on top of the image and the label in __getitem__ as well as defining num_classes property.
+    """
+
+    @property
+    def num_classes(self) -> int:
+        return 2
+
+class DummySimCLRSSLDatasetName(SSLDatasetName, Enum):
+    DUMMY = "DUMMY"
+
+class DummySimCLR(SSLContainer):
+    """
+    This module trains an SSL encoder using SimCLR on the DummySimCLRData and finetunes a linear head too.
+    """
+    SSLContainer._SSLDataClassMappings.update({DummySimCLRSSLDatasetName.DUMMY.value: DummySimCLRInnerEyeData})
+
+    def __init__(self) -> None:
+        super().__init__(ssl_training_dataset_name=DummySimCLRSSLDatasetName.DUMMY,
+                         linear_head_dataset_name=DummySimCLRSSLDatasetName.DUMMY,
+                         # Train with as little data as possible for the test
+                         ssl_training_batch_size=2,
+                         linear_head_batch_size=2,
+                         ssl_encoder=EncoderName.resnet50,  # This gets overwritten by the test itself
+                         ssl_training_type=SSLTrainingType.SimCLR,
+                         random_seed=0,
+                         num_epochs=20,
+                         num_workers=0,
+                         max_num_gpus=1)
+
+    def _get_transforms(self, augmentation_config: Optional[CfgNode],
+                        dataset_name: str,
+                        is_ssl_encoder_module: bool) -> Tuple[Any, Any]:
+
+        # is_ssl_encoder_module will be True for ssl training, False for linear head training
+        train_transforms = ImageTransformationPipeline([Lambda(lambda x: x)])  # do nothing
+        val_transforms = ImageTransformationPipeline([Lambda(lambda x: x + 1)])  # add 1
+
+        if is_ssl_encoder_module:
+            train_transforms = DualViewTransformWrapper(train_transforms)  # type: ignore
+            val_transforms = DualViewTransformWrapper(val_transforms)  # type: ignore
+        return train_transforms, val_transforms
