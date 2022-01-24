@@ -17,7 +17,7 @@ variables:
   disable.coverage.autogenerate: 'true'
 
 jobs:
-  - job: Cleanup previous jobs
+  - job: CleanupJobs
     pool:
       vmImage: 'ubuntu-18.04'
     steps:
