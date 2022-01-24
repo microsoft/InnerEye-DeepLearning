@@ -16,7 +16,7 @@ import pytest
 import torch
 from pl_bolts.models.self_supervised.resnets import ResNet
 from pl_bolts.optimizers import linear_warmup_decay
-from pytorch_lightning import Trainer
+from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.trainer.supporters import CombinedLoader
 from torch.nn import Module
@@ -305,19 +305,14 @@ def test_simclr_training_recovery(test_output_dirs: OutputFolderForTests) -> Non
                                     every_n_val_epochs=1,
                                     save_last=True)
 
-        if last_checkpoint:
-            last_checkpoint = last_checkpoint.last_model_path  # type: ignore
-            trainer = Trainer(default_root_dir=str(test_output_dirs.root_dir),
-                            logger=logger,
-                            callbacks=[progress],
-                            max_epochs=num_epochs,
-                            resume_from_checkpoint=last_checkpoint)
-
-        else:
-            trainer = Trainer(default_root_dir=str(test_output_dirs.root_dir),
-                            logger=logger,
-                            callbacks=[checkpoint, progress],
-                            max_epochs=num_epochs)
+        trainer = Trainer(default_root_dir=str(test_output_dirs.root_dir),
+                        logger=logger,
+                        callbacks=[progress, checkpoint],
+                        max_epochs=num_epochs,
+                        resume_from_checkpoint=last_checkpoint.last_model_path if last_checkpoint is not None else None,
+                        deterministic=True,
+                        benchmark=False,
+                        gpus=1)
         trainer.fit(model, datamodule=data)
 
         lrs = []
@@ -329,16 +324,20 @@ def test_simclr_training_recovery(test_output_dirs: OutputFolderForTests) -> Non
         return lrs, loss, checkpoint
 
     # seed everything
-    import random
-    random.seed(0)
-    import os
-    os.environ['PYTHONHASHSEED'] = str(0)
-    np.random.seed(0)
-    torch.manual_seed(0)
-    torch.cuda.manual_seed(0)
-    torch.cuda.manual_seed_all(0)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+    # import random
+    # random.seed(0)
+    # import os
+    # os.environ['PYTHONHASHSEED'] = str(0)
+    # np.random.seed(0)
+    # torch.manual_seed(0)
+    # torch.cuda.manual_seed(0)
+    # torch.cuda.manual_seed_all(0)
+    # torch.backends.cudnn.deterministic = True
+    # torch.backends.cudnn.benchmark = False
+    # torch.backends.cudnn.enabled = False
+    # torch.use_deterministic_algorithms(True)
+    # torch.manual_seed(0)
+    seed_everything(0, workers=True)
 
     small_encoder = torch.nn.Sequential(torch.nn.Flatten(), torch.nn.Linear(3, 2))
     with mock.patch("InnerEye.ML.SSL.encoders.create_ssl_encoder", return_value=small_encoder):

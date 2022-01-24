@@ -332,10 +332,10 @@ class DummySimCLR(SSLContainer):
                          linear_head_batch_size=2,
                          ssl_encoder=EncoderName.resnet50,
                          ssl_training_type=SSLTrainingType.SimCLR,
-                         random_seed=1,
+                         random_seed=0,
                          num_epochs=20,
                          num_workers=0,
-                         max_num_gpus=2)
+                         max_num_gpus=1)
 
     def _get_transforms(self, augmentation_config: Optional[CfgNode],
                         dataset_name: str,
