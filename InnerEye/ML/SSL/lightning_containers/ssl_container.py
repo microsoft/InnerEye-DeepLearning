@@ -157,6 +157,7 @@ class SSLContainer(LightningContainer):
                                                     num_nodes=self.num_nodes,
                                                     learning_rate=self.l_rate,
                                                     max_epochs=self.num_epochs)
+            logging.info(f"LR scheduling is using train_iters_per_epoch = {model.train_iters_per_epoch}")
         elif self.ssl_training_type == SSLTrainingType.BYOL:
             model = BYOLInnerEye(encoder_name=self.ssl_encoder.value,
                                  num_samples=self.data_module.num_train_samples,
