@@ -17,6 +17,12 @@ variables:
   disable.coverage.autogenerate: 'true'
 
 jobs:
+  - job: Cleanup previous jobs
+    pool:
+      vmImage: 'ubuntu-18.04'
+    steps:
+      - template: cancel_jobs.yml
+
   - job: Windows
     pool:
       vmImage: 'windows-2019'

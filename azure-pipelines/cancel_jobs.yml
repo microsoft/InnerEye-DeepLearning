@@ -1,0 +1,13 @@
+steps:
+  - template: checkout.yml
+
+  - bash: pip install azureml-sdk
+    displayName: Install AzureML SDK
+
+  - bash: python azure-pipelines/cancel_jobs.py
+    displayName: Cancel jobs from previous run
+    env:
+      SUBSCRIPTION_ID: $(InnerEyeDevSubscriptionID)
+      APPLICATION_ID: $(InnerEyeDeepLearningServicePrincipalID)
+      APPLICATION_KEY: $(InnerEyeDeepLearningServicePrincipalKey)
+      BRANCH: $(Build.SourceBranch)
