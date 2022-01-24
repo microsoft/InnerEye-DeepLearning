@@ -52,7 +52,7 @@ class DeepSMILEPanda(BaseMIL):
             number_of_cross_validation_splits=5,
             cross_validation_split_index=0,
             # declared in OptimizerParams:
-            l_rate=1e-3,
+            l_rate=5e-3,
             weight_decay=1e-4,
             adam_betas=(0.9, 0.99))
         default_kwargs.update(kwargs)
@@ -122,7 +122,7 @@ class DeepSMILEPanda(BaseMIL):
         # no-op IdentityEncoder to be used inside the model
         self.slide_dataset = self.get_slide_dataset()
         self.level = 1
-        return DeepMILModule(encoder=self.encoder, # IdentityEncoder(input_dim=(self.encoder.num_encoding,)),
+        return DeepMILModule(encoder=IdentityEncoder(input_dim=(self.encoder.num_encoding,)),
                              label_column=self.data_module.train_dataset.LABEL_COLUMN,
                              n_classes=self.data_module.train_dataset.N_CLASSES,
                              pooling_layer=self.get_pooling_layer(),

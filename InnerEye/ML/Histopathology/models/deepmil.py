@@ -173,9 +173,8 @@ class DeepMILModule(LightningModule):
                 self.log(f'{stage}/{metric_name}', metric_object, on_epoch=True, on_step=False, logger=True, sync_dist=True)
 
     def forward(self, images: Tensor) -> Tuple[Tensor, Tensor]:  # type: ignore
-        # with no_grad():
-        print(self.encoder)
-        H = self.encoder(images)                        # N X L x 1 x 1
+        with no_grad():
+            H = self.encoder(images)                        # N X L x 1 x 1
         A, M = self.aggregation_fn(H)                       # A: K x N | M: K x L
         M = M.view(-1, self.num_encoding * self.pool_out_dim)
         Y_prob = self.classifier_fn(M)
