@@ -13,6 +13,6 @@ jobs:
       - template: cancel_aml_jobs.yml
 
   - job: RunAllTests
-    depends_on: CleanupAML
+    dependsOn: CleanupAML
     steps:
       - template: run_all_tests.yml
