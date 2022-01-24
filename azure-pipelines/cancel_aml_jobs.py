@@ -37,6 +37,8 @@ def cancel_running_and_queued_jobs() -> None:
                                        RunStatus.CANCEL_REQUESTED)
         operation = "Cancelling" if do_cancel else "Skipping"
         print(f"{operation} '{run.status}' run {run.id}: ({run.display_name})")
+        if do_cancel:
+            run.cancel()
 
 
 if __name__ == "__main__":

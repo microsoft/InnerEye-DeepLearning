@@ -8,11 +8,11 @@ steps:
     displayName: Use cached Conda environment AzureML_SDK
     inputs:
       # Beware of changing the cache key or path independently, safest to change in sync
-      key: 'usr_share_miniconda_azureml_conda | "$(Agent.OS)" | azure-pipelines/azureml-conda.yml'
+      key: 'usr_share_miniconda_azureml_conda | "$(Agent.OS)" | azure-pipelines/azureml-conda-environment.yml'
       path: /usr/share/miniconda/envs
       cacheHitVar: CONDA_CACHE_RESTORED
 
-  - script: conda env create --file azure-pipelines/azureml-conda.yml
+  - script: conda env create --file azure-pipelines/azureml-conda-environment.yml
     displayName: Create Conda environment AzureML_SDK
     condition: eq(variables.CONDA_CACHE_RESTORED, 'false')
 
