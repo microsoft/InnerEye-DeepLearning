@@ -33,11 +33,12 @@ def cancel_running_and_queued_jobs() -> None:
     print(f"Retrieved experiment {experiment.name}")
     for run in experiment.get_runs(include_children=True, properties={}):
         assert isinstance(run, Run)
-        do_cancel = run.status not in (RunStatus.COMPLETED, RunStatus.FAILED, RunStatus.FINALIZING, RunStatus.CANCELED,
-                                       RunStatus.CANCEL_REQUESTED)
-        operation = "Cancelling" if do_cancel else "Skipping"
-        print(f"{operation} '{run.status}' run {run.id}: ({run.display_name})")
-        if do_cancel:
+        status_suffix = f"'{run.status}' run {run.id} ({run.display_name})"
+        if run.status in (RunStatus.COMPLETED, RunStatus.FAILED, RunStatus.FINALIZING, RunStatus.CANCELED,
+                                       RunStatus.CANCEL_REQUESTED):
+            print(f"Skipping {status_suffix}")
+        else:
+            print(f"Cancelling {status_suffix}")
             run.cancel()
 
 
