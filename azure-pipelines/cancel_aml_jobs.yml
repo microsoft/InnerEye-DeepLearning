@@ -17,7 +17,7 @@ steps:
     condition: eq(variables.CONDA_CACHE_RESTORED, 'false')
 
   - bash: |
-      conda activate AzureML_SDK
+      source activate AzureML_SDK
       python azure-pipelines/cancel_jobs.py
     displayName: Cancel jobs from previous run
     env:
