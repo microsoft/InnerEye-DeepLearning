@@ -17,7 +17,7 @@ variables:
   disable.coverage.autogenerate: 'true'
 
 jobs:
-  - job: CleanupJobs
+  - job: CancelPreviousJobs
     pool:
       vmImage: 'ubuntu-18.04'
     steps:
@@ -36,7 +36,7 @@ jobs:
       - template: build.yaml
 
   - job: TrainInAzureML
-    dependsOn: CleanupJobs
+    dependsOn: CancelPreviousJobs
     variables:
       - name: tag
         value: 'TrainBasicModel'
@@ -55,7 +55,7 @@ jobs:
           test_run_title: tests_after_training_single_run
 
   - job: RunGpuTestsInAzureML
-    dependsOn: CleanupJobs
+    dependsOn: CancelPreviousJobs
     variables:
       - name: tag
         value: 'RunGpuTests'
@@ -78,7 +78,7 @@ jobs:
   # is trained, because we use this build to also check the "submit_for_inference" code, that
   # presently only handles single channel models.
   - job: TrainInAzureMLViaSubmodule
-    dependsOn: CleanupJobs
+    dependsOn: CancelPreviousJobs
     variables:
       - name: model
         value: 'BasicModel2Epochs1Channel'
@@ -99,7 +99,7 @@ jobs:
 
   # Train a 2-element ensemble model
   - job: TrainEnsemble
-    dependsOn: CleanupJobs
+    dependsOn: CancelPreviousJobs
     variables:
       - name: model
         value: 'BasicModelForEnsembleTest'
@@ -124,7 +124,7 @@ jobs:
 
   # Train a model on 2 nodes
   - job: Train2Nodes
-    dependsOn: CleanupJobs
+    dependsOn: CancelPreviousJobs
     variables:
       - name: model
         value: 'BasicModel2EpochsMoreData'
@@ -146,7 +146,7 @@ jobs:
           test_run_title: tests_after_training_2node_run
 
   - job: TrainHelloWorld
-    dependsOn: CleanupJobs
+    dependsOn: CancelPreviousJobs
     variables:
       - name: model
         value: 'HelloWorld'
@@ -164,7 +164,7 @@ jobs:
   # Run HelloContainer on 2 nodes. HelloContainer uses native Lighting test set inference, which can get
   # confused after doing multi-node training in the same script.
   - job: TrainHelloContainer
-    dependsOn: CleanupJobs
+    dependsOn: CancelPreviousJobs
     variables:
       - name: model
         value: 'HelloContainer'
@@ -189,7 +189,7 @@ jobs:
   # regressions in AML when requesting more than the default amount of memory. This needs to run with all subjects to
   # trigger the bug, total runtime 10min
   - job: TrainLung
-    dependsOn: CleanupJobs
+    dependsOn: CancelPreviousJobs
     variables:
       - name: model
         value: 'Lung'
