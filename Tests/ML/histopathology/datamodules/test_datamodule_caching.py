@@ -147,10 +147,10 @@ def test_caching_consistency(mock_data_dir: Path, cache_mode: CacheMode, precach
 
 
 @pytest.mark.parametrize('cache_mode, precache_location, cache_dir_provided',
-                         [(CacheMode.DISK, CacheLocation.GPU, True),
+                         [(CacheMode.DISK, CacheLocation.SAME, True),
                           (CacheMode.DISK, CacheLocation.CPU, True),
                           (CacheMode.MEMORY, CacheLocation.CPU, True),
-                          (CacheMode.MEMORY, CacheLocation.GPU, True),
+                          (CacheMode.MEMORY, CacheLocation.SAME, True),
                           (CacheMode.MEMORY, CacheLocation.NONE, False),
                           (CacheMode.NONE, CacheLocation.NONE, False)
                           ])

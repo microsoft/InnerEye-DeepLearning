@@ -26,7 +26,7 @@ class CacheMode(Enum):
 class CacheLocation(Enum):
     NONE = 'none'
     CPU = 'cpu'
-    GPU = 'cuda'
+    SAME = 'cuda'
 class TilesDataModule(LightningDataModule):
     """Base class to load the tiles of a dataset as train, val, test sets"""
 
@@ -59,7 +59,7 @@ class TilesDataModule(LightningDataModule):
         choose if the cache will be re-loaded into CPU or GPU memory:
           - `NONE (default)`: no pre-cache is performed;
           - `CPU`: each transformed sample is saved to disk and, if cache_mode is `MEMORY`, reloaded into CPU;
-          - `GPU`: each transformed sample is saved to disk and, if cache_mode is `MEMORY`, reloaded into GPU memory;
+          - `SAME`: each transformed sample is saved to disk and, if cache_mode is `MEMORY`, reloaded on the same device it was saved from;
         If cache_mode is `DISK` precache_location `CPU` and `GPU` are equivalent.
         :param cache_dir: The directory onto which to cache data if caching is enabled.
         :param number_of_cross_validation_splits: Number of folds to perform.
@@ -107,8 +107,6 @@ class TilesDataModule(LightningDataModule):
         if dataset_pickle_path and dataset_pickle_path.is_file():
             if self.precache_location == CacheLocation.CPU:
                 memory_location = torch.device('cpu')
-            elif self.precache_location == CacheLocation.GPU:
-                memory_location = torch.device('cuda')
             else:
                 # by default torch.load will reload on the same device it was saved from
                 memory_location = None  # type: ignore
