@@ -288,7 +288,12 @@ def test_simclr_lr_scheduler() -> None:
 
 @pytest.mark.gpu
 def test_simclr_training_recovery(test_output_dirs: OutputFolderForTests) -> None:
-    """ Describe what we testing here
+    """ This test checks if a SSLContainer correctly resumes training. 
+    First we run SSL using a Trainer for 20 epochs.
+    Second, we run a new SSL job for 15 epochs.
+    Third we resume the job and run it for 5 more epochs.
+    The test checks the learning rate and the loss.
+    The test is meant to run on a GPU!
     """
     def run_simclr_dummy_container(test_output_dirs: OutputFolderForTests,
                                    num_epochs: int,
@@ -328,21 +333,20 @@ def test_simclr_training_recovery(test_output_dirs: OutputFolderForTests) -> Non
 
     small_encoder = torch.nn.Sequential(torch.nn.Flatten(), torch.nn.Linear(3, 2))
     with mock.patch("InnerEye.ML.SSL.encoders.create_ssl_encoder", return_value=small_encoder):
-        with mock.patch("InnerEye.ML.SSL.encoders.SSLEncoder.get_output_feature_dim", return_value=2):  # TODO: is this still necessary?
-            with mock.patch("InnerEye.ML.SSL.encoders.get_encoder_output_dim", return_value=2):         
-                # Normal run
-                normal_lrs, normal_loss, _ = run_simclr_dummy_container(test_output_dirs, 20, last_checkpoint=None)
+        with mock.patch("InnerEye.ML.SSL.encoders.get_encoder_output_dim", return_value=2):         
+            # Normal run
+            normal_lrs, normal_loss, _ = run_simclr_dummy_container(test_output_dirs, 20, last_checkpoint=None)
 
-                # Short run
-                short_lrs, short_loss, short_checkpoint = run_simclr_dummy_container(test_output_dirs, 15, last_checkpoint=None)
+            # Short run
+            short_lrs, short_loss, short_checkpoint = run_simclr_dummy_container(test_output_dirs, 15, last_checkpoint=None)
 
-                # Resumed run
-                resumed_lrs, resumed_loss, _ = run_simclr_dummy_container(test_output_dirs, 20, last_checkpoint=short_checkpoint)
+            # Resumed run
+            resumed_lrs, resumed_loss, _ = run_simclr_dummy_container(test_output_dirs, 20, last_checkpoint=short_checkpoint)
 
-                resumed_lrs = short_lrs + resumed_lrs
-                assert resumed_lrs == normal_lrs
-                resumed_loss = short_loss + resumed_loss
-                assert resumed_loss == normal_loss
+            resumed_lrs = short_lrs + resumed_lrs
+            assert resumed_lrs == normal_lrs
+            resumed_loss = short_loss + resumed_loss
+            assert resumed_loss == normal_loss
 
 def test_online_evaluator_recovery(test_output_dirs: OutputFolderForTests) -> None:
     """

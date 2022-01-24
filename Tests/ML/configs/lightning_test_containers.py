@@ -274,6 +274,9 @@ class DummyContainerWithHooks(LightningContainer):
 
 
 class DummySimCLRData(VisionDataset):
+    """
+    Returns a constant vector of size three [1., 1., 1.]
+    """
     def __init__(
             self,
             root: str,
@@ -307,7 +310,7 @@ class DummySimCLRData(VisionDataset):
 
 class DummySimCLRInnerEyeData(InnerEyeDataClassBaseWithReturnIndex, DummySimCLRData):
     """
-    Wrapper class around torchvision CIFAR10 class to optionally return the
+    Wrapper class around the DummySimCLRData class to optionally return the
     index on top of the image and the label in __getitem__ as well as defining num_classes property.
     """
 
@@ -320,17 +323,17 @@ class DummySimCLRSSLDatasetName(SSLDatasetName, Enum):
 
 class DummySimCLR(SSLContainer):
     """
-    This module trains an SSL encoder using SimCLR on CIFAR10 and finetunes a linear head on CIFAR10 too.
+    This module trains an SSL encoder using SimCLR on the DummySimCLRData and finetunes a linear head too.
     """
     SSLContainer._SSLDataClassMappings.update({DummySimCLRSSLDatasetName.DUMMY.value: DummySimCLRInnerEyeData})
 
     def __init__(self) -> None:
         super().__init__(ssl_training_dataset_name=DummySimCLRSSLDatasetName.DUMMY,
                          linear_head_dataset_name=DummySimCLRSSLDatasetName.DUMMY,
-                         # We usually train this model with 4 GPUs, giving an effective batch size of 512
+                         # Train with as little data as possible for the test
                          ssl_training_batch_size=2,
                          linear_head_batch_size=2,
-                         ssl_encoder=EncoderName.resnet50,
+                         ssl_encoder=EncoderName.resnet50,  # This gets overwritten by the test itself
                          ssl_training_type=SSLTrainingType.SimCLR,
                          random_seed=0,
                          num_epochs=20,
@@ -342,8 +345,8 @@ class DummySimCLR(SSLContainer):
                         is_ssl_encoder_module: bool) -> Tuple[Any, Any]:
 
         # is_ssl_encoder_module will be True for ssl training, False for linear head training
-        train_transforms = ImageTransformationPipeline([Lambda(lambda x: x)])
-        val_transforms = ImageTransformationPipeline([Lambda(lambda x: x + 1)])
+        train_transforms = ImageTransformationPipeline([Lambda(lambda x: x)])  # do nothing
+        val_transforms = ImageTransformationPipeline([Lambda(lambda x: x + 1)])  # add 1
 
         if is_ssl_encoder_module:
             train_transforms = DualViewTransformWrapper(train_transforms)  # type: ignore
