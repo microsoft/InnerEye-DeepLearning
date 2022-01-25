@@ -229,7 +229,6 @@ def test_cropping_dataset_sample_dtype(cropping_dataset: CroppingDataset, num_da
         assert item.labels_center_crop.numpy().dtype == ImageDataType.SEGMENTATION.value
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Has issues on windows build")
 def test_cropping_dataset_padding(cropping_dataset: CroppingDataset, num_dataload_workers: int) -> None:
     """
     Tests the data type of torch tensors (e.g. image, labels, and mask) created by the dataset generator,
