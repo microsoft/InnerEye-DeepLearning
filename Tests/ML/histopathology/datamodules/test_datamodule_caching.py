@@ -13,7 +13,7 @@ import pytest
 import torch
 from torch.utils.data import DataLoader
 
-from InnerEye.ML.Histopathology.datamodules.base_module import CacheMode, TilesDataModule
+from InnerEye.ML.Histopathology.datamodules.base_module import CacheMode, CacheLocation, TilesDataModule
 from InnerEye.ML.Histopathology.datasets.base_dataset import TilesDataset
 
 
@@ -50,6 +50,7 @@ class MockTilesDataset(TilesDataset):
 
 
 def generate_mock_dataset_df(n_slides: int, n_tiles: int, n_classes: int) -> pd.DataFrame:
+    np.random.seed(1234)
     slide_ids = np.random.randint(n_slides, size=n_tiles)
     slide_labels = np.random.randint(n_classes, size=n_slides)
     tile_labels = slide_labels[slide_ids]
@@ -91,14 +92,14 @@ def mock_data_dir(tmp_path: Path) -> Path:
         df.to_csv(csv_path, index=False)
     return csv_dir
 
-def _get_datamodule(cache_mode: CacheMode, save_precache: bool,
+def _get_datamodule(cache_mode: CacheMode, precache_location: CacheLocation,
                     cache_dir_provided: bool, data_dir: Path) -> TilesDataModule:
-    if (cache_mode is CacheMode.NONE and save_precache) \
+    if (cache_mode is CacheMode.NONE and precache_location is not CacheLocation.NONE) \
             or (cache_mode is CacheMode.DISK and not cache_dir_provided) \
-            or (save_precache and not cache_dir_provided):
+            or (precache_location is not CacheLocation.NONE and not cache_dir_provided):
         pytest.skip("Unsupported combination of caching arguments")
 
-    cache_dir = data_dir / f"datamodule_cache_{cache_mode.value}" if cache_dir_provided else None
+    cache_dir = data_dir / f"datamodule_cache_{cache_mode.value}_{precache_location.value}" if cache_dir_provided else None
 
     if cache_dir is not None and cache_dir.exists():
         shutil.rmtree(cache_dir)
@@ -108,18 +109,18 @@ def _get_datamodule(cache_mode: CacheMode, save_precache: bool,
                                seed=0,
                                batch_size=2,
                                cache_mode=cache_mode,
-                               save_precache=save_precache,
+                               precache_location=precache_location,
                                cache_dir=cache_dir)
 
 
 @pytest.mark.parametrize('cache_mode', [CacheMode.MEMORY, CacheMode.DISK, CacheMode.NONE])
-@pytest.mark.parametrize('save_precache', [True, False])
+@pytest.mark.parametrize('precache_location', [CacheLocation.NONE, CacheLocation.CPU, CacheLocation.SAME])
 @pytest.mark.parametrize('cache_dir_provided', [True, False])
-def test_caching_consistency(mock_data_dir: Path, cache_mode: CacheMode, save_precache: bool,
+def test_caching_consistency(mock_data_dir: Path, cache_mode: CacheMode, precache_location: CacheLocation,
                              cache_dir_provided: bool) -> None:
     # Compare two dataloaders from the same datamodule
     datamodule = _get_datamodule(cache_mode=cache_mode,
-                                 save_precache=save_precache,
+                                 precache_location=precache_location,
                                  cache_dir_provided=cache_dir_provided,
                                  data_dir=mock_data_dir)
     datamodule.prepare_data()
@@ -130,14 +131,14 @@ def test_caching_consistency(mock_data_dir: Path, cache_mode: CacheMode, save_pr
 
     # Compare datamodules reusing the same cache
     datamodule = _get_datamodule(cache_mode=cache_mode,
-                                 save_precache=save_precache,
+                                 precache_location=precache_location,
                                  cache_dir_provided=cache_dir_provided,
                                  data_dir=mock_data_dir)
     datamodule.prepare_data()
     train_dataloader = datamodule.train_dataloader()
 
     reloaded_datamodule = _get_datamodule(cache_mode=cache_mode,
-                                          save_precache=save_precache,
+                                          precache_location=precache_location,
                                           cache_dir_provided=cache_dir_provided,
                                           data_dir=mock_data_dir)
     reloaded_datamodule.prepare_data()
@@ -146,13 +147,18 @@ def test_caching_consistency(mock_data_dir: Path, cache_mode: CacheMode, save_pr
     compare_dataloaders(train_dataloader, reloaded_train_dataloader)
 
 
-@pytest.mark.parametrize('cache_mode', [CacheMode.MEMORY, CacheMode.DISK, CacheMode.NONE])
-@pytest.mark.parametrize('save_precache', [True, False])
-@pytest.mark.parametrize('cache_dir_provided', [True, False])
-def test_tile_id_coverage(mock_data_dir: Path, cache_mode: CacheMode, save_precache: bool,
+@pytest.mark.parametrize('cache_mode, precache_location, cache_dir_provided',
+                         [(CacheMode.DISK, CacheLocation.SAME, True),
+                          (CacheMode.DISK, CacheLocation.CPU, True),
+                          (CacheMode.MEMORY, CacheLocation.SAME, True),
+                          (CacheMode.MEMORY, CacheLocation.CPU, True),
+                          (CacheMode.MEMORY, CacheLocation.NONE, False),
+                          (CacheMode.NONE, CacheLocation.NONE, False)
+                          ])
+def test_tile_id_coverage(mock_data_dir: Path, cache_mode: CacheMode, precache_location: CacheLocation,
                           cache_dir_provided: bool) -> None:
     datamodule = _get_datamodule(cache_mode=cache_mode,
-                                 save_precache=save_precache,
+                                 precache_location=precache_location,
                                  cache_dir_provided=cache_dir_provided,
                                  data_dir=mock_data_dir)
     datamodule.prepare_data()
