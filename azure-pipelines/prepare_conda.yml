@@ -1,0 +1,12 @@
+steps:
+  - bash: |
+      subdir=bin
+      echo "Adding this directory to PATH: $CONDA/$subdir"
+      echo "##vso[task.prependpath]$CONDA/$subdir"
+    displayName: Add conda to PATH
+    condition: succeeded()
+
+  - bash: |
+      sudo chown -R $USER /usr/share/miniconda
+    condition: and(succeeded(), eq( variables['Agent.OS'], 'Linux' ))
+    displayName: Take ownership of conda installation
