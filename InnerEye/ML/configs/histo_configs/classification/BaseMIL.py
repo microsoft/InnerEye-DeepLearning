@@ -35,16 +35,16 @@ class BaseMIL(LightningContainer):
     n_channels: int = param.Integer(3, bounds=(1, None), doc="Number of channels in the tile.")
 
     # Data module parameters:
-    batch_size: int = param.Integer(64, bounds=(1, None), doc="Number of slides to load per batch.")
+    batch_size: int = param.Integer(8, bounds=(1, None), doc="Number of slides to load per batch.")
     max_bag_size: int = param.Integer(1000, bounds=(0, None),
                                       doc="Upper bound on number of tiles in each loaded bag. "
                                           "If 0 (default), will return all samples in each bag. "
                                           "If > 0, bags larger than `max_bag_size` will yield "
                                           "random subsets of instances.")
-    cache_mode: CacheMode = param.ClassSelector(default=CacheMode.MEMORY, class_=CacheMode,
+    cache_mode: CacheMode = param.ClassSelector(default=CacheMode.NONE, class_=CacheMode,
                                                 doc="The type of caching to perform: "
                                                     "'memory' (default), 'disk', or 'none'.")
-    save_precache: bool = param.Boolean(True, doc="Whether to pre-cache the entire transformed "
+    save_precache: bool = param.Boolean(False, doc="Whether to pre-cache the entire transformed "
                                                   "dataset upfront and save it to disk.")
     # local_dataset (used as data module root_path) is declared in DatasetParams superclass
 
