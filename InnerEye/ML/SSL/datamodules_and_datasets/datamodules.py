@@ -156,7 +156,7 @@ class CombinedDataModule(LightningDataModule):
             SSLDataModuleType.ENCODER: encoder_loader,
             SSLDataModuleType.LINEAR_HEAD: linear_head_loader
         }
-        return CombinedLoader(dataloaders, mode=mode)
+        return CombinedLoader(dataloaders, mode="min_size")
 
     def train_dataloader(self, *args: Any, **kwargs: Any) -> Dict[str, DataLoader]:  # type: ignore
         """
