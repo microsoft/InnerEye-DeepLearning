@@ -5,14 +5,14 @@
 
 import logging
 import os
-from typing import Any, Callable, Optional, Sized, Union
+from typing import Any, Callable, Optional, Sized, Union, Dict
 
 import numpy as np
 import torch
 from pl_bolts.datamodules.vision_datamodule import VisionDataModule
 from pytorch_lightning import LightningDataModule
 from pytorch_lightning.trainer.supporters import CombinedLoader
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, DataLoader
 
 from InnerEye.ML.SSL.utils import SSLDataModuleType
 
@@ -122,16 +122,27 @@ class CombinedDataModule(LightningDataModule):
         if use_balanced_loss_linear_head:
             self.class_weights = self.linear_head_module.compute_class_weights()
         self.batch_size = self.encoder_module.batch_size
+        self.train_loader_cycle_mode: Optional[str] = None
+        self._is_prepared = False
 
     def prepare_data(self, *args: Any, **kwargs: Any) -> None:
         """
         Saves files to data_dir
         """
+        if self._is_prepared:
+            return
         self.encoder_module.prepare_data()
         self.linear_head_module.prepare_data()
-        logging.info(f"Length of encoder train dataloader {len(self.encoder_module.train_dataloader())}")
-        logging.info(f"Length of linear head train dataloader {len(self.linear_head_module.train_dataloader())}")
+        len_encoder_train = len(self.encoder_module.train_dataloader())
+        len_linear_head_train = len(self.linear_head_module.train_dataloader())
+        logging.info(f"Length of encoder train dataloader {len_encoder_train}")
+        logging.info(f"Length of linear head train dataloader {len_linear_head_train}")
         logging.info(f"Length of total train dataloader {len(self.train_dataloader())}")
+        self.train_loader_cycle_mode = self._cycle_mode(len_encoder_train, len_linear_head_train)
+        self._is_prepared = True
+
+    def _cycle_mode(self, len_encoder: int, len_linear_head: int) -> str:
+        return "max_size_cycle" if len_encoder > len_linear_head else "min_size"
 
     def get_combined_loader(self, encoder_loader: Sized, linear_head_loader: Sized) -> CombinedLoader:
         """
@@ -140,19 +151,21 @@ class CombinedDataModule(LightningDataModule):
         :param encoder_loader: The dataloader to use for the SSL encoder.
         :param linear_head_loader: The dataloader to use for the linear head.
         """
-        mode = "max_size_cycle" if len(encoder_loader) > len(linear_head_loader) else "min_size"
+        mode = self._cycle_mode(len(encoder_loader), len(linear_head_loader))
         dataloaders = {
             SSLDataModuleType.ENCODER: encoder_loader,
             SSLDataModuleType.LINEAR_HEAD: linear_head_loader
         }
         return CombinedLoader(dataloaders, mode=mode)
 
-    def train_dataloader(self, *args: Any, **kwargs: Any) -> CombinedLoader:  # type: ignore
+    def train_dataloader(self, *args: Any, **kwargs: Any) -> Dict[str, DataLoader]:  # type: ignore
         """
         The train dataloaders
         """
-        return self.get_combined_loader(encoder_loader=self.encoder_module.train_dataloader(),
-                                        linear_head_loader=self.linear_head_module.train_dataloader())
+        return {
+            SSLDataModuleType.ENCODER: self.encoder_module.train_dataloader(),
+            SSLDataModuleType.LINEAR_HEAD: self.linear_head_module.train_dataloader()
+        }
 
     def val_dataloader(self, *args: Any, **kwargs: Any) -> CombinedLoader:  # type: ignore
         """

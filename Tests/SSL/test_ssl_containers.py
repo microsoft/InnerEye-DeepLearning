@@ -615,8 +615,11 @@ def test_simclr_dataset_length(test_output_dirs: OutputFolderForTests,
         model = container.create_model()
         expected_num_train_iters = (num_encoder_images * 0.9) // encoder_batch_size
         assert model.train_iters_per_epoch == expected_num_train_iters
-        train_loaders = container.get_data_module().train_dataloader()
-        assert isinstance(train_loaders, CombinedLoader)
+        data_module = container.get_data_module()
+        data_module.prepare_data()
+        train_loaders_dict = data_module.train_dataloader()
+        assert isinstance(train_loaders_dict, dict)
+        train_loaders = CombinedLoader(train_loaders_dict, mode=data_module.train_loader_cycle_mode)
         assert len(train_loaders) == expected_num_train_iters
         expected_num_val_iters = (num_encoder_images * 0.1) // encoder_batch_size
         val_loaders = container.get_data_module().val_dataloader()
