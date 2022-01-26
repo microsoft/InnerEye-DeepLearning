@@ -82,7 +82,7 @@ def get_encoder_output_dim(
         dataloaders = dm.train_dataloader()
         dataloader = dataloaders[SSLDataModuleType.LINEAR_HEAD] \
             if isinstance(dataloaders, dict) else dataloaders  # type: ignore
-        batch = next(iter(dataloader))
+        batch = iter(dataloader).next()
         x, _ = SSLOnlineEvaluatorInnerEye.to_device(batch, device)
     else:
         x = torch.rand((1, 3, 256, 256)).to(device)
