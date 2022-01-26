@@ -142,7 +142,7 @@ class CombinedDataModule(LightningDataModule):
         self._is_prepared = True
 
     def _cycle_mode(self, len_encoder: int, len_linear_head: int) -> str:
-        return "max_size_cycle" if len_encoder > len_linear_head else "min_size"
+        return "max_size_cycle"  # if len_encoder > len_linear_head else "min_size"
 
     def get_combined_loader(self, encoder_loader: Sized, linear_head_loader: Sized) -> CombinedLoader:
         """
