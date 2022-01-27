@@ -163,11 +163,11 @@ class DeepMILModule(LightningModule):
                                   'confusion_matrix': ConfusionMatrix(num_classes=self.n_classes)})
         else:
             return nn.ModuleDict({'accuracy': Accuracy(),
-                                   'auroc': AUROC(num_classes=self.n_classes),
-                                   'precision': Precision(),
-                                   'recall': Recall(),
-                                   'f1score': F1(),
-                                   'confusion_matrix': ConfusionMatrix(num_classes=self.n_classes)})
+                                  'auroc': AUROC(num_classes=self.n_classes),
+                                  'precision': Precision(),
+                                  'recall': Recall(),
+                                  'f1score': F1(),
+                                  'confusion_matrix': ConfusionMatrix(num_classes=self.n_classes+1)})
 
     def log_metrics(self,
                     stage: str) -> None:
@@ -177,6 +177,11 @@ class DeepMILModule(LightningModule):
         for metric_name, metric_object in self.get_metrics_dict(stage).items():
             if not metric_name == "confusion_matrix":
                 self.log(f'{stage}/{metric_name}', metric_object, on_epoch=True, on_step=False, logger=True, sync_dist=True)
+            else:
+                metric_value = metric_object.compute()
+                metric_value_n = metric_value/metric_value.sum(axis=1)
+                for i in range(metric_value_n.shape[0]):
+                    self.log(f'{stage}/{self.class_names[i]}', metric_value_n[i, i], on_epoch=True, on_step=False, logger=True, sync_dist=True)
 
     def forward(self, images: Tensor) -> Tuple[Tensor, Tensor]:  # type: ignore
         with no_grad():
