@@ -14,7 +14,7 @@ import more_itertools as mi
 
 from pytorch_lightning import LightningModule
 from torch import Tensor, argmax, mode, nn, no_grad, optim, round
-from torchmetrics import AUROC, F1, Accuracy, Precision, Recall
+from torchmetrics import AUROC, F1, Accuracy, Precision, Recall, ConfusionMatrix
 
 from InnerEye.Common import fixed_paths
 from InnerEye.ML.Histopathology.datasets.base_dataset import TilesDataset, SlidesDataset
@@ -148,13 +148,15 @@ class DeepMILModule(LightningModule):
         if self.n_classes > 1:
             return nn.ModuleDict({'accuracy': Accuracy(num_classes=self.n_classes, average='micro'),
                                   'macro_accuracy': Accuracy(num_classes=self.n_classes, average='macro'),
-                                  'weighted_accuracy': Accuracy(num_classes=self.n_classes, average='weighted')})
+                                  'weighted_accuracy': Accuracy(num_classes=self.n_classes, average='weighted'),
+                                  'confusion_matrix': ConfusionMatrix(num_classes=self.n_classes)})
         else:
             return nn.ModuleDict({'accuracy': Accuracy(),
                                    'auroc': AUROC(num_classes=self.n_classes),
                                    'precision': Precision(),
                                    'recall': Recall(),
-                                   'f1score': F1()})
+                                   'f1score': F1(),
+                                   'confusion_matrix': ConfusionMatrix(num_classes=self.n_classes)})
 
     def log_metrics(self,
                     stage: str) -> None:
@@ -162,7 +164,10 @@ class DeepMILModule(LightningModule):
         if stage not in valid_stages:
             raise Exception(f"Invalid stage. Chose one of {valid_stages}")
         for metric_name, metric_object in self.get_metrics_dict(stage).items():
-            self.log(f'{stage}/{metric_name}', metric_object, on_epoch=True, on_step=False, logger=True, sync_dist=True)
+            if not metric_name == "confusion_matrix":
+                self.log(f'{stage}/{metric_name}', metric_object, on_epoch=True, on_step=False, logger=True, sync_dist=True)
+           # else:
+               # metric_object.compute()
 
     def forward(self, images: Tensor) -> Tuple[Tensor, Tensor]:  # type: ignore
         with no_grad():
@@ -337,6 +342,13 @@ class DeepMILModule(LightningModule):
         print("Plotting histogram ...")
         fig = plot_scores_hist(results)
         self.save_figure(fig=fig, figpath=outputs_fig_path / 'hist_scores.png')
+
+        metrics_dict = self.get_metrics_dict('test')
+        print(metrics_dict)
+        metric_value = metrics_dict["confusion_matrix"].compute()
+        #  We can't log tensors in the normal way - just print it to console             
+        print('test/confusion matrix:')
+        print(np.array(metric_value.cpu()))
 
     @staticmethod
     def save_figure(fig: plt.figure, figpath: Path) -> None:
