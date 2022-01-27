@@ -5,7 +5,7 @@
 
 import logging
 import os
-from typing import Any, Callable, Optional, Sized, Union, Dict
+from typing import Any, Callable, Dict, Optional, Sized, Union
 
 import numpy as np
 import torch
@@ -138,11 +138,14 @@ class CombinedDataModule(LightningDataModule):
         logging.info(f"Length of encoder train dataloader {len_encoder_train}")
         logging.info(f"Length of linear head train dataloader {len_linear_head_train}")
         logging.info(f"Length of total train dataloader {len(self.train_dataloader())}")
+        # Workaround for a bug in PL: We can't use a CombinedLoader for the training data. Instead,
+        # need to return a dictionary and set a cycle mode flag on the trainer. This flag can only be computed
+        # once the data is prepared. We read this flag out later before we construct the Trainer object.
         self.train_loader_cycle_mode = self._cycle_mode(len_encoder_train, len_linear_head_train)
         self._is_prepared = True
 
     def _cycle_mode(self, len_encoder: int, len_linear_head: int) -> str:
-        return "min_size"  # if len_encoder > len_linear_head else "min_size"
+        return "max_size_cycle" if len_encoder > len_linear_head else "min_size"
 
     def get_combined_loader(self, encoder_loader: Sized, linear_head_loader: Sized) -> CombinedLoader:
         """
@@ -156,7 +159,7 @@ class CombinedDataModule(LightningDataModule):
             SSLDataModuleType.ENCODER: encoder_loader,
             SSLDataModuleType.LINEAR_HEAD: linear_head_loader
         }
-        return CombinedLoader(dataloaders, mode="max_size_cycle")
+        return CombinedLoader(dataloaders, mode=mode)
 
     def train_dataloader(self, *args: Any, **kwargs: Any) -> Dict[str, DataLoader]:  # type: ignore
         """
