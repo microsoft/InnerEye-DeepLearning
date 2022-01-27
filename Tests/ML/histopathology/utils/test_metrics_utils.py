@@ -13,7 +13,7 @@ import matplotlib
 from torch.functional import Tensor
 import pytest
 
-from InnerEye.ML.Histopathology.utils.metrics_utils import plot_scores_hist, select_k_tiles, plot_slide, plot_heatmap_overlay
+from InnerEye.ML.Histopathology.utils.metrics_utils import plot_scores_hist, select_k_tiles, plot_slide, plot_heatmap_overlay, plot_normalized_confusion_matrix
 from InnerEye.ML.Histopathology.utils.naming import ResultsKey
 from InnerEye.ML.Histopathology.utils.heatmap_utils import location_selected_tiles
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
@@ -125,6 +125,23 @@ def test_plot_heatmap_overlay(test_output_dirs: OutputFolderForTests) -> None:
     # To update the stored results, uncomment this line:
     # expected.write_bytes(file.read_bytes())
     assert_binary_files_match(file, expected)
+
+
+def test_plot_normalized_confusion_matrix(test_output_dirs: OutputFolderForTests) -> None:
+    set_random_seed(0)
+    n_classes = 3
+    cm = np.random.rand(n_classes, n_classes)
+    class_names = [str(i) for i in range(n_classes)]
+    fig = plot_normalized_confusion_matrix(cm=cm, class_names=class_names)
+    assert isinstance(fig, matplotlib.figure.Figure)
+    file = Path(test_output_dirs.root_dir) / "plot_confusion_matrix.png"
+    resize_and_save(5, 5, file)
+    assert file.exists()
+    expected = full_ml_test_data_path("histo_heatmaps") / "confusion_matrix.png"
+    # To update the stored results, uncomment this line:
+    # expected.write_bytes(file.read_bytes())
+    assert_binary_files_match(file, expected)
+
 
 @pytest.mark.parametrize("level", [0, 1, 2])
 def test_location_selected_tiles(level: int) -> None:

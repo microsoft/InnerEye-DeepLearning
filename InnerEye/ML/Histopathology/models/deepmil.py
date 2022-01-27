@@ -90,7 +90,10 @@ class DeepMILModule(LightningModule):
         if class_names is not None:
             self.class_names = class_names
         else:
-            self.class_names = [str(i) for i in range(self.n_classes)]
+            if self.n_classes > 1:
+                self.class_names = [str(i) for i in range(self.n_classes)]
+            else:
+                self.class_names = ['0', '1']
 
         # Optimiser hyperparameters
         self.l_rate = l_rate
@@ -358,7 +361,7 @@ class DeepMILModule(LightningModule):
         print(cf_matrix)
         #  Save the normalized confusion matrix as a figure in outputs
         cf_matrix_n = cf_matrix/cf_matrix.sum(axis=1)
-        fig = plot_normalized_confusion_matrix(cf_matrix_n, self.class_names)
+        fig = plot_normalized_confusion_matrix(cm=cf_matrix_n, class_names=self.class_names)
         self.save_figure(fig=fig, figpath=outputs_fig_path / 'normalized_confusion_matrix.png')
 
     @staticmethod
