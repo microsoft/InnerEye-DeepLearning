@@ -619,6 +619,7 @@ def test_simclr_dataset_length(test_output_dirs: OutputFolderForTests,
         data_module.prepare_data()
         train_loaders_dict = data_module.train_dataloader()
         assert isinstance(train_loaders_dict, dict)
+        assert data_module.train_loader_cycle_mode
         train_loaders = CombinedLoader(train_loaders_dict, mode=data_module.train_loader_cycle_mode)
         assert len(train_loaders) == expected_num_train_iters
         expected_num_val_iters = (num_encoder_images * 0.1) // encoder_batch_size

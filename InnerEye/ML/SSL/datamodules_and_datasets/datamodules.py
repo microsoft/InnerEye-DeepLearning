@@ -161,7 +161,7 @@ class CombinedDataModule(LightningDataModule):
         }
         return CombinedLoader(dataloaders, mode=mode)
 
-    def train_dataloader(self, *args: Any, **kwargs: Any) -> Dict[str, DataLoader]:  # type: ignore
+    def train_dataloader(self, *args: Any, **kwargs: Any) -> Dict[SSLDataModuleType, DataLoader]:  # type: ignore
         """
         The train dataloaders
         """

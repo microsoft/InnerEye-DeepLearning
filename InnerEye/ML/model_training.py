@@ -238,6 +238,7 @@ def model_train(checkpoint_path: Optional[Path],
     multiple_trainloader_mode = "max_size_cycle"
     if isinstance(data_module, CombinedDataModule):
         data_module.prepare_data()
+        assert data_module.train_loader_cycle_mode is not None, "This field should be computed during prepare_data"
         multiple_trainloader_mode = data_module.train_loader_cycle_mode
 
     # Create the trainer object. Backup the environment variables before doing that, in case we need to run a second
