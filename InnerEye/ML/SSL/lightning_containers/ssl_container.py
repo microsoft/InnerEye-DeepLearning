@@ -83,7 +83,7 @@ class SSLContainer(LightningContainer):
     use_balanced_binary_loss_for_linear_head = param.Boolean(default=False,
                                                              doc="Whether to use a balanced loss for the training of "
                                                                  "the linear head")
-    num_workers = param.Integer(default=6, doc="Number of workers to use for dataloader processes.")
+    num_workers = param.Integer(default=4, doc="Number of workers to use for dataloader processes.")
     is_debug_model = param.Boolean(default=False,
                                    doc="If True, the training will be restricted to 1 batch per epoch."
                                        "Used for debugging and tests.")
