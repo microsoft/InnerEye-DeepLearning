@@ -127,6 +127,7 @@ class DeepSMILEPanda(BaseMIL):
         # no-op IdentityEncoder to be used inside the model
         self.slide_dataset = self.get_slide_dataset()
         self.level = 1
+        self.class_names = ["ISUP 0", "ISUP 1", "ISUP 2", "ISUP 3", "ISUP 4", "ISUP 5"]
         return DeepMILModule(encoder=IdentityEncoder(input_dim=(self.encoder.num_encoding,)),
                              label_column=self.data_module.train_dataset.LABEL_COLUMN,
                              n_classes=self.data_module.train_dataset.N_CLASSES,
@@ -137,7 +138,8 @@ class DeepSMILEPanda(BaseMIL):
                              adam_betas=self.adam_betas,
                              slide_dataset=self.get_slide_dataset(),
                              tile_size=self.tile_size,
-                             level=self.level)
+                             level=self.level,
+                             class_names=self.class_names)
 
     def get_slide_dataset(self) -> PandaDataset:
         return PandaDataset(root=self.extra_local_dataset_paths[0])                             # type: ignore

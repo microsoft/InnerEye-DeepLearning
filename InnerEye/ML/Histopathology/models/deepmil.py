@@ -19,7 +19,9 @@ from torchmetrics import AUROC, F1, Accuracy, Precision, Recall, ConfusionMatrix
 from InnerEye.Common import fixed_paths
 from InnerEye.ML.Histopathology.datasets.base_dataset import TilesDataset, SlidesDataset
 from InnerEye.ML.Histopathology.models.encoders import TileEncoder
-from InnerEye.ML.Histopathology.utils.metrics_utils import select_k_tiles, plot_attention_tiles, plot_scores_hist, plot_heatmap_overlay, plot_slide
+from InnerEye.ML.Histopathology.utils.metrics_utils import (select_k_tiles, plot_attention_tiles,
+                                                            plot_scores_hist, plot_heatmap_overlay, 
+                                                            plot_slide, plot_normalized_confusion_matrix)
 from InnerEye.ML.Histopathology.utils.naming import ResultsKey
 
 from InnerEye.ML.Histopathology.utils.viz_utils import load_image_dict
@@ -53,7 +55,8 @@ class DeepMILModule(LightningModule):
                  verbose: bool = False,
                  slide_dataset: SlidesDataset = None,
                  tile_size: int = 224,
-                 level: int = 1) -> None:
+                 level: int = 1,
+                 class_names: List[str] = None) -> None:
         """
         :param label_column: Label key for input batch dictionary.
         :param n_classes: Number of output classes for MIL prediction.
@@ -83,6 +86,11 @@ class DeepMILModule(LightningModule):
         self.class_weights = class_weights
         self.encoder = encoder
         self.num_encoding = self.encoder.num_encoding
+
+        if class_names is not None:
+            self.class_names = class_names
+        else:
+            self.class_names = [str(i) for i in range(self.n_classes)]
 
         # Optimiser hyperparameters
         self.l_rate = l_rate
@@ -166,8 +174,6 @@ class DeepMILModule(LightningModule):
         for metric_name, metric_object in self.get_metrics_dict(stage).items():
             if not metric_name == "confusion_matrix":
                 self.log(f'{stage}/{metric_name}', metric_object, on_epoch=True, on_step=False, logger=True, sync_dist=True)
-           # else:
-               # metric_object.compute()
 
     def forward(self, images: Tensor) -> Tuple[Tensor, Tensor]:  # type: ignore
         with no_grad():
@@ -343,12 +349,17 @@ class DeepMILModule(LightningModule):
         fig = plot_scores_hist(results)
         self.save_figure(fig=fig, figpath=outputs_fig_path / 'hist_scores.png')
 
+        print("Computing and saving confusion matrix...")
         metrics_dict = self.get_metrics_dict('test')
-        print(metrics_dict)
-        metric_value = metrics_dict["confusion_matrix"].compute()
+        cf_matrix = metrics_dict["confusion_matrix"].compute()
+        cf_matrix = np.array(cf_matrix.cpu())
         #  We can't log tensors in the normal way - just print it to console             
         print('test/confusion matrix:')
-        print(np.array(metric_value.cpu()))
+        print(cf_matrix)
+        #  Save the normalized confusion matrix as a figure in outputs
+        cf_matrix_n = cf_matrix/cf_matrix.sum(axis=1)
+        fig = plot_normalized_confusion_matrix(cf_matrix_n, self.class_names)
+        self.save_figure(fig=fig, figpath=outputs_fig_path / 'normalized_confusion_matrix.png')
 
     @staticmethod
     def save_figure(fig: plt.figure, figpath: Path) -> None:
