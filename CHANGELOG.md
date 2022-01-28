@@ -15,6 +15,7 @@ created.
 loss.
 
 ### Added
+- ([#648](https://github.com/microsoft/InnerEye-DeepLearning/pull/648)) Add torch_ort to SSL SimCLR. This makes training faster.
 - ([#594](https://github.com/microsoft/InnerEye-DeepLearning/pull/594)) When supplying a "--tag" argument, the AzureML jobs use that value as the display name, to more easily distinguish run.
 - ([#640](https://github.com/microsoft/InnerEye-DeepLearning/pull/640)) Cancel AzureML jobs from previous runs of the PR build in the same branch to reduce AML load
 - ([#577](https://github.com/microsoft/InnerEye-DeepLearning/pull/577)) Commandline switch `monitor_gpu` to monitor
