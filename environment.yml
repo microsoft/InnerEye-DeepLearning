@@ -69,8 +69,6 @@ dependencies:
       - tabulate==0.8.7
       - tensorboard==2.3.0
       - tensorboardX==2.1
-      # Version 0.13 causes PR builds to hang
-      - terminado==0.12.1
       - torchmetrics==0.6.0
       - umap-learn==0.5.2
       - yacs==0.1.8
