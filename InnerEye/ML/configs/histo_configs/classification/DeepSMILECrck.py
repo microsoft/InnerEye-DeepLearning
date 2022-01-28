@@ -25,6 +25,7 @@ from health_ml.networks.layers.attention_layers import GatedAttentionLayer
 from health_azure.utils import get_workspace
 from health_azure.utils import CheckpointDownloader
 from InnerEye.Common import fixed_paths
+from InnerEye.ML.common import get_best_checkpoint_path
 from InnerEye.ML.configs.histo_configs.classification.BaseMIL import BaseMIL
 from InnerEye.ML.Histopathology.datamodules.base_module import TilesDataModule
 from InnerEye.ML.Histopathology.datamodules.tcga_crck_module import (
@@ -57,6 +58,7 @@ class DeepSMILECrck(BaseMIL):
             # To mount the dataset instead of downloading in AML, pass --use_dataset_mount in the CLI
             # declared in TrainerParams:
             num_epochs=16,
+            batch_size=8,
             # declared in WorkflowParams:
             number_of_cross_validation_splits=5,
             cross_validation_split_index=0,
@@ -120,7 +122,6 @@ class DeepSMILECrck(BaseMIL):
             batch_size=self.batch_size,
             transform=transform,
             cache_mode=self.cache_mode,
-            save_precache=self.save_precache,
             cache_dir=self.cache_dir,
             number_of_cross_validation_splits=self.number_of_cross_validation_splits,
             cross_validation_split_index=self.cross_validation_split_index,
@@ -135,12 +136,23 @@ class DeepSMILECrck(BaseMIL):
         was applied there.
         """
         # absolute path is required for registering the model.
-        return (
-            fixed_paths.repository_root_directory()
-            / self.checkpoint_folder_path
-            / self.best_checkpoint_filename_with_suffix
-        )
+        absolute_checkpoint_path = Path(fixed_paths.repository_root_directory(),
+                                        self.checkpoint_folder_path,
+                                        self.best_checkpoint_filename_with_suffix)
+        if absolute_checkpoint_path.is_file():
+            return absolute_checkpoint_path
 
+        absolute_checkpoint_path_parent = Path(fixed_paths.repository_parent_directory(),
+                                    self.checkpoint_folder_path,
+                                    self.best_checkpoint_filename_with_suffix)
+        if absolute_checkpoint_path_parent.is_file():
+            return absolute_checkpoint_path_parent
+
+        checkpoint_path = get_best_checkpoint_path(Path(self.checkpoint_folder_path))
+        if checkpoint_path.is_file():
+            return checkpoint_path
+
+        raise ValueError("Path to best checkpoint not found")
 
 class TcgaCrckImageNetMIL(DeepSMILECrck):
     def __init__(self, **kwargs: Any) -> None:

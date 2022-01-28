@@ -127,19 +127,26 @@ def test_plot_heatmap_overlay(test_output_dirs: OutputFolderForTests) -> None:
     assert_binary_files_match(file, expected)
 
 
-def test_plot_normalized_confusion_matrix(test_output_dirs: OutputFolderForTests) -> None:
+@pytest.mark.parametrize("n_classes", [1, 3])
+def test_plot_normalized_confusion_matrix(test_output_dirs: OutputFolderForTests, n_classes: int) -> None:
     set_random_seed(0)
-    n_classes = 3
-    cm = np.random.rand(n_classes, n_classes)
-    class_names = [str(i) for i in range(n_classes)]
-    fig = plot_normalized_confusion_matrix(cm=cm, class_names=class_names)
+    if n_classes > 1:
+        cm = np.random.randint(1, 1000, size=(n_classes, n_classes))
+        class_names = [str(i) for i in range(n_classes)]
+    else:
+        cm = np.random.randint(1, 1000, size=(n_classes+1, n_classes+1))
+        class_names = [str(i) for i in range(n_classes+1)]
+    cm_n = cm/cm.sum(axis=1, keepdims=True)
+    assert (cm_n <= 1).all()
+
+    fig = plot_normalized_confusion_matrix(cm=cm_n, class_names=class_names)
     assert isinstance(fig, matplotlib.figure.Figure)
-    file = Path(test_output_dirs.root_dir) / "plot_confusion_matrix.png"
+    file = Path(test_output_dirs.root_dir) / f"plot_confusion_matrix_{n_classes}.png"
     resize_and_save(5, 5, file)
     assert file.exists()
-    expected = full_ml_test_data_path("histo_heatmaps") / "confusion_matrix.png"
+    expected = full_ml_test_data_path("histo_heatmaps") / f"confusion_matrix_{n_classes}.png"
     # To update the stored results, uncomment this line:
-    # expected.write_bytes(file.read_bytes())
+    expected.write_bytes(file.read_bytes())
     assert_binary_files_match(file, expected)
 
 

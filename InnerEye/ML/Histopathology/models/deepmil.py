@@ -179,7 +179,7 @@ class DeepMILModule(LightningModule):
                 self.log(f'{stage}/{metric_name}', metric_object, on_epoch=True, on_step=False, logger=True, sync_dist=True)
             else:
                 metric_value = metric_object.compute()
-                metric_value_n = metric_value/metric_value.sum(axis=1)
+                metric_value_n = metric_value/metric_value.sum(axis=1, keepdims=True)
                 for i in range(metric_value_n.shape[0]):
                     self.log(f'{stage}/{self.class_names[i]}', metric_value_n[i, i], on_epoch=True, on_step=False, logger=True, sync_dist=True)
 
@@ -365,7 +365,7 @@ class DeepMILModule(LightningModule):
         print('test/confusion matrix:')
         print(cf_matrix)
         #  Save the normalized confusion matrix as a figure in outputs
-        cf_matrix_n = cf_matrix/cf_matrix.sum(axis=1)
+        cf_matrix_n = cf_matrix/cf_matrix.sum(axis=1, keepdims=True)
         fig = plot_normalized_confusion_matrix(cm=cf_matrix_n, class_names=self.class_names)
         self.save_figure(fig=fig, figpath=outputs_fig_path / 'normalized_confusion_matrix.png')
 
