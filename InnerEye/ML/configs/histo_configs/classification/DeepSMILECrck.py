@@ -58,7 +58,6 @@ class DeepSMILECrck(BaseMIL):
             # To mount the dataset instead of downloading in AML, pass --use_dataset_mount in the CLI
             # declared in TrainerParams:
             num_epochs=16,
-            batch_size=8,
             # declared in WorkflowParams:
             number_of_cross_validation_splits=5,
             cross_validation_split_index=0,
