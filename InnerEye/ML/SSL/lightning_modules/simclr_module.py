@@ -51,11 +51,11 @@ class SimCLRInnerEye(SimCLR):
             kwargs.update({"dataset": dataset_name})
         super().__init__(**kwargs)
         self.save_hyperparameters()
-        self.encoder =  torch_ort.ORTModule(SSLEncoder(encoder_name, use_7x7_first_conv_in_resnet))
-        self.projection = torch_ort.ORTModule(_Projection(input_dim=self.encoder.get_output_feature_dim(), hidden_dim=2048, output_dim=128))
+        self.encoder = self.model =  SSLEncoder(encoder_name, use_7x7_first_conv_in_resnet)
+        self.projection = _Projection(input_dim=self.model.get_output_feature_dim(), hidden_dim=2048, output_dim=128)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.encoder(x)
+        return self.model(x)
 
     def training_step(self, batch: BatchType, batch_idx: int) -> torch.Tensor:
         loss = self.shared_step(batch)

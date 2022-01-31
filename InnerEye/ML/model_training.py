@@ -54,6 +54,19 @@ def write_args_file(config: Any, outputs_folder: Path) -> None:
     dst.write_text(output)
     logging.info(output)
 
+from pytorch_lightning.plugins import DDPPlugin
+import torch_ort
+from pytorch_lightning.overrides import LightningDistributedModule
+from torch.nn import Module
+from torch.nn.parallel.distributed import DistributedDataParallel
+class ORTPlugin(DDPPlugin):
+    def _setup_model(self, model: Module) -> DistributedDataParallel:
+        """Wraps the model into a :class:`~torch.nn.parallel.distributed.DistributedDataParallel` module."""
+        from onnxruntime.training.ortmodule.torch_cpp_extensions import install as ortmodule_install
+        ortmodule_install.build_torch_cpp_extensions()
+        model.module.model = torch_ort.ORTModule(model.module.model)
+        return DistributedDataParallel(module=model, device_ids=self.determine_ddp_device_ids(), **self._ddp_kwargs)
+
 
 def create_lightning_trainer(container: LightningContainer,
                              resume_from_checkpoint: Optional[Path] = None,
@@ -85,7 +98,7 @@ def create_lightning_trainer(container: LightningContainer,
             # GPU memory).
             # Initialize the DDP plugin. The default for pl_find_unused_parameters is False. If True, the plugin
             # prints out lengthy warnings about the performance impact of find_unused_parameters.
-            strategy = DDPPlugin(find_unused_parameters=container.pl_find_unused_parameters)
+            strategy = ORTPlugin(find_unused_parameters=container.pl_find_unused_parameters)
             message += "s per node with DDP"
     logging.info(f"Using {message}")
     tensorboard_logger = TensorBoardLogger(save_dir=str(container.logs_folder), name="Lightning", version="")
