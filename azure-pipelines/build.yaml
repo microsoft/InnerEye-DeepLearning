@@ -7,7 +7,7 @@ steps:
 
   - bash: cat /etc/sudoers
 
-  - bash: chown -R 1001:1001 /opt/conda/pkgs/urls.txt
+  - bash: chmod -R go+w /opt/conda
 
   - script: conda env update --file environment.yml --name base
     displayName: Create Anaconda environment
