@@ -153,6 +153,9 @@ class MLRunner:
         """
         if self._has_setup_run:
             return
+        
+        from onnxruntime.training.ortmodule.torch_cpp_extensions import install as ortmodule_install
+        ortmodule_install.build_torch_cpp_extensions()
         if (not self.azure_config.only_register_model) and azure_run_info:
             # Set up the paths to the datasets. azure_run_info already has all necessary information, using either
             # the provided local datasets for VM runs, or the AzureML mount points when running in AML.
