@@ -1,8 +1,21 @@
 steps:
-  - template: inner_eye_env.yml
+  - template: checkout.yml
+
+  - template: store_settings.yml
+
+  - script: sudo conda env create --file environment.yml --name base
+    displayName: Create Anaconda environment
+    failOnStderr: false # Conda env create does not have an option to suppress warnings generated in wheel.py
 
   - bash: |
-      source activate InnerEye
+      which python
+      conda info
+      pip freeze
+    failOnStderr: false
+    displayName: Print package list and Conda info
+
+  - bash: |
+      # source activate InnerEye
       echo Storing environment for later use by ComponentGovernance
       # This file is picked up later by ComponentGovernance
       pip freeze > requirements.txt
@@ -22,7 +35,7 @@ steps:
   # Install the InnerEye package without its dependencies. We have already create an environment that has everything
   # the package needs. If --no-deps is omitted, this causes a weird package conflict with azure-storage-blob
   - bash: |
-      source activate InnerEye
+      # source activate InnerEye
       python setup.py develop --no-deps
     env:
       IS_DEV_PACKAGE: True
@@ -34,7 +47,7 @@ steps:
   # hence don't set PYTHONPATH to InnerEye - but do set it to hi-ml if that has been included as a submodule for dev
   # work on the package
   - bash: |
-      source activate InnerEye
+      # source activate InnerEye
       pytest ./Tests/ -m "not (gpu or azureml or after_training_single_run or after_training_ensemble_run or inference or after_training_2node or after_training_glaucoma_cv_run or after_training_hello_container)" --doctest-modules --junitxml=junit/test-results.xml --cov=. --cov-config=.coveragerc --cov-report=xml --verbose
     env:
       APPLICATION_KEY: $(InnerEyeDeepLearningServicePrincipalKey)
@@ -45,7 +58,7 @@ steps:
 
   # Run all tests for code that does not live in the InnerEye package. For that, set PYTHONPATH
   - bash: |
-      source activate InnerEye
+      # source activate InnerEye
       pytest ./TestsOutsidePackage -n 2 --dist=loadscope --verbose --junitxml=junit/test-outside-package-results.xml
     env:
       APPLICATION_KEY: $(InnerEyeDeepLearningServicePrincipalKey)
