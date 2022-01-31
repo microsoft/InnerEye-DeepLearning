@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, Generic, Iterator, List, Optional, TypeVar, Union
 
 import torch
+import torch_ort
 from torch.nn import MSELoss
 from torch.nn.parameter import Parameter
 from torch.optim.rmsprop import RMSprop
@@ -159,19 +160,21 @@ def build_net(args: SegmentationModelBase) -> BaseSegmentationModel:
                                basic_dilations, network_definition, crop_size_constraints)  # type: ignore
 
     elif args.architecture == ModelArchitectureConfig.UNet3D:
-        network = UNet3D(input_image_channels=args.number_of_image_channels,
+        from onnxruntime.training.ortmodule.torch_cpp_extensions import install as ortmodule_install
+        ortmodule_install.build_torch_cpp_extensions()
+        network = torch_ort.ORTModule(UNet3D(input_image_channels=args.number_of_image_channels,
                          initial_feature_channels=args.feature_channels[0],
                          num_classes=args.number_of_classes,
                          kernel_size=args.kernel_size,
-                         num_downsampling_paths=args.num_downsampling_paths)
+                         num_downsampling_paths=args.num_downsampling_paths))
         run_weight_initialization = False
 
     elif args.architecture == ModelArchitectureConfig.UNet2D:
-        network = UNet2D(input_image_channels=args.number_of_image_channels,
+        network = torch_ort.ORTModule(UNet2D(input_image_channels=args.number_of_image_channels,
                          initial_feature_channels=args.feature_channels[0],
                          num_classes=args.number_of_classes,
                          padding_mode=PaddingMode.Edge,
-                         num_downsampling_paths=args.num_downsampling_paths)
+                         num_downsampling_paths=args.num_downsampling_paths))
         run_weight_initialization = False
 
     else:
@@ -192,7 +195,7 @@ def summary_for_segmentation_models(config: ModelConfigBase, model: DeviceAwareM
     :param config: The configuration for the model.
     :param model: The instantiated Pytorch model.
     """
-    assert isinstance(model, BaseSegmentationModel)
+    #assert isinstance(model, BaseSegmentationModel)
     crop_size = config.crop_size
     if isinstance(crop_size, int):
         crop_size = (crop_size, crop_size, crop_size)
