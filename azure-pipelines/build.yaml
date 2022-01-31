@@ -3,7 +3,11 @@ steps:
 
   - template: store_settings.yml
 
-  - script: sudo conda env create --file environment.yml --name base
+  - bash: whoami
+
+  - bash: cat /etc/sudoers
+
+  - script: conda env create --file environment.yml --name base
     displayName: Create Anaconda environment
     failOnStderr: false # Conda env create does not have an option to suppress warnings generated in wheel.py
 
