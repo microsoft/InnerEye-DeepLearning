@@ -631,12 +631,12 @@ def test_simclr_dataloader_type() -> None:
     data types coming from the dataloader.
     """
     def check_types_in_batch(batch: Dict) -> None:
-        assert type(batch[SSLDataModuleType.ENCODER][0][0]) == torch.Tensor
-        assert type(batch[SSLDataModuleType.ENCODER][0][1]) == torch.Tensor
-        assert type(batch[SSLDataModuleType.ENCODER][1]) == torch.Tensor
-        assert type(batch[SSLDataModuleType.LINEAR_HEAD][0]) == torch.Tensor
-        assert type(batch[SSLDataModuleType.LINEAR_HEAD][1]) == torch.Tensor
-        assert type(batch[SSLDataModuleType.LINEAR_HEAD][2]) == torch.Tensor
+        assert isinstance(batch[SSLDataModuleType.ENCODER][0][0], torch.Tensor)
+        assert isinstance(batch[SSLDataModuleType.ENCODER][0][1], torch.Tensor)
+        assert isinstance(batch[SSLDataModuleType.ENCODER][1], torch.Tensor)
+        assert isinstance(batch[SSLDataModuleType.LINEAR_HEAD][0], torch.Tensor)
+        assert isinstance(batch[SSLDataModuleType.LINEAR_HEAD][1], torch.Tensor)
+        assert isinstance(batch[SSLDataModuleType.LINEAR_HEAD][2], torch.Tensor)
 
     def check_types_in_train_and_val(data: CombinedDataModule) -> None:
         for i, batch in enumerate(data.train_dataloader()):
