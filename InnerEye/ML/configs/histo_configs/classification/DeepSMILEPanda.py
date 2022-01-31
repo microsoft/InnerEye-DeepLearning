@@ -14,6 +14,7 @@ from health_azure.utils import CheckpointDownloader
 from health_azure.utils import get_workspace, is_running_in_azure_ml
 from health_ml.networks.layers.attention_layers import GatedAttentionLayer
 from InnerEye.Common import fixed_paths
+from InnerEye.ML.Histopathology.datamodules.base_module import CacheMode, CacheLocation
 from InnerEye.ML.Histopathology.datamodules.panda_module import PandaTilesDataModule
 from InnerEye.ML.Histopathology.datasets.panda_tiles_dataset import PandaTilesDataset
 from InnerEye.ML.common import get_best_checkpoint_path
@@ -41,6 +42,8 @@ class DeepSMILEPanda(BaseMIL):
             pooling_type=GatedAttentionLayer.__name__,
             # average number of tiles is 56 for PANDA
             encoding_chunk_size=60,
+            cache_mode=CacheMode.MEMORY,
+            precache_location=CacheLocation.SAME,
 
             # declared in DatasetParams:
             local_dataset=Path("/tmp/datasets/PANDA_tiles"),

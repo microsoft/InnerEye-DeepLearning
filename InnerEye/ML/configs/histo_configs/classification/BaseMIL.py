@@ -35,7 +35,7 @@ class BaseMIL(LightningContainer):
     n_channels: int = param.Integer(3, bounds=(1, None), doc="Number of channels in the tile.")
 
     # Data module parameters:
-    batch_size: int = param.Integer(8, bounds=(1, None), doc="Number of slides to load per batch.")
+    batch_size: int = param.Integer(32, bounds=(1, None), doc="Number of slides to load per batch.")
     max_bag_size: int = param.Integer(1000, bounds=(0, None),
                                       doc="Upper bound on number of tiles in each loaded bag. "
                                           "If 0 (default), will return all samples in each bag. "
