@@ -7,6 +7,8 @@ steps:
 
   - bash: cat /etc/sudoers
 
+  - bash: chown -R 1001:1001 /opt/conda
+
   - script: conda env update --file environment.yml --name base
     displayName: Create Anaconda environment
     failOnStderr: false # Conda env create does not have an option to suppress warnings generated in wheel.py
