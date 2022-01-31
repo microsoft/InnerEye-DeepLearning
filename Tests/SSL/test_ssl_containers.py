@@ -630,24 +630,20 @@ def test_simclr_dataloader_type() -> None:
     """ This test checks if the transform pipeline of a SSL job can handle different
     data types coming from the dataloader.
     """
-    def check_types_in_batch(batch: Dict) -> None:
-        assert isinstance(batch[SSLDataModuleType.ENCODER][0][0], torch.Tensor)
-        assert isinstance(batch[SSLDataModuleType.ENCODER][0][1], torch.Tensor)
-        assert isinstance(batch[SSLDataModuleType.ENCODER][1], torch.Tensor)
-        assert isinstance(batch[SSLDataModuleType.LINEAR_HEAD][0], torch.Tensor)
-        assert isinstance(batch[SSLDataModuleType.LINEAR_HEAD][1], torch.Tensor)
-        assert isinstance(batch[SSLDataModuleType.LINEAR_HEAD][2], torch.Tensor)
+    def check_types_in_dataloader(dataloader: CombinedLoader) -> None:
+        for i, batch in enumerate(dataloader):
+            assert isinstance(batch[SSLDataModuleType.ENCODER][0][0], torch.Tensor)
+            assert isinstance(batch[SSLDataModuleType.ENCODER][0][1], torch.Tensor)
+            assert isinstance(batch[SSLDataModuleType.ENCODER][1], torch.Tensor)
+            assert isinstance(batch[SSLDataModuleType.LINEAR_HEAD][0], torch.Tensor)
+            assert isinstance(batch[SSLDataModuleType.LINEAR_HEAD][1], torch.Tensor)
+            assert isinstance(batch[SSLDataModuleType.LINEAR_HEAD][2], torch.Tensor)
+            if i == 1:
+                break
 
     def check_types_in_train_and_val(data: CombinedDataModule) -> None:
-        for i, batch in enumerate(data.train_dataloader()):
-            check_types_in_batch(batch)
-            if i == 1:
-                break
-
-        for i, batch in enumerate(data.val_dataloader()):
-            check_types_in_batch(batch)
-            if i == 1:
-                break
+        check_types_in_dataloader(data.train_dataloader())
+        check_types_in_dataloader(data.val_dataloader())
 
     container = DummySimCLR()
     container.setup()
