@@ -39,6 +39,9 @@ class DeepSMILEPanda(BaseMIL):
         default_kwargs = dict(
             # declared in BaseMIL:
             pooling_type=GatedAttentionLayer.__name__,
+            # average number of tiles is 56 for PANDA
+            encoding_chunk_size=60,
+
             # declared in DatasetParams:
             local_dataset=Path("/tmp/datasets/PANDA_tiles"),
             azure_dataset_id="PANDA_tiles",
@@ -48,9 +51,11 @@ class DeepSMILEPanda(BaseMIL):
             # declared in TrainerParams:
             num_epochs=20,
             # use_mixed_precision = True,
+
             # declared in WorkflowParams:
             number_of_cross_validation_splits=5,
             cross_validation_split_index=0,
+
             # declared in OptimizerParams:
             l_rate=5e-4,
             weight_decay=1e-4,
@@ -101,7 +106,7 @@ class DeepSMILEPanda(BaseMIL):
         transform = Compose(
             [
                 LoadTilesBatchd(image_key, progress=True),
-                #EncodeTilesBatchd(image_key, self.encoder),
+                # EncodeTilesBatchd(image_key, self.encoder),
             ]
         )
         return PandaTilesDataModule(
@@ -110,7 +115,7 @@ class DeepSMILEPanda(BaseMIL):
             batch_size=self.batch_size,
             transform=transform,
             cache_mode=self.cache_mode,
-            save_precache=self.save_precache,
+            precache_location=self.precache_location,
             cache_dir=self.cache_dir,
             number_of_cross_validation_splits=self.number_of_cross_validation_splits,
             cross_validation_split_index=self.cross_validation_split_index,
@@ -122,7 +127,7 @@ class DeepSMILEPanda(BaseMIL):
         # no-op IdentityEncoder to be used inside the model
         self.slide_dataset = self.get_slide_dataset()
         self.level = 1
-        return DeepMILModule(encoder=self.encoder,  #IdentityEncoder(input_dim=(self.encoder.num_encoding,)),
+        return DeepMILModule(encoder=self.encoder,  # IdentityEncoder(input_dim=(self.encoder.num_encoding,)),
                              label_column=self.data_module.train_dataset.LABEL_COLUMN,
                              n_classes=self.data_module.train_dataset.N_CLASSES,
                              pooling_layer=self.get_pooling_layer(),
@@ -134,7 +139,7 @@ class DeepSMILEPanda(BaseMIL):
                              tile_size=self.tile_size,
                              level=self.level)
 
-    def get_slide_dataset(self) -> PandaDataset:                                                
+    def get_slide_dataset(self) -> PandaDataset:
         return PandaDataset(root=self.extra_local_dataset_paths[0])                             # type: ignore
 
     def get_callbacks(self) -> List[Callback]:
@@ -162,8 +167,7 @@ class DeepSMILEPanda(BaseMIL):
         if checkpoint_path.is_file():
             return checkpoint_path
 
-        raise ValueError("Path to best checkpoint not found")      
-
+        raise ValueError("Path to best checkpoint not found")
 
 class PandaImageNetMIL(DeepSMILEPanda):
     def __init__(self, **kwargs: Any) -> None:

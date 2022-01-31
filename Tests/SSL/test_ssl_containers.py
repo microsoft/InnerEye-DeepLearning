@@ -4,7 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 import math
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 from unittest import mock
 
 import numpy as np
@@ -13,7 +13,7 @@ import pytest
 import torch
 from pl_bolts.models.self_supervised.resnets import ResNet
 from pl_bolts.optimizers import linear_warmup_decay
-from pytorch_lightning import Trainer
+from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.trainer.supporters import CombinedLoader
 from torch.nn import Module
@@ -23,6 +23,7 @@ from InnerEye.Common import fixed_paths
 from InnerEye.Common.fixed_paths import repository_root_directory
 from InnerEye.Common.fixed_paths_for_tests import TEST_OUTPUTS_PATH
 from InnerEye.Common.output_directories import OutputFolderForTests
+from InnerEye.ML.lightning_loggers import StoringLogger
 from InnerEye.ML.SSL.lightning_containers.ssl_container import EncoderName, SSLDatasetName
 from InnerEye.ML.SSL.lightning_modules.byol.byol_module import BYOLInnerEye
 from InnerEye.ML.SSL.lightning_modules.simclr_module import SimCLRInnerEye
@@ -33,8 +34,9 @@ from InnerEye.ML.common import LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
 from InnerEye.ML.configs.ssl.CIFAR_SSL_configs import CIFAR10SimCLR
 from InnerEye.ML.configs.ssl.CXR_SSL_configs import CXRImageClassifier, NIH_RSNA_SimCLR
 from InnerEye.ML.runner import Runner
-from Tests.ML.configs.lightning_test_containers import DummyContainerWithModel
+from Tests.ML.configs.lightning_test_containers import DummyContainerWithModel, DummySimCLR
 from Tests.ML.utils.test_io_util import write_test_dicom
+from health_ml.utils import AzureMLProgressBar
 
 path_to_cxr_test_dataset = TEST_OUTPUTS_PATH / "cxr_test_dataset"
 
@@ -281,6 +283,67 @@ def test_simclr_lr_scheduler() -> None:
     for i in range(highest_lr, len(lr) - 1):
         assert lr[i] > lr[i + 1], f"Not strictly monotonically decreasing at index {i}"
 
+@pytest.mark.gpu
+def test_simclr_training_recovery(test_output_dirs: OutputFolderForTests) -> None:
+    """ This test checks if a SSLContainer correctly resumes training. 
+    First we run SSL using a Trainer for 20 epochs.
+    Second, we run a new SSL job for 15 epochs.
+    Third we resume the job and run it for 5 more epochs.
+    The test checks the learning rate and the loss.
+    The test is meant to run on a GPU!
+    """
+    def run_simclr_dummy_container(test_output_dirs: OutputFolderForTests,
+                                   num_epochs: int,
+                                   last_checkpoint: Optional[ModelCheckpoint] = None) -> Tuple[list, list, ModelCheckpoint]:
+        seed_everything(0, workers=True)
+        container = DummySimCLR()
+        container.setup()
+        model = container.create_model()
+        data = container.get_data_module()
+
+        # add logger
+        logger = StoringLogger()
+        progress = AzureMLProgressBar(refresh_rate=1)
+        checkpoint_folder = test_output_dirs.create_file_or_folder_path("checkpoints")
+        checkpoint_folder.mkdir(exist_ok=True)
+        checkpoint = ModelCheckpoint(dirpath=checkpoint_folder,
+                                    every_n_val_epochs=1,
+                                    save_last=True)
+
+        trainer = Trainer(default_root_dir=str(test_output_dirs.root_dir),
+                        logger=logger,
+                        callbacks=[progress, checkpoint],
+                        max_epochs=num_epochs,
+                        resume_from_checkpoint=last_checkpoint.last_model_path if last_checkpoint is not None else None,
+                        deterministic=True,
+                        benchmark=False,
+                        gpus=1)
+        trainer.fit(model, datamodule=data)
+
+        lrs = []
+        loss = []
+        for item in logger.results_per_epoch:
+            lrs.append(logger.results_per_epoch[item]['simclr/learning_rate'])
+            loss.append(logger.results_per_epoch[item]['simclr/train/loss'])
+
+        return lrs, loss, checkpoint
+
+    small_encoder = torch.nn.Sequential(torch.nn.Flatten(), torch.nn.Linear(3, 2))
+    with mock.patch("InnerEye.ML.SSL.encoders.create_ssl_encoder", return_value=small_encoder):
+        with mock.patch("InnerEye.ML.SSL.encoders.get_encoder_output_dim", return_value=2):         
+            # Normal run
+            normal_lrs, normal_loss, _ = run_simclr_dummy_container(test_output_dirs, 20, last_checkpoint=None)
+
+            # Short run
+            short_lrs, short_loss, short_checkpoint = run_simclr_dummy_container(test_output_dirs, 15, last_checkpoint=None)
+
+            # Resumed run
+            resumed_lrs, resumed_loss, _ = run_simclr_dummy_container(test_output_dirs, 20, last_checkpoint=short_checkpoint)
+
+            resumed_lrs = short_lrs + resumed_lrs
+            assert resumed_lrs == normal_lrs
+            resumed_loss = short_loss + resumed_loss
+            assert resumed_loss == normal_loss
 
 def test_online_evaluator_recovery(test_output_dirs: OutputFolderForTests) -> None:
     """
