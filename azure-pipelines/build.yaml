@@ -7,7 +7,11 @@ steps:
 
   - bash: cat /etc/sudoers
 
-  - bash: chmod -R go+w /opt/conda
+  - bash: |
+      apt-get update
+      apt-get install -y sudo
+
+  - bash: sudo chmod -R go+w /opt/conda
 
   - script: conda env update --file environment.yml --name base
     displayName: Create Anaconda environment
