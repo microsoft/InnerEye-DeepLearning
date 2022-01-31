@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-import pickle
+import torch
 from enum import Enum
 from pathlib import Path
 from typing import Any, Callable, Optional, Sequence, Tuple, Union
@@ -23,13 +23,17 @@ class CacheMode(Enum):
     MEMORY = 'memory'
     DISK = 'disk'
 
-
+class CacheLocation(Enum):
+    NONE = 'none'
+    CPU = 'cpu'
+    SAME = 'same'
 class TilesDataModule(LightningDataModule):
     """Base class to load the tiles of a dataset as train, val, test sets"""
 
     def __init__(self, root_path: Path, max_bag_size: int = 0, batch_size: int = 1,
                  seed: Optional[int] = None, transform: Optional[Callable] = None,
-                 cache_mode: CacheMode = CacheMode.NONE, save_precache: bool = False,
+                 cache_mode: CacheMode = CacheMode.NONE,
+                 precache_location: CacheLocation = CacheLocation.NONE,
                  cache_dir: Optional[Path] = None,
                  number_of_cross_validation_splits: int = 0,
                  cross_validation_split_index: int = 0) -> None:
@@ -46,19 +50,24 @@ class TilesDataModule(LightningDataModule):
         :param cache_mode: The type of caching to perform, i.e. whether the results of all
         transforms up to the first randomised one should be computed only once and reused in
         subsequent iterations:
-          - `MEMORY`: the entire transformed dataset is kept in memory for fastest access;
-          - `DISK`: each transformed sample is saved to disk and loaded on-demand;
-          - `NONE` (default): no caching is performed.
-        :param save_precache: Whether to pre-cache the entire transformed dataset upfront and save
+          - `MEMORY`: MONAI CacheDataset is used, the entire transformed dataset is kept in memory for fastest access;
+          - `DISK`: MONAI PersistentDataset is used, each transformed sample is saved to disk and loaded on-demand;
+          - `NONE` (default): standard MONAI dataset is used, no caching is performed.
+        :param precache_location: Whether to pre-cache the entire transformed dataset upfront and save
         it to disk. This is done once in `prepare_data()` only on the local rank-0 process, so
-        multiple processes can afterwards access the same cache without contention in DDP settings.
+        multiple processes can afterwards access the same cache without contention in DDP settings. This parameter also allow to
+        choose if the cache will be re-loaded into CPU or GPU memory:
+          - `NONE (default)`: no pre-cache is performed;
+          - `CPU`: each transformed sample is saved to disk and, if cache_mode is `MEMORY`, reloaded into CPU;
+          - `SAME`: each transformed sample is saved to disk and, if cache_mode is `MEMORY`, reloaded on the same device it was saved from;
+        If cache_mode is `DISK` precache_location `CPU` and `GPU` are equivalent.
         :param cache_dir: The directory onto which to cache data if caching is enabled.
         :param number_of_cross_validation_splits: Number of folds to perform.
         :param cross_validation_split_index: Index of the cross validation split to be performed.
         """
-        if save_precache and cache_mode is CacheMode.NONE:
+        if precache_location is not CacheLocation.NONE and cache_mode is CacheMode.NONE:
             raise ValueError("Can only pre-cache if caching is enabled")
-        if save_precache and cache_dir is None:
+        if precache_location is not CacheLocation.NONE and cache_dir is None:
             raise ValueError("A cache directory is required for pre-caching")
         if cache_mode is CacheMode.DISK and cache_dir is None:
             raise ValueError("A cache directory is required for on-disk caching")
@@ -68,7 +77,7 @@ class TilesDataModule(LightningDataModule):
         self.max_bag_size = max_bag_size
         self.transform = transform
         self.cache_mode = cache_mode
-        self.save_precache = save_precache
+        self.precache_location = precache_location
         self.cache_dir = cache_dir
         self.batch_size = batch_size
         self.number_of_cross_validation_splits = number_of_cross_validation_splits
@@ -82,7 +91,7 @@ class TilesDataModule(LightningDataModule):
         raise NotImplementedError
 
     def prepare_data(self) -> None:
-        if self.save_precache:
+        if self.precache_location != CacheLocation.NONE:
             self._load_dataset(self.train_dataset, stage='train', shuffle=True)
             self._load_dataset(self.val_dataset, stage='val', shuffle=True)
             self._load_dataset(self.test_dataset, stage='test', shuffle=True)
@@ -90,14 +99,21 @@ class TilesDataModule(LightningDataModule):
     def _dataset_pickle_path(self, stage: str) -> Optional[Path]:
         if self.cache_dir is None:
             return None
-        return self.cache_dir / f"{stage}_dataset.pkl"
+        return self.cache_dir / f"{stage}_dataset.pt"
 
     def _load_dataset(self, tiles_dataset: TilesDataset, stage: str, shuffle: bool) -> Dataset:
         dataset_pickle_path = self._dataset_pickle_path(stage)
 
-        if dataset_pickle_path and dataset_pickle_path.exists():
+        if dataset_pickle_path and dataset_pickle_path.is_file():
+            if self.precache_location == CacheLocation.CPU:
+                memory_location = torch.device('cpu')
+                print(f"Loading dataset from {dataset_pickle_path} into {memory_location}")
+            else:
+                # by default torch.load will reload on the same device it was saved from
+                memory_location = None  # type: ignore
+
             with dataset_pickle_path.open('rb') as f:
-                return pickle.load(f)
+                return torch.load(f, map_location=memory_location)
 
         generator = _create_generator(self.seed)
         bag_dataset = BagDataset(tiles_dataset,  # type: ignore
@@ -112,10 +128,11 @@ class TilesDataModule(LightningDataModule):
         transformed_bag_dataset = self._get_transformed_dataset(bag_dataset, transform)  # type: ignore
         generator.set_state(generator_state)
 
+        # Dataset is saved if cache_dir is True, regardless of CacheMode
         if dataset_pickle_path:
             dataset_pickle_path.parent.mkdir(parents=True, exist_ok=True)
             with dataset_pickle_path.open('wb') as f:
-                pickle.dump(transformed_bag_dataset, f)
+                torch.save(transformed_bag_dataset, f)
 
         return transformed_bag_dataset
 
@@ -125,7 +142,7 @@ class TilesDataModule(LightningDataModule):
             dataset = CacheDataset(base_dataset, transform, num_workers=1)  # type: ignore
         elif self.cache_mode is CacheMode.DISK:
             dataset = PersistentDataset(base_dataset, transform, cache_dir=self.cache_dir)  # type: ignore
-            if self.save_precache:
+            if self.precache_location != CacheLocation.NONE:
                 import tqdm  # TODO: Make optional
 
                 for i in tqdm.trange(len(dataset), desc="Loading dataset"):

@@ -461,7 +461,7 @@ def load_labels_from_dataset_source(dataset_source: PatientDatasetSource, check_
 
 def load_image(path: PathOrString, image_type: Optional[Type] = float) -> ImageWithHeader:
     """
-    Loads an image with extension numpy or nifti
+    Loads an image with extension numpy or nifti or png
     For HDF5 path suffix
         For images |<dataset_name>|<channel index>
         For segmentation binary |<dataset_name>|<channel index>
