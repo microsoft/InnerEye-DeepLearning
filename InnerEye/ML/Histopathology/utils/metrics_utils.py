@@ -10,6 +10,7 @@ from math import ceil
 import numpy as np
 import matplotlib.patches as patches
 import matplotlib.collections as collection
+import seaborn as sns
 
 from InnerEye.ML.Histopathology.models.transforms import load_pil_image
 from InnerEye.ML.Histopathology.utils.naming import ResultsKey
@@ -163,4 +164,18 @@ def plot_heatmap_overlay(slide: str,
     pc.set_clim([0, 1])
     ax.add_collection(pc)
     plt.colorbar(pc, ax=ax)
+    return fig
+
+
+def plot_normalized_confusion_matrix(cm: np.ndarray, class_names: List[str]) -> plt.figure:
+    """Plots a normalized confusion matrix and returns the figure.
+    param cm: Normalized confusion matrix to be plotted.
+    param class_names: List of class names.
+    """
+    fig, ax = plt.subplots()
+    ax = sns.heatmap(cm, annot=True, cmap='Blues', fmt=".2%")
+    ax.set_xlabel('Predicted')
+    ax.set_ylabel('True')
+    ax.xaxis.set_ticklabels(class_names)
+    ax.yaxis.set_ticklabels(class_names)
     return fig
