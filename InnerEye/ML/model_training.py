@@ -62,8 +62,11 @@ from torch.nn.parallel.distributed import DistributedDataParallel
 class ORTPlugin(DDPPlugin):
     def _setup_model(self, model: Module) -> DistributedDataParallel:
         """Wraps the model into a :class:`~torch.nn.parallel.distributed.DistributedDataParallel` module."""
-        from onnxruntime.training.ortmodule.torch_cpp_extensions import install as ortmodule_install
-        ortmodule_install.build_torch_cpp_extensions()
+        if os.getenv(ENV_LOCAL_RANK) == '0':
+            logging.info("Installing TORCH ORT")
+            from onnxruntime.training.ortmodule.torch_cpp_extensions import install as ortmodule_install
+            ortmodule_install.build_torch_cpp_extensions()
+        logging.info("Adding TORCH ORT")
         model.module.model = torch_ort.ORTModule(model.module.model)
         return DistributedDataParallel(module=model, device_ids=self.determine_ddp_device_ids(), **self._ddp_kwargs)
 
