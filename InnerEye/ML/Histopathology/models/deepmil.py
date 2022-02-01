@@ -22,11 +22,8 @@ from InnerEye.ML.Histopathology.models.encoders import TileEncoder
 from InnerEye.ML.Histopathology.utils.metrics_utils import (select_k_tiles, plot_attention_tiles,
                                                             plot_scores_hist, plot_heatmap_overlay, 
                                                             plot_slide, plot_normalized_confusion_matrix)
-from InnerEye.ML.Histopathology.utils.naming import ResultsKey
-
+from InnerEye.ML.Histopathology.utils.naming import SlideKey, ResultsKey, MetricsKey
 from InnerEye.ML.Histopathology.utils.viz_utils import load_image_dict
-from InnerEye.ML.Histopathology.utils.naming import SlideKey
-
 
 RESULTS_COLS = [ResultsKey.SLIDE_ID, ResultsKey.TILE_ID, ResultsKey.IMAGE_PATH, ResultsKey.PROB,
                 ResultsKey.PRED_LABEL, ResultsKey.TRUE_LABEL, ResultsKey.BAG_ATTN]
@@ -56,10 +53,10 @@ class DeepMILModule(LightningModule):
                  slide_dataset: SlidesDataset = None,
                  tile_size: int = 224,
                  level: int = 1,
-                 class_names: List[str] = None) -> None:
+                 class_names: Optional[List[str]] = None) -> None:
         """
         :param label_column: Label key for input batch dictionary.
-        :param n_classes: Number of output classes for MIL prediction.
+        :param n_classes: Number of output classes for MIL prediction. For binary classification, n_classes should be set to 1.
         :param encoder: The tile encoder to use for feature extraction. If no encoding is needed,
         you should use `IdentityEncoder`.
         :param pooling_layer: Type of pooling to use in multi-instance aggregation. Should be a
@@ -70,10 +67,11 @@ class DeepMILModule(LightningModule):
         :param l_rate: Optimiser learning rate.
         :param weight_decay: Weight decay parameter for L2 regularisation.
         :param adam_betas: Beta parameters for Adam optimiser.
-        :param verbose: if True statements about memory usage are output at each step
+        :param verbose: if True statements about memory usage are output at each step.
         :param slide_dataset: Slide dataset object, if available.
         :param tile_size: The size of each tile (default=224).
         :param level: The downsampling level (e.g. 0, 1, 2) of the tiles if available (default=1).
+        :param class_names: The names of the classes if available (default=None).
         """
         super().__init__()
 
@@ -93,7 +91,11 @@ class DeepMILModule(LightningModule):
             if self.n_classes > 1:
                 self.class_names = [str(i) for i in range(self.n_classes)]
             else:
-                self.class_names = ['0', '1']
+                self.class_names = ['0', '1']    
+        if self.n_classes > 1 and len(self.class_names) != self.n_classes:
+            raise ValueError(f"Mismatch in number of class names ({self.class_names}) and number of classes ({self.n_classes})")
+        if self.n_classes == 1 and len(self.class_names) != 2:
+            raise ValueError(f"Mismatch in number of class names ({self.class_names}) and number of classes ({self.n_classes+1})")
 
         # Optimiser hyperparameters
         self.l_rate = l_rate
@@ -157,17 +159,17 @@ class DeepMILModule(LightningModule):
 
     def get_metrics(self) -> nn.ModuleDict:
         if self.n_classes > 1:
-            return nn.ModuleDict({'accuracy': Accuracy(num_classes=self.n_classes, average='micro'),
-                                  'macro_accuracy': Accuracy(num_classes=self.n_classes, average='macro'),
-                                  'weighted_accuracy': Accuracy(num_classes=self.n_classes, average='weighted'),
-                                  'confusion_matrix': ConfusionMatrix(num_classes=self.n_classes)})
+            return nn.ModuleDict({MetricsKey.ACC: Accuracy(num_classes=self.n_classes, average='micro'),
+                                  MetricsKey.ACC_MACRO: Accuracy(num_classes=self.n_classes, average='macro'),
+                                  MetricsKey.ACC_WEIGHTED: Accuracy(num_classes=self.n_classes, average='weighted'),
+                                  MetricsKey.CONF_MATRIX: ConfusionMatrix(num_classes=self.n_classes)})
         else:
-            return nn.ModuleDict({'accuracy': Accuracy(),
-                                  'auroc': AUROC(num_classes=self.n_classes),
-                                  'precision': Precision(),
-                                  'recall': Recall(),
-                                  'f1score': F1(),
-                                  'confusion_matrix': ConfusionMatrix(num_classes=self.n_classes+1)})
+            return nn.ModuleDict({MetricsKey.ACC: Accuracy(),
+                                  MetricsKey.AUROC: AUROC(num_classes=self.n_classes),
+                                  MetricsKey.PRECISION: Precision(),
+                                  MetricsKey.RECALL: Recall(),
+                                  MetricsKey.F1: F1(),
+                                  MetricsKey.CONF_MATRIX: ConfusionMatrix(num_classes=self.n_classes+1)})
 
     def log_metrics(self,
                     stage: str) -> None:
@@ -175,13 +177,13 @@ class DeepMILModule(LightningModule):
         if stage not in valid_stages:
             raise Exception(f"Invalid stage. Chose one of {valid_stages}")
         for metric_name, metric_object in self.get_metrics_dict(stage).items():
-            if not metric_name == "confusion_matrix":
-                self.log(f'{stage}/{metric_name}', metric_object, on_epoch=True, on_step=False, logger=True, sync_dist=True)
-            else:
+            if metric_name == MetricsKey.CONF_MATRIX:
                 metric_value = metric_object.compute()
                 metric_value_n = metric_value/metric_value.sum(axis=1, keepdims=True)
                 for i in range(metric_value_n.shape[0]):
                     self.log(f'{stage}/{self.class_names[i]}', metric_value_n[i, i], on_epoch=True, on_step=False, logger=True, sync_dist=True)
+            else:
+                self.log(f'{stage}/{metric_name}', metric_object, on_epoch=True, on_step=False, logger=True, sync_dist=True)
 
     def forward(self, images: Tensor) -> Tuple[Tensor, Tensor]:  # type: ignore
         with no_grad():
@@ -359,7 +361,7 @@ class DeepMILModule(LightningModule):
 
         print("Computing and saving confusion matrix...")
         metrics_dict = self.get_metrics_dict('test')
-        cf_matrix = metrics_dict["confusion_matrix"].compute()
+        cf_matrix = metrics_dict[MetricsKey.CONF_MATRIX].compute()
         cf_matrix = np.array(cf_matrix.cpu())
         #  We can't log tensors in the normal way - just print it to console             
         print('test/confusion matrix:')

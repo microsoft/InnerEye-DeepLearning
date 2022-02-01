@@ -146,7 +146,7 @@ def test_plot_normalized_confusion_matrix(test_output_dirs: OutputFolderForTests
     assert file.exists()
     expected = full_ml_test_data_path("histo_heatmaps") / f"confusion_matrix_{n_classes}.png"
     # To update the stored results, uncomment this line:
-    expected.write_bytes(file.read_bytes())
+    # expected.write_bytes(file.read_bytes())
     assert_binary_files_match(file, expected)
 
 
