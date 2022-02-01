@@ -143,9 +143,6 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
         batch = batch[SSLDataModuleType.LINEAR_HEAD] if isinstance(batch, dict) else batch
         x, y = self.to_device(batch, pl_module.device)
 
-        if isinstance(x, (torch.FloatTensor, torch.cuda.FloatTensor)):
-            x = x.half()
-
         with torch.no_grad():
             representations = self.get_representations(pl_module, x)
         representations = representations.detach()
