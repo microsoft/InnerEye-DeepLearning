@@ -24,6 +24,7 @@ from InnerEye.ML.Histopathology.utils.metrics_utils import (select_k_tiles, plot
                                                             plot_slide, plot_normalized_confusion_matrix)
 from InnerEye.ML.Histopathology.utils.naming import SlideKey, ResultsKey, MetricsKey
 from InnerEye.ML.Histopathology.utils.viz_utils import load_image_dict
+from health_ml.utils import log_on_epoch 
 
 RESULTS_COLS = [ResultsKey.SLIDE_ID, ResultsKey.TILE_ID, ResultsKey.IMAGE_PATH, ResultsKey.PROB,
                 ResultsKey.PRED_LABEL, ResultsKey.TRUE_LABEL, ResultsKey.BAG_ATTN]
@@ -181,9 +182,9 @@ class DeepMILModule(LightningModule):
                 metric_value = metric_object.compute()
                 metric_value_n = metric_value/metric_value.sum(axis=1, keepdims=True)
                 for i in range(metric_value_n.shape[0]):
-                    self.log(f'{stage}/{self.class_names[i]}', metric_value_n[i, i], on_epoch=True, on_step=False, logger=True, sync_dist=True)
+                    log_on_epoch(self, f'{stage}/{self.class_names[i]}', metric_value_n[i, i])
             else:
-                self.log(f'{stage}/{metric_name}', metric_object, on_epoch=True, on_step=False, logger=True, sync_dist=True)
+                log_on_epoch(self, f'{stage}/{metric_name}', metric_object)
 
     def forward(self, images: Tensor) -> Tuple[Tensor, Tensor]:  # type: ignore
         with no_grad():
