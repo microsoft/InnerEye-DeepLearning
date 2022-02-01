@@ -10,6 +10,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from health_ml.utils import log_learning_rate, log_on_epoch
 from pl_bolts.models.self_supervised.simclr.simclr_module import SimCLR
+
 from InnerEye.ML.SSL.encoders import SSLEncoder
 from InnerEye.ML.SSL.utils import SSLDataModuleType
 
