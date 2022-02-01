@@ -41,10 +41,10 @@ class DeepSMILEPanda(BaseMIL):
             # declared in BaseMIL:
             pooling_type=GatedAttentionLayer.__name__,
             # average number of tiles is 56 for PANDA
-            encoding_chunk_size=60,
+            encoding_chunk_size=30,
             cache_mode=CacheMode.MEMORY,
             precache_location=CacheLocation.SAME,
-            batch_size=16,
+            batch_size=8,
 
             # declared in DatasetParams:
             local_dataset=Path("/tmp/datasets/PANDA_tiles"),
@@ -131,6 +131,7 @@ class DeepSMILEPanda(BaseMIL):
         # no-op IdentityEncoder to be used inside the model
         self.slide_dataset = self.get_slide_dataset()
         self.level = 1
+        self.class_names = ["ISUP 0", "ISUP 1", "ISUP 2", "ISUP 3", "ISUP 4", "ISUP 5"]
         return DeepMILModule(encoder=self.encoder,  # IdentityEncoder(input_dim=(self.encoder.num_encoding,)),
                              label_column=self.data_module.train_dataset.LABEL_COLUMN,
                              n_classes=self.data_module.train_dataset.N_CLASSES,
