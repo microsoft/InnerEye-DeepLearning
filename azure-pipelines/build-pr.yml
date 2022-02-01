@@ -6,7 +6,7 @@ pr:
 resources:
   containers:
   - container: current
-    image: innereye:46902
+    image: innereye:46917
     endpoint: BuildAgentACR
 
 name: PR-$(Date:yyyyMMdd)$(Rev:-r)
