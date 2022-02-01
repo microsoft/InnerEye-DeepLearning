@@ -54,3 +54,13 @@ class ResultsKey(str, Enum):
     TILE_X = "x"
     TILE_Y = "y"
 
+
+class MetricsKey(str, Enum):
+    ACC = 'accuracy'
+    ACC_MACRO = 'macro_accuracy'
+    ACC_WEIGHTED = 'weighted_accuracy'
+    CONF_MATRIX = 'confusion_matrix'
+    AUROC = 'auroc'
+    PRECISION = 'precision'
+    RECALL = 'recall'
+    F1 = 'f1score'
