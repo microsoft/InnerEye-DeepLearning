@@ -6,7 +6,8 @@ pr:
 resources:
   containers:
   - container: current
-    image: continuumio/miniconda3:latest
+    image: innereye:46902
+    endpoint: BuildAgentACR
 
 name: PR-$(Date:yyyyMMdd)$(Rev:-r)
 variables:
