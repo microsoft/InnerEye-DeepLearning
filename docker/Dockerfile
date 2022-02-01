@@ -6,6 +6,7 @@ RUN apt-get -y update
 
 # Installing psutil requires gcc. Install sudo to help with permissions problems
 RUN apt-get -y install \
+    gcc \
     sudo
 
 RUN apt-get clean
