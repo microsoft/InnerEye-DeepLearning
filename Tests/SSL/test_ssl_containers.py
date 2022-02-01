@@ -18,6 +18,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.trainer.supporters import CombinedLoader
 from torch.nn import Module
 from torch.optim.lr_scheduler import _LRScheduler
+from PIL import Image
 
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.fixed_paths import repository_root_directory
@@ -29,6 +30,7 @@ from InnerEye.ML.SSL.lightning_modules.byol.byol_module import BYOLInnerEye
 from InnerEye.ML.SSL.lightning_modules.simclr_module import SimCLRInnerEye
 from InnerEye.ML.SSL.lightning_modules.ssl_classifier_module import SSLClassifier
 from InnerEye.ML.SSL.lightning_modules.ssl_online_evaluator import SSLOnlineEvaluatorInnerEye
+from InnerEye.ML.SSL.datamodules_and_datasets.datamodules import CombinedDataModule
 from InnerEye.ML.SSL.utils import SSLDataModuleType, SSLTrainingType
 from InnerEye.ML.common import LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
 from InnerEye.ML.configs.ssl.CIFAR_SSL_configs import CIFAR10SimCLR
@@ -626,3 +628,41 @@ def test_simclr_dataset_length(test_output_dirs: OutputFolderForTests,
         val_loaders = container.get_data_module().val_dataloader()
         assert isinstance(val_loaders, CombinedLoader)
         assert len(val_loaders) == expected_num_val_iters
+
+
+def test_simclr_dataloader_type() -> None:
+    """ This test checks if the transform pipeline of a SSL job can handle different
+    data types coming from the dataloader.
+    """
+    def check_types_in_dataloader(dataloader: CombinedLoader) -> None:
+        for i, batch in enumerate(dataloader):
+            assert isinstance(batch[SSLDataModuleType.ENCODER][0][0], torch.Tensor)
+            assert isinstance(batch[SSLDataModuleType.ENCODER][0][1], torch.Tensor)
+            assert isinstance(batch[SSLDataModuleType.ENCODER][1], torch.Tensor)
+            assert isinstance(batch[SSLDataModuleType.LINEAR_HEAD][0], torch.Tensor)
+            assert isinstance(batch[SSLDataModuleType.LINEAR_HEAD][1], torch.Tensor)
+            assert isinstance(batch[SSLDataModuleType.LINEAR_HEAD][2], torch.Tensor)
+            if i == 1:
+                break
+
+    def check_types_in_train_and_val(data: CombinedDataModule) -> None:
+        check_types_in_dataloader(data.train_dataloader())
+        check_types_in_dataloader(data.val_dataloader())
+
+    container = DummySimCLR()
+    container.setup()
+    data = container.get_data_module()
+    # Test with pytorch tensor, here we have to do nothing since the dataloader returns tensors by default
+    check_types_in_train_and_val(data)
+
+    # Overwrite data in DummySimCLRData to return np.arrays
+    np_array = np.ones((20, 1, 1, 3))
+    data.encoder_module.dataset_train.dataset.data = np_array
+    data.linear_head_module.dataset_train.dataset.data = np_array
+    check_types_in_train_and_val(data)
+
+    # Overwrite data in DummySimCLRData to return PIL images
+    pil_img_list = [Image.new('RGB', (1, 3)) for i in range(20)]
+    data.encoder_module.dataset_train.dataset.data = pil_img_list
+    data.linear_head_module.dataset_train.dataset.data = pil_img_list
+    check_types_in_train_and_val(data)
