@@ -29,7 +29,7 @@ class _Projection(nn.Module):
             nn.BatchNorm1d(self.hidden_dim),
             nn.ReLU(),
             nn.Linear(self.hidden_dim, self.output_dim, bias=False))
-        
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.model(x)
         return F.normalize(x, dim=1)
