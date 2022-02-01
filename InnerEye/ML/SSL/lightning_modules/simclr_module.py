@@ -3,9 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-import logging
 from typing import Any, Dict, List, Tuple, Union
-from pl_bolts.optimizers.lr_scheduler import linear_warmup_decay
 
 import torch
 import torch.nn as nn
