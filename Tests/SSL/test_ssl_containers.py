@@ -130,8 +130,8 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
     # Check the metrics that were recorded during training
     # Note: It is possible that after the PyTorch 1.10 upgrade, we can't get parity between local runs and runs on
     # the hosted build agents. If that suspicion is confirmed, we need to add branching for local and cloud results.
-    expected_metrics = {'simclr/val/loss': 2.8797268867492676,
-                        'ssl_online_evaluator/val/loss': 2.272602081298828,
+    expected_metrics = {'simclr/val/loss': 2.8736934661865234,
+                        'ssl_online_evaluator/val/loss': 2.2684895992279053,
                         'ssl_online_evaluator/val/AccuracyAtThreshold05': 0.20000000298023224,
                         'simclr/train/loss': 3.6261773109436035,
                         'simclr/learning_rate': 0.0,
@@ -615,8 +615,12 @@ def test_simclr_dataset_length(test_output_dirs: OutputFolderForTests,
         model = container.create_model()
         expected_num_train_iters = (num_encoder_images * 0.9) // encoder_batch_size
         assert model.train_iters_per_epoch == expected_num_train_iters
-        train_loaders = container.get_data_module().train_dataloader()
-        assert isinstance(train_loaders, CombinedLoader)
+        data_module = container.get_data_module()
+        data_module.prepare_data()
+        train_loaders_dict = data_module.train_dataloader()
+        assert isinstance(train_loaders_dict, dict)
+        assert data_module.train_loader_cycle_mode
+        train_loaders = CombinedLoader(train_loaders_dict, mode=data_module.train_loader_cycle_mode)
         assert len(train_loaders) == expected_num_train_iters
         expected_num_val_iters = (num_encoder_images * 0.1) // encoder_batch_size
         val_loaders = container.get_data_module().val_dataloader()

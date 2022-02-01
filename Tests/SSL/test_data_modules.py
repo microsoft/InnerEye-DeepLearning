@@ -216,9 +216,6 @@ def test_combined_data_module() -> None:
     assert torch.isclose(combined_loader.class_weights,
                          torch.tensor([0.21, 0.79], dtype=torch.float32), atol=1e-3).all()
 
-    train_dataloader = combined_loader.train_dataloader()
-    assert isinstance(train_dataloader, CombinedLoader)
-
     indices_classifier_module_short = []
     val_dataloader = combined_loader.val_dataloader()
     assert isinstance(val_dataloader, CombinedLoader)
