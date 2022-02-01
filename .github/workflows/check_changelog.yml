@@ -6,7 +6,8 @@ name: Check Changelog
 on:
   pull_request:
 jobs:
-  check:
+  check_changelog:
+    name: Check Changelog
     runs-on: ubuntu-latest
     if: ${{ contains(github.event.pull_request.labels.*.name, 'no changelog needed') == 0 }}
     steps:
