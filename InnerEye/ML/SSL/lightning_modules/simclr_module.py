@@ -31,7 +31,7 @@ class _Projection(nn.Module):
             nn.BatchNorm1d(self.hidden_dim),
             nn.ReLU(),
             nn.Linear(self.hidden_dim, self.output_dim, bias=False))
-
+        
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.model(x)
         return F.normalize(x, dim=1)
@@ -54,7 +54,6 @@ class SimCLRInnerEye(SimCLR):
         self.save_hyperparameters()
         self.encoder = SSLEncoder(encoder_name, use_7x7_first_conv_in_resnet)
         self.projection = _Projection(input_dim=self.encoder.get_output_feature_dim(), hidden_dim=2048, output_dim=128)
-
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.encoder(x)
