@@ -141,7 +141,8 @@ class DeepSMILEPanda(BaseMIL):
                              adam_betas=self.adam_betas,
                              slide_dataset=self.get_slide_dataset(),
                              tile_size=self.tile_size,
-                             level=self.level)
+                             level=self.level,
+                             class_names=self.class_names)
 
     def get_slide_dataset(self) -> PandaDataset:
         return PandaDataset(root=self.extra_local_dataset_paths[0])                             # type: ignore
