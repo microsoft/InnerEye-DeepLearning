@@ -6,8 +6,9 @@
 from pathlib import Path
 from typing import Mapping, Sequence, Union
 
-import PIL.Image
 import torch
+import numpy as np
+import PIL
 from monai.config.type_definitions import KeysCollection
 from monai.transforms.transform import MapTransform
 from torchvision.transforms.functional import to_tensor
@@ -19,7 +20,9 @@ PathOrString = Union[Path, str]
 
 def load_pil_image(image_path: PathOrString) -> PIL.Image.Image:
     """Load a PIL image in RGB format from the given path"""
-    return PIL.Image.open(image_path).convert('RGB')
+    with PIL.PngImagePlugin.PngImageFile(image_path) as pil_png:
+        image = np.asarray(pil_png)
+    return image
 
 
 def load_image_as_tensor(image_path: PathOrString) -> torch.Tensor:
@@ -86,19 +89,34 @@ class EncodeTilesBatchd(MapTransform):
     def __init__(self,
                  keys: KeysCollection,
                  encoder: TileEncoder,
-                 allow_missing_keys: bool = False) -> None:
+                 allow_missing_keys: bool = False,
+                 chunk_size: int = 0) -> None:
         """
         :param keys: Key(s) for the image path(s) in the input dictionary.
         :param encoder: The tile encoder to use for feature extraction.
         :param allow_missing_keys: If `False` (default), raises an exception when an input
         dictionary is missing any of the specified keys.
+        :param chunk_size: if > 0, extracts features in chunks of size chunk_size.
         """
         super().__init__(keys, allow_missing_keys)
         self.encoder = encoder
+        self.chunk_size = chunk_size
 
     @torch.no_grad()
     def _encode_tiles(self, images: torch.Tensor) -> torch.Tensor:
         device = next(self.encoder.parameters()).device
+        if self.chunk_size > 0:
+            embeddings = []
+            chunks = torch.split(images, self.chunk_size)
+            # TODO parallelize encoding - keep metadata and images aligned
+            for chunk in chunks:
+                chunk_embeddings = self._encode_images(chunk, device)
+                embeddings.append(chunk_embeddings)
+            return torch.cat(embeddings)
+        else:
+            return self._encode_images(images, device)
+
+    def _encode_images(self, images: torch.Tensor, device: torch.device) -> torch.Tensor:
         images = images.to(device)
         embeddings = self.encoder(images)
         del images
