@@ -24,7 +24,6 @@ dependencies:
       - dataclasses-json==0.5.2
       - docker==4.3.1
       - deepspeed==0.5.9
-      - torch-ort==1.9.0
       - flake8==3.8.3
       - gitpython==3.1.7
       - gputil==1.4.0
