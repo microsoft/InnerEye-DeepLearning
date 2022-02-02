@@ -11,10 +11,11 @@ created.
 
 
 ## Upcoming
-- ([#643](https://github.com/microsoft/InnerEye-DeepLearning/pull/643)) Test for recovery of SSL job. Tracks learning rate and train
-loss.
 
 ### Added
+- ([#649](https://github.com/microsoft/InnerEye-DeepLearning/pull/649)) Fix for the _convert_to_tensor_if_necessary method so that PIL.Image as well as np.array get converted to torch.Tensor.
+- ([#643](https://github.com/microsoft/InnerEye-DeepLearning/pull/643)) Test for recovery of SSL job. Tracks learning rate and train
+loss.
 - ([#594](https://github.com/microsoft/InnerEye-DeepLearning/pull/594)) When supplying a "--tag" argument, the AzureML jobs use that value as the display name, to more easily distinguish run.
 - ([#640](https://github.com/microsoft/InnerEye-DeepLearning/pull/640)) Cancel AzureML jobs from previous runs of the PR build in the same branch to reduce AML load
 - ([#577](https://github.com/microsoft/InnerEye-DeepLearning/pull/577)) Commandline switch `monitor_gpu` to monitor
@@ -85,6 +86,7 @@ gets uploaded to AzureML, by skipping all test folders.
 
 ### Fixed
 - ([#606](https://github.com/microsoft/InnerEye-DeepLearning/pull/606)) Bug fix: registered models do not include the hi-ml submodule
+- ([#646](https://github.com/microsoft/InnerEye-DeepLearning/pull/646)) Workaround for bug in PL: CombinedLoader cannot be used for training data when using DDP
 - ([#593](https://github.com/microsoft/InnerEye-DeepLearning/pull/593)) Bug fix for hi-ml 0.1.11 issue (#130): empty mount point is turned into ".", which fails the AML job
 - ([#587](https://github.com/microsoft/InnerEye-DeepLearning/pull/587)) Bug fix for regression in AzureML's handling of environments: upgrade to hi-ml 0.1.11
 - ([#625](https://github.com/microsoft/InnerEye-DeepLearning/pull/625)) updates to PandaDeepMIL to enable the use of a SSL pre-trained checkpoint and updated commit to hi-ml
