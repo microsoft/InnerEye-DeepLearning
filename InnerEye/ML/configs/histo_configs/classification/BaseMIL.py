@@ -35,13 +35,13 @@ class BaseMIL(LightningContainer):
     n_channels: int = param.Integer(3, bounds=(1, None), doc="Number of channels in the tile.")
 
     # Data module parameters:
-    batch_size: int = param.Integer(32, bounds=(1, None), doc="Number of slides to load per batch.")
+    batch_size: int = param.Integer(16, bounds=(1, None), doc="Number of slides to load per batch.")
     max_bag_size: int = param.Integer(1000, bounds=(0, None),
                                       doc="Upper bound on number of tiles in each loaded bag. "
                                           "If 0 (default), will return all samples in each bag. "
                                           "If > 0, bags larger than `max_bag_size` will yield "
                                           "random subsets of instances.")
-    cache_mode: CacheMode = param.ClassSelector(default=CacheMode.NONE, class_=CacheMode,
+    cache_mode: CacheMode = param.ClassSelector(default=CacheMode.MEMORY, class_=CacheMode,
                                                 doc="The type of caching to perform: "
                                                     "'memory' (default), 'disk', or 'none'.")
     precache_location: str = param.ClassSelector(default=CacheLocation.NONE, class_=CacheLocation,
