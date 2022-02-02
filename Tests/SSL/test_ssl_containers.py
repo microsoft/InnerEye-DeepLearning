@@ -634,7 +634,24 @@ def test_simclr_dataloader_type() -> None:
     """ This test checks if the transform pipeline of a SSL job can handle different
     data types coming from the dataloader.
     """
-    def check_types_in_dataloader(dataloader: CombinedLoader) -> None:
+    # TODO: Once the pytorch lightning bug is fixed the following test can be removed.
+    # The training and val loader will be both CombinedLoaders
+    def check_types_in_train_dataloader(dataloader: dict) -> None:
+        for i, batch in enumerate(dataloader[SSLDataModuleType.ENCODER]):
+            assert isinstance(batch[0][0], torch.Tensor)
+            assert isinstance(batch[0][1], torch.Tensor)
+            assert isinstance(batch[1], torch.Tensor)
+            if i == 1:
+                break
+
+        for i, batch in enumerate(dataloader[SSLDataModuleType.LINEAR_HEAD]):
+            assert isinstance(batch[0], torch.Tensor)
+            assert isinstance(batch[1], torch.Tensor)
+            assert isinstance(batch[2], torch.Tensor)
+            if i == 1:
+                break
+
+    def check_types_in_val_dataloader(dataloader: CombinedLoader) -> None:
         for i, batch in enumerate(dataloader):
             assert isinstance(batch[SSLDataModuleType.ENCODER][0][0], torch.Tensor)
             assert isinstance(batch[SSLDataModuleType.ENCODER][0][1], torch.Tensor)
@@ -646,8 +663,8 @@ def test_simclr_dataloader_type() -> None:
                 break
 
     def check_types_in_train_and_val(data: CombinedDataModule) -> None:
-        check_types_in_dataloader(data.train_dataloader())
-        check_types_in_dataloader(data.val_dataloader())
+        check_types_in_train_dataloader(data.train_dataloader())
+        check_types_in_val_dataloader(data.val_dataloader())
 
     container = DummySimCLR()
     container.setup()
