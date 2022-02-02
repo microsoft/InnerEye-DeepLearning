@@ -74,7 +74,7 @@ class DeepMILModule(LightningModule):
         :param tile_size: The size of each tile (default=224).
         :param level: The downsampling level (e.g. 0, 1, 2) of the tiles if available (default=1).
         :param class_names: The names of the classes if available (default=None).
-        :param is_finetune: Boolean value to enable/disable finetuning (default=False)
+        :param is_finetune: Boolean value to enable/disable finetuning (default=False).
         """
         super().__init__()
 

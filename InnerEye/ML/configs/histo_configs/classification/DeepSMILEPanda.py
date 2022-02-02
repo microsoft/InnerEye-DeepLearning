@@ -53,7 +53,7 @@ class DeepSMILEPanda(BaseMIL):
             extra_local_dataset_paths=[Path("/tmp/datasets/PANDA")],
             # To mount the dataset instead of downloading in AML, pass --use_dataset_mount in the CLI
             # declared in TrainerParams:
-            num_epochs=20,
+            num_epochs=200,
             # use_mixed_precision = True,
 
             # declared in WorkflowParams:
@@ -82,7 +82,7 @@ class DeepSMILEPanda(BaseMIL):
             mode="max",
         )
         self.callbacks = best_checkpoint_callback
-        self.is_finetune = True
+        self.is_finetune = False
 
     @property
     def cache_dir(self) -> Path:
@@ -113,7 +113,7 @@ class DeepSMILEPanda(BaseMIL):
         else:
             transform = Compose([
                                 LoadTilesBatchd(image_key, progress=True),
-                                EncodeTilesBatchd(image_key, self.encoder)
+                                EncodeTilesBatchd(image_key, self.encoder, chunk_size=self.encoding_chunk_size)
                                 ])
 
         return PandaTilesDataModule(
