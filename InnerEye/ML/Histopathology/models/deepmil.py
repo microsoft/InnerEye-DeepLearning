@@ -54,7 +54,8 @@ class DeepMILModule(LightningModule):
                  slide_dataset: SlidesDataset = None,
                  tile_size: int = 224,
                  level: int = 1,
-                 class_names: Optional[List[str]] = None) -> None:
+                 class_names: Optional[List[str]] = None,
+                 is_finetune: Optional[bool] = False) -> None:
         """
         :param label_column: Label key for input batch dictionary.
         :param n_classes: Number of output classes for MIL prediction. For binary classification, n_classes should be set to 1.
@@ -73,6 +74,7 @@ class DeepMILModule(LightningModule):
         :param tile_size: The size of each tile (default=224).
         :param level: The downsampling level (e.g. 0, 1, 2) of the tiles if available (default=1).
         :param class_names: The names of the classes if available (default=None).
+        :param is_finetune: Boolean value to enable/disable finetuning (default=False)
         """
         super().__init__()
 
@@ -111,6 +113,8 @@ class DeepMILModule(LightningModule):
         self.save_hyperparameters()
 
         self.verbose = verbose
+
+        self.is_finetune = is_finetune
 
         self.aggregation_fn, self.num_pooling = self.get_pooling()
         self.classifier_fn = self.get_classifier()
@@ -187,8 +191,11 @@ class DeepMILModule(LightningModule):
                 log_on_epoch(self, f'{stage}/{metric_name}', metric_object)
 
     def forward(self, images: Tensor) -> Tuple[Tensor, Tensor]:  # type: ignore
-        # with no_grad():
-        H = self.encoder(images)                        # N X L x 1 x 1
+        if self.is_finetune:
+            H = self.encoder(images)                        # N X L x 1 x 1
+        else:
+            with no_grad():
+                H = self.encoder(images)                    # N X L x 1 x 1
         A, M = self.aggregation_fn(H)                       # A: K x N | M: K x L
         M = M.view(-1, self.num_encoding * self.pool_out_dim)
         Y_prob = self.classifier_fn(M)

@@ -41,7 +41,7 @@ class DeepSMILEPanda(BaseMIL):
             # declared in BaseMIL:
             pooling_type=GatedAttentionLayer.__name__,
             # average number of tiles is 56 for PANDA
-            encoding_chunk_size=30,
+            encoding_chunk_size=60,
             cache_mode=CacheMode.MEMORY,
             precache_location=CacheLocation.SAME,
             batch_size=8,
@@ -82,6 +82,7 @@ class DeepSMILEPanda(BaseMIL):
             mode="max",
         )
         self.callbacks = best_checkpoint_callback
+        self.is_finetune = True
 
     @property
     def cache_dir(self) -> Path:
@@ -107,12 +108,14 @@ class DeepSMILEPanda(BaseMIL):
 
     def get_data_module(self) -> PandaTilesDataModule:
         image_key = PandaTilesDataset.IMAGE_COLUMN
-        transform = Compose(
-            [
-                LoadTilesBatchd(image_key, progress=True),
-                # EncodeTilesBatchd(image_key, self.encoder),
-            ]
-        )
+        if self.is_finetune:
+            transform = Compose([LoadTilesBatchd(image_key, progress=True)])
+        else:
+            transform = Compose([
+                                LoadTilesBatchd(image_key, progress=True),
+                                EncodeTilesBatchd(image_key, self.encoder)
+                                ])
+
         return PandaTilesDataModule(
             root_path=self.local_dataset,
             max_bag_size=self.max_bag_size,
@@ -132,7 +135,11 @@ class DeepSMILEPanda(BaseMIL):
         self.slide_dataset = self.get_slide_dataset()
         self.level = 1
         self.class_names = ["ISUP 0", "ISUP 1", "ISUP 2", "ISUP 3", "ISUP 4", "ISUP 5"]
-        return DeepMILModule(encoder=self.encoder,  # IdentityEncoder(input_dim=(self.encoder.num_encoding,)),
+        if self.is_finetune:
+            self.model_encoder = self.encoder
+        else:
+            self.model_encoder = IdentityEncoder(input_dim=(self.encoder.num_encoding,))
+        return DeepMILModule(encoder=self.model_encoder,
                              label_column=self.data_module.train_dataset.LABEL_COLUMN,
                              n_classes=self.data_module.train_dataset.N_CLASSES,
                              pooling_layer=self.get_pooling_layer(),
@@ -143,7 +150,8 @@ class DeepSMILEPanda(BaseMIL):
                              slide_dataset=self.get_slide_dataset(),
                              tile_size=self.tile_size,
                              level=self.level,
-                             class_names=self.class_names)
+                             class_names=self.class_names,
+                             is_finetune=self.is_finetune)
 
     def get_slide_dataset(self) -> PandaDataset:
         return PandaDataset(root=self.extra_local_dataset_paths[0])                             # type: ignore
