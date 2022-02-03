@@ -5,14 +5,14 @@ steps:
 
   - template: prepare_conda.yml
 
-  # https://docs.microsoft.com/en-us/azure/devops/pipelines/release/caching?view=azure-devops#pythonanaconda
-  - task: Cache@2
-    displayName: Use cached Conda environment
-    inputs:
-      # Beware of changing the cache key or path independently, safest to change in sync
-      key: 'usr_share_miniconda_envs | "$(Agent.OS)" | environment.yml'
-      path: /usr/share/miniconda/envs
-      cacheHitVar: CONDA_CACHE_RESTORED
+  # # https://docs.microsoft.com/en-us/azure/devops/pipelines/release/caching?view=azure-devops#pythonanaconda
+  # - task: Cache@2
+  #   displayName: Use cached Conda environment
+  #   inputs:
+  #     # Beware of changing the cache key or path independently, safest to change in sync
+  #     key: 'usr_share_miniconda_envs | "$(Agent.OS)" | environment.yml'
+  #     path: /usr/share/miniconda/envs
+  #     cacheHitVar: CONDA_CACHE_RESTORED
 
   - script: conda env create --file environment.yml
     displayName: Create Anaconda environment
