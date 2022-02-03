@@ -29,6 +29,18 @@ jobs:
     steps:
       - template: build_windows.yaml
 
+  - job: CreateCondaEnvCache_Windows
+    pool:
+      vmImage: 'windows-2019'
+    steps:
+      - template: inner_eye_env.yml
+
+  - job: CreateCondaEnvAndCache_Linux
+    pool:
+      vmImage: 'ubuntu-18.04'
+    steps:
+      - template: inner_eye_env.yml
+
   - job: PyTest
     pool:
       vmImage: 'windows-2019'
