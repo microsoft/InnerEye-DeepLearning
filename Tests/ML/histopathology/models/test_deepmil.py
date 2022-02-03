@@ -39,10 +39,10 @@ def get_supervised_imagenet_encoder() -> TileEncoder:
 
 @pytest.mark.parametrize("n_classes", [1, 3])
 @pytest.mark.parametrize("pooling_layer", [AttentionLayer, GatedAttentionLayer])
-@pytest.mark.parametrize("batch_size", [1, 15])
-@pytest.mark.parametrize("max_bag_size", [1, 7])
-@pytest.mark.parametrize("pool_hidden_dim", [1, 5])
-@pytest.mark.parametrize("pool_out_dim", [1, 6])
+@pytest.mark.parametrize("batch_size", [1, 2])
+@pytest.mark.parametrize("max_bag_size", [1, 3])
+@pytest.mark.parametrize("pool_hidden_dim", [1, 4])
+@pytest.mark.parametrize("pool_out_dim", [1, 5])
 def test_lightningmodule(
     n_classes: int,
     pooling_layer: Callable[[int, int, int], nn.Module],
