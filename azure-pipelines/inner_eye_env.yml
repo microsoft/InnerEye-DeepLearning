@@ -1,3 +1,9 @@
+variables:
+  ${{ if eq( variables['Agent.OS'], 'Linux' ) }}:
+    CONDA_ENV_DIR: '/usr/share/miniconda/envs'
+  ${{ if eq( variables['Agent.OS'], 'Windows_NT' ) }}:
+    CONDA_ENV_DIR: 'C:\Miniconda\envs'
+
 steps:
   - template: checkout.yml
 
@@ -9,19 +15,19 @@ steps:
       conda info
     displayName: Print Conda info
 
-  # # https://docs.microsoft.com/en-us/azure/devops/pipelines/release/caching?view=azure-devops#pythonanaconda
-  # - task: Cache@2
-  #   displayName: Use cached Conda environment
-  #   inputs:
-  #     # Beware of changing the cache key or path independently, safest to change in sync
-  #     key: 'usr_share_miniconda_envs | "$(Agent.OS)" | environment.yml'
-  #     path: /usr/share/miniconda/envs
-  #     cacheHitVar: CONDA_CACHE_RESTORED
+  # https://docs.microsoft.com/en-us/azure/devops/pipelines/release/caching?view=azure-devops#pythonanaconda
+  - task: Cache@2
+    displayName: Use cached Conda environment
+    inputs:
+      # Beware of changing the cache key or path independently, safest to change in sync
+      key: 'conda_env_dir | "$(Agent.OS)" | environment.yml'
+      path: $(CONDA_ENV_DIR)
+      cacheHitVar: CONDA_CACHE_RESTORED
 
   - bash: conda env create --file environment.yml
     displayName: Create Anaconda environment
     failOnStderr: false # Conda env create does not have an option to suppress warnings generated in wheel.py
-    # condition: eq(variables.CONDA_CACHE_RESTORED, 'false')
+    condition: eq(variables.CONDA_CACHE_RESTORED, 'false')
 
   - bash: |
       source activate InnerEye
