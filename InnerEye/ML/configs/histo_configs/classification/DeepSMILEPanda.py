@@ -46,7 +46,8 @@ class DeepSMILEPanda(BaseMIL):
             # average number of tiles is 56 for PANDA
             encoding_chunk_size=60,
             cache_mode=CacheMode.MEMORY,
-            precache_location=CacheLocation.CPU,
+            precache_location=CacheLocation.NONE,
+            max_bag_size=10,
 
             # declared in DatasetParams:
             local_dataset=Path("/tmp/datasets/PANDA_tiles"),
@@ -84,7 +85,7 @@ class DeepSMILEPanda(BaseMIL):
             mode="max",
         )
         self.callbacks = best_checkpoint_callback
-        self.is_finetune = False
+        self.is_finetune = True
 
     @property
     def cache_dir(self) -> Path:
@@ -105,7 +106,7 @@ class DeepSMILEPanda(BaseMIL):
             os.chdir(fixed_paths.repository_parent_directory())
             self.downloader.download_checkpoint_if_necessary()
         self.encoder = self.get_encoder()
-        self.encoder.cuda()
+        # self.encoder.cuda()
         if not self.is_finetune:
             self.encoder.eval()
 

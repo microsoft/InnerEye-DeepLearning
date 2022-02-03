@@ -55,7 +55,7 @@ class DeepMILModule(LightningModule):
                  tile_size: int = 224,
                  level: int = 1,
                  class_names: Optional[List[str]] = None,
-                 is_finetune: Optional[bool] = False) -> None:
+                 is_finetune: bool = False) -> None:
         """
         :param label_column: Label key for input batch dictionary.
         :param n_classes: Number of output classes for MIL prediction. For binary classification, n_classes should be set to 1.
