@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 import more_itertools as mi
 
 from pytorch_lightning import LightningModule
-from torch import Tensor, argmax, mode, nn, no_grad, optim, round
+from torch import Tensor, argmax, mode, nn, set_grad_enabled, optim, round
 from torchmetrics import AUROC, F1, Accuracy, Precision, Recall, ConfusionMatrix
 
 from InnerEye.Common import fixed_paths
@@ -191,11 +191,8 @@ class DeepMILModule(LightningModule):
                 log_on_epoch(self, f'{stage}/{metric_name}', metric_object)
 
     def forward(self, images: Tensor) -> Tuple[Tensor, Tensor]:  # type: ignore
-        if self.is_finetune:
+        with set_grad_enabled(self.is_finetune):
             H = self.encoder(images)                        # N X L x 1 x 1
-        else:
-            with no_grad():
-                H = self.encoder(images)                    # N X L x 1 x 1
         A, M = self.aggregation_fn(H)                       # A: K x N | M: K x L
         M = M.view(-1, self.num_encoding * self.pool_out_dim)
         Y_prob = self.classifier_fn(M)

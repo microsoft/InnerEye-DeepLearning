@@ -141,5 +141,5 @@ class HistoSSLEncoder(TileEncoder):
         resnet18_model = resnet18(pretrained=False)
         histossl_encoder = load_weights_to_model(self.WEIGHTS_URL, resnet18_model)
         histossl_encoder.fc = torch.nn.Sequential()
-        num_features = 512
+        num_features = resnet18_model.fc.in_features
         return histossl_encoder, num_features  # type: ignore
