@@ -1,9 +1,3 @@
-variables:
-  ${{ if eq( variables['Agent.OS'], 'Linux' ) }}:
-    CONDA_ENV_DIR: '/usr/share/miniconda/envs'
-  ${{ if eq( variables['Agent.OS'], 'Windows_NT' ) }}:
-    CONDA_ENV_DIR: 'C:\Miniconda\envs'
-
 steps:
   - template: checkout.yml
 
@@ -17,8 +11,11 @@ steps:
     inputs:
       # Beware of changing the cache key or path independently, safest to change in sync
       key: 'conda_env_dir | "$(Agent.OS)" | environment.yml'
-      path: $(CONDA_ENV_DIR)
       cacheHitVar: CONDA_CACHE_RESTORED
+    ${{ if eq( variables['Agent.OS'], 'Linux' ) }}:
+      path: '/usr/share/miniconda/envs'
+    ${{ if eq( variables['Agent.OS'], 'Windows_NT' ) }}:
+      path: 'C:\Miniconda\envs'
 
   - bash: conda env create --file environment.yml
     displayName: Create Anaconda environment
