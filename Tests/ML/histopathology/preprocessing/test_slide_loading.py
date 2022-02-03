@@ -15,7 +15,7 @@ from Tests.ML.histopathology.datasets.test_slides_dataset import MockSlidesDatas
 TEST_IMAGE_PATH = str(tests_root_directory("ML/histopathology/test_data/panda_wsi_example.tiff"))
 
 
-@pytest.mark.skipif(is_windows(), "cucim package is not available on Windows")
+@pytest.mark.skipif(is_windows(), reason="cucim package is not available on Windows")
 def test_load_slide() -> None:
     level = 2
     reader = WSIReader('cuCIM')
@@ -41,7 +41,7 @@ def test_load_slide() -> None:
     assert np.array_equiv(larger_slide[:, :, dims[1]:], empty_fill_value)
 
 
-@pytest.mark.skipif(is_windows(), "cucim package is not available on Windows")
+@pytest.mark.skipif(is_windows(), reason="cucim package is not available on Windows")
 def test_get_luminance() -> None:
     level = 2  # here we only need to test at a single resolution
     reader = WSIReader('cuCIM')
@@ -64,7 +64,7 @@ def test_get_luminance() -> None:
     assert np.array_equal(slide_luminance_tiles.squeeze(1), tiles_luminance)
 
 
-@pytest.mark.skipif(is_windows(), "cucim package is not available on Windows")
+@pytest.mark.skipif(is_windows(), reason="cucim package is not available on Windows")
 def test_segment_foreground() -> None:
     level = 2  # here we only need to test at a single resolution
     reader = WSIReader('cuCIM')
@@ -99,7 +99,7 @@ def test_segment_foreground() -> None:
 
 @pytest.mark.parametrize('level', [1, 2])
 @pytest.mark.parametrize('foreground_threshold', [None, 215])
-@pytest.mark.skipif(is_windows(), "cucim package is not available on Windows")
+@pytest.mark.skipif(is_windows(), reason="cucim package is not available on Windows")
 def test_get_bounding_box(level: int, foreground_threshold: Optional[float]) -> None:
     margin = 0
     reader = WSIReader('cuCIM')
@@ -135,7 +135,7 @@ def test_get_bounding_box(level: int, foreground_threshold: Optional[float]) -> 
 @pytest.mark.parametrize('level', [1, 2])
 @pytest.mark.parametrize('margin', [0, 42])
 @pytest.mark.parametrize('foreground_threshold', [None, 215])
-@pytest.mark.skipif(is_windows(), "cucim package is not available on Windows")
+@pytest.mark.skipif(is_windows(), reason="cucim package is not available on Windows")
 def test_load_roi(level: int, margin: int, foreground_threshold: Optional[float]) -> None:
     dataset = MockSlidesDataset()
     sample = dataset[0]

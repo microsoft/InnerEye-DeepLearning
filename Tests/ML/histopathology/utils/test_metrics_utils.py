@@ -87,7 +87,7 @@ def test_select_k_tiles() -> None:
                                    (2, 0.7, [1, 4], [Tensor([0.10]), Tensor([0.13])])])
 
 
-@pytest.mark.skipif(is_windows(), "Rendering is different on Windows")
+@pytest.mark.skipif(is_windows(), reason="Rendering is different on Windows")
 def test_plot_scores_hist(test_output_dirs: OutputFolderForTests) -> None:
     fig = plot_scores_hist(test_dict)
     assert isinstance(fig, matplotlib.figure.Figure)
@@ -115,7 +115,7 @@ def test_plot_slide(test_output_dirs: OutputFolderForTests, scale: int) -> None:
     assert_binary_files_match(file, expected)
 
 
-@pytest.mark.skipif(is_windows(), "Rendering is different on Windows")
+@pytest.mark.skipif(is_windows(), reason="Rendering is different on Windows")
 def test_plot_heatmap_overlay(test_output_dirs: OutputFolderForTests) -> None:
     set_random_seed(0)
     slide_image = np.random.rand(3, 1000, 2000)
@@ -140,7 +140,7 @@ def test_plot_heatmap_overlay(test_output_dirs: OutputFolderForTests) -> None:
 
 
 @pytest.mark.parametrize("n_classes", [1, 3])
-@pytest.mark.skipif(is_windows(), "Rendering is different on Windows")
+@pytest.mark.skipif(is_windows(), reason="Rendering is different on Windows")
 def test_plot_normalized_confusion_matrix(test_output_dirs: OutputFolderForTests, n_classes: int) -> None:
     set_random_seed(0)
     if n_classes > 1:
