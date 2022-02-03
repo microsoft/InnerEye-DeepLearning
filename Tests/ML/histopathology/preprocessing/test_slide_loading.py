@@ -19,7 +19,8 @@ TEST_IMAGE_PATH = str(tests_root_directory("ML/histopathology/test_data/panda_ws
 def test_load_slide() -> None:
     level = 2
     reader = WSIReader('cuCIM')
-    slide_obj: 'CuImage' = reader.read(TEST_IMAGE_PATH)
+    from cucim import CuImage
+    slide_obj: CuImage = reader.read(TEST_IMAGE_PATH)
     dims = slide_obj.resolutions['level_dimensions'][level][::-1]
 
     slide = load_slide_at_level(reader, slide_obj, level)
@@ -45,7 +46,8 @@ def test_load_slide() -> None:
 def test_get_luminance() -> None:
     level = 2  # here we only need to test at a single resolution
     reader = WSIReader('cuCIM')
-    slide_obj: 'CuImage' = reader.read(TEST_IMAGE_PATH)
+    from cucim import CuImage
+    slide_obj: CuImage = reader.read(TEST_IMAGE_PATH)
 
     slide = load_slide_at_level(reader, slide_obj, level)
     slide_luminance = get_luminance(slide)
@@ -68,7 +70,8 @@ def test_get_luminance() -> None:
 def test_segment_foreground() -> None:
     level = 2  # here we only need to test at a single resolution
     reader = WSIReader('cuCIM')
-    slide_obj: 'CuImage' = reader.read(TEST_IMAGE_PATH)
+    from cucim import CuImage
+    slide_obj: CuImage = reader.read(TEST_IMAGE_PATH)
     slide = load_slide_at_level(reader, slide_obj, level)
 
     auto_mask, auto_threshold = segment_foreground(slide, threshold=None)
@@ -105,7 +108,8 @@ def test_get_bounding_box(level: int, foreground_threshold: Optional[float]) -> 
     reader = WSIReader('cuCIM')
     loader = LoadROId(reader, image_key=SlideKey.IMAGE, level=level, margin=margin,
                       foreground_threshold=foreground_threshold)
-    slide_obj: 'CuImage' = reader.read(TEST_IMAGE_PATH)
+    from cucim import CuImage
+    slide_obj: CuImage = reader.read(TEST_IMAGE_PATH)
     level0_bbox, _ = loader._get_bounding_box(slide_obj)
 
     highest_level = slide_obj.resolutions['level_count'] - 1

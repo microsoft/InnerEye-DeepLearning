@@ -1,3 +1,4 @@
+import logging
 from typing import Dict, Optional, Tuple
 
 import numpy as np
@@ -7,6 +8,11 @@ from monai.data.image_reader import WSIReader
 from monai.transforms import MapTransform
 
 from InnerEye.ML.Histopathology.utils.naming import SlideKey
+
+try:
+    from cucim import CuImage
+except:
+    logging.warning("cucim library not available, code may fail.")
 
 
 def get_luminance(slide: np.ndarray) -> np.ndarray:
@@ -59,6 +65,7 @@ class LoadROId(MapTransform):
     - `SlideKey.SCALE` (float): corresponding scale, loaded from the file
     - `SlideKey.FOREGROUND_THRESHOLD` (float): threshold used to segment the foreground
     """
+
     def __init__(self, reader: WSIReader, image_key: str = SlideKey.IMAGE, level: int = 0,
                  margin: int = 0, foreground_threshold: Optional[float] = None) -> None:
         """
@@ -87,7 +94,8 @@ class LoadROId(MapTransform):
         return bbox, threshold
 
     def __call__(self, data: Dict) -> Dict:
-        image_obj: 'CuImage' = self.reader.read(data[self.image_key])
+        from cucim import CuImage
+        image_obj: CuImage = self.reader.read(data[self.image_key])
 
         level0_bbox, threshold = self._get_bounding_box(image_obj)
 
