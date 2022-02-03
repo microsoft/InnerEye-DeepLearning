@@ -23,7 +23,7 @@ steps:
       # Beware of changing the cache key or path independently, safest to change in sync
       key: 'conda_env | "$(Agent.OS)" | environment.yml'
       cacheHitVar: CONDA_CACHE_RESTORED
-      path: $conda_env_dir
+      path: $(conda_env_dir)
 
   - bash: conda env create --file environment.yml
     displayName: Create Anaconda environment
