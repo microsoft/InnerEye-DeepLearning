@@ -23,13 +23,13 @@ jobs:
     steps:
       - template: cancel_aml_jobs.yml
 
-  - job: Windows
+  - job: CredScan_ComponentGov
     pool:
       vmImage: 'windows-2019'
     steps:
       - template: build_windows.yaml
 
-  - job: Linux
+  - job: PyTest
     pool:
       vmImage: 'ubuntu-20.04'
     steps:
