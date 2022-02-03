@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Any, Dict, Union, Optional
 
 import pandas as pd
-from cucim import CuImage
 from health_ml.utils import box_utils
 from monai.config import KeysCollection
 from monai.data.image_reader import ImageReader, WSIReader
@@ -88,7 +87,7 @@ class LoadPandaROId(MapTransform):
         self.margin = margin
         self.kwargs = kwargs
 
-    def _get_bounding_box(self, mask_obj: CuImage) -> box_utils.Box:
+    def _get_bounding_box(self, mask_obj: 'CuImage') -> box_utils.Box:
         # Estimate bounding box at the lowest resolution (i.e. highest level)
         highest_level = mask_obj.resolutions['level_count'] - 1
         scale = mask_obj.resolutions['level_downsamples'][highest_level]
@@ -99,8 +98,8 @@ class LoadPandaROId(MapTransform):
         return bbox
 
     def __call__(self, data: Dict) -> Dict:
-        mask_obj: CuImage = self.reader.read(data[self.mask_key])
-        image_obj: CuImage = self.reader.read(data[self.image_key])
+        mask_obj: 'CuImage' = self.reader.read(data[self.mask_key])
+        image_obj: 'CuImage' = self.reader.read(data[self.image_key])
 
         level0_bbox = self._get_bounding_box(mask_obj)
 
