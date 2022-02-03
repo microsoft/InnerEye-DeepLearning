@@ -29,6 +29,8 @@ jobs:
     steps:
       - template: build_windows.yaml
 
+  # Run jobs that only build the environment. These jobs have a high chance of succeeding and filling the build
+  # cache. Pytest, etc legs will only fill the cache if they succeed.
   - job: CreateCondaEnvCache_Windows
     pool:
       vmImage: 'windows-2019'
