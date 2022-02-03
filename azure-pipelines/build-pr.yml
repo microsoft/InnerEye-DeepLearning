@@ -54,19 +54,19 @@ jobs:
           pytest_mark: after_training_single_run
           test_run_title: tests_after_training_single_run
 
-  - job: RunAllTestsInAzureML
+  - job: RunGpuTestsInAzureML
     dependsOn: CancelPreviousJobs
     variables:
       - name: tag
-        value: 'RunAllTests'
+        value: 'RunGpuTests'
     pool:
       vmImage: 'ubuntu-18.04'
     steps:
       - template: train_template.yml
         parameters:
           wait_for_completion: 'True'
-          pytest_mark: 'not (after_training_single_run or after_training_ensemble_run or inference or after_training_2node or after_training_glaucoma_cv_run or after_training_hello_container)'
-          max_run_duration: '40m'
+          pytest_mark: 'gpu or cpu_and_gpu or azureml'
+          max_run_duration: '30m'
       - task: PublishTestResults@2
         inputs:
           testResultsFiles: '**/test-*.xml'
