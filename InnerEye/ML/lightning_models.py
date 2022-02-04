@@ -92,11 +92,11 @@ class SegmentationLightning(InnerEyeLightning):
 
         # apply mask if required
         if mask is not None:
-            posteriors = image_util.apply_mask_to_posteriors(posteriors=posteriors, mask=mask)
+            posteriors = image_util.apply_mask_to_posteriors(posteriors=posteriors, mask=mask)  # type: ignore
 
         # post process posteriors to compute result
-        segmentation = image_util.posteriors_to_segmentation(posteriors=posteriors)
-        self.compute_metrics(cropped_sample, segmentation, is_training)
+        segmentation = image_util.posteriors_to_segmentation(posteriors=posteriors)  # type: ignore
+        self.compute_metrics(cropped_sample, segmentation, is_training)  # type: ignore
 
         self.write_loss(is_training, loss)
         return loss
@@ -114,10 +114,10 @@ class SegmentationLightning(InnerEyeLightning):
         # Dice NaN means that both ground truth and prediction are empty.
         dice_per_crop_and_class = compute_dice_across_patches(
             segmentation=segmentation,
-            ground_truth=cropped_sample.labels_center_crop,
+            ground_truth=cropped_sample.labels_center_crop,  # type: ignore
             allow_multiple_classes_for_each_pixel=True)[:, 1:]
         # Number of foreground voxels per class, across all crops
-        foreground_voxels = metrics_util.get_number_of_voxels_per_class(cropped_sample.labels)[:, 1:]
+        foreground_voxels = metrics_util.get_number_of_voxels_per_class(cropped_sample.labels)[:, 1:]  # type: ignore
         # Store Dice and voxel count per sample in the minibatch. We need a custom aggregation logic for Dice
         # because it can be NaN. Also use custom logging for voxel count because Lightning's batch-size weighted
         # average has a bug.
@@ -150,8 +150,7 @@ class SegmentationLightning(InnerEyeLightning):
         self.log_on_epoch(name=MetricType.SUBJECT_COUNT,
                           value=num_subjects,
                           is_training=is_training,
-                          reduce_fx=torch.sum,
-                          sync_dist_op="sum")
+                          reduce_fx=torch.sum)
 
     def training_or_validation_epoch_end(self, is_training: bool) -> None:
         """
@@ -292,7 +291,7 @@ class ScalarLightning(InnerEyeLightning):
         logger = self.train_subject_outputs_logger if is_training else self.val_subject_outputs_logger  # type: ignore
         logger.flush()
 
-    def transfer_batch_to_device(self, batch: Any, device: torch.device) -> Any:  # type: ignore
+    def transfer_batch_to_device(self, batch: Any, device: torch.device, dataloader_idx: int) -> Any:  # type: ignore
         """
         For sequence models, transfer the nested lists of items to the given GPU device.
         For all other models, this relies on the superclass to move the batch of data to the GPU.

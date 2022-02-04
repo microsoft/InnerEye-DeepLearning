@@ -79,10 +79,10 @@ def get_encoder_output_dim(
         from InnerEye.ML.SSL.lightning_modules.ssl_online_evaluator import (
             SSLOnlineEvaluatorInnerEye,
         )
-
-        dataloader = dm.train_dataloader()
-        dataloader = dataloader[SSLDataModuleType.LINEAR_HEAD] if isinstance(dataloader, dict) else dataloader  # type: ignore
-        batch = iter(dataloader).next()  # type: ignore
+        loaders = dm.train_dataloader()
+        loader = loaders[SSLDataModuleType.LINEAR_HEAD] if isinstance(loaders, dict) else loaders  # type: ignore
+        iterator = iter(loader)
+        batch = next(iterator)
         x, _ = SSLOnlineEvaluatorInnerEye.to_device(batch, device)
     else:
         x = torch.rand((1, 3, 256, 256)).to(device)

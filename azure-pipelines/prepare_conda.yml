@@ -1,0 +1,15 @@
+steps:
+  - bash: |
+      if [ $(Agent.OS) = 'Windows_NT' ]
+      then subdir=Scripts
+      else subdir=bin
+      fi
+      echo "Adding this directory to PATH: $CONDA/$subdir"
+      echo "##vso[task.prependpath]$CONDA/$subdir"
+    displayName: Add conda to PATH
+    condition: succeeded()
+
+  - bash: |
+      sudo chown -R $USER /usr/share/miniconda
+    condition: and(succeeded(), eq( variables['Agent.OS'], 'Linux' ))
+    displayName: Take ownership of conda installation (Linux only)

@@ -7,7 +7,8 @@ on:
   pull_request:
 
 jobs:
-  linux:
+  flake_mypy_helloworld_linux:
+    name: Flake8, MyPy, HelloWorld on Linux
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -53,7 +54,8 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}
         if: always()
 
-  windows:
+  hello_world_windows:
+    name: HelloWorld on Windows
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2

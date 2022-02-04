@@ -6,10 +6,10 @@ import logging
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 
 import param
-from pytorch_lightning import LightningModule
+from pytorch_lightning import Callback, LightningModule
 from yacs.config import CfgNode
 
 from InnerEye.ML.SSL.datamodules_and_datasets.cifar_datasets import InnerEyeCIFAR10, InnerEyeCIFAR100
@@ -83,7 +83,7 @@ class SSLContainer(LightningContainer):
     use_balanced_binary_loss_for_linear_head = param.Boolean(default=False,
                                                              doc="Whether to use a balanced loss for the training of "
                                                                  "the linear head")
-    num_workers = param.Integer(default=6, doc="Number of workers to use for dataloader processes.")
+    num_workers = param.Integer(default=4, doc="Number of workers to use for dataloader processes.")
     is_debug_model = param.Boolean(default=False,
                                    doc="If True, the training will be restricted to 1 batch per epoch."
                                        "Used for debugging and tests.")
@@ -151,14 +151,16 @@ class SSLContainer(LightningContainer):
             model: LightningModule = SimCLRInnerEye(encoder_name=self.ssl_encoder.value,
                                                     dataset_name=self.ssl_training_dataset_name.value,
                                                     use_7x7_first_conv_in_resnet=use_7x7_first_conv_in_resnet,
-                                                    gpus=self.total_num_gpus,
-                                                    num_samples=self.data_module.num_samples,
+                                                    num_samples=self.data_module.num_train_samples,
                                                     batch_size=self.data_module.batch_size,
+                                                    gpus=self.num_gpus_per_node(),
+                                                    num_nodes=self.num_nodes,
                                                     learning_rate=self.l_rate,
                                                     max_epochs=self.num_epochs)
+            logging.info(f"LR scheduling is using train_iters_per_epoch = {model.train_iters_per_epoch}")
         elif self.ssl_training_type == SSLTrainingType.BYOL:
             model = BYOLInnerEye(encoder_name=self.ssl_encoder.value,
-                                 num_samples=self.data_module.num_samples,
+                                 num_samples=self.data_module.num_train_samples,
                                  batch_size=self.data_module.batch_size,
                                  learning_rate=self.l_rate,
                                  use_7x7_first_conv_in_resnet=use_7x7_first_conv_in_resnet,
@@ -171,7 +173,6 @@ class SSLContainer(LightningContainer):
                 f"Found {self.ssl_training_type.value}")
         model.hparams.update({'ssl_type': self.ssl_training_type.value,
                               "num_classes": self.data_module.num_classes})
-
         self.encoder_output_dim = get_encoder_output_dim(model, self.data_module)
         return model
 
@@ -266,12 +267,11 @@ class SSLContainer(LightningContainer):
 
         return train_transforms, val_transforms
 
-    def get_trainer_arguments(self) -> Dict[str, Any]:
+    def get_callbacks(self) -> List[Callback]:
         self.online_eval = SSLOnlineEvaluatorInnerEye(class_weights=self.data_module.class_weights,  # type: ignore
                                                       z_dim=self.encoder_output_dim,
                                                       num_classes=self.data_module.num_classes,  # type: ignore
                                                       dataset=self.linear_head_dataset_name.value,  # type: ignore
                                                       drop_p=0.2,
                                                       learning_rate=self.learning_rate_linear_head_during_ssl_training)
-        trainer_kwargs: Dict[str, Any] = {"callbacks": self.online_eval}
-        return trainer_kwargs
+        return [self.online_eval]

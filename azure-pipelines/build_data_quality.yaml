@@ -1,6 +1,8 @@
 steps:
   - template: checkout.yml
 
+  - template: prepare_conda.yml
+
   - bash: |
       conda env create --file InnerEye-DataQuality/environment.yml --name InnerEyeDataQuality
       source activate InnerEyeDataQuality

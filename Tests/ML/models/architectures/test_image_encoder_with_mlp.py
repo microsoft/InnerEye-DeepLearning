@@ -14,7 +14,6 @@ import pytest
 import torch
 from torchvision.transforms import ColorJitter, RandomAffine
 
-from InnerEye.Common import common_util
 from InnerEye.Common.common_util import logging_to_stdout
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.type_annotations import TupleInt3
@@ -122,7 +121,6 @@ class ImageEncoder(ScalarModelBase):
         return ModelTransformsPerExecutionMode()
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize(["encode_channels_jointly", "use_non_imaging_features",
                           "reduction_factor", "expected_num_reduced_features",
                           "kernel_size_per_encoding_block", "stride_size_per_encoding_block",
@@ -232,12 +230,11 @@ S3,week1,scan3.npy,True,6,60,Male,Val2
     summarizer.generate_summary(input_sizes=input_size)
     config.local_dataset = dataset_folder
     config.validate()
-    model_train_unittest(config, dirs=test_output_dirs)
+    model_train_unittest(config, output_folder=test_output_dirs)
     # No further asserts here because the models are still in experimental state. Most errors would come
     # from having invalid model architectures, which would throw runtime errors during training.
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.gpu
 @pytest.mark.parametrize(["encode_channels_jointly", "aggregation_type", "imaging_feature_type"],
                          [(False, AggregationType.Average, ImagingFeatureType.Segmentation),
@@ -273,6 +270,8 @@ def test_image_encoder_with_segmentation(test_output_dirs: OutputFolderForTests,
                           aggregation_type=aggregation_type,
                           scan_size=scan_size)
     config.use_mixed_precision = True
+    # Necessary because torch otherwise says "avg_pool3d_backward_cuda does not have a deterministic implementation"
+    config.pl_deterministic = False
     config.set_output_to(test_output_dirs.root_dir)
     config.num_epochs = 1
     config.local_dataset = Path()
@@ -327,7 +326,6 @@ def test_segmentation_to_one_hot(use_gpu: bool, input_on_gpu: bool) -> None:
             assert one_hot[:, i, ...].float().allclose(expected), f"Dimension {i} should have all ones"
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("encode_channels_jointly", [True, False])
 @pytest.mark.parametrize("use_non_imaging_features", [True, False])
 @pytest.mark.parametrize("imaging_feature_type", [ImagingFeatureType.Image,

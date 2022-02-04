@@ -17,19 +17,40 @@ variables:
   disable.coverage.autogenerate: 'true'
 
 jobs:
-  - job: Windows
+  - job: CancelPreviousJobs
+    pool:
+      vmImage: 'ubuntu-18.04'
+    steps:
+      - template: cancel_aml_jobs.yml
+
+  - job: CredScan_ComponentGov
     pool:
       vmImage: 'windows-2019'
     steps:
       - template: build_windows.yaml
 
-  - job: Linux
+  # Run jobs that only build the environment. These jobs have a high chance of succeeding and filling the build
+  # cache. Pytest, etc legs will only fill the cache if they succeed.
+  - job: CreateCondaEnvCache_Windows
+    pool:
+      vmImage: 'windows-2019'
+    steps:
+      - template: inner_eye_env.yml
+
+  - job: CreateCondaEnvAndCache_Linux
     pool:
       vmImage: 'ubuntu-18.04'
+    steps:
+      - template: inner_eye_env.yml
+
+  - job: PyTest
+    pool:
+      vmImage: 'windows-2019'
     steps:
       - template: build.yaml
 
   - job: TrainInAzureML
+    dependsOn: CancelPreviousJobs
     variables:
       - name: tag
         value: 'TrainBasicModel'
@@ -48,6 +69,7 @@ jobs:
           test_run_title: tests_after_training_single_run
 
   - job: RunGpuTestsInAzureML
+    dependsOn: CancelPreviousJobs
     variables:
       - name: tag
         value: 'RunGpuTests'
@@ -70,6 +92,7 @@ jobs:
   # is trained, because we use this build to also check the "submit_for_inference" code, that
   # presently only handles single channel models.
   - job: TrainInAzureMLViaSubmodule
+    dependsOn: CancelPreviousJobs
     variables:
       - name: model
         value: 'BasicModel2Epochs1Channel'
@@ -90,6 +113,7 @@ jobs:
 
   # Train a 2-element ensemble model
   - job: TrainEnsemble
+    dependsOn: CancelPreviousJobs
     variables:
       - name: model
         value: 'BasicModelForEnsembleTest'
@@ -98,7 +122,7 @@ jobs:
       - name: tag
         value: 'TrainEnsemble'
       - name: more_switches
-        value: '--pl_deterministic --regression_test_folder=RegressionTestResults/PR_TrainEnsemble'
+        value: '--pl_deterministic --log_level=DEBUG --regression_test_folder=RegressionTestResults/PR_TrainEnsemble'
     pool:
       vmImage: 'ubuntu-18.04'
     steps:
@@ -114,6 +138,7 @@ jobs:
 
   # Train a model on 2 nodes
   - job: Train2Nodes
+    dependsOn: CancelPreviousJobs
     variables:
       - name: model
         value: 'BasicModel2EpochsMoreData'
@@ -135,6 +160,7 @@ jobs:
           test_run_title: tests_after_training_2node_run
 
   - job: TrainHelloWorld
+    dependsOn: CancelPreviousJobs
     variables:
       - name: model
         value: 'HelloWorld'
@@ -152,6 +178,7 @@ jobs:
   # Run HelloContainer on 2 nodes. HelloContainer uses native Lighting test set inference, which can get
   # confused after doing multi-node training in the same script.
   - job: TrainHelloContainer
+    dependsOn: CancelPreviousJobs
     variables:
       - name: model
         value: 'HelloContainer'
@@ -176,6 +203,7 @@ jobs:
   # regressions in AML when requesting more than the default amount of memory. This needs to run with all subjects to
   # trigger the bug, total runtime 10min
   - job: TrainLung
+    dependsOn: CancelPreviousJobs
     variables:
       - name: model
         value: 'Lung'

@@ -7,7 +7,7 @@ from typing import Any
 import pandas as pd
 
 from InnerEye.ML.config import PhotometricNormalizationMethod, SegmentationModelBase, equally_weighted_classes
-from InnerEye.ML.configs.segmentation.Lung import AZURE_DATASET_ID
+from InnerEye.ML.configs.segmentation.Lung import LUNG_AZURE_DATASET_ID
 from InnerEye.ML.deep_learning_config import LRSchedulerType
 from InnerEye.ML.utils.split_dataset import DatasetSplits
 
@@ -40,9 +40,8 @@ class BasicModel2Epochs(SegmentationModelBase):
             num_dataload_workers=1,
             train_batch_size=8,
             num_epochs=2,
-            recovery_checkpoint_save_interval=1,
             use_mixed_precision=True,
-            azure_dataset_id=AZURE_DATASET_ID,
+            azure_dataset_id=LUNG_AZURE_DATASET_ID,
             comparison_blob_storage_paths=comparison_blob_storage_paths,
             inference_on_val_set=True,
             inference_on_test_set=True,

@@ -22,6 +22,7 @@ from InnerEye.Common.type_annotations import PathOrString, T, TupleFloat2
 from InnerEye.ML.common import CHECKPOINT_FOLDER, DATASET_CSV_FILE_NAME, \
     ModelExecutionMode, VISUALIZATION_FOLDER, \
     create_unique_timestamp_id, get_best_checkpoint_path
+from health_azure.utils import is_global_rank_zero
 
 
 @unique
@@ -135,8 +136,14 @@ class DeepLearningFileSystemConfig(Parameterized):
             else:
                 logging.info("All results will be written to a subfolder of the project root folder.")
                 root = project_root.absolute() / DEFAULT_AML_UPLOAD_DIR
-            timestamp = create_unique_timestamp_id()
-            run_folder = root / f"{timestamp}_{model_name}"
+            if is_global_rank_zero():
+                timestamp = create_unique_timestamp_id()
+                run_folder = root / f"{timestamp}_{model_name}"
+            else:
+                # Handle the case where there are multiple DDP threads on the same machine outside AML.
+                # Each child process will be started with the current working directory set to be the output
+                # folder of the rank 0 process. We want all other process to write to that same folder.
+                run_folder = Path.cwd().absolute()
             outputs_folder = run_folder
             logs_folder = run_folder / DEFAULT_LOGS_DIR_NAME
         else:
@@ -243,6 +250,10 @@ class WorkflowParams(param.Parameterized):
                                 "folder, and their contents must match exactly. When running in AzureML, you need to "
                                 "ensure that this folder is part of the snapshot that gets uploaded. The path should "
                                 "be relative to the repository root directory.")
+    regression_test_csv_tolerance: float = \
+        param.Number(default=0.0, allow_None=False,
+                     doc="When comparing CSV files during regression tests, use this value as the maximum allowed "
+                         "relative difference of actual and expected results. Default: 0.0 (must match exactly)")
 
     def validate(self) -> None:
         if sum([bool(param) for param in [self.weights_url, self.local_weights_path, self.model_id]]) > 1:
@@ -555,15 +566,11 @@ class OptimizerParams(param.Parameterized):
 
 class TrainerParams(param.Parameterized):
     num_epochs: int = param.Integer(100, bounds=(1, None), doc="Number of epochs to train.")
-    recovery_checkpoint_save_interval: int = param.Integer(10, bounds=(0, None),
-                                                           doc="Save epoch checkpoints when epoch number is a multiple "
-                                                               "of recovery_checkpoint_save_interval. The intended use "
-                                                               "is to allow restore training from failed runs.")
-    recovery_checkpoints_save_last_k: int = param.Integer(default=1, bounds=(-1, None),
-                                                          doc="Number of recovery checkpoints to keep. Recovery "
-                                                              "checkpoints will be stored as recovery_epoch:{"
-                                                              "epoch}.ckpt. If set to -1 keep all recovery "
-                                                              "checkpoints.")
+    autosave_every_n_val_epochs: int = param.Integer(1, bounds=(0, None),
+                                                     doc="Save epoch checkpoints every N validation epochs. "
+                                                         "If pl_check_val_every_n_epoch > 1, this means that "
+                                                         "checkpoints are saved every N * pl_check_val_every_n_epoch "
+                                                         "training epochs.")
     detect_anomaly: bool = param.Boolean(False, doc="If true, test gradients for anomalies (NaN or Inf) during "
                                                     "training.")
     use_mixed_precision: bool = param.Boolean(False, doc="If true, mixed precision training is activated during "
@@ -583,7 +590,7 @@ class TrainerParams(param.Parameterized):
         param.Boolean(default=False,
                       doc="Controls the PyTorch Lightning trainer flags 'deterministic' and 'benchmark'. If "
                           "'pl_deterministic' is True, results are perfectly reproducible. If False, they are not, but "
-                          "you may see training speed increases.")
+                          "you may see significant training speed increases.")
     pl_find_unused_parameters: bool = \
         param.Boolean(default=False,
                       doc="Controls the PyTorch Lightning flag 'find_unused_parameters' for the DDP plugin. "
@@ -600,10 +607,13 @@ class TrainerParams(param.Parameterized):
         param.String(default=None,
                      doc="The value to use for the 'profiler' argument for the Lightning trainer. "
                          "Set to either 'simple', 'advanced', or 'pytorch'")
+    pl_check_val_every_n_epoch: int = \
+        param.Integer(default=1,
+                      doc="PyTorch Lightning trainer flag 'check_val_every_n_epoch': Run validation every N epochs.")
     monitor_gpu: bool = param.Boolean(default=False,
                                       doc="If True, add the GPUStatsMonitor callback to the Lightning trainer object. "
                                           "This will write GPU utilization metrics every 50 batches by default.")
-    monitor_loading: bool = param.Boolean(default=True,
+    monitor_loading: bool = param.Boolean(default=False,
                                           doc="If True, add the BatchTimeCallback callback to the Lightning trainer "
                                               "object. This will monitor how long individual batches take to load.")
 

@@ -6,12 +6,10 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, TypeVar
+from typing import Any, List, Optional, Tuple, TypeVar
 
-from health_azure.utils import is_global_rank_zero, is_local_rank_zero
-from health_ml.utils import AzureMLLogger, AzureMLProgressBar, BatchTimeCallback, log_on_epoch
-from pytorch_lightning import Callback, LightningModule, Trainer, seed_everything
-from pytorch_lightning.callbacks import GPUStatsMonitor, ModelCheckpoint
+from pytorch_lightning import Callback, Trainer, seed_everything
+from pytorch_lightning.callbacks import GPUStatsMonitor, ModelCheckpoint, TQDMProgressBar
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.plugins import DDPPlugin
 
@@ -19,13 +17,17 @@ from InnerEye.Azure.azure_runner import ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NOD
 from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, change_working_directory
 from InnerEye.Common.resource_monitor import ResourceMonitor
-from InnerEye.ML.common import ARGS_TXT, ModelExecutionMode, RECOVERY_CHECKPOINT_FILE_NAME, VISUALIZATION_FOLDER
-from InnerEye.ML.utils.checkpoint_handling import create_best_checkpoint
+from InnerEye.ML.SSL.datamodules_and_datasets.datamodules import CombinedDataModule
+from InnerEye.ML.common import ARGS_TXT, AUTOSAVE_CHECKPOINT_FILE_NAME, ModelExecutionMode, \
+    VISUALIZATION_FOLDER
 from InnerEye.ML.lightning_base import InnerEyeContainer, InnerEyeLightning
 from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.lightning_loggers import StoringLogger
 from InnerEye.ML.lightning_models import SUBJECT_OUTPUT_PER_RANK_PREFIX, ScalarLightning, \
     get_subject_output_file_per_rank
+from InnerEye.ML.utils.checkpoint_handling import cleanup_checkpoints
+from health_azure.utils import is_global_rank_zero, is_local_rank_zero
+from health_ml.utils import AzureMLLogger, AzureMLProgressBar
 
 TEMP_PREFIX = "temp/"
 
@@ -54,32 +56,10 @@ def write_args_file(config: Any, outputs_folder: Path) -> None:
     logging.info(output)
 
 
-class InnerEyeRecoveryCheckpointCallback(ModelCheckpoint):
-    """
-    This callback is used to save recovery checkpoints.
-    In particular, it makes sure we are logging "epoch", this is needed to the last k
-    checkpoints (here save_top_k is based on the epoch number instead of validation loss,
-    PL only allows to save_top_k for logged quantities).
-    """
-
-    def __init__(self, container: LightningContainer):
-        super().__init__(dirpath=str(container.checkpoint_folder),
-                         monitor="epoch_started",
-                         filename=RECOVERY_CHECKPOINT_FILE_NAME + "_{epoch}",
-                         period=container.recovery_checkpoint_save_interval,
-                         save_top_k=container.recovery_checkpoints_save_last_k,
-                         mode="max",
-                         save_last=False)
-
-    def on_train_epoch_end(self, trainer: Trainer, pl_module: LightningModule, unused: bool = None) -> None:
-        # The metric to monitor must be logged on all ranks in distributed training
-        log_on_epoch(pl_module, name="epoch_started", value=trainer.current_epoch, sync_dist=False)  # type: ignore
-
-
 def create_lightning_trainer(container: LightningContainer,
                              resume_from_checkpoint: Optional[Path] = None,
                              num_nodes: int = 1,
-                             **kwargs: Dict[str, Any]) -> \
+                             multiple_trainloader_mode: str = "max_size_cycle") -> \
         Tuple[Trainer, StoringLogger]:
     """
     Creates a Pytorch Lightning Trainer object for the given model configuration. It creates checkpoint handlers
@@ -88,23 +68,28 @@ def create_lightning_trainer(container: LightningContainer,
     :param container: The container with model and data.
     :param resume_from_checkpoint: If provided, training resumes from this checkpoint point.
     :param num_nodes: The number of nodes to use in distributed training.
-    :param kwargs: Any additional keyowrd arguments will be passed to the constructor of Trainer.
     :return: A tuple [Trainer object, diagnostic logger]
     """
     logging.debug(f"resume_from_checkpoint: {resume_from_checkpoint}")
     num_gpus = container.num_gpus_per_node()
     effective_num_gpus = num_gpus * num_nodes
-    # Accelerator should be "ddp" when running large models in AzureML (when using DDP_spawn, we get out of GPU memory).
-    if effective_num_gpus > 1:
-        accelerator: Optional[str] = "ddp"
-        # Initialize the DDP plugin. The default for pl_find_unused_parameters is False. If True, the plugin prints out
-        # lengthy warnings about the performance impact of find_unused_parameters.
-        plugins = [DDPPlugin(num_nodes=num_nodes, sync_batchnorm=True,
-                             find_unused_parameters=container.pl_find_unused_parameters)]
+    strategy = None
+    if effective_num_gpus == 0:
+        accelerator = "cpu"
+        devices = 1
+        message = "CPU"
     else:
-        accelerator = None
-        plugins = []
-    logging.info(f"Using {num_gpus} GPUs per node with accelerator '{accelerator}'")
+        accelerator = "gpu"
+        devices = num_gpus
+        message = f"{devices} GPU"
+        if effective_num_gpus > 1:
+            # Accelerator should be "ddp" when running large models in AzureML (when using DDP_spawn, we get out of
+            # GPU memory).
+            # Initialize the DDP plugin. The default for pl_find_unused_parameters is False. If True, the plugin
+            # prints out lengthy warnings about the performance impact of find_unused_parameters.
+            strategy = DDPPlugin(find_unused_parameters=container.pl_find_unused_parameters)
+            message += "s per node with DDP"
+    logging.info(f"Using {message}")
     tensorboard_logger = TensorBoardLogger(save_dir=str(container.logs_folder), name="Lightning", version="")
     loggers = [tensorboard_logger, AzureMLLogger(False)]
     storing_logger = StoringLogger()
@@ -113,8 +98,7 @@ def create_lightning_trainer(container: LightningContainer,
     precision = 32 if num_gpus == 0 else 16 if container.use_mixed_precision else 32
     # The next two flags control the settings in torch.backends.cudnn.deterministic and torch.backends.cudnn.benchmark
     # https://pytorch.org/docs/stable/notes/randomness.html
-    # For the classification models, we observed only a small performance deterioration (increase in 10sec on total
-    # training time of 22min) when switching to deterministic.
+    # Note that switching to deterministic models can have large performance downside.
     if container.pl_deterministic:
         deterministic = True
         benchmark = False
@@ -122,63 +106,78 @@ def create_lightning_trainer(container: LightningContainer,
         deterministic = False
         benchmark = True
 
-    # For now, stick with the legacy behaviour of always saving only the last epoch checkpoint. For large segmentation
+    # The last checkpoint is considered the "best" checkpoint. For large segmentation
     # models, this still appears to be the best way of choosing them because validation loss on the relatively small
     # training patches is not stable enough. Going by the validation loss somehow works for the Prostate model, but
     # not for the HeadAndNeck model.
-    last_checkpoint_callback = ModelCheckpoint(dirpath=str(container.checkpoint_folder), save_last=True, save_top_k=0)
-    # Recovery checkpoints: {epoch} will turn into a string like "epoch=1"
-    # Store 1 recovery checkpoint every recovery_checkpoint_save_interval epochs, keep the last
-    # recovery_checkpoints_save_last_k.
-    recovery_checkpoint_callback = InnerEyeRecoveryCheckpointCallback(container)
+    # Note that "last" is somehow a misnomer, it should rather be "latest". There is a "last" checkpoint written in
+    # every epoch. We could use that for recovery too, but it could happen that the job gets preempted right during
+    # writing that file, and we would end up with an invalid file.
+    last_checkpoint_callback = ModelCheckpoint(dirpath=str(container.checkpoint_folder),
+                                               save_last=True,
+                                               save_top_k=0)
+    recovery_checkpoint_callback = ModelCheckpoint(dirpath=str(container.checkpoint_folder),
+                                                   filename=AUTOSAVE_CHECKPOINT_FILE_NAME,
+                                                   every_n_val_epochs=container.autosave_every_n_val_epochs,
+                                                   save_last=False)
     callbacks: List[Callback] = [
         last_checkpoint_callback,
         recovery_checkpoint_callback,
     ]
     if container.monitor_loading:
-        callbacks.append(BatchTimeCallback())
+        # TODO antonsc: Remove after fixing the callback.
+        raise NotImplementedError("Monitoring batch loading times has been temporarily disabled.")
+        # callbacks.append(BatchTimeCallback())
     if num_gpus > 0 and container.monitor_gpu:
         logging.info("Adding monitoring for GPU utilization")
         callbacks.append(GPUStatsMonitor(intra_step_time=True, inter_step_time=True))
     # Add the additional callbacks that were specified in get_trainer_arguments for LightningContainers
-    if "callbacks" in kwargs:
-        more_callbacks = kwargs.pop("callbacks")
+    additional_args = container.get_trainer_arguments()
+    # Callbacks can be specified via the "callbacks" argument (the legacy behaviour) or the new get_callbacks method
+    if "callbacks" in additional_args:
+        more_callbacks = additional_args.pop("callbacks")
         if isinstance(more_callbacks, list):
             callbacks.extend(more_callbacks)  # type: ignore
         else:
             callbacks.append(more_callbacks)  # type: ignore
+    callbacks.extend(container.get_callbacks())
     is_azureml_run = not is_offline_run_context(RUN_CONTEXT)
     progress_bar_refresh_rate = container.pl_progress_bar_refresh_rate
+    if progress_bar_refresh_rate is None:
+        progress_bar_refresh_rate = 50
+        logging.info(f"The progress bar refresh rate is not set. Using a default of {progress_bar_refresh_rate}. "
+                     f"To change, modify the pl_progress_bar_refresh_rate field of the container.")
     if is_azureml_run:
-        if progress_bar_refresh_rate is None:
-            progress_bar_refresh_rate = 50
-            logging.info(f"The progress bar refresh rate is not set. Using a default of {progress_bar_refresh_rate}. "
-                         f"To change, modify the pl_progress_bar_refresh_rate field of the container.")
         callbacks.append(AzureMLProgressBar(refresh_rate=progress_bar_refresh_rate,
                                             write_to_logging_info=True,
                                             print_timestamp=False))
+    else:
+        callbacks.append(TQDMProgressBar(refresh_rate=progress_bar_refresh_rate))
+    # Read out additional model-specific args here.
+    # We probably want to keep essential ones like numgpu and logging.
     trainer = Trainer(default_root_dir=str(container.outputs_folder),
                       deterministic=deterministic,
                       benchmark=benchmark,
                       accelerator=accelerator,
-                      plugins=plugins,
+                      strategy=strategy,
                       max_epochs=container.num_epochs,
                       # Both these arguments can be integers or floats. If integers, it is the number of batches.
                       # If float, it's the fraction of batches. We default to 1.0 (processing all batches).
                       limit_train_batches=container.pl_limit_train_batches or 1.0,
                       limit_val_batches=container.pl_limit_val_batches or 1.0,
                       num_sanity_val_steps=container.pl_num_sanity_val_steps,
+                      check_val_every_n_epoch=container.pl_check_val_every_n_epoch,
                       callbacks=callbacks,
                       logger=loggers,
-                      progress_bar_refresh_rate=progress_bar_refresh_rate,
                       num_nodes=num_nodes,
-                      gpus=num_gpus,
+                      devices=devices,
                       precision=precision,
                       sync_batchnorm=True,
-                      terminate_on_nan=container.detect_anomaly,
+                      detect_anomaly=container.detect_anomaly,
                       profiler=container.pl_profiler,
                       resume_from_checkpoint=str(resume_from_checkpoint) if resume_from_checkpoint else None,
-                      **kwargs)
+                      multiple_trainloader_mode=multiple_trainloader_mode,
+                      **additional_args)
     return trainer, storing_logger
 
 
@@ -234,6 +233,14 @@ def model_train(checkpoint_path: Optional[Path],
             container.before_training_on_local_rank_zero()
         container.before_training_on_all_ranks()
 
+    # Workaround for a bug in PL 1.5.5: We need to pass the cycle mode for the training data as a trainer argument
+    # because training data that uses a CombinedLoader is not split correctly in DDP
+    multiple_trainloader_mode = "max_size_cycle"
+    if isinstance(data_module, CombinedDataModule):
+        data_module.prepare_data()
+        assert data_module.train_loader_cycle_mode is not None, "This field should be computed during prepare_data"
+        multiple_trainloader_mode = data_module.train_loader_cycle_mode
+
     # Create the trainer object. Backup the environment variables before doing that, in case we need to run a second
     # training in the unit tests.d
     old_environ = dict(os.environ)
@@ -243,7 +250,7 @@ def model_train(checkpoint_path: Optional[Path],
     trainer, storing_logger = create_lightning_trainer(container,
                                                        checkpoint_path,
                                                        num_nodes=num_nodes,
-                                                       **container.get_trainer_arguments())
+                                                       multiple_trainloader_mode=multiple_trainloader_mode)
     rank_info = ", ".join(f"{env}: {os.getenv(env)}"
                           for env in [ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK])
     logging.info(f"Environment variables: {rank_info}. trainer.global_rank: {trainer.global_rank}")
@@ -275,8 +282,8 @@ def model_train(checkpoint_path: Optional[Path],
         logging.info(f"Terminating training thread with rank {lightning_model.global_rank}.")
         sys.exit()
 
-    logging.info("Choosing the best checkpoint and removing redundant files.")
-    create_best_checkpoint(container.checkpoint_folder)
+    logging.info("Removing redundant checkpoint files.")
+    cleanup_checkpoints(container.checkpoint_folder)
     # Lightning modifies a ton of environment variables. If we first run training and then the test suite,
     # those environment variables will mislead the training runs in the test suite, and make them crash.
     # Hence, restore the original environment after training.

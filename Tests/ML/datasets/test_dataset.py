@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import pytest
 import torch
-from pytorch_lightning.core.step_result import Result
+from pytorch_lightning.utilities.data import extract_batch_size
 
 from InnerEye.Common import common_util
 from InnerEye.ML.config import PaddingMode, SegmentationModelBase
@@ -229,7 +229,6 @@ def test_cropping_dataset_sample_dtype(cropping_dataset: CroppingDataset, num_da
         assert item.labels_center_crop.numpy().dtype == ImageDataType.SEGMENTATION.value
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Has issues on windows build")
 def test_cropping_dataset_padding(cropping_dataset: CroppingDataset, num_dataload_workers: int) -> None:
     """
     Tests the data type of torch tensors (e.g. image, labels, and mask) created by the dataset generator,
@@ -502,7 +501,7 @@ def test_sample_metadata_field() -> None:
     assert SAMPLE_METADATA_FIELD in fields
     # Lightning attempts to determine the batch size by trying to find a tensor field in the sample.
     # This only works if any field other than Metadata is first.
-    assert Result.unpack_batch_size(fields) == batch_size
+    assert extract_batch_size(fields) == batch_size
 
 
 def test_custom_collate() -> None:

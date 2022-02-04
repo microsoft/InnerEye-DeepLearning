@@ -21,7 +21,7 @@ from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, ModelProcessi
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.type_annotations import TupleInt3
-from InnerEye.ML.common import BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, DATASET_CSV_FILE_NAME, ModelExecutionMode
+from InnerEye.ML.common import LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX, DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.configs.unit_testing.passthrough_model import PassThroughModel
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.metrics import InferenceMetricsForSegmentation
@@ -156,7 +156,6 @@ def create_mock_run(mock_upload_path: Path, config: DeepLearningConfig) -> Run:
     return run
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("perform_cross_validation", [True, False])
 def test_model_inference_train_and_test_default(test_output_dirs: OutputFolderForTests,
                                                 perform_cross_validation: bool) -> None:
@@ -172,7 +171,6 @@ def test_model_inference_train_and_test_default(test_output_dirs: OutputFolderFo
                                        model_proc=ModelProcessing.DEFAULT)
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("perform_cross_validation", [True, False])
 @pytest.mark.parametrize("inference_on_set", [(True, False, False), (False, True, False), (False, False, True)])
 def test_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
@@ -195,7 +193,6 @@ def test_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
                                        model_proc=ModelProcessing.DEFAULT)
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 def test_ensemble_model_inference_train_and_test_default(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test inference defaults with ModelProcessing.ENSEMBLE_CREATION.
@@ -208,7 +205,6 @@ def test_ensemble_model_inference_train_and_test_default(test_output_dirs: Outpu
                                        model_proc=ModelProcessing.ENSEMBLE_CREATION)
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("ensemble_inference_on_set", [(True, False, False), (False, True, False), (False, False, True)])
 def test_ensemble_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
                                                  ensemble_inference_on_set: Tuple[bool, bool, bool]) -> None:
@@ -282,7 +278,7 @@ def run_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
                                                                     train_and_test_data_small_dir,
                                                                     "data")
 
-    checkpoint_path = config.checkpoint_folder / BEST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
+    checkpoint_path = config.checkpoint_folder / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX
     create_model_and_store_checkpoint(config, checkpoint_path)
     checkpoint_handler = get_default_checkpoint_handler(model_config=config,
                                                         project_root=test_output_dirs.root_dir)
@@ -371,7 +367,7 @@ def run_model_inference_train_and_test(test_output_dirs: OutputFolderForTests,
 def test_logging_to_file(test_output_dirs: OutputFolderForTests) -> None:
     # Log file should go to a new, non-existent folder, 2 levels deep
     file_path = test_output_dirs.root_dir / "subdir1" / "subdir2" / "logfile.txt"
-    assert common_util.logging_to_file_handler is None
+    common_util.logging_to_file_handler = None
     common_util.logging_to_file(file_path)
     assert common_util.logging_to_file_handler is not None
     log_line = "foo bar"

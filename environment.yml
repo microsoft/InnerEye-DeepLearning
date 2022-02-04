@@ -7,9 +7,9 @@ dependencies:
   - cudatoolkit=11.1
   - pip=20.1.1
   - python=3.7.3
-  - pytorch=1.8.0
-  - python-blosc==1.7.0
-  - torchvision=0.9.0
+  - pytorch=1.10.0
+  - python-blosc=1.7.0
+  - torchvision=0.11.1
   - pip:
       - git+https://github.com/analysiscenter/radio.git@6d53e25#egg=radio
       - azure-mgmt-resource==12.1.0
@@ -20,17 +20,19 @@ dependencies:
       - azureml-tensorboard==1.36.0
       - conda-merge==0.1.5
       - cryptography==3.3.2
+      - cucim==21.10.1; platform_system=="Linux"
       - dataclasses-json==0.5.2
       - docker==4.3.1
       - flake8==3.8.3
       - gitpython==3.1.7
       - gputil==1.4.0
       - h5py==2.10.0
+      - ipython==7.31.1
       - InnerEye-DICOM-RT==1.0.1
       - joblib==0.16.0
       - jupyter==1.0.0
       - jupyter-client==6.1.5
-      - lightning-bolts==0.3.4
+      - lightning-bolts==0.4.0
       - matplotlib==3.3.0
       - mlflow==1.17.0
       - monai==0.6.0
@@ -43,7 +45,7 @@ dependencies:
       - pandas==1.1.0
       - papermill==2.2.2
       - param==1.9.3
-      - pillow==8.3.2
+      - pillow==9.0.0
       - psutil==5.7.2
       - pydicom==2.0.0
       - pyflakes==2.2.0
@@ -52,8 +54,8 @@ dependencies:
       - pytest-cov==2.10.1
       - pytest-forked==1.3.0
       - pytest-xdist==1.34.0
-      - pytorch-lightning==1.3.8
-      - rich==5.1.1
+      - pytorch-lightning==1.5.5
+      - rich==10.13.0
       - rpdb==0.1.6
       - ruamel.yaml==0.16.12
       - runstats==1.8.0
@@ -67,7 +69,6 @@ dependencies:
       - tabulate==0.8.7
       - tensorboard==2.3.0
       - tensorboardX==2.1
-      - torchprof==1.3.3
-      - torchmetrics==0.4.1
+      - torchmetrics==0.6.0
       - umap-learn==0.5.2
       - yacs==0.1.8

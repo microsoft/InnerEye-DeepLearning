@@ -33,6 +33,7 @@ class ClassificationModelForTesting2D(ScalarModelBase):
         )
         self.expected_image_size_zyx = (5, 7)
         self.conv_in_3d = conv_in_3d
+        self.pl_deterministic = True
 
     def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:
         return DatasetSplits.from_proportions(

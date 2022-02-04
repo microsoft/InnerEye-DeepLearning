@@ -11,7 +11,6 @@ import pytest
 import torch
 from torch.nn import Parameter
 
-from InnerEye.Common import common_util
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.config import SegmentationModelBase
@@ -27,7 +26,6 @@ from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.model_testing import store_inference_results, evaluate_model_predictions, populate_metrics_writer
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("image_size", [(4, 4, 4), (4, 6, 8)])
 @pytest.mark.parametrize("crop_size", [(5, 5, 5), (3, 3, 3), (3, 5, 7)])
 def test_inference_image_and_crop_size(image_size: Any,
@@ -38,7 +36,6 @@ def test_inference_image_and_crop_size(image_size: Any,
                        test_output_dirs=test_output_dirs)
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("shrink_by", [(0, 0, 0), (1, 1, 1), (1, 0, 1)])
 def test_inference_shrink_y(shrink_by: Any,
                             test_output_dirs: OutputFolderForTests) -> None:
@@ -46,7 +43,6 @@ def test_inference_shrink_y(shrink_by: Any,
                        test_output_dirs=test_output_dirs)
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("num_classes", [1, 5])
 def test_inference_num_classes(num_classes: int,
                                test_output_dirs: OutputFolderForTests) -> None:
@@ -54,7 +50,6 @@ def test_inference_num_classes(num_classes: int,
                        test_output_dirs=test_output_dirs)
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("create_mask", [True, False])
 def test_inference_create_mask(create_mask: bool,
                                test_output_dirs: OutputFolderForTests) -> None:
@@ -62,7 +57,6 @@ def test_inference_create_mask(create_mask: bool,
                        test_output_dirs=test_output_dirs)
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("extract_largest_foreground_connected_component", [True, False])
 def test_inference_component(extract_largest_foreground_connected_component: bool,
                              test_output_dirs: OutputFolderForTests) -> None:
@@ -70,7 +64,6 @@ def test_inference_component(extract_largest_foreground_connected_component: boo
                        test_output_dirs=test_output_dirs)
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("is_ensemble", [True, False])
 def test_inference_ensemble(is_ensemble: bool,
                             test_output_dirs: OutputFolderForTests) -> None:
@@ -78,7 +71,6 @@ def test_inference_ensemble(is_ensemble: bool,
                        test_output_dirs=test_output_dirs)
 
 
-@pytest.mark.skipif(common_util.is_windows(), reason="Too slow on windows")
 @pytest.mark.parametrize("posterior_smoothing_mm", [None, (0.05, 0.06, 0.1)])
 def test_inference_smoothing(posterior_smoothing_mm: Any,
                              test_output_dirs: OutputFolderForTests) -> None:

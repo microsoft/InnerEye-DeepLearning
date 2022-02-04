@@ -13,11 +13,16 @@ created.
 ## Upcoming
 
 ### Added
+- ([#649](https://github.com/microsoft/InnerEye-DeepLearning/pull/649)) Fix for the _convert_to_tensor_if_necessary method so that PIL.Image as well as np.array get converted to torch.Tensor.
+- ([#643](https://github.com/microsoft/InnerEye-DeepLearning/pull/643)) Test for recovery of SSL job. Tracks learning rate and train
+loss.
 - ([#594](https://github.com/microsoft/InnerEye-DeepLearning/pull/594)) When supplying a "--tag" argument, the AzureML jobs use that value as the display name, to more easily distinguish run.
+- ([#640](https://github.com/microsoft/InnerEye-DeepLearning/pull/640)) Cancel AzureML jobs from previous runs of the PR build in the same branch to reduce AML load
 - ([#577](https://github.com/microsoft/InnerEye-DeepLearning/pull/577)) Commandline switch `monitor_gpu` to monitor
   GPU utilization via Lightning's `GpuStatsMonitor`, switch `monitor_loading` to check batch loading times via
   `BatchTimeCallback`, and `pl_profiler` to turn on the Lightning profiler (`simple`, `advanced`, or `pytorch`)
 - ([#544](https://github.com/microsoft/InnerEye-DeepLearning/pull/544)) Add documentation for segmentation model evaluation.
+- ([#637](https://github.com/microsoft/InnerEye-DeepLearning/pull/637)) Add option to encode in chunks and to load pre-cached dataset in CPU or GPU in the histo pipeline.
 - ([#465](https://github.com/microsoft/InnerEye-DeepLearning/pull/465/)) Adding ability to run segmentation inference
 module on test data with partial ground truth files. (Also [522](https://github.com/microsoft/InnerEye-DeepLearning/pull/522).)
 - ([#502](https://github.com/microsoft/InnerEye-DeepLearning/pull/502)) More flags for fine control of when to run inference.
@@ -28,16 +33,24 @@ jobs that run in AzureML.
 - ([#554](https://github.com/microsoft/InnerEye-DeepLearning/pull/554)) Added a parameter `pretraining_dataset_id` to
   `NIH_COVID_BYOL` to specify the name of the SSL training dataset.
 - ([#560](https://github.com/microsoft/InnerEye-DeepLearning/pull/560)) Added pre-commit hooks.
+-([#619](https://github.com/microsoft/InnerEye-DeepLearning/pull/619)) Add DeepMIL PANDA
 - ([#559](https://github.com/microsoft/InnerEye-DeepLearning/pull/559)) Adding the accompanying code for the ["Active label cleaning: Improving dataset quality under resource constraints"](https://arxiv.org/abs/2109.00574) paper. The code can be found in the [InnerEye-DataQuality](InnerEye-DataQuality/README.md) subfolder. It provides tools for training noise robust models, running label cleaning simulation and loading our label cleaning benchmark datasets.
 - ([#589](https://github.com/microsoft/InnerEye-DeepLearning/pull/589)) Add `LightningContainer.update_azure_config()`
   hook to enable overriding `AzureConfig` parameters from a container (e.g. `experiment_name`, `cluster`, `num_nodes`).
--([#603](https://github.com/microsoft/InnerEye-DeepLearning/pull/603)) Add histopathology module
--([#614](https://github.com/microsoft/InnerEye-DeepLearning/pull/614)) Checkpoint downloading falls back to looking into AzureML if no checkpoints on disk
--([#613](https://github.com/microsoft/InnerEye-DeepLearning/pull/613)) Add additional tests for histopathology datasets
--([#616](https://github.com/microsoft/InnerEye-DeepLearning/pull/616)) Add more histopathology configs and tests
+- ([#617](https://github.com/microsoft/InnerEye-DeepLearning/pull/617)) Commandline flag `pl_check_val_every_n_epoch` to control how often validation is happening
+- ([#618](https://github.com/microsoft/InnerEye-DeepLearning/pull/618)) Using Azure Pipeline Cache to avoid re-building conda environnment repeatedly
+- ([#603](https://github.com/microsoft/InnerEye-DeepLearning/pull/603)) Add histopathology module
+- ([#614](https://github.com/microsoft/InnerEye-DeepLearning/pull/614)) Checkpoint downloading falls back to looking into AzureML if no checkpoints on disk
+- ([#613](https://github.com/microsoft/InnerEye-DeepLearning/pull/613)) Add additional tests for histopathology datasets
+- ([#616](https://github.com/microsoft/InnerEye-DeepLearning/pull/616)) Add more histopathology configs and tests
+- ([#621](https://github.com/microsoft/InnerEye-DeepLearning/pull/621)) Add WSI preprocessing functions and enable tiling more generic slide datasets
+- ([#634](https://github.com/microsoft/InnerEye-DeepLearning/pull/634)) Add WSI heatmaps and thumbnails to standard test outputs
+- ([#635](https://github.com/microsoft/InnerEye-DeepLearning/pull/635)) Add tile selection and binary label for online evaluation of PANDA SSL
+- ([#647](https://github.com/microsoft/InnerEye-DeepLearning/pull/647)) Add class-wise accuracy logging and confusion matrix to DeepMIL
 
 ### Changed
 - ([#588](https://github.com/microsoft/InnerEye-DeepLearning/pull/588)) Replace SciPy with PIL.PngImagePlugin.PngImageFile to load png files.
+- ([#585](https://github.com/microsoft/InnerEye-DeepLearning/pull/585)) Switching to PyTorch 1.10.0 and torchvision 0.11.1
 - ([#576](https://github.com/microsoft/InnerEye-DeepLearning/pull/576)) The console output is no longer written to stdout.txt because AzureML handles that better now
 - ([#531](https://github.com/microsoft/InnerEye-DeepLearning/pull/531)) Updated PL to 1.3.8, torchmetrics and pl-bolts and changed relevant metrics and SSL code API.
 - ([#555](https://github.com/microsoft/InnerEye-DeepLearning/pull/555)) Make the SSLContainer compatible with new datasets
@@ -60,14 +73,23 @@ gets uploaded to AzureML, by skipping all test folders.
 - ([#584](https://github.com/microsoft/InnerEye-DeepLearning/pull/584)) SSL models write the optimizer state for the linear head to the checkpoint now.
 - ([#594](https://github.com/microsoft/InnerEye-DeepLearning/pull/594)) Pytorch is now non-deterministic by default. Upgrade to AzureML-SDK 1.36
 - ([#566](https://github.com/microsoft/InnerEye-DeepLearning/pull/566)) Update `hi-ml` dependency to `hi-ml-azure`.
+- ([#591](https://github.com/microsoft/InnerEye-DeepLearning/pull/591)) Upgrade Pytorch Lightning to 1.5.0
 - ([#572](https://github.com/microsoft/InnerEye-DeepLearning/pull/572)) Updated to new version of hi-ml package
+- ([#623](https://github.com/microsoft/InnerEye-DeepLearning/pull/623)) Save checkpoints in SSLOnlineEvaluator without DDP wrapper code
+- ([#617](https://github.com/microsoft/InnerEye-DeepLearning/pull/617)) Provide an easier way for LightningContainers to add callbacks.
 - ([#596](https://github.com/microsoft/InnerEye-DeepLearning/pull/596)) Add `cudatoolkit=11.1` specification to environment.yml.
+- ([#615](https://github.com/microsoft/InnerEye-DeepLearning/pull/615)) Minor changes to checkpoint download from AzureML.
 - ([#605](https://github.com/microsoft/InnerEye-DeepLearning/pull/605)) Make build jobs deterministic for regression testing.
+- ([#633](https://github.com/microsoft/InnerEye-DeepLearning/pull/633)) Model training now only writes one recovery checkpoint, rather than multiple ones. Frequency is controlled by
+  `autosave_every_n_val_epochs`.
+- ([#632](https://github.com/microsoft/InnerEye-DeepLearning/pull/632)) Nifti test data is no longer stored in Git LFS
 
 ### Fixed
 - ([#606](https://github.com/microsoft/InnerEye-DeepLearning/pull/606)) Bug fix: registered models do not include the hi-ml submodule
+- ([#646](https://github.com/microsoft/InnerEye-DeepLearning/pull/646)) Workaround for bug in PL: CombinedLoader cannot be used for training data when using DDP
 - ([#593](https://github.com/microsoft/InnerEye-DeepLearning/pull/593)) Bug fix for hi-ml 0.1.11 issue (#130): empty mount point is turned into ".", which fails the AML job
 - ([#587](https://github.com/microsoft/InnerEye-DeepLearning/pull/587)) Bug fix for regression in AzureML's handling of environments: upgrade to hi-ml 0.1.11
+- ([#625](https://github.com/microsoft/InnerEye-DeepLearning/pull/625)) updates to PandaDeepMIL to enable the use of a SSL pre-trained checkpoint and updated commit to hi-ml
 - ([#537](https://github.com/microsoft/InnerEye-DeepLearning/pull/537)) Print warning if inference is disabled but comparison requested.
 - ([#567](https://github.com/microsoft/InnerEye-DeepLearning/pull/567)) fix pillow version.
 - ([#546](https://github.com/microsoft/InnerEye-DeepLearning/pull/546)) Environment and hello_world_model documentation updated
@@ -90,10 +112,14 @@ in inference-only runs when using lightning containers.
 - ([#553](https://github.com/microsoft/InnerEye-DeepLearning/pull/553)) Fix incomplete test data module setup in Lightning inference.
 - ([#557](https://github.com/microsoft/InnerEye-DeepLearning/pull/557)) Fix issue where learning rate was not set
   correctly in the SimCLR module
+- ([#622](https://github.com/microsoft/InnerEye-DeepLearning/pull/622)) Fix issue with multi-GPU jobs on a VM: each process tries to create a folder structure
 - ([#558](https://github.com/microsoft/InnerEye-DeepLearning/pull/558)) Fix issue with the CovidModel config where model
   weights from a finetuning run were incompatible with the model architecture created for non-finetuning runs.
 - ([#604](https://github.com/microsoft/InnerEye-DeepLearning/pull/604)) Fix issue where runs on a VM would download the dataset even when a local dataset is provided.
+- ([#628](https://github.com/microsoft/InnerEye-DeepLearning/pull/628)) SSL SimCLR using the wrong LR schedule when running on multiple nodes
+- ([#638](https://github.com/microsoft/InnerEye-DeepLearning/pull/638)) SimClr cosine LR scheduler was using wrong length information when using with long linear head datasets
 - ([#612](https://github.com/microsoft/InnerEye-DeepLearning/pull/612)) SSL online evaluator was not doing distributed training
+- ([#652](https://github.com/microsoft/InnerEye-DeepLearning/pull/652)) Run pytest build on Windows after Linux agent version upgrade
 
 ### Removed
 
@@ -111,6 +137,9 @@ in inference-only runs when using lightning containers.
 - ([#604](https://github.com/microsoft/InnerEye-DeepLearning/pull/604)) Removed all code that downloads datasets, this is now all handled by hi-ml
 
 ### Deprecated
+
+- ([#633](https://github.com/microsoft/InnerEye-DeepLearning/pull/633)) Model fields `recovery_checkpoint_save_interval` and `recovery_checkpoints_save_last_k` have been retired.
+  Recovery checkpoint handling is now controlled by `autosave_every_n_val_epochs`.
 
 
 ## 0.3 (2021-06-01)
