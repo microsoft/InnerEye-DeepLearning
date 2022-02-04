@@ -92,7 +92,7 @@ class EncodeTilesBatchd(MapTransform):
                  allow_missing_keys: bool = False,
                  chunk_size: int = 0) -> None:
         """
-        :param keys: Key(s) for the image path(s) in the input dictionary.
+        :param keys: Key(s) for the image tensor(s) in the input dictionary.
         :param encoder: The tile encoder to use for feature extraction.
         :param allow_missing_keys: If `False` (default), raises an exception when an input
         dictionary is missing any of the specified keys.
@@ -144,6 +144,14 @@ class Subsampled(MapTransform, Randomizable):
 
     def __init__(self, keys: KeysCollection, max_size: int,
                  allow_missing_keys: bool = False) -> None:
+        """
+        :param keys: Key(s) for all batch elements that must be subsampled.
+        :param max_size: Each specified array, tensor, or sequence will be subsampled uniformly at
+        random down to `max_size` along their first dimension. If shorter, the elements are merely
+        shuffled.
+        :param allow_missing_keys: If `False` (default), raises an exception when an input
+        dictionary is missing any of the specified keys.
+        """
         super().__init__(keys, allow_missing_keys=allow_missing_keys)
         self.max_size = max_size
         self._indices: np.ndarray
