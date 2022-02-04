@@ -4,7 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 
 import os
-from typing import Callable, Dict, List, Type  # noqa
+from typing import Callable, Dict, List, Optional, Type  # noqa
 
 import pytest
 from torch import Tensor, argmax, nn, rand, randint, randn, round, stack, allclose
@@ -42,6 +42,7 @@ def get_supervised_imagenet_encoder() -> TileEncoder:
 @pytest.mark.parametrize("max_bag_size", [1, 7])
 @pytest.mark.parametrize("pool_hidden_dim", [1, 5])
 @pytest.mark.parametrize("pool_out_dim", [1, 6])
+@pytest.mark.parametrize("dropout_rate", [None, 0.5])
 def test_lightningmodule(
     n_classes: int,
     pooling_layer: Callable[[int, int, int], nn.Module],
@@ -49,6 +50,7 @@ def test_lightningmodule(
     max_bag_size: int,
     pool_hidden_dim: int,
     pool_out_dim: int,
+    dropout_rate: Optional[float],
 ) -> None:
 
     assert n_classes > 0
@@ -62,6 +64,7 @@ def test_lightningmodule(
         pooling_layer=pooling_layer,
         pool_hidden_dim=pool_hidden_dim,
         pool_out_dim=pool_out_dim,
+        dropout_rate=dropout_rate,
     )
 
     bag_images = rand([batch_size, max_bag_size, *module.encoder.input_dim])
