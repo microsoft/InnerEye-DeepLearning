@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-from typing import Any, List
+from typing import Any, List, Tuple
 
 import numpy as np
 import pytest
@@ -14,24 +14,28 @@ from InnerEye.ML.utils import ml_util
 
 from Tests.ML.util import DummyPatientMetadata
 
-ml_util.set_random_seed(1)
-
 image_size = (8, 8, 8)
-valid_image_4d = np.random.uniform(size=((5,) + image_size)) * 10
-valid_mask = np.random.randint(2, size=image_size)
 number_of_classes = 5
-class_assignments = np.random.randint(2, size=image_size)
-valid_labels = np.zeros((number_of_classes,) + image_size)
-for c in range(number_of_classes):
-    valid_labels[c, class_assignments == c] = 1
 valid_crop_size = (2, 2, 2)
 valid_full_crop_size = image_size
 valid_class_weights = [0.5] + [0.5 / (number_of_classes - 1)] * (number_of_classes - 1)
 crop_size_requires_padding = (9, 8, 12)
 
 
+def create_valid_image() -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    ml_util.set_random_seed(1)
+    valid_image_4d = np.random.uniform(size=((5,) + image_size)) * 10
+    valid_mask = np.random.randint(2, size=image_size)
+    class_assignments = np.random.randint(2, size=image_size)
+    valid_labels = np.zeros((number_of_classes,) + image_size)
+    for c in range(number_of_classes):
+        valid_labels[c, class_assignments == c] = 1
+    return valid_image_4d, valid_labels, valid_mask
+
+
 def test_valid_full_crop() -> None:
     metadata = DummyPatientMetadata
+    valid_image_4d, valid_labels, valid_mask = create_valid_image()
     sample, _ = random_crop(sample=Sample(image=valid_image_4d,
                                           labels=valid_labels,
                                           mask=valid_mask,
@@ -45,25 +49,23 @@ def test_valid_full_crop() -> None:
     assert sample.metadata == metadata
 
 
-@pytest.mark.parametrize("image", [None, list(), valid_image_4d])
-@pytest.mark.parametrize("labels", [None, list(), valid_labels])
-@pytest.mark.parametrize("mask", [None, list(), valid_mask])
-@pytest.mark.parametrize("class_weights", [[0, 0, 0], [0], [-1, 0, 1], [-1, -2, -3], valid_class_weights])
+@pytest.mark.parametrize("image", [None, list()])
+@pytest.mark.parametrize("labels", [None, list()])
+@pytest.mark.parametrize("mask", [None, list()])
+@pytest.mark.parametrize("class_weights", [[0, 0, 0], [0], [-1, 0, 1], [-1, -2, -3]])
 def test_invalid_arrays(image: Any, labels: Any, mask: Any, class_weights: Any) -> None:
     """
     Tests failure cases of the random_crop function for invalid image, labels, mask or class
     weights arguments.
     """
-    # Skip the final combination, because it is valid
-    if not (np.array_equal(image, valid_image_4d) and np.array_equal(labels, valid_labels)
-            and np.array_equal(mask, valid_mask) and class_weights == valid_class_weights):
-        with pytest.raises(Exception):
-            random_crop(Sample(metadata=DummyPatientMetadata, image=image, labels=labels, mask=mask),
-                        valid_crop_size, class_weights)
+    with pytest.raises(Exception):
+        random_crop(Sample(metadata=DummyPatientMetadata, image=image, labels=labels, mask=mask),
+                    valid_crop_size, class_weights)
 
 
 @pytest.mark.parametrize("crop_size", [None, ["a"], 5])
 def test_invalid_crop_arg(crop_size: Any) -> None:
+    valid_image_4d, valid_labels, valid_mask = create_valid_image()
     with pytest.raises(Exception):
         random_crop(
             Sample(metadata=DummyPatientMetadata, image=valid_image_4d, labels=valid_labels, mask=valid_mask),
@@ -72,6 +74,7 @@ def test_invalid_crop_arg(crop_size: Any) -> None:
 
 @pytest.mark.parametrize("crop_size", [[2, 2], [2, 2, 2, 2], [10, 10, 10]])
 def test_invalid_crop_size(crop_size: Any) -> None:
+    valid_image_4d, valid_labels, valid_mask = create_valid_image()
     with pytest.raises(Exception):
         random_crop(
             Sample(metadata=DummyPatientMetadata, image=valid_image_4d, labels=valid_labels, mask=valid_mask),
@@ -79,6 +82,7 @@ def test_invalid_crop_size(crop_size: Any) -> None:
 
 
 def test_random_crop_no_fg() -> None:
+    valid_image_4d, valid_labels, valid_mask = create_valid_image()
     with pytest.raises(Exception):
         random_crop(Sample(metadata=DummyPatientMetadata, image=valid_image_4d, labels=valid_labels,
                            mask=np.zeros_like(valid_mask)),
@@ -92,6 +96,7 @@ def test_random_crop_no_fg() -> None:
 
 @pytest.mark.parametrize("crop_size", [valid_crop_size])
 def test_random_crop(crop_size: Any) -> None:
+    valid_image_4d, valid_labels, valid_mask = create_valid_image()
     labels = valid_labels
     # create labels such that there are no foreground voxels in a particular class
     # this should ne handled gracefully (class being ignored from sampling)
@@ -119,7 +124,7 @@ def test_valid_class_weights(class_weights: List[float]) -> None:
     """
     Produce a large number of crops and make sure the crop center class proportions respect class weights
     """
-    ml_util.set_random_seed(1)
+    valid_image_4d, valid_labels, valid_mask = create_valid_image()
     num_classes = len(valid_labels)
     image = np.zeros_like(valid_image_4d)
     labels = np.zeros_like(valid_labels)

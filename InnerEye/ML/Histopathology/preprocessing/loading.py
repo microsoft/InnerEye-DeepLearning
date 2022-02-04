@@ -94,7 +94,6 @@ class LoadROId(MapTransform):
         return bbox, threshold
 
     def __call__(self, data: Dict) -> Dict:
-        from cucim import CuImage
         image_obj: CuImage = self.reader.read(data[self.image_key])
 
         level0_bbox, threshold = self._get_bounding_box(image_obj)
