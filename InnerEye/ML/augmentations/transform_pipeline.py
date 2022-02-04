@@ -54,7 +54,7 @@ class ImageTransformationPipeline:
         """
 
         def _convert_to_tensor_if_necessary(data: ImageData) -> torch.Tensor:
-            return to_tensor(data) if isinstance(data, PIL.Image.Image) else data
+            return to_tensor(data) if not isinstance(data, torch.Tensor) else data
 
         image = _convert_to_tensor_if_necessary(image)
         original_input_is_2d = len(image.shape) == 3

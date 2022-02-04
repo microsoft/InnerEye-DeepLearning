@@ -5,22 +5,30 @@ steps:
 
   - template: prepare_conda.yml
 
+  - bash: echo "##vso[task.setvariable variable=conda_env_dir]/usr/share/miniconda/envs"
+    displayName: "Set the Conda environment folder (Linux)"
+    condition: eq(variables['Agent.OS'], 'Linux')
+
+  - bash: echo "##vso[task.setvariable variable=conda_env_dir]C:/Miniconda/envs"
+    displayName: "Set the Conda environment folder(Windows)"
+    condition: eq(variables['Agent.OS'], 'Windows_NT')
+
+  - bash: echo $(conda_env_dir)
+    displayName: 'Printing Conda environment folder'
+
   # https://docs.microsoft.com/en-us/azure/devops/pipelines/release/caching?view=azure-devops#pythonanaconda
   - task: Cache@2
     displayName: Use cached Conda environment
     inputs:
       # Beware of changing the cache key or path independently, safest to change in sync
-      key: 'usr_share_miniconda_envs | "$(Agent.OS)" | environment.yml'
-      path: /usr/share/miniconda/envs
+      key: 'conda_env | "$(Agent.OS)" | environment.yml'
       cacheHitVar: CONDA_CACHE_RESTORED
+      path: $(conda_env_dir)
 
-  - script: conda env create --file environment.yml
+  - bash: conda env create --file environment.yml
     displayName: Create Anaconda environment
     failOnStderr: false # Conda env create does not have an option to suppress warnings generated in wheel.py
     condition: eq(variables.CONDA_CACHE_RESTORED, 'false')
-
-  - script: source activate InnerEye
-    displayName: Check if InnerEye is present
 
   - bash: |
       source activate InnerEye
@@ -29,3 +37,7 @@ steps:
       pip freeze
     failOnStderr: false
     displayName: Print package list and Conda info
+    condition: succeededOrFailed()
+
+  - bash: source activate InnerEye
+    displayName: Check if InnerEye environment is present

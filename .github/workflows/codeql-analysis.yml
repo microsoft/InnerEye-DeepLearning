@@ -10,8 +10,8 @@ on:
     - cron: '45 4 * * 1'
 
 jobs:
-  analyze:
-    name: Analyze
+  codeql_analyze:
+    name: CodeQL Analyze
     runs-on: ubuntu-latest
 
     strategy:

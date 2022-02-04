@@ -7,6 +7,7 @@ import os
 from typing import Callable, Dict, List, Optional, Type  # noqa
 
 import pytest
+import torch
 from torch import Tensor, argmax, nn, rand, randint, randn, round, stack, allclose
 from torchvision.models import resnet18
 
@@ -29,7 +30,7 @@ from InnerEye.ML.Histopathology.datasets.default_paths import (
 )
 from InnerEye.ML.Histopathology.models.deepmil import DeepMILModule
 from InnerEye.ML.Histopathology.models.encoders import ImageNetEncoder, TileEncoder
-from InnerEye.ML.Histopathology.utils.naming import ResultsKey
+from InnerEye.ML.Histopathology.utils.naming import MetricsKey, ResultsKey
 
 
 def get_supervised_imagenet_encoder() -> TileEncoder:
@@ -111,9 +112,12 @@ def test_lightningmodule(
     assert preds.shape[0] == batch_size
 
     for metric_name, metric_object in module.train_metrics.items():
-        if (batch_size > 1) or (not metric_name == "auroc"):
+        if metric_name == MetricsKey.CONF_MATRIX or metric_name == MetricsKey.AUROC:
+            continue
+        if batch_size > 1:
             score = metric_object(preds.view(-1, 1), bag_labels.view(-1, 1))
-            assert score >= 0 and score <= 1
+            assert torch.all(score >= 0)
+            assert torch.all(score <= 1)
 
 
 def move_batch_to_expected_device(batch: Dict[str, List], use_gpu: bool) -> Dict:
