@@ -3,7 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-from typing import Callable, Tuple
+from typing import Tuple
 
 from torch import as_tensor, device, nn, no_grad, prod, rand
 from torch.hub import load_state_dict_from_url
@@ -15,7 +15,7 @@ def get_imagenet_preprocessing() -> nn.Module:
 
 
 def setup_feature_extractor(pretrained_model: nn.Module,
-                            input_dim: Tuple[int, int, int]) -> Tuple[Callable, int]:
+                            input_dim: Tuple[int, int, int]) -> Tuple[nn.Module, int]:
     try:
         # Attempt to auto-detect final classification layer:
         num_features: int = pretrained_model.fc.in_features  # type: ignore
