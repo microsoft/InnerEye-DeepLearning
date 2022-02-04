@@ -10,7 +10,7 @@ import torch
 import numpy as np
 import PIL
 from monai.config.type_definitions import KeysCollection
-from monai.transforms.transform import MapTransform
+from monai.transforms.transform import MapTransform, Randomizable
 from torchvision.transforms.functional import to_tensor
 
 from InnerEye.ML.Histopathology.models.encoders import TileEncoder
@@ -127,4 +127,34 @@ class EncodeTilesBatchd(MapTransform):
         out_data = dict(data)  # create shallow copy
         for key in self.key_iterator(out_data):
             out_data[key] = self._encode_tiles(data[key])
+        return out_data
+
+
+def take_indices(data: Sequence, indices: np.ndarray) -> Sequence:
+    if isinstance(data, (np.ndarray, torch.Tensor)):
+        return data[indices]
+    elif isinstance(data, Sequence):
+        return [data[i] for i in indices]
+    else:
+        raise ValueError(f"Data of type {type(data)} is not indexable")
+
+
+class Subsampled(MapTransform, Randomizable):
+    """Dictionary transform to randomly subsample the data down to a fixed maximum length"""
+
+    def __init__(self, keys: KeysCollection, max_size: int) -> None:
+        super().__init__(keys, allow_missing_keys=False)
+        self.max_size = max_size
+        self._indices: np.ndarray
+
+    def randomize(self, total_size: int) -> None:
+        subsample_size = min(self.max_size, total_size)
+        self._indices = self.R.choice(total_size, size=subsample_size)
+
+    def __call__(self, data: Mapping) -> Mapping:
+        out_data = dict(data)  # create shallow copy
+        size = len(data[self.keys[0]])
+        self.randomize(size)
+        for key in self.key_iterator(out_data):
+            out_data[key] = take_indices(data[key], self._indices)
         return out_data
