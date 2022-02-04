@@ -112,12 +112,11 @@ def test_lightningmodule(
     assert preds.shape[0] == batch_size
 
     for metric_name, metric_object in module.train_metrics.items():
-        if metric_name == MetricsKey.CONF_MATRIX or metric_name == MetricsKey.AUROC:
+        if metric_name == MetricsKey.CONF_MATRIX:
             continue
-        if batch_size > 1:
-            score = metric_object(preds.view(-1, 1), bag_labels.view(-1, 1))
-            assert torch.all(score >= 0)
-            assert torch.all(score <= 1)
+        score = metric_object(preds.view(-1, 1), bag_labels.view(-1, 1))
+        assert torch.all(score >= 0)
+        assert torch.all(score <= 1)
 
 
 def move_batch_to_expected_device(batch: Dict[str, List], use_gpu: bool) -> Dict:
