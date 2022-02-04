@@ -64,7 +64,7 @@ class DeepMILModule(LightningModule):
         `torch.nn.Module` constructor accepting input, hidden, and output pooling `int` dimensions.
         :param pool_hidden_dim: Hidden dimension of pooling layer (default=128).
         :param pool_out_dim: Output dimension of pooling layer (default=1).
-        :param dropout_rate: Rate of pre-classifier dropout. `None` for no dropout (default).
+        :param dropout_rate: Rate of pre-classifier dropout (0-1). `None` for no dropout (default).
         :param class_weights: Tensor containing class weights (default=None).
         :param l_rate: Optimiser learning rate.
         :param weight_decay: Weight decay parameter for L2 regularisation.
@@ -102,7 +102,6 @@ class DeepMILModule(LightningModule):
         self.verbose = verbose
 
         self.aggregation_fn, self.num_pooling = self.get_pooling()
-        self.dropout = self.get_dropout()
         self.classifier_fn = self.get_classifier()
         self.loss_fn = self.get_loss()
         self.activation_fn = self.get_activation()
@@ -119,14 +118,15 @@ class DeepMILModule(LightningModule):
         num_features = self.num_encoding*self.pool_out_dim
         return pooling_layer, num_features
 
-    def get_dropout(self) -> Callable:
-        if self.dropout_rate is None:
-            return nn.Identity()
-        return nn.Dropout(self.dropout_rate)
-
     def get_classifier(self) -> Callable:
-        return nn.Linear(in_features=self.num_pooling,
-                         out_features=self.n_classes)
+        classifier_layer = nn.Linear(in_features=self.num_pooling,
+                                     out_features=self.n_classes)
+        if self.dropout_rate is None:
+            return classifier_layer
+        elif 0 <= self.dropout_rate < 1:
+            return nn.Sequential(nn.Dropout(self.dropout_rate), classifier_layer)
+        else:
+            raise ValueError(f"Dropout rate should be in [0, 1), got {self.dropout_rate}")
 
     def get_loss(self) -> Callable:
         if self.n_classes > 1:
@@ -178,8 +178,7 @@ class DeepMILModule(LightningModule):
             instance_features = self.encoder(instances)                    # N X L x 1 x 1
         attentions, bag_features = self.aggregation_fn(instance_features)  # K x N | K x L
         bag_features = bag_features.view(-1, self.num_encoding * self.pool_out_dim)
-        bag_features_dropout = self.dropout(bag_features)
-        bag_logit = self.classifier_fn(bag_features_dropout)
+        bag_logit = self.classifier_fn(bag_features)
         return bag_logit, attentions
 
     def configure_optimizers(self) -> optim.Optimizer:
