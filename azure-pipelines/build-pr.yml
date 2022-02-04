@@ -23,15 +23,29 @@ jobs:
     steps:
       - template: cancel_aml_jobs.yml
 
-  - job: Windows
+  - job: CredScan_ComponentGov
     pool:
       vmImage: 'windows-2019'
     steps:
       - template: build_windows.yaml
 
-  - job: Linux
+  # Run jobs that only build the environment. These jobs have a high chance of succeeding and filling the build
+  # cache. Pytest, etc legs will only fill the cache if they succeed.
+  - job: CreateCondaEnvCache_Windows
     pool:
-      vmImage: 'ubuntu-20.04'
+      vmImage: 'windows-2019'
+    steps:
+      - template: inner_eye_env.yml
+
+  - job: CreateCondaEnvAndCache_Linux
+    pool:
+      vmImage: 'ubuntu-18.04'
+    steps:
+      - template: inner_eye_env.yml
+
+  - job: PyTest
+    pool:
+      vmImage: 'windows-2019'
     steps:
       - template: build.yaml
 

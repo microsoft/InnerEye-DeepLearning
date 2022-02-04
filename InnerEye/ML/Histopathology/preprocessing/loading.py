@@ -1,13 +1,18 @@
+import logging
 from typing import Dict, Optional, Tuple
 
 import numpy as np
 import skimage.filters
-from cucim import CuImage
 from health_ml.utils import box_utils
 from monai.data.image_reader import WSIReader
 from monai.transforms import MapTransform
 
 from InnerEye.ML.Histopathology.utils.naming import SlideKey
+
+try:
+    from cucim import CuImage
+except:
+    logging.warning("cucim library not available, code may fail.")
 
 
 def get_luminance(slide: np.ndarray) -> np.ndarray:
@@ -35,7 +40,7 @@ def segment_foreground(slide: np.ndarray, threshold: Optional[float] = None) \
     return luminance < threshold, threshold
 
 
-def load_slide_at_level(reader: WSIReader, slide_obj: CuImage, level: int) -> np.ndarray:
+def load_slide_at_level(reader: WSIReader, slide_obj: 'CuImage', level: int) -> np.ndarray:
     """Load full slide array at the given magnification level.
 
     This is a manual workaround for a MONAI bug (https://github.com/Project-MONAI/MONAI/issues/3415)
@@ -60,6 +65,7 @@ class LoadROId(MapTransform):
     - `SlideKey.SCALE` (float): corresponding scale, loaded from the file
     - `SlideKey.FOREGROUND_THRESHOLD` (float): threshold used to segment the foreground
     """
+
     def __init__(self, reader: WSIReader, image_key: str = SlideKey.IMAGE, level: int = 0,
                  margin: int = 0, foreground_threshold: Optional[float] = None) -> None:
         """
@@ -77,7 +83,7 @@ class LoadROId(MapTransform):
         self.margin = margin
         self.foreground_threshold = foreground_threshold
 
-    def _get_bounding_box(self, slide_obj: CuImage) -> Tuple[box_utils.Box, float]:
+    def _get_bounding_box(self, slide_obj: 'CuImage') -> Tuple[box_utils.Box, float]:
         # Estimate bounding box at the lowest resolution (i.e. highest level)
         highest_level = slide_obj.resolutions['level_count'] - 1
         scale = slide_obj.resolutions['level_downsamples'][highest_level]
@@ -88,6 +94,7 @@ class LoadROId(MapTransform):
         return bbox, threshold
 
     def __call__(self, data: Dict) -> Dict:
+        from cucim import CuImage
         image_obj: CuImage = self.reader.read(data[self.image_key])
 
         level0_bbox, threshold = self._get_bounding_box(image_obj)
