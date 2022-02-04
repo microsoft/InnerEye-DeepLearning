@@ -46,8 +46,8 @@ class DeepSMILEPanda(BaseMIL):
             # average number of tiles is 56 for PANDA
             encoding_chunk_size=60,
             cache_mode=CacheMode.MEMORY,
-            precache_location=CacheLocation.NONE,
-            max_bag_size=10,
+            precache_location=CacheLocation.CPU,
+            max_bag_size=100,
 
             # declared in DatasetParams:
             local_dataset=Path("/tmp/datasets/PANDA_tiles"),
