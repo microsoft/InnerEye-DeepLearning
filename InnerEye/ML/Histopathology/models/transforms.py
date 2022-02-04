@@ -142,8 +142,9 @@ def take_indices(data: Sequence, indices: np.ndarray) -> Sequence:
 class Subsampled(MapTransform, Randomizable):
     """Dictionary transform to randomly subsample the data down to a fixed maximum length"""
 
-    def __init__(self, keys: KeysCollection, max_size: int) -> None:
-        super().__init__(keys, allow_missing_keys=False)
+    def __init__(self, keys: KeysCollection, max_size: int,
+                 allow_missing_keys: bool = False) -> None:
+        super().__init__(keys, allow_missing_keys=allow_missing_keys)
         self.max_size = max_size
         self._indices: np.ndarray
 
