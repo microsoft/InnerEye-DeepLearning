@@ -120,7 +120,7 @@ in inference-only runs when using lightning containers.
 - ([#638](https://github.com/microsoft/InnerEye-DeepLearning/pull/638)) SimClr cosine LR scheduler was using wrong length information when using with long linear head datasets
 - ([#612](https://github.com/microsoft/InnerEye-DeepLearning/pull/612)) SSL online evaluator was not doing distributed training
 - ([#652](https://github.com/microsoft/InnerEye-DeepLearning/pull/652)) Run pytest build on Windows after Linux agent version upgrade
-- ([#655](https://github.com/microsoft/InnerEye-DeepLearning/pull/652)) Run pytest on Linux again, but with Ubuntu 20.04 
+- ([#655](https://github.com/microsoft/InnerEye-DeepLearning/pull/655)) Run pytest on Linux again, but with Ubuntu 20.04 
 
 ### Removed
 
