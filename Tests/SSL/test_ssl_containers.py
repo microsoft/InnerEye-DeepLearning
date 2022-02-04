@@ -132,8 +132,8 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
     # Check the metrics that were recorded during training
     # Note: It is possible that after the PyTorch 1.10 upgrade, we can't get parity between local runs and runs on
     # the hosted build agents. If that suspicion is confirmed, we need to add branching for local and cloud results.
-    expected_metrics = {'simclr/val/loss': 2.8797268867492676,
-                        'ssl_online_evaluator/val/loss': 2.272602081298828,
+    expected_metrics = {'simclr/val/loss': 2.8736934661865234,
+                        'ssl_online_evaluator/val/loss': 2.2684895992279053,
                         'ssl_online_evaluator/val/AccuracyAtThreshold05': 0.20000000298023224,
                         'simclr/train/loss': 3.6261773109436035,
                         'simclr/learning_rate': 0.0,
@@ -617,8 +617,12 @@ def test_simclr_dataset_length(test_output_dirs: OutputFolderForTests,
         model = container.create_model()
         expected_num_train_iters = (num_encoder_images * 0.9) // encoder_batch_size
         assert model.train_iters_per_epoch == expected_num_train_iters
-        train_loaders = container.get_data_module().train_dataloader()
-        assert isinstance(train_loaders, CombinedLoader)
+        data_module = container.get_data_module()
+        data_module.prepare_data()
+        train_loaders_dict = data_module.train_dataloader()
+        assert isinstance(train_loaders_dict, dict)
+        assert data_module.train_loader_cycle_mode
+        train_loaders = CombinedLoader(train_loaders_dict, mode=data_module.train_loader_cycle_mode)
         assert len(train_loaders) == expected_num_train_iters
         expected_num_val_iters = (num_encoder_images * 0.1) // encoder_batch_size
         val_loaders = container.get_data_module().val_dataloader()
@@ -630,7 +634,24 @@ def test_simclr_dataloader_type() -> None:
     """ This test checks if the transform pipeline of a SSL job can handle different
     data types coming from the dataloader.
     """
-    def check_types_in_dataloader(dataloader: CombinedLoader) -> None:
+    # TODO: Once the pytorch lightning bug is fixed the following test can be removed.
+    # The training and val loader will be both CombinedLoaders
+    def check_types_in_train_dataloader(dataloader: dict) -> None:
+        for i, batch in enumerate(dataloader[SSLDataModuleType.ENCODER]):
+            assert isinstance(batch[0][0], torch.Tensor)
+            assert isinstance(batch[0][1], torch.Tensor)
+            assert isinstance(batch[1], torch.Tensor)
+            if i == 1:
+                break
+
+        for i, batch in enumerate(dataloader[SSLDataModuleType.LINEAR_HEAD]):
+            assert isinstance(batch[0], torch.Tensor)
+            assert isinstance(batch[1], torch.Tensor)
+            assert isinstance(batch[2], torch.Tensor)
+            if i == 1:
+                break
+
+    def check_types_in_val_dataloader(dataloader: CombinedLoader) -> None:
         for i, batch in enumerate(dataloader):
             assert isinstance(batch[SSLDataModuleType.ENCODER][0][0], torch.Tensor)
             assert isinstance(batch[SSLDataModuleType.ENCODER][0][1], torch.Tensor)
@@ -644,6 +665,9 @@ def test_simclr_dataloader_type() -> None:
     def check_types_in_train_and_val(data: CombinedDataModule) -> None:
         check_types_in_dataloader(data.train_dataloader())
         check_types_in_dataloader(data.val_dataloader())
+        check_types_in_train_dataloader(data.train_dataloader())
+        check_types_in_val_dataloader(data.val_dataloader())
+
 
     container = DummySimCLR()
     container.setup()

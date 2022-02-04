@@ -16,6 +16,7 @@ from InnerEye.Azure.azure_runner import ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NOD
 from InnerEye.Azure.azure_util import RUN_CONTEXT, is_offline_run_context
 from InnerEye.Common.common_util import SUBJECT_METRICS_FILE_NAME, change_working_directory
 from InnerEye.Common.resource_monitor import ResourceMonitor
+from InnerEye.ML.SSL.datamodules_and_datasets.datamodules import CombinedDataModule
 from InnerEye.ML.common import ARGS_TXT, AUTOSAVE_CHECKPOINT_FILE_NAME, ModelExecutionMode, \
     VISUALIZATION_FOLDER
 from InnerEye.ML.lightning_base import InnerEyeContainer, InnerEyeLightning
@@ -56,7 +57,8 @@ def write_args_file(config: Any, outputs_folder: Path) -> None:
 
 def create_lightning_trainer(container: LightningContainer,
                              resume_from_checkpoint: Optional[Path] = None,
-                             num_nodes: int = 1) -> \
+                             num_nodes: int = 1,
+                             multiple_trainloader_mode: str = "max_size_cycle") -> \
         Tuple[Trainer, StoringLogger]:
     """
     Creates a Pytorch Lightning Trainer object for the given model configuration. It creates checkpoint handlers
@@ -175,6 +177,7 @@ def create_lightning_trainer(container: LightningContainer,
                       detect_anomaly=container.detect_anomaly,
                       profiler=container.pl_profiler,
                       resume_from_checkpoint=str(resume_from_checkpoint) if resume_from_checkpoint else None,
+                      multiple_trainloader_mode=multiple_trainloader_mode,
                       **additional_args)
     return trainer, storing_logger
 
@@ -231,6 +234,14 @@ def model_train(checkpoint_path: Optional[Path],
             container.before_training_on_local_rank_zero()
         container.before_training_on_all_ranks()
 
+    # Workaround for a bug in PL 1.5.5: We need to pass the cycle mode for the training data as a trainer argument
+    # because training data that uses a CombinedLoader is not split correctly in DDP
+    multiple_trainloader_mode = "max_size_cycle"
+    if isinstance(data_module, CombinedDataModule):
+        data_module.prepare_data()
+        assert data_module.train_loader_cycle_mode is not None, "This field should be computed during prepare_data"
+        multiple_trainloader_mode = data_module.train_loader_cycle_mode
+
     # Create the trainer object. Backup the environment variables before doing that, in case we need to run a second
     # training in the unit tests.d
     old_environ = dict(os.environ)
@@ -239,7 +250,8 @@ def model_train(checkpoint_path: Optional[Path],
     seed_everything(container.get_effective_random_seed())
     trainer, storing_logger = create_lightning_trainer(container,
                                                        checkpoint_path,
-                                                       num_nodes=num_nodes)
+                                                       num_nodes=num_nodes,
+                                                       multiple_trainloader_mode=multiple_trainloader_mode)
     rank_info = ", ".join(f"{env}: {os.getenv(env)}"
                           for env in [ENV_GLOBAL_RANK, ENV_LOCAL_RANK, ENV_NODE_RANK])
     logging.info(f"Environment variables: {rank_info}. trainer.global_rank: {trainer.global_rank}")

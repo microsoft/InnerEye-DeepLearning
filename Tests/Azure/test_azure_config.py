@@ -9,6 +9,7 @@ import pytest
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_runner import create_dataset_configs
+from InnerEye.Common.common_util import is_linux
 from InnerEye.ML.deep_learning_config import DatasetParams
 from Tests.ML.util import get_default_azure_config
 
@@ -65,8 +66,10 @@ def test_dataset_consumption2() -> None:
     assert datasets[1].name == "2"
     assert datasets[0].local_folder == Path("l1")
     assert datasets[1].local_folder == Path("l2")
-    assert datasets[0].target_folder == PosixPath("mp1")
-    assert datasets[1].target_folder == PosixPath("mp2")
+    if is_linux():
+        # PosixPath cannot be instantiated on Windows
+        assert datasets[0].target_folder == PosixPath("mp1")
+        assert datasets[1].target_folder == PosixPath("mp2")
 
 
 def test_dataset_consumption3() -> None:
