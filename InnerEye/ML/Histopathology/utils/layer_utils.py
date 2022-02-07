@@ -3,9 +3,9 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-from typing import Callable, Tuple
+from typing import Tuple
 
-from torch import as_tensor, device, nn, prod, rand
+from torch import as_tensor, device, nn, no_grad, prod, rand
 from torch.hub import load_state_dict_from_url
 from torchvision.transforms import Normalize
 
@@ -15,15 +15,23 @@ def get_imagenet_preprocessing() -> nn.Module:
 
 
 def setup_feature_extractor(pretrained_model: nn.Module,
-                            input_dim: Tuple[int, int, int]) -> Tuple[Callable, int]:
-    layers = list(pretrained_model.children())[:-1]
-    layers.append(nn.Flatten())  # flatten non-batch dims in case of spatial feature maps
-    feature_extractor = nn.Sequential(*layers)
+                            input_dim: Tuple[int, int, int]) -> Tuple[nn.Module, int]:
+    try:
+        # Attempt to auto-detect final classification layer:
+        num_features: int = pretrained_model.fc.in_features  # type: ignore
+        pretrained_model.fc = nn.Flatten()
+        feature_extractor = pretrained_model
+    except AttributeError:
+        # Otherwise fallback to sequence of child modules:
+        layers = list(pretrained_model.children())[:-1]
+        layers.append(nn.Flatten())  # flatten non-batch dims in case of spatial feature maps
+        feature_extractor = nn.Sequential(*layers)
+        with no_grad():
+            feature_shape = feature_extractor(rand(1, *input_dim)).shape
+        num_features = int(prod(as_tensor(feature_shape)).item())
     # fix weights, no fine-tuning
     for param in feature_extractor.parameters():
         param.requires_grad = False
-    feature_shape = feature_extractor(rand(1, *input_dim)).shape
-    num_features = int(prod(as_tensor(feature_shape)).item())
     return feature_extractor, num_features
 
 
