@@ -19,17 +19,31 @@ variables:
 jobs:
   - job: CancelPreviousJobs
     pool:
-      vmImage: 'ubuntu-18.04'
+      vmImage: 'ubuntu-20.04'
     steps:
       - template: cancel_aml_jobs.yml
 
-  - job: Windows
+  - job: CredScan_ComponentGov
     pool:
       vmImage: 'windows-2019'
     steps:
       - template: build_windows.yaml
 
-  - job: Linux
+  # Run jobs that only build the environment. These jobs have a high chance of succeeding and filling the build
+  # cache. Pytest, etc legs will only fill the cache if they succeed.
+  # - job: CreateCondaEnvCache_Windows
+  #   pool:
+  #     vmImage: 'windows-2019'
+  #   steps:
+  #     - template: inner_eye_env.yml
+
+  - job: CreateCondaEnvAndCache_Linux
+    pool:
+      vmImage: 'ubuntu-20.04'
+    steps:
+      - template: inner_eye_env.yml
+
+  - job: PyTest
     pool:
       vmImage: 'ubuntu-20.04'
     steps:
@@ -43,7 +57,7 @@ jobs:
       - name: more_switches
         value: '--log_level=DEBUG --pl_deterministic --use_dataset_mount=True --regression_test_folder=RegressionTestResults/PR_BasicModel2Epochs'
     pool:
-      vmImage: 'ubuntu-18.04'
+      vmImage: 'ubuntu-20.04'
     steps:
       - template: train_template.yml
         parameters:
@@ -60,7 +74,7 @@ jobs:
       - name: tag
         value: 'RunGpuTests'
     pool:
-      vmImage: 'ubuntu-18.04'
+      vmImage: 'ubuntu-20.04'
     steps:
       - template: train_template.yml
         parameters:
@@ -85,7 +99,7 @@ jobs:
       - name: tag
         value: 'Train1ChannelSubmodule'
     pool:
-      vmImage: 'ubuntu-18.04'
+      vmImage: 'ubuntu-20.04'
     steps:
       - template: train_via_submodule.yml
         parameters:
@@ -110,7 +124,7 @@ jobs:
       - name: more_switches
         value: '--pl_deterministic --log_level=DEBUG --regression_test_folder=RegressionTestResults/PR_TrainEnsemble'
     pool:
-      vmImage: 'ubuntu-18.04'
+      vmImage: 'ubuntu-20.04'
     steps:
       - template: train_template.yml
         parameters:
@@ -133,7 +147,7 @@ jobs:
       - name: more_switches
         value: '--log_level=DEBUG --pl_deterministic --num_nodes=2 --regression_test_folder=RegressionTestResults/PR_Train2Nodes'
     pool:
-      vmImage: 'ubuntu-18.04'
+      vmImage: 'ubuntu-20.04'
     steps:
       - template: train_template.yml
         parameters:
@@ -153,7 +167,7 @@ jobs:
       - name: tag
         value: 'HelloWorldPR'
     pool:
-      vmImage: 'ubuntu-18.04'
+      vmImage: 'ubuntu-20.04'
     steps:
       - template: train_template.yml
         parameters:
@@ -173,7 +187,7 @@ jobs:
       - name: more_switches
         value: '--pl_deterministic --num_nodes=2 --max_num_gpus=2 --regression_test_folder=RegressionTestResults/PR_HelloContainer'
     pool:
-      vmImage: 'ubuntu-18.04'
+      vmImage: 'ubuntu-20.04'
     steps:
       - template: train_template.yml
         parameters:
@@ -198,7 +212,7 @@ jobs:
       - name: more_switches
         value: '--pl_deterministic --num_epochs=1 --feature_channels=16 --show_patch_sampling=0 --train_batch_size=4 --inference_on_val_set=False --inference_on_test_set=False '
     pool:
-      vmImage: 'ubuntu-18.04'
+      vmImage: 'ubuntu-20.04'
     steps:
       - template: train_template.yml
         parameters:
@@ -209,6 +223,6 @@ jobs:
   # Now run the build for the Data Selection sub-folder
   - job: BuildDataSelection
     pool:
-      vmImage: 'ubuntu-18.04'
+      vmImage: 'ubuntu-20.04'
     steps:
       - template: build_data_quality.yaml

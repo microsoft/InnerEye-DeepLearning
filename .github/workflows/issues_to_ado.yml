@@ -6,7 +6,8 @@ on:
       [opened, edited, deleted, closed, reopened, labeled, unlabeled, assigned]
 
 jobs:
-  alert:
+  issues_to_ado:
+    name: Sync issues with Azure DevOps
     runs-on: ubuntu-latest
     steps:
       - uses: danhellem/github-actions-issue-to-work-item@master

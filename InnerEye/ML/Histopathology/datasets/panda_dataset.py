@@ -2,18 +2,22 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-
+import logging
 from pathlib import Path
 from typing import Any, Dict, Union, Optional
 
 import pandas as pd
-from cucim import CuImage
 from health_ml.utils import box_utils
 from monai.config import KeysCollection
 from monai.data.image_reader import ImageReader, WSIReader
 from monai.transforms import MapTransform
 
 from InnerEye.ML.Histopathology.datasets.base_dataset import SlidesDataset
+
+try:
+    from cucim import CuImage
+except:
+    logging.warning("cucim library not available, code may fail.")
 
 
 class PandaDataset(SlidesDataset):
@@ -48,6 +52,7 @@ class PandaDataset(SlidesDataset):
 # MONAI's convention is that dictionary transforms have a 'd' suffix in the class name
 class ReadImaged(MapTransform):
     """Basic transform to read image files."""
+
     def __init__(self, reader: ImageReader, keys: KeysCollection,
                  allow_missing_keys: bool = False, **kwargs: Any) -> None:
         super().__init__(keys, allow_missing_keys=allow_missing_keys)
@@ -71,6 +76,7 @@ class LoadPandaROId(MapTransform):
     - `'level'` (int): chosen magnification level
     - `'scale'` (float): corresponding scale, loaded from the file
     """
+
     def __init__(self, reader: WSIReader, image_key: str = 'image', mask_key: str = 'mask',
                  level: int = 0, margin: int = 0, **kwargs: Any) -> None:
         """
@@ -88,7 +94,7 @@ class LoadPandaROId(MapTransform):
         self.margin = margin
         self.kwargs = kwargs
 
-    def _get_bounding_box(self, mask_obj: CuImage) -> box_utils.Box:
+    def _get_bounding_box(self, mask_obj: 'CuImage') -> box_utils.Box:
         # Estimate bounding box at the lowest resolution (i.e. highest level)
         highest_level = mask_obj.resolutions['level_count'] - 1
         scale = mask_obj.resolutions['level_downsamples'][highest_level]
