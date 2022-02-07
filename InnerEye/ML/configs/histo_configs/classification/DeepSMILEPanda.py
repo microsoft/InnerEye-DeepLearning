@@ -37,7 +37,8 @@ from InnerEye.ML.Histopathology.models.deepmil import DeepMILModule
 
 class DeepSMILEPanda(BaseMIL):
     """`is_finetune` sets the fine-tuning mode. If this is set, setting cache_mode=CacheMode.NONE takes ~30 min/epoch and
-    cache_mode=CacheMode.MEMORY, precache_location=CacheLocation.SAME takes ~ 5 min/epoch. Fine-tuning is tested with batch size 8 on PANDA.
+    cache_mode=CacheMode.MEMORY, precache_location=CacheLocation.CPU takes ~[5-10] min/epoch. 
+    Fine-tuning with caching completes using batch_size=8, max_bag_size=100, num_peochs=20, max_num_gpus=1 on PANDA.
     """
     def __init__(self, **kwargs: Any) -> None:
         default_kwargs = dict(
@@ -47,6 +48,7 @@ class DeepSMILEPanda(BaseMIL):
             encoding_chunk_size=60,
             cache_mode=CacheMode.MEMORY,
             precache_location=CacheLocation.CPU,
+            batch_size=8,
             max_bag_size=100,
 
             # declared in DatasetParams:
@@ -56,7 +58,7 @@ class DeepSMILEPanda(BaseMIL):
             extra_local_dataset_paths=[Path("/tmp/datasets/PANDA")],
             # To mount the dataset instead of downloading in AML, pass --use_dataset_mount in the CLI
             # declared in TrainerParams:
-            num_epochs=200,
+            num_epochs=20,
             # use_mixed_precision = True,
 
             # declared in WorkflowParams:
@@ -106,7 +108,6 @@ class DeepSMILEPanda(BaseMIL):
             os.chdir(fixed_paths.repository_parent_directory())
             self.downloader.download_checkpoint_if_necessary()
         self.encoder = self.get_encoder()
-        # self.encoder.cuda()
         if not self.is_finetune:
             self.encoder.eval()
 
