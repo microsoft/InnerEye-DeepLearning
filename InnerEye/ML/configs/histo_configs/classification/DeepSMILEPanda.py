@@ -38,7 +38,7 @@ from InnerEye.ML.Histopathology.models.deepmil import DeepMILModule
 class DeepSMILEPanda(BaseMIL):
     """`is_finetune` sets the fine-tuning mode. If this is set, setting cache_mode=CacheMode.NONE takes ~30 min/epoch and
     cache_mode=CacheMode.MEMORY, precache_location=CacheLocation.CPU takes ~[5-10] min/epoch. 
-    Fine-tuning with caching completes using batch_size=8, max_bag_size=100, num_peochs=20, max_num_gpus=1 on PANDA.
+    Fine-tuning with caching completes using batch_size=8, max_bag_size=100, num_epochs=20, max_num_gpus=1 on PANDA.
     """
     def __init__(self, **kwargs: Any) -> None:
         default_kwargs = dict(
@@ -48,8 +48,8 @@ class DeepSMILEPanda(BaseMIL):
             encoding_chunk_size=60,
             cache_mode=CacheMode.MEMORY,
             precache_location=CacheLocation.CPU,
-            batch_size=8,
-            max_bag_size=100,
+            is_finetune=True,
+            # batch_size=4,
 
             # declared in DatasetParams:
             local_dataset=Path("/tmp/datasets/PANDA_tiles"),
@@ -87,7 +87,6 @@ class DeepSMILEPanda(BaseMIL):
             mode="max",
         )
         self.callbacks = best_checkpoint_callback
-        self.is_finetune = True
 
     @property
     def cache_dir(self) -> Path:
@@ -142,6 +141,8 @@ class DeepSMILEPanda(BaseMIL):
         self.class_names = ["ISUP 0", "ISUP 1", "ISUP 2", "ISUP 3", "ISUP 4", "ISUP 5"]
         if self.is_finetune:
             self.model_encoder = self.encoder
+            for params in self.model_encoder.parameters():
+                params.requires_grad = True
         else:
             self.model_encoder = IdentityEncoder(input_dim=(self.encoder.num_encoding,))
         return DeepMILModule(encoder=self.model_encoder,
@@ -156,7 +157,8 @@ class DeepSMILEPanda(BaseMIL):
                              tile_size=self.tile_size,
                              level=self.level,
                              class_names=self.class_names,
-                             is_finetune=self.is_finetune)
+                             is_finetune=self.is_finetune,
+                             encoding_chunk_size=self.encoding_chunk_size)
 
     def get_slide_dataset(self) -> PandaDataset:
         return PandaDataset(root=self.extra_local_dataset_paths[0])                             # type: ignore

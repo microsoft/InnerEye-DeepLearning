@@ -24,6 +24,7 @@ from InnerEye.ML.Histopathology.utils.metrics_utils import (select_k_tiles, plot
                                                             plot_slide, plot_normalized_confusion_matrix)
 from InnerEye.ML.Histopathology.utils.naming import SlideKey, ResultsKey, MetricsKey
 from InnerEye.ML.Histopathology.utils.viz_utils import load_image_dict
+from InnerEye.ML.Histopathology.models.transforms import EncodeTilesBatchd
 from health_ml.utils import log_on_epoch 
 
 RESULTS_COLS = [ResultsKey.SLIDE_ID, ResultsKey.TILE_ID, ResultsKey.IMAGE_PATH, ResultsKey.PROB,
@@ -55,7 +56,8 @@ class DeepMILModule(LightningModule):
                  tile_size: int = 224,
                  level: int = 1,
                  class_names: Optional[List[str]] = None,
-                 is_finetune: bool = False) -> None:
+                 is_finetune: bool = False,
+                 encoding_chunk_size: int = 0) -> None:
         """
         :param label_column: Label key for input batch dictionary.
         :param n_classes: Number of output classes for MIL prediction. For binary classification, n_classes should be set to 1.
@@ -75,6 +77,7 @@ class DeepMILModule(LightningModule):
         :param level: The downsampling level (e.g. 0, 1, 2) of the tiles if available (default=1).
         :param class_names: The names of the classes if available (default=None).
         :param is_finetune: Boolean value to enable/disable finetuning (default=False).
+        :param encoding_chunk_size: Only used in fine-tuning mode. If > 0 performs encoding in chunks, by loading enconding_chunk_size tiles per chunk (default=0).
         """
         super().__init__()
 
@@ -114,7 +117,9 @@ class DeepMILModule(LightningModule):
 
         self.verbose = verbose
 
+        #finetuning attributes
         self.is_finetune = is_finetune
+        self.encoding_chunk_size = encoding_chunk_size
 
         self.aggregation_fn, self.num_pooling = self.get_pooling()
         self.classifier_fn = self.get_classifier()
@@ -192,7 +197,12 @@ class DeepMILModule(LightningModule):
 
     def forward(self, images: Tensor) -> Tuple[Tensor, Tensor]:  # type: ignore
         with set_grad_enabled(self.is_finetune):
-            H = self.encoder(images)                        # N X L x 1 x 1
+            if self.is_finetune:
+                image_key = TilesDataset.IMAGE_COLUMN
+                transform = EncodeTilesBatchd(image_key, self.encoder, chunk_size=self.encoding_chunk_size)
+                H = transform(images)
+            else:
+                H = self.encoder(images)                    # N X L x 1 x 1
         A, M = self.aggregation_fn(H)                       # A: K x N | M: K x L
         M = M.view(-1, self.num_encoding * self.pool_out_dim)
         Y_prob = self.classifier_fn(M)
