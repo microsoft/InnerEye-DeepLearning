@@ -8,7 +8,7 @@ It is responsible for instantiating the encoder and full DeepMIL model. Subclass
 their datamodules and configure experiment-specific parameters.
 """
 from pathlib import Path
-from typing import Type  # noqa
+from typing import Optional, Type  # noqa
 
 import param
 from torch import nn
@@ -29,6 +29,7 @@ class BaseMIL(LightningContainer):
     pooling_type: str = param.String(doc="Name of the pooling layer class to use.")
     is_finetune: bool = param.Boolean(doc="Whether to fine-tune the encoder. Options:"
                                       "`False` (default), or `True`.")
+    dropout_rate: Optional[float] = param.Number(None, bounds=(0, 1), doc="Pre-classifier dropout rate.")
     # l_rate, weight_decay, adam_betas are already declared in OptimizerParams superclass
 
     # Encoder parameters:
@@ -106,6 +107,7 @@ class BaseMIL(LightningContainer):
                              label_column=self.data_module.train_dataset.LABEL_COLUMN,
                              n_classes=self.data_module.train_dataset.N_CLASSES,
                              pooling_layer=self.get_pooling_layer(),
+                             dropout_rate=self.dropout_rate,
                              class_weights=self.data_module.class_weights,
                              l_rate=self.l_rate,
                              weight_decay=self.weight_decay,
