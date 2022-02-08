@@ -13,12 +13,14 @@ from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import ModelExecutionMode
 from InnerEye.ML.config import ModelArchitectureConfig, SegmentationModelBase, equally_weighted_classes
+from InnerEye.ML.configs.ssl.CXR_SSL_configs import NIH_RSNA_SimCLR
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.models.architectures.base_model import BaseSegmentationModel
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils import ml_util
 from InnerEye.ML.utils.model_util import build_net
 from Tests.ML.configs.DummyModel import DummyModel
+from health_azure.traverse import object_to_yaml, write_yaml_to_object
 
 
 def test_validate_inference_stride_size() -> None:
@@ -251,3 +253,14 @@ def test_config_str() -> None:
     config.dataset_data_frame = df
     s = str(config)
     assert "foobar" not in s, f"Incorrect output: {s}"
+
+
+def test_ssl_container_to_yaml() -> None:
+    """
+    Write a model configuration to YAML
+    :return:
+    """
+    container = NIH_RSNA_SimCLR()
+    yaml = object_to_yaml(container)
+    print(yaml)
+    write_yaml_to_object(container, yaml, strict=True)
