@@ -38,7 +38,7 @@ from InnerEye.ML.Histopathology.models.deepmil import DeepMILModule
 class DeepSMILEPanda(BaseMIL):
     """`is_finetune` sets the fine-tuning mode. If this is set, setting cache_mode=CacheMode.NONE takes ~30 min/epoch and
     cache_mode=CacheMode.MEMORY, precache_location=CacheLocation.CPU takes ~[5-10] min/epoch. 
-    Fine-tuning with caching completes using batch_size=8, max_bag_size=100, num_epochs=20, max_num_gpus=1 on PANDA.
+    Fine-tuning with caching completes using batch_size=4, max_bag_size=1000, num_epochs=20, max_num_gpus=1 on PANDA.
     """
     def __init__(self, **kwargs: Any) -> None:
         default_kwargs = dict(
@@ -49,7 +49,7 @@ class DeepSMILEPanda(BaseMIL):
             cache_mode=CacheMode.MEMORY,
             precache_location=CacheLocation.CPU,
             is_finetune=True,
-            # batch_size=4,
+            batch_size=4,
 
             # declared in DatasetParams:
             local_dataset=Path("/tmp/datasets/PANDA_tiles"),
@@ -157,8 +157,7 @@ class DeepSMILEPanda(BaseMIL):
                              tile_size=self.tile_size,
                              level=self.level,
                              class_names=self.class_names,
-                             is_finetune=self.is_finetune,
-                             encoding_chunk_size=self.encoding_chunk_size)
+                             is_finetune=self.is_finetune)
 
     def get_slide_dataset(self) -> PandaDataset:
         return PandaDataset(root=self.extra_local_dataset_paths[0])                             # type: ignore
