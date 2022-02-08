@@ -49,7 +49,6 @@ class DeepSMILEPanda(BaseMIL):
             cache_mode=CacheMode.MEMORY,
             precache_location=CacheLocation.CPU,
             is_finetune=True,
-            batch_size=4,
 
             # declared in DatasetParams:
             local_dataset=Path("/tmp/datasets/PANDA_tiles"),
@@ -58,7 +57,7 @@ class DeepSMILEPanda(BaseMIL):
             extra_local_dataset_paths=[Path("/tmp/datasets/PANDA")],
             # To mount the dataset instead of downloading in AML, pass --use_dataset_mount in the CLI
             # declared in TrainerParams:
-            num_epochs=20,
+            num_epochs=200,
             # use_mixed_precision = True,
 
             # declared in WorkflowParams:
