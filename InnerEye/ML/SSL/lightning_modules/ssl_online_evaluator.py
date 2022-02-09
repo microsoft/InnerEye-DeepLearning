@@ -14,6 +14,7 @@ from torch import Tensor as T
 from torch.nn import SyncBatchNorm, functional as F
 from torch.nn.parallel import DistributedDataParallel
 from torchmetrics import Metric
+from datetime import datetime
 
 from InnerEye.ML.SSL.utils import SSLDataModuleType, add_submodules_to_same_device
 from InnerEye.ML.lightning_metrics import Accuracy05, AreaUnderPrecisionRecallCurve, AreaUnderRocCurve
@@ -175,6 +176,7 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
                 log_on_epoch(pl_module, 'ssl_online_evaluator/val/loss', loss)
                 for metric in self.val_metrics:
                     log_on_epoch(pl_module, f"ssl_online_evaluator/val/{metric.name}", metric)
+                    # print(datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ "), 'online evaluate validation', 'batch_idx', batch_idx, 'rank', trainer.global_rank)
 
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx) -> None:  # type: ignore
         """
@@ -194,3 +196,4 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
             log_on_epoch(pl_module, 'ssl_online_evaluator/train/loss', loss)
             for metric in self.train_metrics:
                 log_on_epoch(pl_module, f"ssl_online_evaluator/train/online_{metric.name}", metric)
+                # print(datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ "), 'online evaluate train', 'batch_idx', batch_idx, 'rank', trainer.global_rank)

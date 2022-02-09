@@ -231,6 +231,10 @@ class Runner:
                              "property must be set.")
         # https://docs.nvidia.com/cuda/cublas/index.html#cublasApi_reproducibility
         env_variables = {"CUBLAS_WORKSPACE_CONFIG": ":4096:8"} if self.lightning_container.pl_deterministic else {}
+        env_variables['NCCL_ASYNC_ERROR_HANDLING'] = '1'
+        env_variables['NCCL_DEBUG'] = 'INFO'
+        env_variables['TORCH_DISTRIBUTED_DETAIL'] = 'INFO'
+
         source_config = SourceConfig(
             root_folder=self.project_root,
             entry_script=Path(sys.argv[0]).resolve(),
