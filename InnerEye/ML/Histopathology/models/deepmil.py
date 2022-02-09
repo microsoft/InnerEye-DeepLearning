@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 import more_itertools as mi
 
 from pytorch_lightning import LightningModule
-from torch import Tensor, argmax, mode, nn, no_grad, optim, round
+from torch import Tensor, argmax, mode, nn, set_grad_enabled, optim, round
 from torchmetrics import AUROC, F1, Accuracy, Precision, Recall, ConfusionMatrix
 
 from InnerEye.Common import fixed_paths
@@ -55,7 +55,8 @@ class DeepMILModule(LightningModule):
                  slide_dataset: SlidesDataset = None,
                  tile_size: int = 224,
                  level: int = 1,
-                 class_names: Optional[List[str]] = None) -> None:
+                 class_names: Optional[List[str]] = None,
+                 is_finetune: bool = False) -> None:
         """
         :param label_column: Label key for input batch dictionary.
         :param n_classes: Number of output classes for MIL prediction. For binary classification, n_classes should be set to 1.
@@ -75,6 +76,7 @@ class DeepMILModule(LightningModule):
         :param tile_size: The size of each tile (default=224).
         :param level: The downsampling level (e.g. 0, 1, 2) of the tiles if available (default=1).
         :param class_names: The names of the classes if available (default=None).
+        :param is_finetune: Boolean value to enable/disable finetuning (default=False).
         """
         super().__init__()
 
@@ -114,6 +116,9 @@ class DeepMILModule(LightningModule):
         self.save_hyperparameters()
 
         self.verbose = verbose
+
+        # Finetuning attributes
+        self.is_finetune = is_finetune
 
         self.aggregation_fn, self.num_pooling = self.get_pooling()
         self.classifier_fn = self.get_classifier()
@@ -196,7 +201,7 @@ class DeepMILModule(LightningModule):
                 log_on_epoch(self, f'{stage}/{metric_name}', metric_object)
 
     def forward(self, instances: Tensor) -> Tuple[Tensor, Tensor]:  # type: ignore
-        with no_grad():
+        with set_grad_enabled(self.is_finetune):
             instance_features = self.encoder(instances)                    # N X L x 1 x 1
         attentions, bag_features = self.aggregation_fn(instance_features)  # K x N | K x L
         bag_features = bag_features.view(-1, self.num_encoding * self.pool_out_dim)

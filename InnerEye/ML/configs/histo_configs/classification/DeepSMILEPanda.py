@@ -14,6 +14,7 @@ from health_azure.utils import CheckpointDownloader
 from health_azure.utils import get_workspace, is_running_in_azure_ml
 from health_ml.networks.layers.attention_layers import GatedAttentionLayer
 from InnerEye.Common import fixed_paths
+from InnerEye.ML.Histopathology.datamodules.base_module import CacheMode, CacheLocation
 from InnerEye.ML.Histopathology.datamodules.panda_module import PandaTilesDataModule
 from InnerEye.ML.Histopathology.datasets.panda_tiles_dataset import PandaTilesDataset
 from InnerEye.ML.common import get_best_checkpoint_path
@@ -35,12 +36,19 @@ from InnerEye.ML.Histopathology.models.deepmil import DeepMILModule
 
 
 class DeepSMILEPanda(BaseMIL):
+    """`is_finetune` sets the fine-tuning mode. If this is set, setting cache_mode=CacheMode.NONE takes ~30 min/epoch and
+    cache_mode=CacheMode.MEMORY, precache_location=CacheLocation.CPU takes ~[5-10] min/epoch. 
+    Fine-tuning with caching completes using batch_size=4, max_bag_size=1000, num_epochs=20, max_num_gpus=1 on PANDA.
+    """
     def __init__(self, **kwargs: Any) -> None:
         default_kwargs = dict(
             # declared in BaseMIL:
             pooling_type=GatedAttentionLayer.__name__,
             # average number of tiles is 56 for PANDA
             encoding_chunk_size=60,
+            cache_mode=CacheMode.MEMORY,
+            precache_location=CacheLocation.CPU,
+            is_finetune=False,
 
             # declared in DatasetParams:
             local_dataset=Path("/tmp/datasets/PANDA_tiles"),
@@ -98,17 +106,19 @@ class DeepSMILEPanda(BaseMIL):
             os.chdir(fixed_paths.repository_parent_directory())
             self.downloader.download_checkpoint_if_necessary()
         self.encoder = self.get_encoder()
-        self.encoder.cuda()
-        self.encoder.eval()
+        if not self.is_finetune:
+            self.encoder.eval()
 
     def get_data_module(self) -> PandaTilesDataModule:
         image_key = PandaTilesDataset.IMAGE_COLUMN
-        transform = Compose(
-            [
-                LoadTilesBatchd(image_key, progress=True),
-                EncodeTilesBatchd(image_key, self.encoder, chunk_size=self.encoding_chunk_size),
-            ]
-        )
+        if self.is_finetune:
+            transform = Compose([LoadTilesBatchd(image_key, progress=True)])
+        else:
+            transform = Compose([
+                                LoadTilesBatchd(image_key, progress=True),
+                                EncodeTilesBatchd(image_key, self.encoder, chunk_size=self.encoding_chunk_size)
+                                ])
+
         return PandaTilesDataModule(
             root_path=self.local_dataset,
             max_bag_size=self.max_bag_size,
@@ -128,7 +138,13 @@ class DeepSMILEPanda(BaseMIL):
         self.slide_dataset = self.get_slide_dataset()
         self.level = 1
         self.class_names = ["ISUP 0", "ISUP 1", "ISUP 2", "ISUP 3", "ISUP 4", "ISUP 5"]
-        return DeepMILModule(encoder=IdentityEncoder(input_dim=(self.encoder.num_encoding,)),
+        if self.is_finetune:
+            self.model_encoder = self.encoder
+            for params in self.model_encoder.parameters():
+                params.requires_grad = True
+        else:
+            self.model_encoder = IdentityEncoder(input_dim=(self.encoder.num_encoding,))
+        return DeepMILModule(encoder=self.model_encoder,
                              label_column=self.data_module.train_dataset.LABEL_COLUMN,
                              n_classes=self.data_module.train_dataset.N_CLASSES,
                              pooling_layer=self.get_pooling_layer(),
@@ -139,7 +155,8 @@ class DeepSMILEPanda(BaseMIL):
                              slide_dataset=self.get_slide_dataset(),
                              tile_size=self.tile_size,
                              level=self.level,
-                             class_names=self.class_names)
+                             class_names=self.class_names,
+                             is_finetune=self.is_finetune)
 
     def get_slide_dataset(self) -> PandaDataset:
         return PandaDataset(root=self.extra_local_dataset_paths[0])                             # type: ignore
