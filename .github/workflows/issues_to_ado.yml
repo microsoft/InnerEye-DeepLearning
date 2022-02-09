@@ -16,7 +16,7 @@ jobs:
           github_token: "${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}"
           ado_organization: "innereye"
           ado_project: "InnerEye"
-          ado_area_path: "InnerEye\\OSS"
+          ado_area_path: "InnerEye\\Histopathology"
           ado_iteration_path: "InnerEye"
           ado_wit: "User Story"
           ado_new_state: "New"
