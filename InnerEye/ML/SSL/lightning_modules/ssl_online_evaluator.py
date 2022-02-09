@@ -124,7 +124,7 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
         Moves batch to device.
         :param device: device to move the batch to.
         """
-        _, x, y = batch
+        x, y = batch
         return x.to(device), y.to(device)
 
     def on_train_epoch_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
