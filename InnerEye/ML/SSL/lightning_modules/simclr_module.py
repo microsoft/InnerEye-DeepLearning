@@ -95,9 +95,11 @@ class SimCLRInnerEye(SimCLR):
         (img1, img2), y = batch
 
         # get h representations, bolts resnet returns a list
+        print(datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ "), 'before encoder call', 'rank', self.global_rank)
         h1, h2 = self(img1), self(img2)
 
         # get z representations
+        print(datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ "), 'before projection call', 'rank', self.global_rank)
         z1 = self.projection(h1)
         z2 = self.projection(h2)
 
