@@ -48,7 +48,7 @@ class DeepSMILEPanda(BaseMIL):
             encoding_chunk_size=60,
             cache_mode=CacheMode.MEMORY,
             precache_location=CacheLocation.CPU,
-            is_finetune=True,
+            is_finetune=False,
 
             # declared in DatasetParams:
             local_dataset=Path("/tmp/datasets/PANDA_tiles"),
