@@ -266,12 +266,3 @@ class SSLContainer(LightningContainer):
             raise ValueError(f"Dataset {dataset_name} unknown and no config has been passed.")
 
         return train_transforms, val_transforms
-
-    def get_callbacks(self) -> List[Callback]:
-        self.online_eval = SSLOnlineEvaluatorInnerEye(class_weights=self.data_module.class_weights,  # type: ignore
-                                                      z_dim=self.encoder_output_dim,
-                                                      num_classes=self.data_module.num_classes,  # type: ignore
-                                                      dataset=self.linear_head_dataset_name.value,  # type: ignore
-                                                      drop_p=0.2,
-                                                      learning_rate=self.learning_rate_linear_head_during_ssl_training)
-        return [self.online_eval]
