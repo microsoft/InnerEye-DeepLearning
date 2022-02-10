@@ -128,10 +128,12 @@ class SimCLRInnerEye(SimCLR):
     def on_train_batch_start(self, batch: Any, batch_idx: int, *args, **kwargs) -> None:
         print(datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ "), "on_train_batch_start", 'rank', self.global_rank, 'epoch',
               self.trainer.current_epoch, "batch_idx", batch_idx)
+        super().on_train_batch_start(batch, batch_idx, *args, **kwargs)
 
     def on_train_batch_end(self, outputs, batch: Any, batch_idx: int, *args, **kwargs) -> None:
         print(datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ "), "on_train_batch_start", 'rank', self.global_rank, 'epoch',
               self.trainer.current_epoch, "batch_idx", batch_idx)
+        super().on_train_batch_end(outputs, batch, batch_idx, *args, **kwargs)
 
     def on_epoch_start(self) -> None:
         print(datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ "), "on_epoch_start", 'rank', self.global_rank)
@@ -141,3 +143,4 @@ class SimCLRInnerEye(SimCLR):
 
     def on_before_zero_grad(self, optimizer) -> None:
         print(datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ "), "on_before_zero_grad", 'rank', self.global_rank)
+        super().on_before_zero_grad(optimizer)
