@@ -199,7 +199,7 @@ class DeepMILModule(LightningModule):
         with no_grad():
             instance_features = self.encoder(instances)                    # N X L x 1 x 1
         attentions, bag_features = self.aggregation_fn(instance_features)  # K x N | K x L
-        bag_features = bag_features.view(-1, self.num_encoding * self.pool_out_dim)
+        bag_features = bag_features.view(1, -1)
         bag_logit = self.classifier_fn(bag_features)
         return bag_logit, attentions
 
