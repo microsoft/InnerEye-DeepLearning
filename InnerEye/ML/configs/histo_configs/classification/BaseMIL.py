@@ -27,6 +27,8 @@ from InnerEye.ML.Histopathology.models.encoders import (HistoSSLEncoder, Identit
 class BaseMIL(LightningContainer):
     # Model parameters:
     pooling_type: str = param.String(doc="Name of the pooling layer class to use.")
+    is_finetune: bool = param.Boolean(doc="Whether to fine-tune the encoder. Options:"
+                                      "`False` (default), or `True`.")
     dropout_rate: Optional[float] = param.Number(None, bounds=(0, 1), doc="Pre-classifier dropout rate.")
     # l_rate, weight_decay, adam_betas are already declared in OptimizerParams superclass
 
@@ -62,8 +64,8 @@ class BaseMIL(LightningContainer):
             raise NotImplementedError("InnerEyeSSLEncoder requires a pre-trained checkpoint.")
 
         self.encoder = self.get_encoder()
-        self.encoder.cuda()
-        self.encoder.eval()
+        if not self.is_finetune:
+            self.encoder.eval()
 
     def get_encoder(self) -> TileEncoder:
         if self.encoder_type == ImageNetEncoder.__name__:
@@ -97,7 +99,13 @@ class BaseMIL(LightningContainer):
         self.data_module = self.get_data_module()
         # Encoding is done in the datamodule, so here we provide instead a dummy
         # no-op IdentityEncoder to be used inside the model
-        return DeepMILModule(encoder=IdentityEncoder(input_dim=(self.encoder.num_encoding,)),
+        if self.is_finetune:
+            self.model_encoder = self.encoder
+            for params in self.model_encoder.parameters():
+                params.requires_grad = True
+        else:
+            self.model_encoder = IdentityEncoder(input_dim=(self.encoder.num_encoding,))
+        return DeepMILModule(encoder=self.model_encoder,
                              label_column=self.data_module.train_dataset.LABEL_COLUMN,
                              n_classes=self.data_module.train_dataset.N_CLASSES,
                              pooling_layer=self.get_pooling_layer(),

@@ -139,5 +139,9 @@ class HistoSSLEncoder(TileEncoder):
 
     def _get_encoder(self) -> Tuple[Callable, int]:
         resnet18_model = resnet18(pretrained=False)
+        num_features = resnet18_model.fc.in_features
         histossl_encoder = load_weights_to_model(self.WEIGHTS_URL, resnet18_model)
-        return setup_feature_extractor(histossl_encoder, self.input_dim)  # type: ignore
+        histossl_encoder.fc = torch.nn.Sequential()
+        for param in histossl_encoder.parameters():
+            param.requires_grad = False
+        return histossl_encoder, num_features  # type: ignore
