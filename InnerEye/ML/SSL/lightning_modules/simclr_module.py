@@ -4,7 +4,6 @@
 #  ------------------------------------------------------------------------------------------
 
 from typing import Any, Dict, List, Tuple, Union
-from datetime import datetime
 
 import torch
 import torch.nn as nn
@@ -59,8 +58,8 @@ class SimCLRInnerEye(SimCLR):
         return self.encoder(x)
 
     def training_step(self, batch: BatchType, batch_idx: int) -> torch.Tensor:
-        print(datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ "), 'training', 'batch_idx', batch_idx, 'rank',
-              self.global_rank)
+        # print(datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ "), 'training', 'batch_idx', batch_idx, 'rank',
+        #       self.global_rank)
 
         loss = self.shared_step(batch)
         log_on_epoch(self, "simclr/train/loss", loss, sync_dist=False)
@@ -68,32 +67,32 @@ class SimCLRInnerEye(SimCLR):
         return loss
 
     def validation_step(self, batch: BatchType, batch_idx: int) -> torch.Tensor:  # type: ignore
-        print(datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ "), 'validation', 'batch_idx', batch_idx, 'rank',
-              self.global_rank)
+        # print(datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ "), 'validation', 'batch_idx', batch_idx, 'rank',
+        #       self.global_rank)
 
         loss = self.shared_step(batch)
         log_on_epoch(self, "simclr/val/loss", loss, sync_dist=False)
         return loss
 
-    def on_train_epoch_end(self, *args, **kwargs):
-        print(datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ "), "train epoch end", 'rank', self.global_rank, 'epoch',
-              self.trainer.current_epoch)
-        super().on_train_epoch_end(*args, **kwargs)
+    # def on_train_epoch_end(self, *args, **kwargs) -> None:
+    #     print(datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ "), "train epoch end", 'rank', self.global_rank, 'epoch',
+    #           self.trainer.current_epoch)
+    #     super().on_train_epoch_end(*args, **kwargs)
 
-    def on_train_epoch_start(self, *args, **kwargs):
-        print(datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ "), "train epoch start", 'rank', self.global_rank, 'epoch',
-              self.trainer.current_epoch)
-        super().on_train_epoch_start(*args, **kwargs)
+    # def on_train_epoch_start(self, *args, **kwargs) -> None:
+    #     print(datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ "), "train epoch start", 'rank', self.global_rank, 'epoch',
+    #           self.trainer.current_epoch)
+    #     super().on_train_epoch_start(*args, **kwargs)
 
-    def on_validation_epoch_end(self, *args, **kwargs):
-        print(datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ "), "val epoch end", 'rank', self.global_rank, 'epoch',
-              self.trainer.current_epoch)
-        super().on_validation_epoch_end(*args, **kwargs)
+    # def on_validation_epoch_end(self, *args, **kwargs) -> None:
+    #     print(datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ "), "val epoch end", 'rank', self.global_rank, 'epoch',
+    #           self.trainer.current_epoch)
+    #     super().on_validation_epoch_end(*args, **kwargs)
 
-    def on_validation_epoch_start(self, *args, **kwargs):
-        print(datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ "), "val epoch start", 'rank', self.global_rank, 'epoch',
-              self.trainer.current_epoch)
-        super().on_validation_epoch_start(*args, **kwargs)
+    # def on_validation_epoch_start(self, *args, **kwargs) -> None:
+    #     print(datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ "), "val epoch start", 'rank', self.global_rank, 'epoch',
+    #           self.trainer.current_epoch)
+    #     super().on_validation_epoch_start(*args, **kwargs)
 
     def shared_step(self, batch: BatchType) -> torch.Tensor:
         batch = batch[SSLDataModuleType.ENCODER] if isinstance(batch, dict) else batch
@@ -101,11 +100,11 @@ class SimCLRInnerEye(SimCLR):
         (img1, img2), y = batch
 
         # get h representations, bolts resnet returns a list
-        print(datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ "), 'before encoder call', 'rank', self.global_rank)
+        # print(datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ "), 'before encoder call', 'rank', self.global_rank)
         h1, h2 = self(img1), self(img2)
 
         # get z representations
-        print(datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ "), 'before projection call', 'rank', self.global_rank)
+        # print(datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ "), 'before projection call', 'rank', self.global_rank)
         z1 = self.projection(h1)
         z2 = self.projection(h2)
 
@@ -113,34 +112,34 @@ class SimCLRInnerEye(SimCLR):
 
         return loss
 
-    def on_fit_start(self) -> None:
-        print(datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ "), "on_fit_start", 'rank', self.global_rank)
+    # def on_fit_start(self) -> None:
+    #     print(datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ "), "on_fit_start", 'rank', self.global_rank)
 
-    def on_train_start(self) -> None:
-        print(datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ "), "on_train_start", 'rank', self.global_rank)
+    # def on_train_start(self) -> None:
+    #     print(datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ "), "on_train_start", 'rank', self.global_rank)
 
-    def on_pretrain_routine_start(self) -> None:
-        print(datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ "), "on_pretrain_routine_start", 'rank', self.global_rank)
+    # def on_pretrain_routine_start(self) -> None:
+    #     print(datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ "), "on_pretrain_routine_start", 'rank', self.global_rank)
 
-    def on_pretrain_routine_end(self) -> None:
-        print(datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ "), "on_pretrain_routine_end", 'rank', self.global_rank)
+    # def on_pretrain_routine_end(self) -> None:
+    #     print(datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ "), "on_pretrain_routine_end", 'rank', self.global_rank)
 
-    def on_train_batch_start(self, batch: Any, batch_idx: int, *args, **kwargs) -> None:
-        print(datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ "), "on_train_batch_start", 'rank', self.global_rank, 'epoch',
-              self.trainer.current_epoch, "batch_idx", batch_idx)
-        super().on_train_batch_start(batch, batch_idx, *args, **kwargs)
+    # def on_train_batch_start(self, batch: Any, batch_idx: int, *args, **kwargs) -> None:
+    #     print(datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ "), "on_train_batch_start", 'rank', self.global_rank, 'epoch',
+    #           self.trainer.current_epoch, "batch_idx", batch_idx)
+    #     super().on_train_batch_start(batch, batch_idx, *args, **kwargs)
 
-    def on_train_batch_end(self, outputs, batch: Any, batch_idx: int, *args, **kwargs) -> None:
-        print(datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ "), "on_train_batch_start", 'rank', self.global_rank, 'epoch',
-              self.trainer.current_epoch, "batch_idx", batch_idx)
-        super().on_train_batch_end(outputs, batch, batch_idx, *args, **kwargs)
+    # def on_train_batch_end(self, outputs, batch: Any, batch_idx: int, *args, **kwargs) -> None:
+    #     print(datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ "), "on_train_batch_start", 'rank', self.global_rank, 'epoch',
+    #           self.trainer.current_epoch, "batch_idx", batch_idx)
+    #     super().on_train_batch_end(outputs, batch, batch_idx, *args, **kwargs)
 
-    def on_epoch_start(self) -> None:
-        print(datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ "), "on_epoch_start", 'rank', self.global_rank)
+    # def on_epoch_start(self) -> None:
+    #     print(datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ "), "on_epoch_start", 'rank', self.global_rank)
 
-    def on_epoch_end(self) -> None:
-        print(datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ "), "on_epoch_end", 'rank', self.global_rank)
+    # def on_epoch_end(self) -> None:
+    #     print(datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ "), "on_epoch_end", 'rank', self.global_rank)
 
-    def on_before_zero_grad(self, optimizer) -> None:
-        print(datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ "), "on_before_zero_grad", 'rank', self.global_rank)
-        super().on_before_zero_grad(optimizer)
+    # def on_before_zero_grad(self, optimizer) -> None:
+    #     print(datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ "), "on_before_zero_grad", 'rank', self.global_rank)
+    #     super().on_before_zero_grad(optimizer)
