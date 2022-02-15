@@ -96,7 +96,7 @@ class DeepSMILECrck(BaseMIL):
             self.downloader = CheckpointDownloader(
                 azure_config_json_path=get_workspace(),
                 run_id=innereye_ssl_checkpoint_crck_4ws,
-                checkpoint_filename="last.ckpt",
+                checkpoint_filename="best_checkpoint.ckpt",
                 download_dir="outputs/",
                 remote_checkpoint_dir=Path("outputs/checkpoints")
             )
