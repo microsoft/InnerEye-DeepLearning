@@ -122,7 +122,7 @@ jobs:
       - name: tag
         value: 'TrainEnsemble'
       - name: more_switches
-        value: '--pl_deterministic --log_level=DEBUG --regression_test_folder=RegressionTestResults/PR_TrainEnsemble'
+        value: '--pl_deterministic --log_level=DEBUG --regression_test_folder=RegressionTestResults/PR_TrainEnsemble  --regression_test_csv_tolerance=1e-6'
     pool:
       vmImage: 'ubuntu-20.04'
     steps:
