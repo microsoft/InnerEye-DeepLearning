@@ -5,7 +5,7 @@
 * You need to have a Conda installation on your machine.
 * Create a Conda environment file `environment.yml` in your source code with this contents:
 
-```
+```yaml
 name: MyEnv
 channels:
   - defaults
@@ -15,7 +15,6 @@ dependencies:
   - python=3.7.3
   - pytorch=1.3.0
   - pip:
-      - git+https://github.com/analysiscenter/radio.git@6d53e25#egg=radio
       - git+https://github.com/ptrblck/apex.git@4ad9b3b#egg=apex
       - innereye
 ```
