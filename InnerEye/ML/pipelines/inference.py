@@ -259,8 +259,8 @@ class InferencePipeline(FullImageInferencePipelineBase):
 
         # There may be cases where the test image is smaller than the test_crop_size. Adjust crop_size
         # to always fit into image. If test_crop_size is smaller than the image, crop will remain unchanged.
-        restrict_patch_size = self.model.model.crop_size_constraints.restrict_crop_size_to_image
-        effective_patch_size, effective_stride = restrict_patch_size(image.spatial_shape,
+        restrict_patch_size = self.model.model.crop_size_constraints.restrict_crop_size_to_image  # type: ignore
+        effective_patch_size, effective_stride = restrict_patch_size(image.spatial_shape,  # type: ignore
                                                                     self.model_config.test_crop_size,
                                                                     self.model_config.inference_stride_size)
 
@@ -271,7 +271,8 @@ class InferencePipeline(FullImageInferencePipelineBase):
             patch_overlap,
             padding_mode=self.model_config.padding_mode.value,
         )
-        patch_loader = torch.utils.data.DataLoader(grid_sampler, batch_size=self.model_config.inference_batch_size)
+        batch_size = self.model_config.inference_batch_size
+        patch_loader = torch.utils.data.DataLoader(grid_sampler, batch_size=batch_size)  # type: ignore
         aggregator = tio.inference.GridAggregator(grid_sampler)
 
         logging.debug(
