@@ -278,7 +278,7 @@ class InferencePipeline(FullImageInferencePipelineBase):
             f"Inference on image size {image.spatial_shape} will run "
             f"with crop size {effective_patch_size} and stride {effective_stride}")
         for patches_batch in patch_loader:
-            input_tensor = patches_batch['image'][tio.DATA]
+            input_tensor = patches_batch['image'][tio.DATA].float()
             if self.model_config.use_gpu:
                 input_tensor = input_tensor.cuda()
             locations = patches_batch[tio.LOCATION]
