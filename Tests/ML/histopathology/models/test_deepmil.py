@@ -14,6 +14,7 @@ from torchvision.models import resnet18
 from health_ml.networks.layers.attention_layers import (
     AttentionLayer,
     GatedAttentionLayer,
+    MeanPoolingLayer,
 )
 
 from InnerEye.ML.lightning_container import LightningContainer
@@ -37,14 +38,7 @@ def get_supervised_imagenet_encoder() -> TileEncoder:
     return ImageNetEncoder(feature_extraction_model=resnet18, tile_size=224)
 
 
-@pytest.mark.parametrize("n_classes", [1, 3])
-@pytest.mark.parametrize("pooling_layer", [AttentionLayer, GatedAttentionLayer])
-@pytest.mark.parametrize("batch_size", [1, 15])
-@pytest.mark.parametrize("max_bag_size", [1, 7])
-@pytest.mark.parametrize("pool_hidden_dim", [1, 5])
-@pytest.mark.parametrize("pool_out_dim", [1, 6])
-@pytest.mark.parametrize("dropout_rate", [None, 0.5])
-def test_lightningmodule(
+def _test_lightningmodule(
     n_classes: int,
     pooling_layer: Callable[[int, int, int], nn.Module],
     batch_size: int,
@@ -117,6 +111,50 @@ def test_lightningmodule(
         score = metric_object(preds.view(-1, 1), bag_labels.view(-1, 1))
         assert torch.all(score >= 0)
         assert torch.all(score <= 1)
+
+
+@pytest.mark.parametrize("n_classes", [1, 3])
+@pytest.mark.parametrize("pooling_layer", [AttentionLayer, GatedAttentionLayer])
+@pytest.mark.parametrize("batch_size", [1, 15])
+@pytest.mark.parametrize("max_bag_size", [1, 7])
+@pytest.mark.parametrize("pool_hidden_dim", [1, 5])
+@pytest.mark.parametrize("pool_out_dim", [1, 6])
+@pytest.mark.parametrize("dropout_rate", [None, 0.5])
+def test_lightningmodule_attention(
+    n_classes: int,
+    pooling_layer: Callable[[int, int, int], nn.Module],
+    batch_size: int,
+    max_bag_size: int,
+    pool_hidden_dim: int,
+    pool_out_dim: int,
+    dropout_rate: Optional[float],
+) -> None:
+    _test_lightningmodule(n_classes=n_classes,
+                          pooling_layer=pooling_layer,
+                          batch_size=batch_size,
+                          max_bag_size=max_bag_size,
+                          pool_hidden_dim=pool_hidden_dim,
+                          pool_out_dim=pool_out_dim,
+                          dropout_rate=dropout_rate)
+
+
+@pytest.mark.parametrize("n_classes", [1, 3])
+@pytest.mark.parametrize("batch_size", [1, 15])
+@pytest.mark.parametrize("max_bag_size", [1, 7])
+@pytest.mark.parametrize("dropout_rate", [None, 0.5])
+def test_lightningmodule_mean_pooling(
+    n_classes: int,
+    batch_size: int,
+    max_bag_size: int,
+    dropout_rate: Optional[float],
+) -> None:
+    _test_lightningmodule(n_classes=n_classes,
+                          pooling_layer=MeanPoolingLayer,
+                          batch_size=batch_size,
+                          max_bag_size=max_bag_size,
+                          pool_hidden_dim=1,
+                          pool_out_dim=1,
+                          dropout_rate=dropout_rate)
 
 
 def move_batch_to_expected_device(batch: Dict[str, List], use_gpu: bool) -> Dict:
