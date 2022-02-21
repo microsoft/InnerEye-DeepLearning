@@ -59,6 +59,9 @@ class BYOLInnerEye(pl.LightningModule):
         self.target_network = deepcopy(self.online_network)
         self.weight_callback = ByolMovingAverageWeightUpdate()
 
+        # Adjust the learning rate to work with multi gpu
+        self.learning_rate = self.learning_rate * self.num_nodes * self.gpu
+
     def on_train_batch_end(self, *args: Any, **kwargs: Any) -> None:
         # Add callback for user automatically since it's key to BYOL weight update
         assert isinstance(self.trainer, Trainer)
