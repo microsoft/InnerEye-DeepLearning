@@ -151,9 +151,11 @@ class SSLContainer(LightningContainer):
         # Rescale the learning rate linearly according to the number of available GPUs, as seen in: https://arxiv.org/abs/1706.02677,
         # to avoid a drop in performance
         gpus_per_node = self.num_gpus_per_node()
-        if self.num_nodes * gpus_per_node > 1:
-            l_rate = self.l_rate * self.num_nodes * gpus_per_node
-            logging.info(f"We found {self.num_nodes * gpus_per_node} GPUs, SSL encoder learning rate has been adjusted from {self.l_rate} to {l_rate}")
+        num_of_total_gpus = self.num_nodes * gpus_per_node
+        if num_of_total_gpus > 1:
+            l_rate = self.l_rate * num_of_total_gpus  # typing: ignore
+            logging.info(f"We found {num_of_total_gpus} GPUs, SSL encoder learning rate has been adjusted from {self.l_rate} to {l_rate}")  # typing: ignore
+            self.l_rate = l_rate
 
         if self.ssl_training_type == SSLTrainingType.SimCLR:
             model: LightningModule = SimCLRInnerEye(encoder_name=self.ssl_encoder.value,
@@ -163,14 +165,14 @@ class SSLContainer(LightningContainer):
                                                     batch_size=self.data_module.batch_size,
                                                     gpus=gpus_per_node,
                                                     num_nodes=self.num_nodes,
-                                                    learning_rate=l_rate,
+                                                    learning_rate=self.l_rate,
                                                     max_epochs=self.num_epochs)
             logging.info(f"LR scheduling is using train_iters_per_epoch = {model.train_iters_per_epoch}")
         elif self.ssl_training_type == SSLTrainingType.BYOL:
             model = BYOLInnerEye(encoder_name=self.ssl_encoder.value,
                                  num_samples=self.data_module.num_train_samples,
                                  batch_size=self.data_module.batch_size,
-                                 learning_rate=l_rate,
+                                 learning_rate=self.l_rate,
                                  use_7x7_first_conv_in_resnet=use_7x7_first_conv_in_resnet,
                                  warmup_epochs=10,
                                  max_epochs=self.num_epochs)
