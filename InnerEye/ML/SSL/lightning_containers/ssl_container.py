@@ -148,10 +148,12 @@ class SSLContainer(LightningContainer):
         # of a 7x7 conv layer.
         use_7x7_first_conv_in_resnet = False if self.ssl_training_dataset_name.value.startswith("CIFAR") else True
 
-        # Adjust the learning rate to work with multi gpu
+        # Rescale the learning rate linearly according to the number of available GPUs, as seen in: https://arxiv.org/abs/1706.02677,
+        # to avoid a drop in performance
         gpus_per_node = self.num_gpus_per_node()
-        l_rate = self.l_rate * self.num_nodes * (gpus_per_node if gpus_per_node > 0 else 1)
-        print(f"We found {self.num_nodes * gpus_per_node} GPUs, SSL encoder learning rate has been adjusted from {self.l_rate} to {l_rate}")
+        if self.num_nodes * gpus_per_node > 1:
+            l_rate = self.l_rate * self.num_nodes * gpus_per_node
+            logging.info(f"We found {self.num_nodes * gpus_per_node} GPUs, SSL encoder learning rate has been adjusted from {self.l_rate} to {l_rate}")
 
         if self.ssl_training_type == SSLTrainingType.SimCLR:
             model: LightningModule = SimCLRInnerEye(encoder_name=self.ssl_encoder.value,
