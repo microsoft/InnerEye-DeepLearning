@@ -147,22 +147,28 @@ class SSLContainer(LightningContainer):
         # For small images like CIFAR, if using a resnet encoder, switch the first conv layer to a 3x3 kernel instead
         # of a 7x7 conv layer.
         use_7x7_first_conv_in_resnet = False if self.ssl_training_dataset_name.value.startswith("CIFAR") else True
+
+        # Adjust the learning rate to work with multi gpu
+        gpus_per_node = self.num_gpus_per_node()
+        l_rate = self.l_rate * self.num_nodes * (gpus_per_node if gpus_per_node > 0 else 1)
+        print(f"We found {self.num_nodes * gpus_per_node} GPUs, SSL encoder learning rate has been adjusted from {self.l_rate} to {l_rate}")
+
         if self.ssl_training_type == SSLTrainingType.SimCLR:
             model: LightningModule = SimCLRInnerEye(encoder_name=self.ssl_encoder.value,
                                                     dataset_name=self.ssl_training_dataset_name.value,
                                                     use_7x7_first_conv_in_resnet=use_7x7_first_conv_in_resnet,
                                                     num_samples=self.data_module.num_train_samples,
                                                     batch_size=self.data_module.batch_size,
-                                                    gpus=self.num_gpus_per_node(),
+                                                    gpus=gpus_per_node,
                                                     num_nodes=self.num_nodes,
-                                                    learning_rate=self.l_rate,
+                                                    learning_rate=l_rate,
                                                     max_epochs=self.num_epochs)
             logging.info(f"LR scheduling is using train_iters_per_epoch = {model.train_iters_per_epoch}")
         elif self.ssl_training_type == SSLTrainingType.BYOL:
             model = BYOLInnerEye(encoder_name=self.ssl_encoder.value,
                                  num_samples=self.data_module.num_train_samples,
                                  batch_size=self.data_module.batch_size,
-                                 learning_rate=self.l_rate,
+                                 learning_rate=l_rate,
                                  use_7x7_first_conv_in_resnet=use_7x7_first_conv_in_resnet,
                                  warmup_epochs=10,
                                  max_epochs=self.num_epochs)

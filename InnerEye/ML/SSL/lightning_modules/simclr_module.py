@@ -54,9 +54,6 @@ class SimCLRInnerEye(SimCLR):
         self.encoder = SSLEncoder(encoder_name, use_7x7_first_conv_in_resnet)
         self.projection = _Projection(input_dim=self.encoder.get_output_feature_dim(), hidden_dim=2048, output_dim=128)
 
-        # Adjust the learning rate to work with multi gpu
-        self.learning_rate = self.learning_rate * self.num_nodes * self.gpus
-
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.encoder(x)
 
