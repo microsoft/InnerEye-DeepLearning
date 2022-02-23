@@ -16,6 +16,7 @@ damage response defect classification directly from H&E whole-slide images. arXi
 from typing import Any, List
 from pathlib import Path
 import os
+import torch
 from monai.transforms import Compose
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from pytorch_lightning.callbacks import Callback
@@ -65,6 +66,7 @@ class DeepSMILECrck(BaseMIL):
             l_rate=5e-4,
             weight_decay=1e-4,
             adam_betas=(0.9, 0.99),
+            class_weights=torch.FloatTensor([1.0, 1.56]),
         )
         default_kwargs.update(kwargs)
         super().__init__(**default_kwargs)
@@ -96,7 +98,7 @@ class DeepSMILECrck(BaseMIL):
             self.downloader = CheckpointDownloader(
                 azure_config_json_path=get_workspace(),
                 run_id=innereye_ssl_checkpoint_crck_4ws,
-                checkpoint_filename="best_checkpoint.ckpt",
+                checkpoint_filename="last.ckpt",
                 download_dir="outputs/",
                 remote_checkpoint_dir=Path("outputs/checkpoints")
             )
