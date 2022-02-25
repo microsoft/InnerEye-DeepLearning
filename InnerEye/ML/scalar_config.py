@@ -125,6 +125,16 @@ class ScalarModelBase(ModelConfigBase):
                                             "is by default ['Default'], but can optionally be set to a more "
                                             "descriptive "
                                             "name for the positive class.")
+    target_names: List[str] = param.List(class_=str,
+                                         default=None,
+                                         bounds=(1, None),
+                                         doc="The label names for each output target, used for logging metrics and "
+                                             "reporting results. If provided, the length of this list must match the "
+                                             "number of model outputs (and of transformed labels, if defined; see "
+                                             "get_posthoc_label_transform()). By default, this inherits the value of "
+                                             "class_names at initialisation. This will be ignored in sequence models, "
+                                             "as target_names are determined automatically based on"
+                                             "sequence_target_positions")
     aggregation_type: AggregationType = param.ClassSelector(default=AggregationType.Average, class_=AggregationType,
                                                             doc="The type of global pooling aggregation to use between"
                                                                 " the encoder and the classifier.")
