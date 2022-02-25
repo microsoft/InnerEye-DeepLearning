@@ -244,8 +244,6 @@ def create_model_with_temperature_scaling(config: ModelConfigBase) -> Any:
     """
     # wrap the model around a temperature scaling model if required
     model = config.create_model()
-    if config.temperature_scaling_config:
-        model = ModelWithTemperature(model, config.temperature_scaling_config)
     return model
 
 

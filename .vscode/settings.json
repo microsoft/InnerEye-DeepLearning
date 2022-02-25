@@ -1,6 +1,5 @@
 {
     "python.analysis.typeCheckingMode": "basic",
-    "python.analysis.diagnosticMode": "workspace",
     "python.testing.pytestArgs": [
         "Tests"
     ],
