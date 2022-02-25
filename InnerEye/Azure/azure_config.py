@@ -24,8 +24,6 @@ from InnerEye.Common.generic_parsing import GenericConfig
 # The name of the "azureml" property of AzureConfig
 AZURECONFIG_SUBMIT_TO_AZUREML = "azureml"
 
-INPUT_DATA_KEY = "input_data"
-
 
 @dataclass(frozen=True)
 class GitInformation:
