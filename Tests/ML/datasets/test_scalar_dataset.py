@@ -197,7 +197,7 @@ S2,image2,image22.nii,False
 
 def test_load_items_errors() -> None:
     """
-    Test error cases when creating a list of classificationItems from a dataframe
+    Test error cases when creating a list of classification Items from a dataframe
     """
 
     def load(csv_string: StringIO) -> str:

@@ -10,10 +10,9 @@ from typing import Any, Generic, List, TypeVar
 import torch
 
 from InnerEye.Common.common_util import check_properties_are_not_none
-from InnerEye.ML.dataset.scalar_dataset import ScalarDataSource, SequenceDataSource
-from InnerEye.ML.dataset.sequence_sample import ClassificationItemSequence
+from InnerEye.ML.dataset.scalar_dataset import ScalarDataSource
 
-FT = TypeVar('FT', ClassificationItemSequence[SequenceDataSource], ScalarDataSource)
+FT = TypeVar('FT', ScalarDataSource)
 
 
 @dataclass(frozen=True)
@@ -40,11 +39,7 @@ class FeatureStatistics(Generic[FT]):
         if len(sources) == 0:
             raise ValueError("sources must have a length greater than 0")
 
-        data_sources: List[Any]  # for mypy
-        if isinstance(sources[0], ClassificationItemSequence):
-            data_sources = [item for seq in sources for item in seq.items]
-        else:
-            data_sources = sources
+        data_sources: List[Any] = sources
 
         numerical_non_image_features = [x.numerical_non_image_features for x in data_sources]
         if len(numerical_non_image_features) == 0:
@@ -104,14 +99,7 @@ class FeatureStatistics(Generic[FT]):
             new_features[zero_or_nan] = source.numerical_non_image_features[zero_or_nan]
             return source.clone_with_overrides(numerical_non_image_features=new_features)
 
-        def apply_sequence(seq: ClassificationItemSequence) -> ClassificationItemSequence:
-            # noinspection PyTypeChecker
-            return ClassificationItemSequence(id=seq.id, items=list(map(apply_source, seq.items)))
-
         if len(sources) > 0:
-            if isinstance(sources[0], ClassificationItemSequence):
-                return list(map(apply_sequence, sources))  # type: ignore
-            else:
-                return list(map(apply_source, sources))  # type: ignore
+            return list(map(apply_source, sources))  # type: ignore
         else:
             return sources
