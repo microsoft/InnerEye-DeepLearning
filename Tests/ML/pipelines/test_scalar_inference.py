@@ -24,7 +24,6 @@ from InnerEye.ML.pipelines.scalar_inference import ScalarEnsemblePipeline, Scala
 from InnerEye.ML.run_ml import is_classification_model
 from InnerEye.ML.scalar_config import EnsembleAggregationType
 from Tests.ML.configs.ClassificationModelForTesting import ClassificationModelForTesting
-from Tests.ML.models.architectures.sequential.test_rnn_classifier import ToySequenceModel
 from Tests.ML.utils.test_model_util import create_model_and_store_checkpoint
 
 
@@ -190,7 +189,6 @@ def test_is_classification_model() -> None:
     assert is_classification_model(GlaucomaPublic())
     assert is_classification_model(ClassificationModelForTesting())
     assert not is_classification_model(BasicModel2Epochs())
-    assert not is_classification_model(ToySequenceModel())
 
 
 def test_inference_required_single_runs() -> None:

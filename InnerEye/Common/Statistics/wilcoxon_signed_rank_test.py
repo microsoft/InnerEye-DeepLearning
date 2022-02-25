@@ -52,8 +52,7 @@ up each score from one set of results with a score from the other set.
 """
 
 from collections import defaultdict
-from itertools import filterfalse, tee
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
