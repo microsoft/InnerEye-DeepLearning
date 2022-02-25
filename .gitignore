@@ -168,3 +168,6 @@ InnerEye-DataQuality/logs
 InnerEye-DataQuality/data
 
 !**/InnerEye/ML/Histopathology/datasets
+None
+cifar-10-batches-py
+cifar-10-python.tar.gz
