@@ -469,7 +469,4 @@ def classification_model_test(config: ScalarModelBase,
             # write to disk
             df_logger.flush()
 
-    if output_logger:
-        output_logger.flush()
-
     return InferenceMetricsForClassification(metrics=metrics_dict)
