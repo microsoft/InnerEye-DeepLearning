@@ -19,11 +19,9 @@ from InnerEye.ML.metrics import compute_dice_across_patches
 from InnerEye.ML.metrics_dict import DataframeLogger, MetricsDict
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.scalar_config import ScalarModelBase
-from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import image_util, metrics_util, model_util
 from InnerEye.ML.utils.dataset_util import DatasetExample, store_and_upload_example
 from InnerEye.ML.utils.model_util import get_scalar_model_inputs_and_labels
-from InnerEye.ML.utils.sequence_utils import apply_sequence_model_loss
 from pytorch_lightning import Trainer
 
 SUBJECT_OUTPUT_PER_RANK_PREFIX = f"{SUBJECT_METRICS_FILE_NAME}.rank"
@@ -184,12 +182,8 @@ class ScalarLightning(InnerEyeLightning):
         super().__init__(config, *args, **kwargs)
         self.model = config.create_model()
         raw_loss = model_util.create_scalar_loss_function(config)
-        if isinstance(config, SequenceModelBase):
-            self.loss_fn = lambda model_output, loss: apply_sequence_model_loss(raw_loss, model_output, loss)
-            self.target_indices = config.get_target_indices()
-        else:
-            self.loss_fn = raw_loss
-            self.target_indices = []
+        self.loss_fn = raw_loss
+        self.target_indices = []
 
         self.target_names = config.target_names
         self.is_classification_model = config.is_classification_model

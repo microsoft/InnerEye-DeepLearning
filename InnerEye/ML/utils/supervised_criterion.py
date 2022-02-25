@@ -9,8 +9,6 @@ import torch
 from torch.nn import BCEWithLogitsLoss
 from torch.nn.utils.rnn import PackedSequence
 
-from InnerEye.ML.utils.sequence_utils import map_packed_sequence_data
-
 T = TypeVar('T', torch.Tensor, PackedSequence)
 
 
@@ -41,10 +39,7 @@ class SupervisedLearningCriterion(torch.nn.Module, abc.ABC):
 
         _input: List[T] = list(input)
         if self.smoothing_eps > 0.0:
-            if isinstance(_input[1], PackedSequence):
-                _input[1] = map_packed_sequence_data(_input[1], _smooth_target)
-            else:
-                _input[1] = _smooth_target(_input[1])
+            _input[1] = _smooth_target(_input[1])
 
         return self.forward_minibatch(*_input, **kwargs)
 
