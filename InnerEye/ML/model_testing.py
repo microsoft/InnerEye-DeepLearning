@@ -419,41 +419,44 @@ def classification_model_test(config: ScalarModelBase,
                                          checkpoint_paths=checkpoint_paths)
     if pipeline is None:
         raise ValueError("Inference pipeline could not be created.")
-
     # for mypy
     assert isinstance(pipeline, ScalarInferencePipelineBase)
-
     ml_util.set_random_seed(config.get_effective_random_seed(), "Model Testing")
     ds = config.get_torch_dataset_for_inference(data_split).as_data_loader(
         shuffle=False,
         batch_size=1,
         num_dataload_workers=0
     )
-
     logging.info(f"Starting to evaluate model on {data_split.value} set.")
     results_folder = config.outputs_folder / get_best_epoch_results_path(data_split, model_proc)
     os.makedirs(str(results_folder), exist_ok=True)
     metrics_dict = create_metrics_dict_for_scalar_models(config)
+    output_logger: Optional[DataframeLogger] = DataframeLogger(csv_path=results_folder / MODEL_OUTPUT_CSV)
+
     for sample in ds:
         result = pipeline.predict(sample)
         model_output = result.posteriors
         label = result.labels.to(device=model_output.device)
         sample_id = result.subject_ids[0]
+        if output_logger:
+            for i in range(len(config.target_names)):
+                output_logger.add_record({LoggingColumns.Patient.value: sample_id,
+                                          LoggingColumns.Hue.value: config.target_names[i],
+                                          LoggingColumns.Label.value: label[0][i].item(),
+                                          LoggingColumns.ModelOutput.value: model_output[0][i].item(),
+                                          LoggingColumns.CrossValidationSplitIndex.value: cross_val_split_index})
+
         compute_scalar_metrics(metrics_dict,
                                subject_ids=[sample_id],
                                model_output=model_output,
                                labels=label,
                                loss_type=config.loss_type)
         logging.debug(f"Example {sample_id}: {metrics_dict.to_string()}")
-
     average = metrics_dict.average(across_hues=False)
     logging.info(average.to_string())
-
     if isinstance(metrics_dict, ScalarMetricsDict):
         csv_file = results_folder / SUBJECT_METRICS_FILE_NAME
-
         logging.info(f"Writing {data_split.value} metrics to file {str(csv_file)}")
-
         # If we are running inference after a training run, the validation set metrics may have been written
         # during train time. If this is not the case, or we are running on the test set, create the metrics
         # file.
@@ -468,5 +471,8 @@ def classification_model_test(config: ScalarModelBase,
                                                    epoch=BEST_EPOCH_FOLDER_NAME)
             # write to disk
             df_logger.flush()
+
+    if output_logger:
+        output_logger.flush()
 
     return InferenceMetricsForClassification(metrics=metrics_dict)
