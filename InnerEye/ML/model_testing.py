@@ -396,11 +396,7 @@ def create_metrics_dict_for_scalar_models(config: ScalarModelBase) -> \
     Create an instance of either a ScalarMetricsDict or SequenceMetricsDict, depending on whether the given
      configuration is a sequence model configuration or not.
     """
-    if isinstance(config, SequenceModelBase):
-        return SequenceMetricsDict.create(is_classification_model=config.is_classification_model,
-                                          sequence_target_positions=config.sequence_target_positions)
-    else:
-        return ScalarMetricsDict(hues=config.target_names,
+    return ScalarMetricsDict(hues=config.target_names,
                                  is_classification_metrics=config.is_classification_model)
 
 
@@ -438,24 +434,11 @@ def classification_model_test(config: ScalarModelBase,
     results_folder = config.outputs_folder / get_best_epoch_results_path(data_split, model_proc)
     os.makedirs(str(results_folder), exist_ok=True)
     metrics_dict = create_metrics_dict_for_scalar_models(config)
-    if not isinstance(config, SequenceModelBase):
-        output_logger: Optional[DataframeLogger] = DataframeLogger(csv_path=results_folder / MODEL_OUTPUT_CSV)
-    else:
-        output_logger = None
-
     for sample in ds:
         result = pipeline.predict(sample)
         model_output = result.posteriors
         label = result.labels.to(device=model_output.device)
         sample_id = result.subject_ids[0]
-        if output_logger:
-            for i in range(len(config.target_names)):
-                output_logger.add_record({LoggingColumns.Patient.value: sample_id,
-                                          LoggingColumns.Hue.value: config.target_names[i],
-                                          LoggingColumns.Label.value: label[0][i].item(),
-                                          LoggingColumns.ModelOutput.value: model_output[0][i].item(),
-                                          LoggingColumns.CrossValidationSplitIndex.value: cross_val_split_index})
-
         compute_scalar_metrics(metrics_dict,
                                subject_ids=[sample_id],
                                model_output=model_output,

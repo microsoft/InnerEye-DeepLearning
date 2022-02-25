@@ -95,7 +95,7 @@ def is_classification_model(model: Any) -> bool:
     """
     Returns True if the given object is an InnerEye classification, but not a sequence model.
     """
-    return model.is_classification_model
+    return isinstance(model, ScalarModelBase)
 
 
 class MLRunner:
@@ -840,7 +840,7 @@ class MLRunner:
                     val_metrics=path_to_best_epoch_val,
                     test_metrics=path_to_best_epoch_test)
             else:
-                if isinstance(config, ScalarModelBase) and not isinstance(config, SequenceModelBase):
+                if isinstance(config, ScalarModelBase):
                     generate_classification_notebook(
                         result_notebook=reports_dir / get_ipynb_report_name(config.model_category.value),
                         config=config,
