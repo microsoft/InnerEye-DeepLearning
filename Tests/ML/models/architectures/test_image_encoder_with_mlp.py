@@ -19,19 +19,16 @@ from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.Common.type_annotations import TupleInt3
 from InnerEye.ML.augmentations.transform_pipeline import ImageTransformationPipeline
 from InnerEye.ML.dataset.scalar_dataset import ScalarDataset, ScalarItemAugmentation
-from InnerEye.ML.lightning_models import transfer_batch_to_device
 from InnerEye.ML.model_config_base import ModelTransformsPerExecutionMode
 from InnerEye.ML.models.architectures.classification.image_encoder_with_mlp import ImageEncoderWithMlp, \
     ImagingFeatureType
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.scalar_config import AggregationType, ScalarLoss, ScalarModelBase, get_non_image_features_dict
-from InnerEye.ML.utils.dataset_util import CategoricalToOneHotEncoder
 from InnerEye.ML.utils.image_util import HDF5_NUM_SEGMENTATION_CLASSES, segmentation_to_one_hot
 from InnerEye.ML.utils.io_util import ImageAndSegmentations, NumpyFile
 from InnerEye.ML.utils.ml_util import is_gpu_available, set_random_seed
-from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling, get_scalar_model_inputs_and_labels
+from InnerEye.ML.utils.model_util import create_model_with_temperature_scaling
 from InnerEye.ML.utils.split_dataset import DatasetSplits
-from InnerEye.ML.visualizers.grad_cam_hooks import VisualizationMaps
 from InnerEye.ML.visualizers.model_summary import ModelSummary
 from Tests.ML.util import get_default_azure_config, model_train_unittest
 
@@ -324,86 +321,3 @@ def test_segmentation_to_one_hot(use_gpu: bool, input_on_gpu: bool) -> None:
         else:
             expected = torch.zeros((B,) + dim, device=one_hot.device)
             assert one_hot[:, i, ...].float().allclose(expected), f"Dimension {i} should have all ones"
-
-
-@pytest.mark.parametrize("encode_channels_jointly", [True, False])
-@pytest.mark.parametrize("use_non_imaging_features", [True, False])
-@pytest.mark.parametrize("imaging_feature_type", [ImagingFeatureType.Image,
-                                                  ImagingFeatureType.Segmentation,
-                                                  ImagingFeatureType.ImageAndSegmentation])
-def test_visualization_with_scalar_model(use_non_imaging_features: bool,
-                                         imaging_feature_type: ImagingFeatureType,
-                                         encode_channels_jointly: bool,
-                                         test_output_dirs: OutputFolderForTests) -> None:
-    dataset_contents = """subject,channel,path,label,numerical1,numerical2,categorical1,categorical2
-    S1,week0,scan1.npy,,1,10,Male,Val1
-    S1,week1,scan2.npy,True,2,20,Female,Val2
-    S2,week0,scan3.npy,,3,30,Female,Val3
-    S2,week1,scan4.npy,False,4,40,Female,Val1
-    S3,week0,scan1.npy,,5,50,Male,Val2
-    S3,week1,scan3.npy,True,6,60,Male,Val2
-    """
-    dataset_dataframe = pd.read_csv(StringIO(dataset_contents), dtype=str)
-    numerical_columns = ["numerical1", "numerical2"] if use_non_imaging_features else []
-    categorical_columns = ["categorical1", "categorical2"] if use_non_imaging_features else []
-    non_image_feature_channels = get_non_image_features_dict(default_channels=["week1", "week0"],
-                                                             specific_channels={"categorical2": ["week1"]}) \
-        if use_non_imaging_features else {}
-
-    config = ImageEncoder(
-        local_dataset=Path(),
-        encode_channels_jointly=encode_channels_jointly,
-        should_validate=False,
-        numerical_columns=numerical_columns,
-        categorical_columns=categorical_columns,
-        imaging_feature_type=imaging_feature_type,
-        non_image_feature_channels=non_image_feature_channels,
-        categorical_feature_encoder=CategoricalToOneHotEncoder.create_from_dataframe(
-            dataframe=dataset_dataframe, columns=categorical_columns)
-    )
-
-    dataloader = ScalarDataset(config, data_frame=dataset_dataframe) \
-        .as_data_loader(shuffle=False, batch_size=2)
-
-    config.set_output_to(test_output_dirs.root_dir)
-    config.num_epochs = 1
-    model = create_model_with_temperature_scaling(config)
-    visualizer = VisualizationMaps(model, config)
-    # Patch the load_images function that will be called once we access a dataset item
-    image_and_seg = ImageAndSegmentations[np.ndarray](images=np.random.uniform(0, 1, (6, 64, 60)),
-                                                      segmentations=np.random.randint(0, 2, (6, 64, 60)))
-    with mock.patch('InnerEye.ML.utils.io_util.load_image_in_known_formats', return_value=image_and_seg):
-        batch = next(iter(dataloader))
-        if config.use_gpu:
-            device = visualizer.grad_cam.device
-            batch = transfer_batch_to_device(batch, device)
-            visualizer.grad_cam.model = visualizer.grad_cam.model.to(device)
-        model_inputs_and_labels = get_scalar_model_inputs_and_labels(model,
-                                                                     target_indices=[],
-                                                                     sample=batch)
-    number_channels = len(config.image_channels)
-    number_subjects = len(model_inputs_and_labels.subject_ids)
-    guided_grad_cams, grad_cams, pseudo_cam_non_img, probas = visualizer.generate(
-        model_inputs_and_labels.model_inputs)
-
-    if imaging_feature_type == ImagingFeatureType.ImageAndSegmentation:
-        assert guided_grad_cams.shape[:2] == (number_subjects, number_channels * 2)
-    else:
-        assert guided_grad_cams.shape[:2] == (number_subjects, number_channels)
-
-    assert grad_cams.shape[:2] == (number_subjects, 1) if encode_channels_jointly \
-        else (number_subjects, number_channels)
-
-    if use_non_imaging_features:
-        non_image_features = config.numerical_columns + config.categorical_columns
-        non_imaging_plot_labels = visualizer._get_non_imaging_plot_labels(model_inputs_and_labels.data_item,
-                                                                          non_image_features,
-                                                                          index=0)
-        assert non_imaging_plot_labels == ['numerical1_week1',
-                                           'numerical1_week0',
-                                           'numerical2_week1',
-                                           'numerical2_week0',
-                                           'categorical1_week1',
-                                           'categorical1_week0',
-                                           'categorical2_week1']
-        assert pseudo_cam_non_img.shape == (number_subjects, 1, len(non_imaging_plot_labels))

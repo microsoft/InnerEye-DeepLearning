@@ -185,7 +185,7 @@ S1,image2,img12.nii,True
 S2,image2,image22.nii,False
 """)
     df = pd.read_csv(csv_string, sep=",", dtype=str)
-    items: List[ScalarDataSource] = DataSourceReader[ScalarDataSource](
+    items: List[ScalarDataSource] = DataSourceReader(
         data_frame=df,
         image_channels=["image1", "image2"],
         image_file_column="path",

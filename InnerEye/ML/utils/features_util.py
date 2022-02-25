@@ -5,18 +5,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Generic, List, TypeVar
+from typing import Any, List
 
 import torch
 
 from InnerEye.Common.common_util import check_properties_are_not_none
 from InnerEye.ML.dataset.scalar_dataset import ScalarDataSource
 
-FT = TypeVar('FT', ScalarDataSource)
-
 
 @dataclass(frozen=True)
-class FeatureStatistics(Generic[FT]):
+class FeatureStatistics:
     """
     Class to store statistics (mean and standard deviation) of a set of features in a given dataset.
     Allows to perform feature standardization for this set of features.
@@ -28,7 +26,7 @@ class FeatureStatistics(Generic[FT]):
         check_properties_are_not_none(self)
 
     @staticmethod
-    def from_data_sources(sources: List[FT]) -> FeatureStatistics:
+    def from_data_sources(sources: List[ScalarDataSource]) -> FeatureStatistics:
         """
         For the provided data sources, compute the mean and std across all non-image features across all entries.
 
@@ -83,7 +81,7 @@ class FeatureStatistics(Generic[FT]):
         std = torch.sqrt(torch.max(variance, torch.zeros_like(variance)))
         return FeatureStatistics(mean=mean, std=std)
 
-    def standardize(self, sources: List[FT]) -> List[FT]:
+    def standardize(self, sources: List[ScalarDataSource]) -> List[ScalarDataSource]:
         """
         For the provided data sources, apply standardization to the non-image features in each source. This will
         standardize them to mean 0, variance 1 across all sequences.

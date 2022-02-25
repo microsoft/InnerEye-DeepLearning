@@ -4,7 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, Generic, Iterator, List, Optional, TypeVar, Union
+from typing import Any, Dict, Iterator, List, Optional, Union
 
 import torch
 from torch.nn import MSELoss
@@ -219,9 +219,7 @@ def generate_and_print_model_summary(config: ModelConfigBase, model: DeviceAware
         # get_model_input function to convert the dataset item to input tensors, and feed them through the model.
         train_dataset = config.get_torch_dataset_for_inference(ModelExecutionMode.TRAIN)
         train_item_0 = next(iter(train_dataset.as_data_loader(shuffle=False, batch_size=1, num_dataload_workers=0)))
-        target_indices = []
         model_inputs = get_scalar_model_inputs_and_labels(model,
-                                                          target_indices=target_indices,
                                                           sample=train_item_0)
         # The model inputs may already be converted to float16, assuming that we would do mixed precision.
         # However, the model is not yet converted to float16 when this function is called, hence convert back to float32
@@ -251,11 +249,8 @@ def create_model_with_temperature_scaling(config: ModelConfigBase) -> Any:
     return model
 
 
-E = TypeVar('E', ScalarItem)
-
-
 @dataclass
-class ScalarModelInputsAndLabels(Generic[E]):
+class ScalarModelInputsAndLabels():
     """
     Holds the results of calling get_scalar_model_inputs_and_labels: For a given sample returned by the data loader,
     create the model inputs, the labels, the list of subjects (data loader sample can be batched),
@@ -264,7 +259,7 @@ class ScalarModelInputsAndLabels(Generic[E]):
     model_inputs: List[torch.Tensor]
     labels: torch.Tensor
     subject_ids: List[str]
-    data_item: E
+    data_item: ScalarItem
 
     def __post_init__(self) -> None:
         common_util.check_properties_are_not_none(self)
@@ -295,7 +290,7 @@ def get_scalar_model_inputs_and_labels(model: torch.nn.Module,
     subject_ids = [str(x.id) for x in scalar_item.metadata]  # type: ignore
     model_inputs = scalar_model.get_input_tensors(scalar_item)
 
-    return ScalarModelInputsAndLabels[ScalarItem](
+    return ScalarModelInputsAndLabels(
         model_inputs=model_inputs,
         labels=scalar_item.label,
         subject_ids=subject_ids,

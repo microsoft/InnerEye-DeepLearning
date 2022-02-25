@@ -1,4 +1,5 @@
 {
+    "python.analysis.typeCheckingMode": "basic",
     "python.testing.pytestArgs": [
         "Tests"
     ],

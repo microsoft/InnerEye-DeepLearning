@@ -183,7 +183,6 @@ class ScalarLightning(InnerEyeLightning):
         self.model = config.create_model()
         raw_loss = model_util.create_scalar_loss_function(config)
         self.loss_fn = raw_loss
-        self.target_indices = []
 
         self.target_names = config.target_names
         self.is_classification_model = config.is_classification_model
@@ -196,11 +195,6 @@ class ScalarLightning(InnerEyeLightning):
         self.train_metric_computers = config.create_metric_computers()
         self.val_metric_computers = config.create_metric_computers()
         self.compute_and_log_metrics = config.compute_and_log_metrics
-        # if config.compute_grad_cam:
-        #     model_to_evaluate = self.train_val_params.mean_teacher_model if \
-        #         config.compute_mean_teacher_model else self.train_val_params.model
-        #     self.guided_grad_cam = VisualizationMaps(model_to_evaluate, config)
-        #     config.visualization_folder.mkdir(exist_ok=True)
 
     def forward(self, *model_inputs: torch.Tensor) -> torch.Tensor:  # type: ignore
         """
@@ -240,7 +234,7 @@ class ScalarLightning(InnerEyeLightning):
         :param batch_index: The index of the present batch (supplied only for diagnostics).
         Runs a minibatch of training or validation data through the model.
         """
-        model_inputs_and_labels = get_scalar_model_inputs_and_labels(self.model, self.target_indices, sample)
+        model_inputs_and_labels = get_scalar_model_inputs_and_labels(self.model, sample)
         labels = model_inputs_and_labels.labels
         if is_training:
             logits = self.model(*model_inputs_and_labels.model_inputs)

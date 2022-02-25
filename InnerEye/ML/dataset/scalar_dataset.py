@@ -10,7 +10,7 @@ from abc import abstractmethod
 from collections import Counter, defaultdict
 from multiprocessing import cpu_count
 from pathlib import Path
-from typing import Any, Callable, Dict, Generic, Iterable, List, Optional, Sequence, Set, TypeVar, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Set, Union
 
 import numpy as np
 import pandas as pd
@@ -22,12 +22,9 @@ from InnerEye.ML.dataset.full_image_dataset import GeneralDataset
 from InnerEye.ML.dataset.sample import GeneralSampleMetadata
 from InnerEye.ML.dataset.scalar_sample import ScalarDataSource, ScalarItem, SequenceDataSource
 from InnerEye.ML.scalar_config import LabelTransformation, ScalarModelBase
-from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils.csv_util import CSV_CHANNEL_HEADER, CSV_SUBJECT_HEADER
 from InnerEye.ML.utils.dataset_util import CategoricalToOneHotEncoder
 from InnerEye.ML.utils.features_util import FeatureStatistics
-
-T = TypeVar('T', bound=ScalarDataSource)
 
 
 def extract_label_classification(label_string: str, sample_id: str, num_classes: int,
@@ -180,7 +177,7 @@ def load_single_data_source(subject_rows: pd.DataFrame,
                             metadata_columns: Optional[Set[str]] = None,
                             is_classification_dataset: bool = True,
                             num_classes: int = 1,
-                            sequence_position_numeric: Optional[int] = None) -> T:
+                            sequence_position_numeric: Optional[int] = None) -> ScalarDataSource:
     """
     Converts a set of dataset rows for a single subject to a ScalarDataSource instance, which contains the
     labels, the non-image features, and the paths to the image files.
@@ -328,7 +325,7 @@ def load_single_data_source(subject_rows: pd.DataFrame,
     return datasource  # type: ignore
 
 
-class DataSourceReader(Generic[T]):
+class DataSourceReader():
     """
     Class that allows reading of data sources from a scalar dataset data frame.
     """
@@ -421,7 +418,7 @@ class DataSourceReader(Generic[T]):
 
     @staticmethod
     def load_data_sources_as_per_config(data_frame: pd.DataFrame,
-                                        args: ScalarModelBase) -> List[T]:
+                                        args: ScalarModelBase) -> List[ScalarDataSource]:
         """
         Loads dataset items from the given dataframe, where all column and channel configurations are taken from their
         respective model config elements.
@@ -436,11 +433,7 @@ class DataSourceReader(Generic[T]):
         if args.categorical_feature_encoder is not None:
             assert isinstance(args.categorical_feature_encoder, CategoricalToOneHotEncoder)  # mypy
 
-        sequence_column = None
-        if isinstance(args, SequenceModelBase):
-            sequence_column = args.sequence_column
-
-        return DataSourceReader[T](
+        return DataSourceReader(
             data_frame=data_frame,
             image_channels=args.image_channels,
             image_file_column=args.image_file_column,
@@ -450,14 +443,13 @@ class DataSourceReader(Generic[T]):
             non_image_feature_channels=args.get_non_image_feature_channels_dict(),
             numerical_columns=args.numerical_columns,
             categorical_data_encoder=args.categorical_feature_encoder,
-            sequence_column=sequence_column,
             subject_column=args.subject_column,
             channel_column=args.channel_column,
             num_classes=len(args.class_names),
             is_classification_dataset=args.is_classification_model
         ).load_data_sources(num_dataset_reader_workers=args.num_dataset_reader_workers)
 
-    def load_data_sources(self, num_dataset_reader_workers: int = 0) -> List[T]:
+    def load_data_sources(self, num_dataset_reader_workers: int = 0) -> List[ScalarDataSource]:
         """
         Extracts information from a dataframe to create a list of ClassificationItem. This will create one entry per
         unique
@@ -484,12 +476,12 @@ class DataSourceReader(Generic[T]):
 
         return list(flatten(filter(None, results)))
 
-    def load_datasources_for_subject(self, subject_id: str) -> Optional[List[T]]:
+    def load_datasources_for_subject(self, subject_id: str) -> Optional[List[ScalarDataSource]]:
 
         rows = self.data_frame[np.in1d(self.data_frame[self.subject_column].values, [subject_id])]
 
         def _load_single_data_source(_rows: pd.DataFrame,
-                                     _sequence_position_numeric: Optional[int] = None) -> T:
+                                     _sequence_position_numeric: Optional[int] = None) -> ScalarDataSource:
             return load_single_data_source(
                 subject_rows=_rows,
                 subject_id=subject_id,
@@ -506,28 +498,14 @@ class DataSourceReader(Generic[T]):
                 is_classification_dataset=self.is_classification_dataset,
                 num_classes=self.num_classes,
                 sequence_position_numeric=_sequence_position_numeric
-            )
-
-        def _load_sequence_data_source(_sequence_position: Any) -> T:
-            _sequence_position_numeric = int(_sequence_position)
-            if _sequence_position_numeric < 0:
-                raise ValueError(
-                    f"Sequence positions must be non-negative integers, but got: {_sequence_position}")
-            else:
-                seq_rows = rows[np.in1d(rows[self.sequence_column].values, [_sequence_position])]
-                return _load_single_data_source(seq_rows, _sequence_position_numeric)
-
-        if self.sequence_column:
-            seq_positions = rows[self.sequence_column].unique()
-            return list(map(_load_sequence_data_source, seq_positions))
-        else:
-            if len(self.expected_channels) > 0:
-                missing_channels = self.expected_channels - set(rows[self.channel_column])
-                if len(missing_channels) > 0:
-                    logging.warning(f"Subject {subject_id} will be skipped completely because the following "
-                                    f"channels are missing: {','.join(missing_channels)}.")
-                    return None
-            return [_load_single_data_source(rows)]
+            )       
+        if len(self.expected_channels) > 0:
+            missing_channels = self.expected_channels - set(rows[self.channel_column])
+            if len(missing_channels) > 0:
+                logging.warning(f"Subject {subject_id} will be skipped completely because the following "
+                                f"channels are missing: {','.join(missing_channels)}.")
+                return None
+        return [_load_single_data_source(rows)]
 
 
 def files_by_stem(root_path: Path) -> Dict[str, Path]:
@@ -582,10 +560,10 @@ def is_valid_item_index(item: ScalarDataSource,
     return min_sequence_position_value <= item.metadata.sequence_position <= max_sequence_position_value
 
 
-def filter_valid_classification_data_sources_items(items: Iterable[T],
+def filter_valid_classification_data_sources_items(items: Iterable[ScalarDataSource],
                                                    file_to_path_mapping: Optional[Dict[str, Path]],
                                                    max_sequence_position_value: Optional[int] = None,
-                                                   min_sequence_position_value: int = 0) -> List[T]:
+                                                   min_sequence_position_value: int = 0) -> List[ScalarDataSource]:
     """
     Consumes a list of classification data sources, and removes all of those that have missing file names,
     or that have NaN or Inf features. If the file_to_path_mapping is given too, all items that have any missing files
@@ -601,7 +579,7 @@ def filter_valid_classification_data_sources_items(items: Iterable[T],
     :return: A list of items, all of which are valid now.
     """
 
-    def all_files_present(item: T) -> bool:
+    def all_files_present(item: ScalarDataSource) -> bool:
         if file_to_path_mapping:
             return all(f in file_to_path_mapping for f in item.channel_files)
         else:
@@ -678,14 +656,14 @@ class ScalarItemAugmentation:
         return item
 
 
-class ScalarDatasetBase(GeneralDataset[ScalarModelBase], Generic[T]):
+class ScalarDatasetBase(GeneralDataset[ScalarModelBase], ScalarDataSource):
     """
     A base class for datasets for classification tasks. It contains logic for loading images from disk,
     either from a fixed folder or traversing into subfolders.
     """
     one_hot_encoder: Optional[CategoricalToOneHotEncoder] = None
     status: str = ""
-    items: List[T]
+    items: List[ScalarDataSource]
 
     def __init__(self, args: ScalarModelBase,
                  data_frame: Optional[pd.DataFrame] = None,
@@ -710,7 +688,7 @@ class ScalarDatasetBase(GeneralDataset[ScalarModelBase], Generic[T]):
             self.file_to_full_path = files_by_stem(args.local_dataset)
             logging.info("Finished traversing folder.")
 
-    def load_all_data_sources(self) -> List[T]:
+    def load_all_data_sources(self) -> List[ScalarDataSource]:
         """
         Uses the dataframe to create data sources to be used by the dataset.
         :return:
@@ -721,7 +699,7 @@ class ScalarDatasetBase(GeneralDataset[ScalarModelBase], Generic[T]):
         self.status += f"After filtering: {self.create_status_string(all_data_sources)}"
         return all_data_sources
 
-    def filter_valid_data_sources_items(self, data_sources: List[T]) -> List[T]:
+    def filter_valid_data_sources_items(self, data_sources: List[ScalarDataSource]) -> List[ScalarDataSource]:
         raise NotImplementedError("filter_valid_data_source_items must be implemented by child classes")
 
     @abstractmethod
@@ -737,7 +715,7 @@ class ScalarDatasetBase(GeneralDataset[ScalarModelBase], Generic[T]):
         If None, they will be computed from the data in the present object.
         """
         if self.items:
-            self.feature_statistics = self.feature_statistics or FeatureStatistics[T].from_data_sources(self.items)
+            self.feature_statistics = self.feature_statistics or FeatureStatistics.from_data_sources(self.items)
             self.items = self.feature_statistics.standardize(self.items)
 
     def load_item(self, item: ScalarDataSource) -> ScalarItem:
@@ -757,7 +735,7 @@ class ScalarDatasetBase(GeneralDataset[ScalarModelBase], Generic[T]):
 
         return self.transform(sample)
 
-    def create_status_string(self, items: List[T]) -> str:
+    def create_status_string(self, items: List[ScalarDataSource]) -> str:
         """
         Creates a human readable string that contains the number of items, and the distinct number of subjects.
         :param items: Use the items provided to create the string
@@ -767,14 +745,14 @@ class ScalarDatasetBase(GeneralDataset[ScalarModelBase], Generic[T]):
         return f"{len(items)} items for {distinct} subjects. "
 
 
-class ScalarDataset(ScalarDatasetBase[ScalarDataSource]):
+class ScalarDataset(ScalarDatasetBase):
     """
     A dataset class that can read CSV files with a flexible schema, and extract image file paths and non-image features.
     """
 
     def __init__(self, args: ScalarModelBase,
                  data_frame: Optional[pd.DataFrame] = None,
-                 feature_statistics: Optional[FeatureStatistics[ScalarDataSource]] = None,
+                 feature_statistics: Optional[FeatureStatistics] = None,
                  name: Optional[str] = None,
                  sample_transform: Callable[[ScalarItem], ScalarItem] = ScalarItemAugmentation()):
         """
