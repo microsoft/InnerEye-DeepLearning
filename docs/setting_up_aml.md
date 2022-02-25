@@ -1,5 +1,6 @@
 # How to setup Azure Machine Learning for InnerEye
 
+Our preferred way to use AzureML is using the [AzureTRE](https://microsoft.github.io/AzureTRE/)
 
 In order to be able to train models on Azure Machine Learning (AML) you will need to setup your environment in the 
 Azure Portal first. In this document we will walk you through this process step-by-step.

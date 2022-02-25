@@ -10,7 +10,6 @@ It integrates seamlessly with cloud computing in Azure.
 On the modelling side, this toolbox supports 
 - Segmentation models
 - Classification and regression models
-- Sequence models
 - Adding cloud support to any PyTorch Lightning model, via a [bring-your-own-model setup](docs/bring_your_own_model.md) 
 - Active label cleaning and noise robust learning toolbox (stand-alone folder)
 
@@ -45,8 +44,7 @@ often seen with medical images.
 - Easy creation of new models via a configuration-based approach, and inheritance from an existing
 architecture.
  
-Once training in AzureML is done, the models can be deployed from within AzureML or via 
-[Azure Stack Hub](https://azure.microsoft.com/en-us/products/azure-stack/hub/).
+Once training in AzureML is done, the models can be deployed from within AzureML.
 
 
 ## Getting started
@@ -165,11 +163,4 @@ contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additio
 ## Credits
 
 This toolbox is maintained by the 
-[Microsoft InnerEye team](https://www.microsoft.com/en-us/research/project/medical-image-analysis/), 
-and has received valuable contributions from a number
-of people outside our team. We would like to thank in particular our interns, 
-[Yao Quin](http://cseweb.ucsd.edu/~yaq007/), [Zoe Landgraf](https://www.linkedin.com/in/zoe-landgraf-a2212293),
-[Padmaja Jonnalagedda](https://www.linkedin.com/in/jspadmaja/),
-[Mathias Perslev](https://github.com/perslev), as well as the AI Residents 
-[Patricia Gillespie](https://www.microsoft.com/en-us/research/people/t-pagill/) and
-[Guilherme Ilunga](https://gilunga.github.io/).
+[Microsoft InnerEye team](https://www.microsoft.com/en-us/research/project/medical-image-analysis/).
