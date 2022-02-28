@@ -35,7 +35,7 @@ def select_k_tiles(results: Dict, n_tiles: int = 5, n_slides: int = 5, label: in
     :param return_col: column name of the values we want to return for each tile
     :return: tuple containing the slides id, the slide score, the tile ids, the tiles scores
     """
-    tmp_s = [(results[prob_col][i], i) for i, gt in enumerate(results[gt_col]) if gt == label]  # type ignore
+    tmp_s = [(results[prob_col][i][label], i) for i, gt in enumerate(results[gt_col]) if gt == label]  # type ignore
     if select[0] == 'lowest_pred':
         tmp_s.sort(reverse=False)
     elif select[0] == 'highest_pred':
@@ -58,7 +58,7 @@ def select_k_tiles(results: Dict, n_tiles: int = 5, n_slides: int = 5, label: in
             scores.append(results[attn_col][slide_idx][0][t_idx])
         # slide_ids are duplicated
         k_idx.append((results[slide_col][slide_idx][0],
-                      results[prob_col][slide_idx].item(),
+                      results[prob_col][slide_idx],
                       k_tiles, scores))
     return k_idx
 
@@ -71,20 +71,23 @@ def plot_scores_hist(results: Dict, prob_col: str = ResultsKey.PROB,
     :param gt_col: column name that contains the true label
     :return: matplotlib figure of the scores histogram by class
     """
-    pos_scores = [results[prob_col][i][0].cpu().item() for i, gt in enumerate(results[gt_col]) if gt == 1]
-    neg_scores = [results[prob_col][i][0].cpu().item() for i, gt in enumerate(results[gt_col]) if gt == 0]
-    fig, ax = plt.subplots()
-    ax.hist([pos_scores, neg_scores], label=['1', '0'], alpha=0.5)
+    n_classes = len(results[prob_col][0])
+    scores_class = []
+    for j in range(n_classes):
+        scores = [results[prob_col][i][j].cpu().item() for i, gt in enumerate(results[gt_col]) if gt == j]
+        scores_class.append(scores)
+    fig, ax = plt.subplots() 
+    ax.hist(scores_class, label=[str(i) for i in range(n_classes)], alpha=0.5)
     ax.set_xlabel("Predicted Score")
     ax.legend()
     return fig
 
 
-def plot_attention_tiles(slide: str, score: float, paths: List, attn: List, case: str, ncols: int = 5,
+def plot_attention_tiles(slide: str, score: List[float], paths: List, attn: List, case: str, ncols: int = 5,
                     size: Tuple = (10, 10)) -> plt.figure:
     """
     :param slide: slide identifier
-    :param score: predicted score for the slide
+    :param score: predicted scores of each class for the slide
     :param paths: list of paths to tiles belonging to the slide
     :param attn: list of scores belonging to the tiles in paths. paths and attn are expected to have the same shape
     :param case: string used to define the title of the plot e.g. TP
@@ -94,7 +97,7 @@ def plot_attention_tiles(slide: str, score: float, paths: List, attn: List, case
     """
     nrows = int(ceil(len(paths) / ncols))
     fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=size)
-    fig.suptitle(f"{case}: {slide} P=%.2f" % score)
+    fig.suptitle(f"{case}: {slide} P=%.2f" % max(score))
     for i in range(len(paths)):
         img = load_pil_image(paths[i])
         axs.ravel()[i].imshow(img, clim=(0, 255), cmap='gray')

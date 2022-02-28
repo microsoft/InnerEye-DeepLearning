@@ -59,8 +59,8 @@ class DeepSMILECrck(BaseMIL):
             # declared in TrainerParams:
             num_epochs=50,
             # declared in WorkflowParams:
-            number_of_cross_validation_splits=5,
-            cross_validation_split_index=0,
+            number_of_cross_validation_splits=0,
+            cross_validation_split_index=-1,
             # declared in OptimizerParams:
             l_rate=5e-4,
             weight_decay=1e-4,

@@ -61,8 +61,8 @@ class DeepSMILEPanda(BaseMIL):
             # use_mixed_precision = True,
 
             # declared in WorkflowParams:
-            number_of_cross_validation_splits=5,
-            cross_validation_split_index=0,
+            number_of_cross_validation_splits=0,
+            cross_validation_split_index=-1,
 
             # declared in OptimizerParams:
             l_rate=5e-4,

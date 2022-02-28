@@ -1,6 +1,6 @@
 innereye_ssl_checkpoint = "hsharma_panda_explore:hsharma_panda_explore_1638437076_357167ae"
 innereye_ssl_checkpoint_binary = "hsharma_panda_tiles_ssl:hsharma_panda_tiles_ssl_1639766433_161e03b9"
-innereye_ssl_checkpoint_crck_4ws = "ModifyOldSSLCheckpoint:a9259fdb-3964-4c5b-8962-4660e0b79d44"
+innereye_ssl_checkpoint_crck_4ws = "dev_histo:dev_histo_1645447795_643569ed"
 innereye_ssl_checkpoint_crck_radiomics = "ModifyOldSSLCheckpoint:704b1af8-7c75-46ed-8460-d80a0e603194"
 
 # outdated checkpoints

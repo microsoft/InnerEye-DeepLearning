@@ -241,8 +241,10 @@ class DeepMILModule(LightningModule):
         probs = self.activation_fn(bag_logits)
         if self.n_classes > 1:
             preds = argmax(probs, dim=1)
+            probs_perclass = probs
         else:
             preds = round(probs)
+            probs_perclass = Tensor([[1.0-probs[i][0].item(), probs[i][0].item()] for i in range(len(probs))]).cuda()
 
         loss = loss.view(-1, 1)
         preds = preds.view(-1, 1)
@@ -255,7 +257,7 @@ class DeepMILModule(LightningModule):
         results.update({ResultsKey.SLIDE_ID: batch[TilesDataset.SLIDE_ID_COLUMN],
                         ResultsKey.TILE_ID: batch[TilesDataset.TILE_ID_COLUMN],
                         ResultsKey.IMAGE_PATH: batch[TilesDataset.PATH_COLUMN], ResultsKey.LOSS: loss,
-                        ResultsKey.PROB: probs, ResultsKey.PRED_LABEL: preds,
+                        ResultsKey.PROB: probs_perclass, ResultsKey.PRED_LABEL: preds,
                         ResultsKey.TRUE_LABEL: bag_labels, ResultsKey.BAG_ATTN: bag_attn_list,
                         ResultsKey.IMAGE: batch[TilesDataset.IMAGE_COLUMN]})
 
@@ -338,11 +340,27 @@ class DeepMILModule(LightningModule):
         torch.save(features_list, encoded_features_filename)
 
         print("Selecting tiles ...")
-        fn_top_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10, select=('lowest_pred', 'highest_att'))
-        fn_bottom_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10, select=('lowest_pred', 'lowest_att'))
-        tp_top_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10, select=('highest_pred', 'highest_att'))
-        tp_bottom_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10, select=('highest_pred', 'lowest_att'))
-        report_cases = {'TP': [tp_top_tiles, tp_bottom_tiles], 'FN': [fn_top_tiles, fn_bottom_tiles]}
+        # Class 0
+        tn_top_tiles = select_k_tiles(results, n_slides=10, label=0, n_tiles=10, select=('highest_pred', 'highest_att'))
+        tn_bottom_tiles = select_k_tiles(results, n_slides=10, label=0, n_tiles=10, select=('highest_pred', 'lowest_att'))
+        fp_top_tiles = select_k_tiles(results, n_slides=10, label=0, n_tiles=10, select=('lowest_pred', 'highest_att'))
+        fp_bottom_tiles = select_k_tiles(results, n_slides=10, label=0, n_tiles=10, select=('lowest_pred', 'lowest_att'))
+        report_cases = {'TN': [tn_top_tiles, tn_bottom_tiles], 'FP': [fp_top_tiles, fp_bottom_tiles]}
+
+        # Class 1 to n_classes-1
+        if self.n_classes > 1:
+            for i in range(1, self.n_classes):
+                fn_top_tiles = select_k_tiles(results, n_slides=10, label=i, n_tiles=10, select=('lowest_pred', 'highest_att'))
+                fn_bottom_tiles = select_k_tiles(results, n_slides=10, label=i, n_tiles=10, select=('lowest_pred', 'lowest_att'))
+                tp_top_tiles = select_k_tiles(results, n_slides=10, label=i, n_tiles=10, select=('highest_pred', 'highest_att'))
+                tp_bottom_tiles = select_k_tiles(results, n_slides=10, label=i, n_tiles=10, select=('highest_pred', 'lowest_att'))
+                report_cases.update({'TP_'+str(i): [tp_top_tiles, tp_bottom_tiles], 'FN_'+str(i): [fn_top_tiles, fn_bottom_tiles]})
+        else:
+            fn_top_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10, select=('lowest_pred', 'highest_att'))
+            fn_bottom_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10, select=('lowest_pred', 'lowest_att'))
+            tp_top_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10, select=('highest_pred', 'highest_att'))
+            tp_bottom_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10, select=('highest_pred', 'lowest_att'))
+            report_cases.update({'TP_1': [tp_top_tiles, tp_bottom_tiles], 'FN_1': [fn_top_tiles, fn_bottom_tiles]})
 
         for key in report_cases.keys():
             print(f"Plotting {key} (tiles, thumbnails, attention heatmaps)...")
@@ -396,13 +414,19 @@ class DeepMILModule(LightningModule):
         # these steps are required to convert the dictionary to pandas dataframe.
         device = 'cuda' if use_gpu else 'cpu'
         dict_new = dict()
+        bag_size = len(dict_old[ResultsKey.SLIDE_ID])
         for key, value in dict_old.items():
-            if isinstance(value, Tensor):
-                value = value.squeeze(0).to(device).numpy()
-                if value.ndim == 0:
-                    bag_size = len(dict_old[ResultsKey.SLIDE_ID])
-                    value = np.full(bag_size, fill_value=value)
-            dict_new[key] = value
+            if not key == ResultsKey.PROB:
+                if isinstance(value, Tensor):
+                    value = value.squeeze(0).to(device).numpy()
+                    if value.ndim == 0:                   
+                        value = np.full(bag_size, fill_value=value)
+                dict_new[key] = value
+            else:
+                if isinstance(value, Tensor):
+                    value = value.squeeze(0).to(device).numpy()
+                    for i in range(len(value)):
+                        dict_new[key+str(i)] = np.repeat(value[i], bag_size)
         return dict_new
 
     @staticmethod
