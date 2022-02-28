@@ -185,8 +185,7 @@ class DeepMILModule(LightningModule):
                                   MetricsKey.PRECISION: Precision(threshold=threshold),
                                   MetricsKey.RECALL: Recall(threshold=threshold),
                                   MetricsKey.F1: F1(threshold=threshold),
-                                  MetricsKey.CONF_MATRIX: ConfusionMatrix(num_classes=self.n_classes+1,
-                                                                          threshold=threshold)})
+                                  MetricsKey.CONF_MATRIX: ConfusionMatrix(num_classes=2, threshold=threshold)})
 
     def log_metrics(self,
                     stage: str) -> None:
