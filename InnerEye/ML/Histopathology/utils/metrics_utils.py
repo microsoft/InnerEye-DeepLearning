@@ -20,7 +20,7 @@ from InnerEye.ML.Histopathology.utils.heatmap_utils import location_selected_til
 def select_k_tiles(results: Dict, n_tiles: int = 5, n_slides: int = 5, label: int = 1,
                    select: Tuple = ('lowest_pred', 'highest_att'),
                    slide_col: str = ResultsKey.SLIDE_ID, gt_col: str = ResultsKey.TRUE_LABEL,
-                   attn_col: str = ResultsKey.BAG_ATTN, prob_col: str = ResultsKey.PROB,
+                   attn_col: str = ResultsKey.BAG_ATTN, prob_col: str = ResultsKey.PROB_CLASS,
                    return_col: str = ResultsKey.IMAGE_PATH) -> List[Tuple[Any, Any, List[Any], List[Any]]]:
     """
     :param results: List that contains slide_level dicts
@@ -63,7 +63,7 @@ def select_k_tiles(results: Dict, n_tiles: int = 5, n_slides: int = 5, label: in
     return k_idx
 
 
-def plot_scores_hist(results: Dict, prob_col: str = ResultsKey.PROB,
+def plot_scores_hist(results: Dict, prob_col: str = ResultsKey.PROB_CLASS,
                      gt_col: str = ResultsKey.TRUE_LABEL) -> plt.figure:
     """
     :param results: List that contains slide_level dicts

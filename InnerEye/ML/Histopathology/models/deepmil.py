@@ -258,7 +258,8 @@ class DeepMILModule(LightningModule):
         results.update({ResultsKey.SLIDE_ID: batch[TilesDataset.SLIDE_ID_COLUMN],
                         ResultsKey.TILE_ID: batch[TilesDataset.TILE_ID_COLUMN],
                         ResultsKey.IMAGE_PATH: batch[TilesDataset.PATH_COLUMN], ResultsKey.LOSS: loss,
-                        ResultsKey.PROB: predicted_probs, ResultsKey.PROB_CLASS: probs_perclass, ResultsKey.PRED_LABEL: predicted_labels,
+                        ResultsKey.PROB: predicted_probs, ResultsKey.PROB_CLASS: probs_perclass, 
+                        ResultsKey.PRED_LABEL: predicted_labels,
                         ResultsKey.TRUE_LABEL: bag_labels, ResultsKey.BAG_ATTN: bag_attn_list,
                         ResultsKey.IMAGE: batch[TilesDataset.IMAGE_COLUMN]})
 
