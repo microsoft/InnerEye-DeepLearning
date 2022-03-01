@@ -27,7 +27,7 @@ from InnerEye.ML.Histopathology.utils.viz_utils import load_image_dict
 from health_ml.utils import log_on_epoch 
 
 RESULTS_COLS = [ResultsKey.SLIDE_ID, ResultsKey.TILE_ID, ResultsKey.IMAGE_PATH, ResultsKey.PROB,
-                ResultsKey.PRED_LABEL, ResultsKey.TRUE_LABEL, ResultsKey.BAG_ATTN]
+                ResultsKey.PROB_CLASS, ResultsKey.PRED_LABEL, ResultsKey.TRUE_LABEL, ResultsKey.BAG_ATTN]
 
 
 def _format_cuda_memory_stats() -> str:
@@ -245,7 +245,7 @@ class DeepMILModule(LightningModule):
             probs_perclass = predicted_probs
         else:
             predicted_labels = round(predicted_probs)
-            probs_perclass = Tensor([[1.0-predicted_probs[i][0].item(), predicted_probs[i][0].item()] for i in range(len(predicted_probs))]).cuda()
+            probs_perclass = Tensor([[1.0-predicted_probs[i][0].item(), predicted_probs[i][0].item()] for i in range(len(predicted_probs))])
 
         loss = loss.view(-1, 1)
         predicted_labels = predicted_labels.view(-1, 1)
@@ -258,7 +258,7 @@ class DeepMILModule(LightningModule):
         results.update({ResultsKey.SLIDE_ID: batch[TilesDataset.SLIDE_ID_COLUMN],
                         ResultsKey.TILE_ID: batch[TilesDataset.TILE_ID_COLUMN],
                         ResultsKey.IMAGE_PATH: batch[TilesDataset.PATH_COLUMN], ResultsKey.LOSS: loss,
-                        ResultsKey.PROB: probs_perclass, ResultsKey.PRED_LABEL: predicted_labels,
+                        ResultsKey.PROB: predicted_probs, ResultsKey.PROB_CLASS: probs_perclass, ResultsKey.PRED_LABEL: predicted_labels,
                         ResultsKey.TRUE_LABEL: bag_labels, ResultsKey.BAG_ATTN: bag_attn_list,
                         ResultsKey.IMAGE: batch[TilesDataset.IMAGE_COLUMN]})
 
@@ -417,7 +417,7 @@ class DeepMILModule(LightningModule):
         dict_new = dict()
         bag_size = len(dict_old[ResultsKey.SLIDE_ID])
         for key, value in dict_old.items():
-            if not key == ResultsKey.PROB:
+            if not key == ResultsKey.PROB_CLASS:
                 if isinstance(value, Tensor):
                     value = value.squeeze(0).to(device).numpy()
                     if value.ndim == 0:                   
