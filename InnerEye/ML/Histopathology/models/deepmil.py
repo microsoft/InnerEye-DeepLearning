@@ -254,7 +254,10 @@ class DeepMILModule(LightningModule):
 
         results = dict()
         for metric_object in self.get_metrics_dict(stage).values():
-            metric_object.update(predicted_probs, bag_labels)
+            if self.n_classes > 1:
+                metric_object.update(predicted_labels, bag_labels)
+            else:
+                metric_object.update(predicted_probs, bag_labels)
         results.update({ResultsKey.SLIDE_ID: batch[TilesDataset.SLIDE_ID_COLUMN],
                         ResultsKey.TILE_ID: batch[TilesDataset.TILE_ID_COLUMN],
                         ResultsKey.IMAGE_PATH: batch[TilesDataset.PATH_COLUMN], ResultsKey.LOSS: loss,
