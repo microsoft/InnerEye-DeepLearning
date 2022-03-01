@@ -4,18 +4,18 @@
 
 ## Overview
 
-This is a deep learning toolbox to train models on medical images (or more generally, 3D images). 
+This is a deep learning toolbox to train models on medical images (or more generally, 3D images).
 It integrates seamlessly with cloud computing in Azure.
- 
-On the modelling side, this toolbox supports 
+
+On the modelling side, this toolbox supports
 - Segmentation models
 - Classification and regression models
 - Sequence models
-- Adding cloud support to any PyTorch Lightning model, via a [bring-your-own-model setup](docs/bring_your_own_model.md) 
+- Adding cloud support to any PyTorch Lightning model, via a [bring-your-own-model setup](docs/bring_your_own_model.md)
 - Active label cleaning and noise robust learning toolbox (stand-alone folder)
 
 Classification, regression, and sequence models can be built with only images as inputs, or a combination of images
-and non-imaging data as input. This supports typical use cases on medical data where measurements, biomarkers, 
+and non-imaging data as input. This supports typical use cases on medical data where measurements, biomarkers,
 or patient characteristics are often available in addition to images.
 
 On the user side, this toolbox focusses on enabling machine learning teams to achieve more. It is cloud-first, and
@@ -26,8 +26,8 @@ the code. Tags are added to the experiments automatically, that can later help f
 - **Transparency**: All team members have access to each other's experiments and results.
 - **Reproducibility**: Two model training runs using the same code and data will result in exactly the same metrics. All
  sources of randomness like multithreading are controlled for.
-- **Cost reduction**: Using AzureML, all compute (virtual machines, VMs) is requested at the time of starting the 
-training job, and freed up at the end. Idle VMs will not incur costs. In addition, Azure low priority 
+- **Cost reduction**: Using AzureML, all compute (virtual machines, VMs) is requested at the time of starting the
+training job, and freed up at the end. Idle VMs will not incur costs. In addition, Azure low priority
 nodes can be used to further reduce costs (up to 80% cheaper).
 - **Scale out**: Large numbers of VMs can be requested easily to cope with a burst in jobs.
 
@@ -36,22 +36,22 @@ model prototyping, debugging, and in cases where the cloud can't be used. In par
 machines available, you will be able to utilize them with the InnerEye toolbox.
 
 In addition, our toolbox supports:
- - Cross-validation using AzureML's built-in support, where the models for 
+ - Cross-validation using AzureML's built-in support, where the models for
 individual folds are trained in parallel. This is particularly important for the long-running training jobs
-often seen with medical images. 
+often seen with medical images.
 - Hyperparameter tuning using
 [Hyperdrive](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-tune-hyperparameters).
 - Building ensemble models.
 - Easy creation of new models via a configuration-based approach, and inheritance from an existing
 architecture.
- 
-Once training in AzureML is done, the models can be deployed from within AzureML or via 
+
+Once training in AzureML is done, the models can be deployed from within AzureML or via
 [Azure Stack Hub](https://azure.microsoft.com/en-us/products/azure-stack/hub/).
 
 
 ## Getting started
 
-We recommend using our toolbox with Linux or with the Windows Subsystem for Linux (WSL2). Much of the core 
+We recommend using our toolbox with Linux or with the Windows Subsystem for Linux (WSL2). Much of the core
 functionality works fine on Windows, but PyTorch's full feature set is only available on Linux. Read [more about
 WSL here](docs/WSL.md).
 
@@ -63,17 +63,17 @@ git lfs install
 git lfs pull
 ```
 After that, you need to set up your Python environment:
-- Install `conda` or `miniconda` for your operating system. 
+- Install `conda` or `miniconda` for your operating system.
 - Create a Conda environment from the `environment.yml` file in the repository root, and activate it:
 ```shell script
 conda env create --file environment.yml
 conda activate InnerEye
-``` 
+```
 - If environment creation fails with odd error messages on a Windows machine, please [continue here](docs/WSL.md).
 
 Now try to run the HelloWorld segmentation model - that's a very simple model that will train for 2 epochs on any
-machine, no GPU required. You need to set the `PYTHONPATH` environment variable to point to the repository root first. 
-Assuming that your current directory is the repository root folder, on Linux `bash` that is: 
+machine, no GPU required. You need to set the `PYTHONPATH` environment variable to point to the repository root first.
+Assuming that your current directory is the repository root folder, on Linux `bash` that is:
 ```shell script
 export PYTHONPATH=`pwd`
 python InnerEye/ML/runner.py --model=HelloWorld
@@ -88,7 +88,7 @@ python InnerEye/ML/runner.py --model=HelloWorld
 
 If that works: Congratulations! You have successfully built your first model using the InnerEye toolbox.
 
-If it fails, please check the 
+If it fails, please check the
 [troubleshooting page on the Wiki](https://github.com/microsoft/InnerEye-DeepLearning/wiki/Issues-with-code-setup-and-the-HelloWorld-model).
 
 Further detailed instructions, including setup in Azure, are here:
@@ -100,7 +100,7 @@ Further detailed instructions, including setup in Azure, are here:
 1. [Sample Segmentation and Classification tasks](docs/sample_tasks.md)
 1. [Debugging and monitoring models](docs/debugging_and_monitoring.md)
 1. [Model diagnostics](docs/model_diagnostics.md)
-1. [Move a model to a different workspace](docs/move_model.md)   
+1. [Move a model to a different workspace](docs/move_model.md)
 1. [Working with FastMRI models](docs/fastmri.md)
 1. [Active label cleaning and noise robust learning toolbox](InnerEye-DataQuality/README.md)
 
@@ -132,16 +132,18 @@ Details can be found [here](docs/deploy_on_aml.md).
 **You are responsible for the performance, the necessary testing, and if needed any regulatory clearance for
  any of the models produced by this toolbox.**
 
-## Acknowledging usage of  Project InnerEye OSS tools:
-When using Project InnerEye OSS tools please acknowledge using the following wording:
-"This project used Microsoft Research's Project InnerEye open-source software tools (https://aka.ms/InnerEyeOSS)". 
+## Acknowledging usage of Project InnerEye OSS tools
+
+When using Project InnerEye open-source software (OSS) tools, please acknowledge with the following wording:
+
+> This project used Microsoft Research's Project InnerEye open-source software tools ([https://aka.ms/InnerEyeOSS](https://aka.ms/InnerEyeOSS)).
 
 ## Contact
 
-If you have any feature requests, or find issues in the code, please create an 
+If you have any feature requests, or find issues in the code, please create an
 [issue on GitHub](https://github.com/microsoft/InnerEye-DeepLearning/issues).
 
-Please send an email to InnerEyeInfo@microsoft.com if you would like further information about this project. 
+Please send an email to InnerEyeInfo@microsoft.com if you would like further information about this project.
 
 ## Publications
 
@@ -168,12 +170,12 @@ contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additio
 
 ## Credits
 
-This toolbox is maintained by the 
-[Microsoft InnerEye team](https://www.microsoft.com/en-us/research/project/medical-image-analysis/), 
+This toolbox is maintained by the
+[Microsoft InnerEye team](https://www.microsoft.com/en-us/research/project/medical-image-analysis/),
 and has received valuable contributions from a number
-of people outside our team. We would like to thank in particular our interns, 
+of people outside our team. We would like to thank in particular our interns,
 [Yao Quin](http://cseweb.ucsd.edu/~yaq007/), [Zoe Landgraf](https://www.linkedin.com/in/zoe-landgraf-a2212293),
 [Padmaja Jonnalagedda](https://www.linkedin.com/in/jspadmaja/),
-[Mathias Perslev](https://github.com/perslev), as well as the AI Residents 
+[Mathias Perslev](https://github.com/perslev), as well as the AI Residents
 [Patricia Gillespie](https://www.microsoft.com/en-us/research/people/t-pagill/) and
 [Guilherme Ilunga](https://gilunga.github.io/).
