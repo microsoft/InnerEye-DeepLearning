@@ -153,7 +153,7 @@ def logging_to_stdout(log_level: Union[int, str] = logging.INFO) -> None:
         logging_stdout_handler = logging.StreamHandler(stream=sys.stdout)
         _add_formatter(logging_stdout_handler)
         logger.addHandler(logging_stdout_handler)
-    print(f"Setting logging level to {log_level}")
+    print(f"Setting logging level to {log_level} ({get_log_level_string(log_level)})")
     logging_stdout_handler.setLevel(log_level)
     logger.setLevel(log_level)
 
@@ -168,6 +168,17 @@ def standardize_log_level(log_level: Union[int, str]) -> int:
         check_is_any_of("log_level", log_level, logging._nameToLevel.keys())
         return logging._nameToLevel[log_level]
     return log_level
+
+
+def get_log_level_string(log_level: int) -> str:
+    """
+    :param log_level: integer version of a log level, e.g. 20.
+    :return: string version of the level; throws an error if the level is not registered.
+    """
+    valid_levels = list(logging._levelToName.keys())
+    if log_level not in valid_levels:
+        raise ValueError(f"Log level {log_level} is not valid. Possible values are: {valid_levels}")
+    return logging._levelToName[log_level]
 
 
 def logging_to_file(file_path: Path) -> None:
