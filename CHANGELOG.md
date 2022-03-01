@@ -14,6 +14,7 @@ created.
 
 ### Added
 
+- ([#678](https://github.com/microsoft/InnerEye-DeepLearning/pull/678)) Add function to get log level name and use it for logging.
 - ([#666](https://github.com/microsoft/InnerEye-DeepLearning/pull/666)) Replace RadIO with TorchIO for patch-based inference.
 - ([#643](https://github.com/microsoft/InnerEye-DeepLearning/pull/643)) Test for recovery of SSL job. Tracks learning rate and train
 loss.
