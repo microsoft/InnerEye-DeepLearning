@@ -132,6 +132,10 @@ Details can be found [here](docs/deploy_on_aml.md).
 **You are responsible for the performance, the necessary testing, and if needed any regulatory clearance for
  any of the models produced by this toolbox.**
 
+## Acknowledging usage of  Project InnerEye OSS tools:
+When using Project InnerEye OSS tools please acknowledge using the following wording:
+"This project used Microsoft Research's Project InnerEye open-source software tools (https://aka.ms/InnerEyeOSS)". 
+
 ## Contact
 
 If you have any feature requests, or find issues in the code, please create an 
