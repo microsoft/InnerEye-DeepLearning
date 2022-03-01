@@ -179,12 +179,13 @@ class DeepMILModule(LightningModule):
                                   MetricsKey.ACC_WEIGHTED: Accuracy(num_classes=self.n_classes, average='weighted'),
                                   MetricsKey.CONF_MATRIX: ConfusionMatrix(num_classes=self.n_classes)})
         else:
-            return nn.ModuleDict({MetricsKey.ACC: Accuracy(),
+            threshold = 0.5
+            return nn.ModuleDict({MetricsKey.ACC: Accuracy(threshold=threshold),
                                   MetricsKey.AUROC: AUROC(num_classes=self.n_classes),
-                                  MetricsKey.PRECISION: Precision(),
-                                  MetricsKey.RECALL: Recall(),
-                                  MetricsKey.F1: F1(),
-                                  MetricsKey.CONF_MATRIX: ConfusionMatrix(num_classes=self.n_classes+1)})
+                                  MetricsKey.PRECISION: Precision(threshold=threshold),
+                                  MetricsKey.RECALL: Recall(threshold=threshold),
+                                  MetricsKey.F1: F1(threshold=threshold),
+                                  MetricsKey.CONF_MATRIX: ConfusionMatrix(num_classes=2, threshold=threshold)})
 
     def log_metrics(self,
                     stage: str) -> None:
@@ -238,26 +239,26 @@ class DeepMILModule(LightningModule):
         else:
             loss = self.loss_fn(bag_logits.squeeze(1), bag_labels.float())
 
-        probs = self.activation_fn(bag_logits)
+        predicted_probs = self.activation_fn(bag_logits)
         if self.n_classes > 1:
-            preds = argmax(probs, dim=1)
-            probs_perclass = probs
+            predicted_labels = argmax(predicted_probs, dim=1)
+            probs_perclass = predicted_probs
         else:
-            preds = round(probs)
-            probs_perclass = Tensor([[1.0-probs[i][0].item(), probs[i][0].item()] for i in range(len(probs))]).cuda()
+            predicted_labels = round(predicted_probs)
+            probs_perclass = Tensor([[1.0-predicted_probs[i][0].item(), predicted_probs[i][0].item()] for i in range(len(predicted_probs))]).cuda()
 
         loss = loss.view(-1, 1)
-        preds = preds.view(-1, 1)
-        probs = probs.view(-1, 1)
+        predicted_labels = predicted_labels.view(-1, 1)
+        predicted_probs = predicted_probs.view(-1, 1)
         bag_labels = bag_labels.view(-1, 1)
 
         results = dict()
         for metric_object in self.get_metrics_dict(stage).values():
-            metric_object.update(preds, bag_labels)
+            metric_object.update(predicted_probs, bag_labels)
         results.update({ResultsKey.SLIDE_ID: batch[TilesDataset.SLIDE_ID_COLUMN],
                         ResultsKey.TILE_ID: batch[TilesDataset.TILE_ID_COLUMN],
                         ResultsKey.IMAGE_PATH: batch[TilesDataset.PATH_COLUMN], ResultsKey.LOSS: loss,
-                        ResultsKey.PROB: probs_perclass, ResultsKey.PRED_LABEL: preds,
+                        ResultsKey.PROB: probs_perclass, ResultsKey.PRED_LABEL: predicted_labels,
                         ResultsKey.TRUE_LABEL: bag_labels, ResultsKey.BAG_ATTN: bag_attn_list,
                         ResultsKey.IMAGE: batch[TilesDataset.IMAGE_COLUMN]})
 
