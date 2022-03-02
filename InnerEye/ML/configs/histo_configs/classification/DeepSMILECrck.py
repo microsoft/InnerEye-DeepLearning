@@ -22,7 +22,7 @@ from pytorch_lightning.callbacks import Callback
 
 from health_azure.utils import CheckpointDownloader
 from health_azure.utils import get_workspace
-from health_ml.networks.layers.attention_layers import AttentionLayer
+from health_ml.networks.layers.attention_layers import GatedAttentionLayer, AttentionLayer, TransformerPooling
 from InnerEye.Common import fixed_paths
 from InnerEye.ML.Histopathology.datamodules.base_module import CacheMode, CacheLocation
 from InnerEye.ML.Histopathology.datamodules.base_module import TilesDataModule
@@ -48,23 +48,26 @@ class DeepSMILECrck(BaseMIL):
         # Define dictionary with default params that can be overriden from subclasses or CLI
         default_kwargs = dict(
             # declared in BaseMIL:
-            pooling_type=AttentionLayer.__name__,
+            pool_type=TransformerPooling.__name__,
+            num_transformer_pool_layers=4,
+            num_transformer_pool_heads=4,
             encoding_chunk_size=60,
-            cache_mode=CacheMode.MEMORY,
-            precache_location=CacheLocation.CPU,
+            cache_mode=CacheMode.NONE,
+            precache_location=CacheLocation.NONE,
             # declared in DatasetParams:
-            local_dataset=Path("/tmp/datasets/TCGA-CRCk"),
+            # local_dataset=Path("/tmp/datasets/TCGA-CRCk"),
+            local_dataset=None,
             azure_dataset_id="TCGA-CRCk",
             # To mount the dataset instead of downloading in AML, pass --use_dataset_mount in the CLI
             # declared in TrainerParams:
-            num_epochs=50,
+            num_epochs=16,
             # declared in WorkflowParams:
-            number_of_cross_validation_splits=5,
-            cross_validation_split_index=0,
+            number_of_cross_validation_splits=0,
+            cross_validation_split_index=-1,
             # declared in OptimizerParams:
             l_rate=5e-4,
             weight_decay=1e-4,
-            adam_betas=(0.9, 0.99),
+            adam_betas=(0.9, 0.99)
         )
         default_kwargs.update(kwargs)
         super().__init__(**default_kwargs)
@@ -96,7 +99,7 @@ class DeepSMILECrck(BaseMIL):
             self.downloader = CheckpointDownloader(
                 azure_config_json_path=get_workspace(),
                 run_id=innereye_ssl_checkpoint_crck_4ws,
-                checkpoint_filename="best_checkpoint.ckpt",
+                checkpoint_filename="last.ckpt",
                 download_dir="outputs/",
                 remote_checkpoint_dir=Path("outputs/checkpoints")
             )

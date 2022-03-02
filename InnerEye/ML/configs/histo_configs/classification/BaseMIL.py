@@ -14,7 +14,7 @@ import param
 from torch import nn
 from torchvision.models.resnet import resnet18
 
-from health_ml.networks.layers.attention_layers import AttentionLayer, GatedAttentionLayer, MeanPoolingLayer
+from health_ml.networks.layers.attention_layers import AttentionLayer, GatedAttentionLayer, MeanPoolingLayer, TransformerPooling
 from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.Histopathology.datasets.base_dataset import SlidesDataset
 from InnerEye.ML.Histopathology.datamodules.base_module import CacheMode, CacheLocation, TilesDataModule
@@ -26,7 +26,12 @@ from InnerEye.ML.Histopathology.models.encoders import (HistoSSLEncoder, Identit
 
 class BaseMIL(LightningContainer):
     # Model parameters:
-    pooling_type: str = param.String(doc="Name of the pooling layer class to use.")
+    pool_type: str = param.String(doc="Name of the pooling layer class to use.")
+    pool_hidden_dim: str = param.Integer(128, doc="If pooling has a learnable part, this defines the number of the hidden dimensions.")
+    pool_out_dim: str = param.Integer(1, doc="Dimension of the pooled representation.")
+    num_transformer_pool_layers: int = param.Integer(4, doc="If transformer pooling is chosen, this defines the number of encoding layers.")
+    num_transformer_pool_heads: int = param.Integer(4, doc="If transformer pooling is chosen, this defines the number of attention heads.")
+
     is_finetune: bool = param.Boolean(doc="Whether to fine-tune the encoder. Options:"
                                       "`False` (default), or `True`.")
     dropout_rate: Optional[float] = param.Number(None, bounds=(0, 1), doc="Pre-classifier dropout rate.")
@@ -39,7 +44,7 @@ class BaseMIL(LightningContainer):
 
     # Data module parameters:
     batch_size: int = param.Integer(16, bounds=(1, None), doc="Number of slides to load per batch.")
-    max_bag_size: int = param.Integer(1000, bounds=(0, None),
+    max_bag_size: int = param.Integer(2, bounds=(0, None),
                                       doc="Upper bound on number of tiles in each loaded bag. "
                                           "If 0 (default), will return all samples in each bag. "
                                           "If > 0, bags larger than `max_bag_size` will yield "
@@ -86,14 +91,29 @@ class BaseMIL(LightningContainer):
             raise ValueError(f"Unsupported encoder type: {self.encoder_type}")
 
     def get_pooling_layer(self) -> Type[nn.Module]:
-        if self.pooling_type == AttentionLayer.__name__:
-            return AttentionLayer
-        elif self.pooling_type == GatedAttentionLayer.__name__:
-            return GatedAttentionLayer
-        elif self.pooling_type == MeanPoolingLayer.__name__:
-            return MeanPoolingLayer
+        num_encoding = self.encoder.num_encoding
+
+        if self.pool_type == AttentionLayer.__name__:
+            pooling_layer = AttentionLayer(num_encoding,
+                                  self.pool_hidden_dim,
+                                  self.pool_out_dim)
+        elif self.pool_type == GatedAttentionLayer.__name__:
+            pooling_layer = GatedAttentionLayer(num_encoding,
+                                  self.pool_hidden_dim,
+                                  self.pool_out_dim)
+        elif self.pool_type == MeanPoolingLayer.__name__:
+            pooling_layer = MeanPoolingLayer(num_encoding,
+                                  self.pool_hidden_dim,
+                                  self.pool_out_dim)
+        elif self.pool_type == TransformerPooling.__name__:
+            pooling_layer = TransformerPooling(self.num_transformer_pool_layers,
+                                               self.num_transformer_pool_heads,
+                                               num_encoding)
         else:
             raise ValueError(f"Unsupported pooling type: {self.pooling_type}")
+
+        num_features = num_encoding*self.pool_out_dim
+        return pooling_layer, num_features
 
     def create_model(self) -> DeepMILModule:
         self.data_module = self.get_data_module()
@@ -105,15 +125,20 @@ class BaseMIL(LightningContainer):
                 params.requires_grad = True
         else:
             self.model_encoder = IdentityEncoder(input_dim=(self.encoder.num_encoding,))
+
+        # Construct pooling layer
+        pooling_layer, num_features = self.get_pooling_layer()
+
         return DeepMILModule(encoder=self.model_encoder,
-                             label_column=self.data_module.train_dataset.LABEL_COLUMN,
-                             n_classes=self.data_module.train_dataset.N_CLASSES,
-                             pooling_layer=self.get_pooling_layer(),
-                             dropout_rate=self.dropout_rate,
-                             class_weights=self.data_module.class_weights,
-                             l_rate=self.l_rate,
-                             weight_decay=self.weight_decay,
-                             adam_betas=self.adam_betas)
+                            label_column=self.data_module.train_dataset.LABEL_COLUMN,
+                            n_classes=self.data_module.train_dataset.N_CLASSES,
+                            pooling_layer=pooling_layer,
+                            num_features=num_features,
+                            dropout_rate=self.dropout_rate,
+                            class_weights=self.data_module.class_weights,
+                            l_rate=self.l_rate,
+                            weight_decay=self.weight_decay,
+                            adam_betas=self.adam_betas)
 
     def get_data_module(self) -> TilesDataModule:
         raise NotImplementedError
