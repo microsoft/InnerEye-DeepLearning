@@ -90,6 +90,8 @@ gets uploaded to AzureML, by skipping all test folders.
 - ([#632](https://github.com/microsoft/InnerEye-DeepLearning/pull/632)) Nifti test data is no longer stored in Git LFS
 
 ### Fixed
+
+- ([#683](https://github.com/microsoft/InnerEye-DeepLearning/pull/683)) Fix missing separator error in docs Makefile.
 - ([#659](https://github.com/microsoft/InnerEye-DeepLearning/pull/659)) Fix caching and checkpointing for TCGA CRCk dataset.
 - ([#649](https://github.com/microsoft/InnerEye-DeepLearning/pull/649)) Fix for the _convert_to_tensor_if_necessary method so that PIL.Image as well as np.array get converted to torch.Tensor.
 - ([#606](https://github.com/microsoft/InnerEye-DeepLearning/pull/606)) Bug fix: registered models do not include the hi-ml submodule
