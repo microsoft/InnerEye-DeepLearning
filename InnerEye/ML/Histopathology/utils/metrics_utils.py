@@ -20,7 +20,7 @@ from InnerEye.ML.Histopathology.utils.heatmap_utils import location_selected_til
 def select_k_tiles(results: Dict, n_tiles: int = 5, n_slides: int = 5, label: int = 1,
                    select: Tuple = ('lowest_pred', 'highest_att'),
                    slide_col: str = ResultsKey.SLIDE_ID, gt_col: str = ResultsKey.TRUE_LABEL,
-                   attn_col: str = ResultsKey.BAG_ATTN, prob_col: str = ResultsKey.PROB_CLASS,
+                   attn_col: str = ResultsKey.BAG_ATTN, prob_col: str = ResultsKey.CLASS_PROB,
                    return_col: str = ResultsKey.IMAGE_PATH) -> List[Tuple[Any, Any, List[Any], List[Any]]]:
     """
     :param results: List that contains slide_level dicts
@@ -63,7 +63,7 @@ def select_k_tiles(results: Dict, n_tiles: int = 5, n_slides: int = 5, label: in
     return k_idx
 
 
-def plot_scores_hist(results: Dict, prob_col: str = ResultsKey.PROB_CLASS,
+def plot_scores_hist(results: Dict, prob_col: str = ResultsKey.CLASS_PROB,
                      gt_col: str = ResultsKey.TRUE_LABEL) -> plt.figure:
     """
     :param results: List that contains slide_level dicts
@@ -83,11 +83,11 @@ def plot_scores_hist(results: Dict, prob_col: str = ResultsKey.PROB_CLASS,
     return fig
 
 
-def plot_attention_tiles(slide: str, score: List[float], paths: List, attn: List, case: str, ncols: int = 5,
+def plot_attention_tiles(slide: str, scores: List[float], paths: List, attn: List, case: str, ncols: int = 5,
                     size: Tuple = (10, 10)) -> plt.figure:
     """
     :param slide: slide identifier
-    :param score: predicted scores of each class for the slide
+    :param scores: predicted scores of each class for the slide
     :param paths: list of paths to tiles belonging to the slide
     :param attn: list of scores belonging to the tiles in paths. paths and attn are expected to have the same shape
     :param case: string used to define the title of the plot e.g. TP
@@ -97,7 +97,7 @@ def plot_attention_tiles(slide: str, score: List[float], paths: List, attn: List
     """
     nrows = int(ceil(len(paths) / ncols))
     fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=size)
-    fig.suptitle(f"{case}: {slide} P=%.2f" % max(score))
+    fig.suptitle(f"{case}: {slide} P=%.2f" % max(scores))
     for i in range(len(paths)):
         img = load_pil_image(paths[i])
         axs.ravel()[i].imshow(img, clim=(0, 255), cmap='gray')

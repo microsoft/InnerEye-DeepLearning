@@ -27,7 +27,7 @@ from InnerEye.ML.Histopathology.utils.viz_utils import load_image_dict
 from health_ml.utils import log_on_epoch 
 
 RESULTS_COLS = [ResultsKey.SLIDE_ID, ResultsKey.TILE_ID, ResultsKey.IMAGE_PATH, ResultsKey.PROB,
-                ResultsKey.PROB_CLASS, ResultsKey.PRED_LABEL, ResultsKey.TRUE_LABEL, ResultsKey.BAG_ATTN]
+                ResultsKey.CLASS_PROB, ResultsKey.PRED_LABEL, ResultsKey.TRUE_LABEL, ResultsKey.BAG_ATTN]
 
 
 def _format_cuda_memory_stats() -> str:
@@ -245,11 +245,11 @@ class DeepMILModule(LightningModule):
             probs_perclass = predicted_probs
         else:
             predicted_labels = round(predicted_probs)
-            probs_perclass = Tensor([[1.0-predicted_probs[i][0].item(), predicted_probs[i][0].item()] for i in range(len(predicted_probs))])
+            probs_perclass = Tensor([[1.0 - predicted_probs[i][0].item(), predicted_probs[i][0].item()] for i in range(len(predicted_probs))])
 
         loss = loss.view(-1, 1)
         predicted_labels = predicted_labels.view(-1, 1)
-        predicted_probs = predicted_probs.view(-1, 1)
+        # predicted_probs = predicted_probs.view(-1, 1)
         bag_labels = bag_labels.view(-1, 1)
 
         results = dict()
@@ -261,7 +261,7 @@ class DeepMILModule(LightningModule):
         results.update({ResultsKey.SLIDE_ID: batch[TilesDataset.SLIDE_ID_COLUMN],
                         ResultsKey.TILE_ID: batch[TilesDataset.TILE_ID_COLUMN],
                         ResultsKey.IMAGE_PATH: batch[TilesDataset.PATH_COLUMN], ResultsKey.LOSS: loss,
-                        ResultsKey.PROB: predicted_probs, ResultsKey.PROB_CLASS: probs_perclass, 
+                        ResultsKey.PROB: predicted_probs, ResultsKey.CLASS_PROB: probs_perclass, 
                         ResultsKey.PRED_LABEL: predicted_labels,
                         ResultsKey.TRUE_LABEL: bag_labels, ResultsKey.BAG_ATTN: bag_attn_list,
                         ResultsKey.IMAGE: batch[TilesDataset.IMAGE_COLUMN]})
@@ -353,19 +353,13 @@ class DeepMILModule(LightningModule):
         report_cases = {'TN': [tn_top_tiles, tn_bottom_tiles], 'FP': [fp_top_tiles, fp_bottom_tiles]}
 
         # Class 1 to n_classes-1
-        if self.n_classes > 1:
-            for i in range(1, self.n_classes):
-                fn_top_tiles = select_k_tiles(results, n_slides=10, label=i, n_tiles=10, select=('lowest_pred', 'highest_att'))
-                fn_bottom_tiles = select_k_tiles(results, n_slides=10, label=i, n_tiles=10, select=('lowest_pred', 'lowest_att'))
-                tp_top_tiles = select_k_tiles(results, n_slides=10, label=i, n_tiles=10, select=('highest_pred', 'highest_att'))
-                tp_bottom_tiles = select_k_tiles(results, n_slides=10, label=i, n_tiles=10, select=('highest_pred', 'lowest_att'))
-                report_cases.update({'TP_'+str(i): [tp_top_tiles, tp_bottom_tiles], 'FN_'+str(i): [fn_top_tiles, fn_bottom_tiles]})
-        else:
-            fn_top_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10, select=('lowest_pred', 'highest_att'))
-            fn_bottom_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10, select=('lowest_pred', 'lowest_att'))
-            tp_top_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10, select=('highest_pred', 'highest_att'))
-            tp_bottom_tiles = select_k_tiles(results, n_slides=10, label=1, n_tiles=10, select=('highest_pred', 'lowest_att'))
-            report_cases.update({'TP_1': [tp_top_tiles, tp_bottom_tiles], 'FN_1': [fn_top_tiles, fn_bottom_tiles]})
+        n_classes_to_select = self.n_classes if self.n_classes > 1 else 2
+        for i in range(1, n_classes_to_select):
+            fn_top_tiles = select_k_tiles(results, n_slides=10, label=i, n_tiles=10, select=('lowest_pred', 'highest_att'))
+            fn_bottom_tiles = select_k_tiles(results, n_slides=10, label=i, n_tiles=10, select=('lowest_pred', 'lowest_att'))
+            tp_top_tiles = select_k_tiles(results, n_slides=10, label=i, n_tiles=10, select=('highest_pred', 'highest_att'))
+            tp_bottom_tiles = select_k_tiles(results, n_slides=10, label=i, n_tiles=10, select=('highest_pred', 'lowest_att'))
+            report_cases.update({'TP_'+str(i): [tp_top_tiles, tp_bottom_tiles], 'FN_'+str(i): [fn_top_tiles, fn_bottom_tiles]})
 
         for key in report_cases.keys():
             print(f"Plotting {key} (tiles, thumbnails, attention heatmaps)...")
@@ -421,7 +415,7 @@ class DeepMILModule(LightningModule):
         dict_new = dict()
         bag_size = len(dict_old[ResultsKey.SLIDE_ID])
         for key, value in dict_old.items():
-            if not key == ResultsKey.PROB_CLASS:
+            if not key == ResultsKey.CLASS_PROB:
                 if isinstance(value, Tensor):
                     value = value.squeeze(0).to(device).numpy()
                     if value.ndim == 0:                   
