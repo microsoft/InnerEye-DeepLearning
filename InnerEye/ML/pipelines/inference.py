@@ -266,7 +266,7 @@ class InferencePipeline(FullImageInferencePipelineBase):
         constraints = self.model.model.crop_size_constraints
 
         # Make sure the image size is compatible with the model
-        ensure_shape_multiple = tio.EnsureShapeMultiple(constraints.multiple_of)
+        ensure_shape_multiple = tio.EnsureShapeMultiple(constraints.multiple_of)  # type: ignore
         subject = ensure_shape_multiple(subject)  # type: ignore
 
         # There may be cases where the test image is smaller than the test_crop_size. Adjust crop_size
