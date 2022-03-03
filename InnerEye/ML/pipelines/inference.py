@@ -285,12 +285,14 @@ class InferencePipeline(FullImageInferencePipelineBase):
             locations = patches_batch[tio.LOCATION]
             # perform the forward pass
             patches_posteriors = self.model(input_tensor).detach()
-            # crop or -most likely- pad posteriors if they are smaller than the input
+            # pad posteriors if they are smaller than the input
             input_shape = input_tensor.shape[-3:]
-            if input_shape != patches_posteriors.shape[-3:]:
-                crop_pad = tio.CropOrPad(input_shape)
-                cropped_patches = [crop_pad(patch) for patch in patches_posteriors]  # type: ignore
-                patches_posteriors = torch.stack(cropped_patches)  # type: ignore
+            patches_posteriors_shape = patches_posteriors.shape[-3:]
+            if input_shape != patches_posteriors_shape:
+                difference = np.array(input_shape) - np.array(patches_posteriors_shape)
+                assert not np.any(difference % 2)  # the differences in shape are expected to be even
+                padding = np.repeat(difference // 2, 2)
+                patches_posteriors = torch.nn.functional.pad(patches_posteriors, padding)
             # collect the predictions over each of the batches
             aggregator.add_batch(patches_posteriors, locations)
         posteriors = aggregator.get_output_tensor().numpy()
