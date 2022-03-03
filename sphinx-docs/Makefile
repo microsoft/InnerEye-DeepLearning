@@ -17,7 +17,7 @@ help:
 # Do some preprocessing, including copying over md files to the source directory so sphinx can find them,
 # and changing references to codefiles in md files to urls.
 preprocess:
-    python preprocess.py
+	python preprocess.py
 
 # Catch-all target: route all unknown targets to Sphinx using the new
 # "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
