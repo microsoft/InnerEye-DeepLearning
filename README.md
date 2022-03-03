@@ -8,6 +8,7 @@ This is a deep learning toolbox to train models on medical images (or more gener
 It integrates seamlessly with cloud computing in Azure.
 
 On the modelling side, this toolbox supports
+
 - Segmentation models
 - Classification and regression models
 - Sequence models
