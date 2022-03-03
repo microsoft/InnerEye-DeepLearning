@@ -34,7 +34,7 @@ dependencies:
       - jupyter-client==6.1.5
       - lightning-bolts==0.4.0
       - matplotlib==3.3.0
-      - mlflow==1.17.0
+      - mlflow==1.23.1
       - monai==0.6.0
       - mypy==0.910
       - mypy-extensions==0.4.3
