@@ -291,7 +291,7 @@ class InferencePipeline(FullImageInferencePipelineBase):
             if input_shape != patches_posteriors_shape:
                 difference = np.array(input_shape) - np.array(patches_posteriors_shape)
                 assert not np.any(difference % 2)  # the differences in shape are expected to be even
-                padding = np.repeat(difference // 2, 2)
+                padding = tuple(np.repeat(difference // 2, 2))
                 patches_posteriors = torch.nn.functional.pad(patches_posteriors, padding)
             # collect the predictions over each of the batches
             aggregator.add_batch(patches_posteriors, locations)
