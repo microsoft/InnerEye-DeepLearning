@@ -249,15 +249,13 @@ class DeepMILModule(LightningModule):
 
         loss = loss.view(-1, 1)
         predicted_labels = predicted_labels.view(-1, 1)
-        # predicted_probs = predicted_probs.view(-1, 1)
+        if self.n_classes == 1:
+            predicted_probs = predicted_probs.view(-1, 1)     
         bag_labels = bag_labels.view(-1, 1)
 
         results = dict()
         for metric_object in self.get_metrics_dict(stage).values():
-            if self.n_classes > 1:
-                metric_object.update(predicted_labels, bag_labels)
-            else:
-                metric_object.update(predicted_probs, bag_labels)
+            metric_object.update(predicted_probs, bag_labels.squeeze())
         results.update({ResultsKey.SLIDE_ID: batch[TilesDataset.SLIDE_ID_COLUMN],
                         ResultsKey.TILE_ID: batch[TilesDataset.TILE_ID_COLUMN],
                         ResultsKey.IMAGE_PATH: batch[TilesDataset.PATH_COLUMN], ResultsKey.LOSS: loss,
@@ -415,13 +413,13 @@ class DeepMILModule(LightningModule):
         dict_new = dict()
         bag_size = len(dict_old[ResultsKey.SLIDE_ID])
         for key, value in dict_old.items():
-            if not key == ResultsKey.CLASS_PROB:
+            if not key in [ResultsKey.CLASS_PROB, ResultsKey.PROB]:
                 if isinstance(value, Tensor):
                     value = value.squeeze(0).to(device).numpy()
                     if value.ndim == 0:                   
                         value = np.full(bag_size, fill_value=value)
                 dict_new[key] = value
-            else:
+            elif key == ResultsKey.CLASS_PROB:
                 if isinstance(value, Tensor):
                     value = value.squeeze(0).to(device).numpy()
                     for i in range(len(value)):
