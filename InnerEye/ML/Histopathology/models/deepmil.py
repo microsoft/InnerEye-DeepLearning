@@ -27,7 +27,7 @@ from InnerEye.ML.Histopathology.utils.viz_utils import load_image_dict
 from health_ml.utils import log_on_epoch 
 
 RESULTS_COLS = [ResultsKey.SLIDE_ID, ResultsKey.TILE_ID, ResultsKey.IMAGE_PATH, ResultsKey.PROB,
-                ResultsKey.CLASS_PROB, ResultsKey.PRED_LABEL, ResultsKey.TRUE_LABEL, ResultsKey.BAG_ATTN]
+                ResultsKey.CLASS_PROBS, ResultsKey.PRED_LABEL, ResultsKey.TRUE_LABEL, ResultsKey.BAG_ATTN]
 
 
 def _format_cuda_memory_stats() -> str:
@@ -262,7 +262,7 @@ class DeepMILModule(LightningModule):
         results.update({ResultsKey.SLIDE_ID: batch[TilesDataset.SLIDE_ID_COLUMN],
                         ResultsKey.TILE_ID: batch[TilesDataset.TILE_ID_COLUMN],
                         ResultsKey.IMAGE_PATH: batch[TilesDataset.PATH_COLUMN], ResultsKey.LOSS: loss,
-                        ResultsKey.PROB: predicted_probs, ResultsKey.CLASS_PROB: probs_perclass, 
+                        ResultsKey.PROB: predicted_probs, ResultsKey.CLASS_PROBS: probs_perclass, 
                         ResultsKey.PRED_LABEL: predicted_labels,
                         ResultsKey.TRUE_LABEL: bag_labels, ResultsKey.BAG_ATTN: bag_attn_list,
                         ResultsKey.IMAGE: batch[TilesDataset.IMAGE_COLUMN]})
@@ -416,13 +416,13 @@ class DeepMILModule(LightningModule):
         dict_new = dict()
         bag_size = len(dict_old[ResultsKey.SLIDE_ID])
         for key, value in dict_old.items():
-            if key not in [ResultsKey.CLASS_PROB, ResultsKey.PROB]:
+            if key not in [ResultsKey.CLASS_PROBS, ResultsKey.PROB]:
                 if isinstance(value, Tensor):
                     value = value.squeeze(0).to(device).numpy()
                     if value.ndim == 0:                   
                         value = np.full(bag_size, fill_value=value)
                 dict_new[key] = value
-            elif key == ResultsKey.CLASS_PROB:
+            elif key == ResultsKey.CLASS_PROBS:
                 if isinstance(value, Tensor):
                     value = value.squeeze(0).to(device).numpy()
                     for i in range(len(value)):
