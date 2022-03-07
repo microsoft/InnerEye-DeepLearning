@@ -48,6 +48,7 @@ class ResultsKey(str, Enum):
     IMAGE_PATH = 'image_path'
     LOSS = 'loss'
     PROB = 'prob'
+    CLASS_PROBS = 'prob_class'
     PRED_LABEL = 'pred_label'
     TRUE_LABEL = 'true_label'
     BAG_ATTN = 'bag_attn'
