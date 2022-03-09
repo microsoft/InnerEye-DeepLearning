@@ -3,15 +3,10 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 import abc
-from typing import Any, Dict, List, Optional, TypeVar
+from typing import Any, Dict, List, Optional
 
 import torch
 from torch.nn import BCEWithLogitsLoss
-from torch.nn.utils.rnn import PackedSequence
-
-from InnerEye.ML.utils.sequence_utils import map_packed_sequence_data
-
-T = TypeVar('T', torch.Tensor, PackedSequence)
 
 
 class SupervisedLearningCriterion(torch.nn.Module, abc.ABC):
@@ -27,7 +22,7 @@ class SupervisedLearningCriterion(torch.nn.Module, abc.ABC):
         self.smoothing_eps = smoothing_eps
         self.is_binary_classification = is_binary_classification
 
-    def forward(self, *input: T, **kwargs: Any) -> Any:
+    def forward(self, *input: torch.Tensor, **kwargs: Any) -> Any:
         def _smooth_target(target: torch.Tensor) -> torch.Tensor:
             if self.is_binary_classification or len(target.shape) <= 2:
                 _num_classes = 2
@@ -39,12 +34,9 @@ class SupervisedLearningCriterion(torch.nn.Module, abc.ABC):
             return target * (1.0 - self.smoothing_eps) + \
                    (1.0 - target) * self.smoothing_eps / (_num_classes - 1.0)  # type: ignore
 
-        _input: List[T] = list(input)
+        _input: List[torch.Tensor] = list(input)
         if self.smoothing_eps > 0.0:
-            if isinstance(_input[1], PackedSequence):
-                _input[1] = map_packed_sequence_data(_input[1], _smooth_target)
-            else:
-                _input[1] = _smooth_target(_input[1])
+            _input[1] = _smooth_target(_input[1])
 
         return self.forward_minibatch(*_input, **kwargs)
 
@@ -102,8 +94,5 @@ class BinaryCrossEntropyWithLogitsLoss(SupervisedLearningCriterion):
                    sorted(self._class_counts.items())]  # Uses the first number on the tuple to compare
         return torch.tensor(weights, dtype=torch.float32)
 
-    def forward_minibatch(self, output: T, target: T, **kwargs: Any) -> Any:
-        if isinstance(target, PackedSequence) and isinstance(output, PackedSequence):
-            return self._loss_fn(output.data.view(-1, 1), target.data.view(-1, 1))
-        else:
-            return self._loss_fn(output, target)
+    def forward_minibatch(self, output: torch.Tensor, target: torch.Tensor, **kwargs: Any) -> Any:
+        return self._loss_fn(output, target)
