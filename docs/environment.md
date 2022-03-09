@@ -119,64 +119,12 @@ You can find instructions for other Linux distributions on NVidia website: https
 The following steps describe how to set up specific tools. You can execute most of those at a later
 point, if you want to dig deeper into the code.
 
-## PyCharm
+## VSCode
 
-Our team uses [PyCharm](https://www.jetbrains.com/pycharm/) for development, but any good editor 
-([VSCode](https://code.visualstudio.com/) for example) will do as well.
+([VSCode](https://code.visualstudio.com/) for example)
 
-This repository already contains a PyCharm configuration file in `.idea/InnerEye-DeepLearning.iml`. It should 
-automatically pick the WSL Python interpreter (see [WSL.md](WSL.md)) as the default (no need to import the settings file)
-- if it doesn't happen you will need to adjust that as described [here](https://www.jetbrains.com/help/pycharm/configuring-python-interpreter.html).
-
-
-## How to manually set up flake8 as a PyCharm external tool
-
-Go to File / Settings / Tools / External Tools / Add.
-
-    * Name: Flake8
-    * Program: $PyInterpreterDirectory$/python
-    * Arguments: -m flake8 $ProjectFileDir$
-    * Working directory: $ProjectFileDir$
-    * Advanced Options / Output Filters: $FILE_PATH$\:$LINE$\:$COLUMN$\:.*
-
-Run Flake8 by right-clicking on a source file, External Tools / Flake8
-
-## How to manually set up mypy as a PyCharm external tool
-
-Go to File / Settings / Tools / External Tools / Add.
-
-    * Name: mypy
-    * Program: $PyInterpreterDirectory$/python
-    * Arguments: $ProjectFileDir$/mypy_runner.py -m <path to mypy executable>
-      You can find the path to the mypy executable by typing `where mypy` on Windows or `which mypy` on Linux.
-      If you have configured a virtual environment in PyCharm, the path will usually be 
-      `$PyInterpreterDirectory$/Scripts/mypy.exe` on Windows and `$PyInterpreterDirectory$/mypy` on Linux.
-    * Working directory: $ProjectFileDir$
-    * Advanced Options / Output Filters: $FILE_PATH$\:$LINE$\:.*
-
-Run mypy by right-clicking on a source file, External Tools / mypy
-
-## Deleting and creating a Conda environment
-
-To delete, make sure the environment being deleted is not your current environment (just run `deactivate`). Then run 
-`conda env remove --name environmentToDelete`.
-
-To create an environment from scratch and then export it to a YAML file:
-
-    conda create --name envName python
-    pip install whatEverPackage
-    pip install packageWithVersion==1.0.42
-    conda env export --no-builds --file=my_env.yml
-
-With conda installation, the Apex library is built without the C++ files that are intended be used in backend-op
-computations such as fused_adam and fused_layernorm. This is mainly because we are unable to pass the
-required input install arguments to the setup file through a conda environment file. By building the library with
-these arguments, one could expect further speed-ups in both forward-backward model passes. If you are interested in
-installing Apex with these flags, please run the following commands in your shell:
-
-    git clone https://github.com/NVIDIA/apex; cd apex
-    git checkout 880ab925bce9f817a93988b021e12db5f67f7787
-    pip install -v --no-cache-dir --global-option="--cpp_ext" --global-option="--cuda_ext" .
+## Conda
+-  `conda env create -f environment.yml`
 
 ## Conda updates
 

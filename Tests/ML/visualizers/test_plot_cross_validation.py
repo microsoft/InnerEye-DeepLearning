@@ -13,14 +13,13 @@ from pandas.core.dtypes.common import is_string_dtype
 
 from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY
 from InnerEye.Common.common_util import CROSSVAL_RESULTS_FOLDER, FULL_METRICS_DATAFRAME_FILE, \
-    METRICS_AGGREGATES_FILE, SUBJECT_METRICS_FILE_NAME, logging_to_stdout
+    METRICS_AGGREGATES_FILE, SUBJECT_METRICS_FILE_NAME
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR
 from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 from InnerEye.Common.metrics_constants import LoggingColumns
 from InnerEye.Common.output_directories import OutputFolderForTests
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME, ModelExecutionMode
 from InnerEye.ML.deep_learning_config import ModelCategory
-from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.utils.csv_util import CSV_INSTITUTION_HEADER, CSV_SERIES_HEADER
 from InnerEye.ML.visualizers.plot_cross_validation import COL_MODE, \
     METRICS_BY_MODE_AND_STRUCTURE_FILE, METRICS_BY_MODE_FILE, \
@@ -29,8 +28,6 @@ from InnerEye.ML.visualizers.plot_cross_validation import COL_MODE, \
     create_results_breakdown, download_crossval_result_files, get_split_id, load_dataframes, \
     plot_cross_validation_from_files, save_outliers
 from Tests.AfterTraining.test_after_training import FALLBACK_ENSEMBLE_RUN, get_most_recent_run_id
-from Tests.ML.models.architectures.sequential.test_rnn_classifier import ToyMultiLabelSequenceModel, \
-    _get_multi_label_sequence_dataframe
 from Tests.ML.util import assert_text_files_match, get_default_azure_config
 
 
@@ -428,29 +425,6 @@ def test_download_or_get_local_file_2(test_output_dirs: OutputFolderForTests) ->
                                                        download_to_folder)
     assert file_in_folder is not None
     assert file_in_folder == download_to_folder / file2
-
-
-@pytest.mark.skip(reason="This test is only used to create input for test_load_files_with_prediction_target")
-def test_run_ml_with_multi_label_sequence_in_crossval(test_output_dirs: OutputFolderForTests) -> None:
-    """
-    Test training and testing of sequence models that predicts at multiple time points,
-    including aggregation of cross validation results.
-    """
-    logging_to_stdout()
-    config = ToyMultiLabelSequenceModel(should_validate=False)
-    assert config.get_target_indices() == [1, 2, 3]
-    expected_prediction_targets = ["Seq_pos 01", "Seq_pos 02", "Seq_pos 03"]
-    target_indices = config.get_target_indices()
-    assert target_indices
-    assert len(target_indices) == len(expected_prediction_targets)
-    config.set_output_to(test_output_dirs.root_dir)
-    config.dataset_data_frame = _get_multi_label_sequence_dataframe()
-    config.pre_process_dataset_dataframe()
-    config.num_epochs = 1
-    config.number_of_cross_validation_splits = 2
-    azure_config = get_default_azure_config()
-    azure_config.train = True
-    MLRunner(config, azure_config=azure_config).run()
 
 
 def test_load_files_with_prediction_target() -> None:

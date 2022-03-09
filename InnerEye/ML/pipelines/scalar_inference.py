@@ -15,7 +15,6 @@ from InnerEye.ML.lightning_helpers import load_from_checkpoint_and_adjust_for_in
 from InnerEye.ML.lightning_models import ScalarLightning
 from InnerEye.ML.pipelines.inference import InferencePipelineBase
 from InnerEye.ML.scalar_config import EnsembleAggregationType, ScalarModelBase
-from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils.model_util import get_scalar_model_inputs_and_labels
 
 
@@ -103,10 +102,7 @@ class ScalarInferencePipeline(ScalarInferencePipelineBase):
         :return: Returns ScalarInferencePipelineBase.Result with  the subject ids, ground truth labels and predictions.
         """
         assert isinstance(self.model_config, ScalarModelBase)
-        target_indices = self.model_config.get_target_indices() \
-            if isinstance(self.model_config, SequenceModelBase) else []
         model_inputs_and_labels = get_scalar_model_inputs_and_labels(self.model.model,
-                                                                     target_indices=target_indices,
                                                                      sample=sample)
         model_inputs_and_labels.move_to_device(self.model.device)
         with torch.no_grad():
