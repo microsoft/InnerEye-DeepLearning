@@ -33,7 +33,6 @@ from InnerEye.ML.pipelines.scalar_inference import ScalarEnsemblePipeline, Scala
     ScalarInferencePipelineBase
 from InnerEye.ML.reports.segmentation_report import boxplot_per_structure
 from InnerEye.ML.scalar_config import ScalarModelBase
-from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils import io_util, ml_util
 from InnerEye.ML.utils.image_util import binaries_from_multi_label_array
 from InnerEye.ML.utils.io_util import ImageHeader, MedicalImageFileType, load_nifti_image, save_lines_to_file
@@ -397,11 +396,7 @@ def create_metrics_dict_for_scalar_models(config: ScalarModelBase) -> \
     Create an instance of either a ScalarMetricsDict or SequenceMetricsDict, depending on whether the given
      configuration is a sequence model configuration or not.
     """
-    if isinstance(config, SequenceModelBase):
-        return SequenceMetricsDict.create(is_classification_model=config.is_classification_model,
-                                          sequence_target_positions=config.sequence_target_positions)
-    else:
-        return ScalarMetricsDict(hues=config.target_names,
+    return ScalarMetricsDict(hues=config.target_names,
                                  is_classification_metrics=config.is_classification_model)
 
 
@@ -424,25 +419,19 @@ def classification_model_test(config: ScalarModelBase,
                                          checkpoint_paths=checkpoint_paths)
     if pipeline is None:
         raise ValueError("Inference pipeline could not be created.")
-
     # for mypy
     assert isinstance(pipeline, ScalarInferencePipelineBase)
-
     ml_util.set_random_seed(config.get_effective_random_seed(), "Model Testing")
     ds = config.get_torch_dataset_for_inference(data_split).as_data_loader(
         shuffle=False,
         batch_size=1,
         num_dataload_workers=0
     )
-
     logging.info(f"Starting to evaluate model on {data_split.value} set.")
     results_folder = config.outputs_folder / get_best_epoch_results_path(data_split, model_proc)
     os.makedirs(str(results_folder), exist_ok=True)
     metrics_dict = create_metrics_dict_for_scalar_models(config)
-    if not isinstance(config, SequenceModelBase):
-        output_logger: Optional[DataframeLogger] = DataframeLogger(csv_path=results_folder / MODEL_OUTPUT_CSV)
-    else:
-        output_logger = None
+    output_logger: Optional[DataframeLogger] = DataframeLogger(csv_path=results_folder / MODEL_OUTPUT_CSV)
 
     for sample in ds:
         result = pipeline.predict(sample)
@@ -463,15 +452,11 @@ def classification_model_test(config: ScalarModelBase,
                                labels=label,
                                loss_type=config.loss_type)
         logging.debug(f"Example {sample_id}: {metrics_dict.to_string()}")
-
     average = metrics_dict.average(across_hues=False)
     logging.info(average.to_string())
-
     if isinstance(metrics_dict, ScalarMetricsDict):
         csv_file = results_folder / SUBJECT_METRICS_FILE_NAME
-
         logging.info(f"Writing {data_split.value} metrics to file {str(csv_file)}")
-
         # If we are running inference after a training run, the validation set metrics may have been written
         # during train time. If this is not the case, or we are running on the test set, create the metrics
         # file.
