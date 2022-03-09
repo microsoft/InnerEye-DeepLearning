@@ -37,16 +37,24 @@ When starting Storage Explorer, you need to [log in to Azure](https://docs.micro
 
 ## Option 2: Upload via the Azure CLI
 
-To be verified:
+Run the following in the command prompt after installing the
+[Azure commandline tools](https://docs.microsoft.com/en-us/cli/azure/)
+
+```shell
+az login
+az account list
+```
+
+If the `az account list` command returns more than one subscription, run `az account set --name "your subscription name"`
 
 The code below assumes that you are uploading to a storage account that has the name
 `stor_acct`, please replace with your actual storage account name.
 
 ```shell
-az login
-az storage container create --account-name stor_acct --name datasets 
+cd <your_repository_root>
+az storage container create --account-name stor_acct --name datasets
 az storage blob upload --account-name stor_acct --container-name datasets --file ./Tests/ML/test_data/dataset.csv --name hello_world/dataset.csv
-az storage blob upload-batch --account-name stor_acct --destination datasets --destination-path hello_world -–source ./Tests/ML/test_data/train_and_test_data
+az storage blob upload-batch --account-name stor_acct --destination datasets --source ./Tests/ML/test_data/train_and_test_data --destination-path hello_world/train_and_test_data
 ```
 
 ## Create an AzureML datastore
@@ -55,3 +63,15 @@ A "datastore" in AzureML lingo is an abstraction for the ML systems to access fi
 
 Instructions to create the datastore are given
 [in the AML setup instructions](setting_up_aml.md) in step 5.
+
+## Run the HelloWorld model in AzureML
+
+Double-check that you have copied your Azure settings into the settings file, as described
+[in the AML setup instructions](setting_up_aml.md) in step 6.
+
+Then execute:
+
+```shell
+conda activate InnerEye
+python InnerEye/ML/runner.py --model=HelloWorld
+```
