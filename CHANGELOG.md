@@ -13,7 +13,7 @@ created.
 ## Upcoming
 
 ### Added
-
+- ([#689](https://github.com/microsoft/InnerEye-DeepLearning/pull/689)) Add "formatter_class=argparse.ArgumentDefaultsHelpFormatter" to show default argument values in help message.
 - ([#666](https://github.com/microsoft/InnerEye-DeepLearning/pull/666)) Replace RadIO with TorchIO for patch-based inference.
 - ([#643](https://github.com/microsoft/InnerEye-DeepLearning/pull/643)) Test for recovery of SSL job. Tracks learning rate and train
 loss.
