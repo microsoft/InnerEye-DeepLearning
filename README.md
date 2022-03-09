@@ -12,11 +12,6 @@ On the modelling side, this toolbox supports
 - Segmentation models
 - Classification and regression models
 - Adding cloud support to any PyTorch Lightning model, via a [bring-your-own-model setup](docs/bring_your_own_model.md)
-- Active label cleaning and noise robust learning toolbox (stand-alone folder)
-
-Classification, regression, and sequence models can be built with only images as inputs, or a combination of images
-and non-imaging data as input. This supports typical use cases on medical data where measurements, biomarkers,
-or patient characteristics are often available in addition to images.
 
 On the user side, this toolbox focusses on enabling machine learning teams to achieve more. It is cloud-first, and
 relies on [Azure Machine Learning Services (AzureML)](https://docs.microsoft.com/en-gb/azure/machine-learning/) for execution,
