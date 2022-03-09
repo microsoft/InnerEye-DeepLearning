@@ -14,7 +14,7 @@ created.
 
 ### Added
 
-- ([#689](https://github.com/microsoft/InnerEye-DeepLearning/pull/689)) Add "formatter_class=argparse.ArgumentDefaultsHelpFormatter" to show default argument values in help message.
+- ([#689](https://github.com/microsoft/InnerEye-DeepLearning/pull/689)) Show default argument values in help message.
 - ([#678](https://github.com/microsoft/InnerEye-DeepLearning/pull/678)) Add function to get log level name and use it for logging.
 - ([#666](https://github.com/microsoft/InnerEye-DeepLearning/pull/666)) Replace RadIO with TorchIO for patch-based inference.
 - ([#643](https://github.com/microsoft/InnerEye-DeepLearning/pull/643)) Test for recovery of SSL job. Tracks learning rate and train
@@ -93,6 +93,8 @@ gets uploaded to AzureML, by skipping all test folders.
 - ([#632](https://github.com/microsoft/InnerEye-DeepLearning/pull/632)) Nifti test data is no longer stored in Git LFS
 
 ### Fixed
+
+- ([#683](https://github.com/microsoft/InnerEye-DeepLearning/pull/683)) Fix missing separator error in docs Makefile.
 - ([#659](https://github.com/microsoft/InnerEye-DeepLearning/pull/659)) Fix caching and checkpointing for TCGA CRCk dataset.
 - ([#649](https://github.com/microsoft/InnerEye-DeepLearning/pull/649)) Fix for the _convert_to_tensor_if_necessary method so that PIL.Image as well as np.array get converted to torch.Tensor.
 - ([#606](https://github.com/microsoft/InnerEye-DeepLearning/pull/606)) Bug fix: registered models do not include the hi-ml submodule

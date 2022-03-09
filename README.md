@@ -22,6 +22,7 @@ or patient characteristics are often available in addition to images.
 On the user side, this toolbox focusses on enabling machine learning teams to achieve more. It is cloud-first, and
 relies on [Azure Machine Learning Services (AzureML)](https://docs.microsoft.com/en-gb/azure/machine-learning/) for execution,
 bookkeeping, and visualization. Taken together, this gives:
+
 - **Traceability**: AzureML keeps a full record of all experiments that were executed, including a snapshot of
 the code. Tags are added to the experiments automatically, that can later help filter and find old experiments.
 - **Transparency**: All team members have access to each other's experiments and results.
@@ -37,7 +38,8 @@ model prototyping, debugging, and in cases where the cloud can't be used. In par
 machines available, you will be able to utilize them with the InnerEye toolbox.
 
 In addition, our toolbox supports:
- - Cross-validation using AzureML's built-in support, where the models for
+
+- Cross-validation using AzureML's built-in support, where the models for
 individual folds are trained in parallel. This is particularly important for the long-running training jobs
 often seen with medical images.
 - Hyperparameter tuning using
@@ -49,7 +51,6 @@ architecture.
 Once training in AzureML is done, the models can be deployed from within AzureML or via
 [Azure Stack Hub](https://azure.microsoft.com/en-us/products/azure-stack/hub/).
 
-
 ## Getting started
 
 We recommend using our toolbox with Linux or with the Windows Subsystem for Linux (WSL2). Much of the core
@@ -57,32 +58,40 @@ functionality works fine on Windows, but PyTorch's full feature set is only avai
 WSL here](docs/WSL.md).
 
 Clone the repository into a subfolder of the current directory:
-```shell script
+
+```shell
 git clone --recursive https://github.com/microsoft/InnerEye-DeepLearning
 cd InnerEye-DeepLearning
 git lfs install
 git lfs pull
 ```
+
 After that, you need to set up your Python environment:
+
 - Install `conda` or `miniconda` for your operating system.
 - Create a Conda environment from the `environment.yml` file in the repository root, and activate it:
-```shell script
+
+```shell
 conda env create --file environment.yml
 conda activate InnerEye
 ```
-- If environment creation fails with odd error messages on a Windows machine, please [continue here](docs/WSL.md).
 
-Now try to run the HelloWorld segmentation model - that's a very simple model that will train for 2 epochs on any
+- If the environment creation fails with odd error messages on a Windows machine, please [continue here](docs/WSL.md).
+
+Now try to run the `HelloWorld` segmentation model - that's a very simple model that will train for 2 epochs on any
 machine, no GPU required. You need to set the `PYTHONPATH` environment variable to point to the repository root first.
 Assuming that your current directory is the repository root folder, on Linux `bash` that is:
-```shell script
+
+```shell
 export PYTHONPATH=`pwd`
 python InnerEye/ML/runner.py --model=HelloWorld
 ```
+
 (Note the "backtick" around the `pwd` command, this is not a standard single quote!)
 
 On Windows:
-```shell script
+
+```shell
 set PYTHONPATH=%cd%
 python InnerEye/ML/runner.py --model=HelloWorld
 ```
@@ -93,6 +102,7 @@ If it fails, please check the
 [troubleshooting page on the Wiki](https://github.com/microsoft/InnerEye-DeepLearning/wiki/Issues-with-code-setup-and-the-HelloWorld-model).
 
 Further detailed instructions, including setup in Azure, are here:
+
 1. [Setting up your environment](docs/environment.md)
 1. [Training a Hello World segmentation model](docs/hello_world_model.md)
 1. [Setting up Azure Machine Learning](docs/setting_up_aml.md)
@@ -106,8 +116,10 @@ Further detailed instructions, including setup in Azure, are here:
 1. [Active label cleaning and noise robust learning toolbox](InnerEye-DataQuality/README.md)
 
 ## Deployment
+
 We offer a companion set of open-sourced tools that help to integrate trained CT segmentation models with clinical
 software systems:
+
 - The [InnerEye-Gateway](https://github.com/microsoft/InnerEye-Gateway) is a Windows service running in a DICOM network,
 that can route anonymized DICOM images to an inference service.
 - The [InnerEye-Inference](https://github.com/microsoft/InnerEye-Inference) component offers a REST API that integrates
@@ -158,7 +170,7 @@ Bernhardt M., Castro D. C., Tanno R., Schwaighofer A., Tezcan K. C., Monteiro M.
 
 This project welcomes contributions and suggestions.  Most contributions require you to agree to a
 Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us
-the rights to use your contribution. For details, visit https://cla.opensource.microsoft.com.
+the rights to use your contribution. For details, visit [https://cla.opensource.microsoft.com](https://cla.opensource.microsoft.com).
 
 When you submit a pull request, a CLA bot will automatically determine whether you need to provide
 a CLA and decorate the PR appropriately (e.g., status check, comment). Simply follow the instructions
@@ -167,7 +179,6 @@ provided by the bot. You will only need to do this once across all repos using o
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
 For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or
 contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
-
 
 ## Credits
 
