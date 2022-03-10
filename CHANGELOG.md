@@ -137,7 +137,7 @@ in inference-only runs when using lightning containers.
 - ([#674](https://github.com/microsoft/InnerEye-DeepLearning/pull/674)) Fix DeepMIL metrics bug whereby hard labels were used instead of probabilities.
 
 ### Removed
-
+- ([#692](https://github.com/microsoft/InnerEye-DeepLearning/pull/692)) Replace InnerEye-DataQuality with a link to commit,
 - ([#577](https://github.com/microsoft/InnerEye-DeepLearning/pull/577)) Removing the monitoring of batch loading time,
   use the `BatchTimeCallback` from `hi-ml` instead
 - ([#542](https://github.com/microsoft/InnerEye-DeepLearning/pull/542)) Removed Windows test leg from build pipeline.

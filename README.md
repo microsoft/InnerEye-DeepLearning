@@ -12,11 +12,6 @@ On the modelling side, this toolbox supports
 - Segmentation models
 - Classification and regression models
 - Adding cloud support to any PyTorch Lightning model, via a [bring-your-own-model setup](docs/bring_your_own_model.md)
-- Active label cleaning and noise robust learning toolbox (stand-alone folder)
-
-Classification, regression, and sequence models can be built with only images as inputs, or a combination of images
-and non-imaging data as input. This supports typical use cases on medical data where measurements, biomarkers,
-or patient characteristics are often available in addition to images.
 
 On the user side, this toolbox focusses on enabling machine learning teams to achieve more. It is cloud-first, and
 relies on [Azure Machine Learning Services (AzureML)](https://docs.microsoft.com/en-gb/azure/machine-learning/) for execution,
@@ -162,7 +157,7 @@ Oktay O., Nanavati J., Schwaighofer A., Carter D., Bristow M., Tanno R., Jena R.
 
 Bannur S., Oktay O., Bernhardt M, Schwaighofer A., Jena R., Nushi B., Wadhwani S., Nori A., Natarajan K., Ashraf S., Alvarez-Valle J., Castro D. C.: Hierarchical Analysis of Visual COVID-19 Features from Chest Radiographs. ICML 2021 Workshop on Interpretable Machine Learning in Healthcare. [https://arxiv.org/abs/2107.06618](https://arxiv.org/abs/2107.06618)
 
-Bernhardt M., Castro D. C., Tanno R., Schwaighofer A., Tezcan K. C., Monteiro M., Bannur S., Lungren M., Nori S., Glocker B., Alvarez-Valle J., Oktay. O: Active label cleaning: Improving dataset quality under resource constraints. ArXiv pre-print (under peer review). [https://arxiv.org/abs/2109.00574](https://arxiv.org/abs/2109.00574). Accompagnying code [InnerEye-DataQuality](InnerEye-DataQuality/README.md)
+Bernhardt M., Castro D. C., Tanno R., Schwaighofer A., Tezcan K. C., Monteiro M., Bannur S., Lungren M., Nori S., Glocker B., Alvarez-Valle J., Oktay. O: Active label cleaning for improved dataset quality under resource constraints. [https://www.nature.com/articles/s41467-022-28818-3](https://www.nature.com/articles/s41467-022-28818-3). Accompagnying code [InnerEye-DataQuality](InnerEye-DataQuality/README.md)
 
 ## Contributing
 
