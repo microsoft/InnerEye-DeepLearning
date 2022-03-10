@@ -59,15 +59,6 @@ def run_inference_on_unet(size: TupleInt3) -> None:
         image_util.check_array_range(p)
 
 
-def test_inference_on_too_small_image() -> None:
-    """
-    Running inference on a simplified Unet model when the input image is too small along an axis.
-    """
-    with pytest.raises(ValueError) as ex:
-        run_inference_on_unet((5, 10, 64))
-    assert "input image must have at least a size of (16, 16, 16)" in str(ex)
-
-
 @pytest.mark.parametrize("size", [(26, 20, 50), (16, 16, 16)])
 def test_inference_on_small_image(size: TupleInt3) -> None:
     """
