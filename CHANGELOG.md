@@ -95,6 +95,7 @@ gets uploaded to AzureML, by skipping all test folders.
 
 ### Fixed
 
+- ([#682](https://github.com/microsoft/InnerEye-DeepLearning/pull/682)) Ensure the shape of input patches is compatible with model constraints.
 - ([#681](https://github.com/microsoft/InnerEye-DeepLearning/pull/681)) Pad model outputs if they are smaller than the inputs.
 - ([#683](https://github.com/microsoft/InnerEye-DeepLearning/pull/683)) Fix missing separator error in docs Makefile.
 - ([#659](https://github.com/microsoft/InnerEye-DeepLearning/pull/659)) Fix caching and checkpointing for TCGA CRCk dataset.
@@ -138,7 +139,7 @@ in inference-only runs when using lightning containers.
 - ([#674](https://github.com/microsoft/InnerEye-DeepLearning/pull/674)) Fix DeepMIL metrics bug whereby hard labels were used instead of probabilities.
 
 ### Removed
-
+- ([#692](https://github.com/microsoft/InnerEye-DeepLearning/pull/692)) Replace InnerEye-DataQuality with a link to commit,
 - ([#577](https://github.com/microsoft/InnerEye-DeepLearning/pull/577)) Removing the monitoring of batch loading time,
   use the `BatchTimeCallback` from `hi-ml` instead
 - ([#542](https://github.com/microsoft/InnerEye-DeepLearning/pull/542)) Removed Windows test leg from build pipeline.
