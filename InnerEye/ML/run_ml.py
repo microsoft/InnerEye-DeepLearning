@@ -54,7 +54,6 @@ from InnerEye.ML.reports.notebook_report import generate_classification_crossval
     generate_classification_multilabel_notebook, generate_classification_notebook, generate_segmentation_notebook, \
     get_ipynb_report_name, reports_folder
 from InnerEye.ML.scalar_config import ScalarModelBase
-from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler, download_all_checkpoints_from_run
 from InnerEye.ML.visualizers import activation_maps
 from InnerEye.ML.visualizers.plot_cross_validation import \
@@ -96,9 +95,7 @@ def is_classification_model(model: Any) -> bool:
     """
     Returns True if the given object is an InnerEye classification, but not a sequence model.
     """
-    return (isinstance(model, ScalarModelBase)
-            and model.is_classification_model
-            and not isinstance(model, SequenceModelBase))
+    return isinstance(model, ScalarModelBase)
 
 
 class MLRunner:
@@ -843,7 +840,7 @@ class MLRunner:
                     val_metrics=path_to_best_epoch_val,
                     test_metrics=path_to_best_epoch_test)
             else:
-                if isinstance(config, ScalarModelBase) and not isinstance(config, SequenceModelBase):
+                if isinstance(config, ScalarModelBase):
                     generate_classification_notebook(
                         result_notebook=reports_dir / get_ipynb_report_name(config.model_category.value),
                         config=config,

@@ -185,7 +185,7 @@ S1,image2,img12.nii,True
 S2,image2,image22.nii,False
 """)
     df = pd.read_csv(csv_string, sep=",", dtype=str)
-    items: List[ScalarDataSource] = DataSourceReader[ScalarDataSource](
+    items: List[ScalarDataSource] = DataSourceReader(
         data_frame=df,
         image_channels=["image1", "image2"],
         image_file_column="path",
@@ -197,7 +197,7 @@ S2,image2,image22.nii,False
 
 def test_load_items_errors() -> None:
     """
-    Test error cases when creating a list of classificationItems from a dataframe
+    Test error cases when creating a list of classification Items from a dataframe
     """
 
     def load(csv_string: StringIO) -> str:

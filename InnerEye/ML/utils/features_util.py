@@ -5,19 +5,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Generic, List, TypeVar
+from typing import Any, List
 
 import torch
 
 from InnerEye.Common.common_util import check_properties_are_not_none
-from InnerEye.ML.dataset.scalar_dataset import ScalarDataSource, SequenceDataSource
-from InnerEye.ML.dataset.sequence_sample import ClassificationItemSequence
-
-FT = TypeVar('FT', ClassificationItemSequence[SequenceDataSource], ScalarDataSource)
+from InnerEye.ML.dataset.scalar_dataset import ScalarDataSource
 
 
 @dataclass(frozen=True)
-class FeatureStatistics(Generic[FT]):
+class FeatureStatistics:
     """
     Class to store statistics (mean and standard deviation) of a set of features in a given dataset.
     Allows to perform feature standardization for this set of features.
@@ -29,7 +26,7 @@ class FeatureStatistics(Generic[FT]):
         check_properties_are_not_none(self)
 
     @staticmethod
-    def from_data_sources(sources: List[FT]) -> FeatureStatistics:
+    def from_data_sources(sources: List[ScalarDataSource]) -> FeatureStatistics:
         """
         For the provided data sources, compute the mean and std across all non-image features across all entries.
 
@@ -40,11 +37,7 @@ class FeatureStatistics(Generic[FT]):
         if len(sources) == 0:
             raise ValueError("sources must have a length greater than 0")
 
-        data_sources: List[Any]  # for mypy
-        if isinstance(sources[0], ClassificationItemSequence):
-            data_sources = [item for seq in sources for item in seq.items]
-        else:
-            data_sources = sources
+        data_sources: List[Any] = sources
 
         numerical_non_image_features = [x.numerical_non_image_features for x in data_sources]
         if len(numerical_non_image_features) == 0:
@@ -88,7 +81,7 @@ class FeatureStatistics(Generic[FT]):
         std = torch.sqrt(torch.max(variance, torch.zeros_like(variance)))
         return FeatureStatistics(mean=mean, std=std)
 
-    def standardize(self, sources: List[FT]) -> List[FT]:
+    def standardize(self, sources: List[ScalarDataSource]) -> List[ScalarDataSource]:
         """
         For the provided data sources, apply standardization to the non-image features in each source. This will
         standardize them to mean 0, variance 1 across all sequences.
@@ -104,14 +97,7 @@ class FeatureStatistics(Generic[FT]):
             new_features[zero_or_nan] = source.numerical_non_image_features[zero_or_nan]
             return source.clone_with_overrides(numerical_non_image_features=new_features)
 
-        def apply_sequence(seq: ClassificationItemSequence) -> ClassificationItemSequence:
-            # noinspection PyTypeChecker
-            return ClassificationItemSequence(id=seq.id, items=list(map(apply_source, seq.items)))
-
         if len(sources) > 0:
-            if isinstance(sources[0], ClassificationItemSequence):
-                return list(map(apply_sequence, sources))  # type: ignore
-            else:
-                return list(map(apply_source, sources))  # type: ignore
+            return list(map(apply_source, sources))  # type: ignore
         else:
             return sources
