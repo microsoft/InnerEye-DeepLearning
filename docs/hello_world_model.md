@@ -13,16 +13,19 @@ on your local dev machine.
 
 In order to get this model to train in AzureML, you need to upload the data to blob storage. This can be done via
 [Azure Storage Explorer](https://azure.microsoft.com/en-gb/features/storage-explorer/) or via the
-[Azure commandline tools](https://docs.microsoft.com/en-us/cli/azure/).
+[Azure commandline tools](https://docs.microsoft.com/en-us/cli/azure/). Please find the detailed instructions for both
+options below.
 
 Before uploading, you need to know what storage account you have set up to hold the data for your AzureML workspace, see
 [Step 4 in the Azure setup](setting_up_aml.md): For the upload you need to know the name of that storage account.
 
 ## Option 1: Upload via Azure Storage explorer
 
+First install [Azure Storage Explorer](https://azure.microsoft.com/en-gb/features/storage-explorer/).
+
 When starting Storage Explorer, you need to [log in to Azure](https://docs.microsoft.com/en-gb/azure/vs-azure-tools-storage-manage-with-storage-explorer?tabs=windows).
 
-* Select your subcription in the left-hand navigation, and then the storage account that you set up ealier.
+* Select your subcsription in the left-hand navigation, and then the storage account that you set up earlier.
 * There should be a section "Blob Containers" for that account.
 * Right-click on "Blob Containers", and choose "Create Blob Container". Give that container the name "datasets"
 * Click on the newly created container "datasets". You should see no files present.
@@ -37,8 +40,9 @@ When starting Storage Explorer, you need to [log in to Azure](https://docs.micro
 
 ## Option 2: Upload via the Azure CLI
 
-Run the following in the command prompt after installing the
-[Azure commandline tools](https://docs.microsoft.com/en-us/cli/azure/)
+First, install the [Azure commandline tools](https://docs.microsoft.com/en-us/cli/azure/).
+
+Run the following in the command prompt:
 
 ```shell
 az login
