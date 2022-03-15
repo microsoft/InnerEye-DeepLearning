@@ -9,12 +9,12 @@ For each Pull Request, the affected code parts should be briefly described and a
 Once a release is done, the "Upcoming" section becomes the release changelog, and a new empty "Upcoming" should be
 created.
 
-
 ## Upcoming
 
 ### Added
 - ([#689](https://github.com/microsoft/InnerEye-DeepLearning/pull/689)) Show default argument values in help message.
 - ([#671](https://github.com/microsoft/InnerEye-DeepLearning/pull/671)) Remove sequence models and unused variables. Simplify README.
+- ([#693](https://github.com/microsoft/InnerEye-DeepLearning/pull/693)) Improve instructions for HelloWorld model in AzureML.
 - ([#678](https://github.com/microsoft/InnerEye-DeepLearning/pull/678)) Add function to get log level name and use it for logging.
 - ([#666](https://github.com/microsoft/InnerEye-DeepLearning/pull/666)) Replace RadIO with TorchIO for patch-based inference.
 - ([#643](https://github.com/microsoft/InnerEye-DeepLearning/pull/643)) Test for recovery of SSL job. Tracks learning rate and train
@@ -160,7 +160,6 @@ in inference-only runs when using lightning containers.
 - ([#633](https://github.com/microsoft/InnerEye-DeepLearning/pull/633)) Model fields `recovery_checkpoint_save_interval` and `recovery_checkpoints_save_last_k` have been retired.
   Recovery checkpoint handling is now controlled by `autosave_every_n_val_epochs`.
 
-
 ## 0.3 (2021-06-01)
 
 ### Added
@@ -291,6 +290,7 @@ console for easier diagnostics.
  container models on machines with >1 GPU
 
 ### Removed
+
 - ([#439](https://github.com/microsoft/InnerEye-DeepLearning/pull/439)) Deprecated `start_epoch` config argument.
 - ([#450](https://github.com/microsoft/InnerEye-DeepLearning/pull/450)) Delete unused `classification_report.ipynb`.
 - ([#455](https://github.com/microsoft/InnerEye-DeepLearning/pull/455)) Removed the AzureRunner conda environment.
@@ -307,11 +307,11 @@ console for easier diagnostics.
 
 - ([#323](https://github.com/microsoft/InnerEye-DeepLearning/pull/323)) There are new model configuration fields
   (and hence, commandline options), in particular for controlling PyTorch Lightning (PL) training:
-    - `max_num_gpus` controls how many GPUs are used at most for training (default: all GPUs, value -1).
-    - `pl_num_sanity_val_steps` controls the PL trainer flag `num_sanity_val_steps`
-    - `pl_deterministic` controls the PL trainer flags `benchmark` and `deterministic`
-    - `generate_report` controls if a HTML report will be written (default: True)
-    - `recovery_checkpoint_save_interval` determines how often a checkpoint for training recovery is saved.
+  - `max_num_gpus` controls how many GPUs are used at most for training (default: all GPUs, value -1).
+  - `pl_num_sanity_val_steps` controls the PL trainer flag `num_sanity_val_steps`
+  - `pl_deterministic` controls the PL trainer flags `benchmark` and `deterministic`
+  - `generate_report` controls if a HTML report will be written (default: True)
+  - `recovery_checkpoint_save_interval` determines how often a checkpoint for training recovery is saved.
 - ([#336](https://github.com/microsoft/InnerEye-DeepLearning/pull/336)) New extensions of
   SegmentationModelBases `HeadAndNeckBase` and `ProstateBase`. Use these classes to build your own Head&Neck or Prostate
   models, by just providing a list of foreground classes.
@@ -326,17 +326,17 @@ console for easier diagnostics.
 
 - ([#323](https://github.com/microsoft/InnerEye-DeepLearning/pull/323)) The codebase has undergone a massive
   refactoring, to use PyTorch Lightning as the foundation for all training. As a consequence of that:
-    - Training is now using Distributed Data Parallel with synchronized `batchnorm`. The number of GPUs to use can be
+  - Training is now using Distributed Data Parallel with synchronized `batchnorm`. The number of GPUs to use can be
       controlled by a new commandline argument `max_num_gpus`.
-    - Several classes, like `ModelTrainingSteps*`, have been removed completely.
-    - The final model is now always the one that is written at the end of all training epochs.
-    - The old code that options to run full image inference at multiple epochs (i.e., multiple checkpoints), this has
+  - Several classes, like `ModelTrainingSteps*`, have been removed completely.
+  - The final model is now always the one that is written at the end of all training epochs.
+  - The old code that options to run full image inference at multiple epochs (i.e., multiple checkpoints), this has
       been removed, alongside the respective commandline options `save_start_epoch`, `save_step_epochs`,
       `epochs_to_test`, `test_diff_epochs`, `test_step_epochs`, `test_start_epoch`
-    - The commandline option `register_model_only_for_epoch` is now called `only_register_model`, and is boolean.
-    - All metrics are written to AzureML and Tensorboard in a unified format. A training Dice score for 'bladder' would
+  - The commandline option `register_model_only_for_epoch` is now called `only_register_model`, and is boolean.
+  - All metrics are written to AzureML and Tensorboard in a unified format. A training Dice score for 'bladder' would
       previously be called Train_Dice/bladder, now it is train/Dice/bladder.
-    - Due to a different checkpoint format, it is no longer possible to use checkpoints written by the previous version
+  - Due to a different checkpoint format, it is no longer possible to use checkpoints written by the previous version
       of the code.
 - The arguments of the `score.py` script changed: `data_root` -> `data_folder`, it no longer assumes a fixed
   `data` subfolder. `project_root` -> `model_root`, `test_image_channels` -> `image_files`.
