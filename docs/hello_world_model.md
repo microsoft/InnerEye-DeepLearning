@@ -25,7 +25,7 @@ First install [Azure Storage Explorer](https://azure.microsoft.com/en-gb/feature
 
 When starting Storage Explorer, you need to [log in to Azure](https://docs.microsoft.com/en-gb/azure/vs-azure-tools-storage-manage-with-storage-explorer?tabs=windows).
 
-* Select your subcsription in the left-hand navigation, and then the storage account that you set up earlier.
+* Select your subscription in the left-hand navigation, and then the storage account that you set up earlier.
 * There should be a section "Blob Containers" for that account.
 * Right-click on "Blob Containers", and choose "Create Blob Container". Give that container the name "datasets"
 * Click on the newly created container "datasets". You should see no files present.
