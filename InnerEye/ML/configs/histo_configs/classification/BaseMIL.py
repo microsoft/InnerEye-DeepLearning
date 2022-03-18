@@ -113,7 +113,8 @@ class BaseMIL(LightningContainer):
                              class_weights=self.data_module.class_weights,
                              l_rate=self.l_rate,
                              weight_decay=self.weight_decay,
-                             adam_betas=self.adam_betas)
+                             adam_betas=self.adam_betas,
+                             is_finetune=self.is_finetune)
 
     def get_data_module(self) -> TilesDataModule:
         raise NotImplementedError
