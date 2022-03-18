@@ -97,7 +97,7 @@ class TilesDataModule(LightningDataModule):
             self._load_dataset(self.test_dataset, stage='test', shuffle=True)
 
     def _dataset_pickle_path(self, stage: str) -> Optional[Path]:
-        if self.cache_dir is None:
+        if self.cache_dir is None or self.cache_mode == CacheMode.NONE:
             return None
         return self.cache_dir / f"{stage}_dataset.pt"
 
