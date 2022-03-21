@@ -153,8 +153,8 @@ class SSLContainer(LightningContainer):
         gpus_per_node = self.num_gpus_per_node()
         num_of_total_gpus = self.num_nodes * gpus_per_node
         if num_of_total_gpus > 1:
-            l_rate = self.l_rate * num_of_total_gpus  # typing: ignore
-            logging.info(f"We found {num_of_total_gpus} GPUs, SSL encoder learning rate has been adjusted from {self.l_rate} to {l_rate}")  # typing: ignore
+            l_rate: float = self.l_rate * num_of_total_gpus
+            logging.info(f"We found {num_of_total_gpus} GPUs, SSL encoder learning rate has been adjusted from {self.l_rate} to {l_rate}")
             self.l_rate = l_rate
 
         if self.ssl_training_type == SSLTrainingType.SimCLR:
