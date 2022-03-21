@@ -44,6 +44,7 @@ class DeepMILModule(LightningModule):
                  n_classes: int,
                  encoder: TileEncoder,
                  pooling_layer: Callable[[int, int, int], nn.Module],
+                 encoding_chunk_size: int = 0,
                  pool_hidden_dim: int = 128,
                  pool_out_dim: int = 1,
                  dropout_rate: Optional[float] = None,
@@ -64,6 +65,7 @@ class DeepMILModule(LightningModule):
         you should use `IdentityEncoder`.
         :param pooling_layer: Type of pooling to use in multi-instance aggregation. Should be a
         `torch.nn.Module` constructor accepting input, hidden, and output pooling `int` dimensions.
+        :param encoding_chunk_size: If > 0, performs encoding in chunks of `enconding_chunk_size`.
         :param pool_hidden_dim: Hidden dimension of pooling layer (default=128).
         :param pool_out_dim: Output dimension of pooling layer (default=1).
         :param dropout_rate: Rate of pre-classifier dropout (0-1). `None` for no dropout (default).
@@ -83,6 +85,8 @@ class DeepMILModule(LightningModule):
         # Dataset specific attributes
         self.label_column = label_column
         self.n_classes = n_classes
+
+        self.encoding_chunk_size = encoding_chunk_size
         self.pool_hidden_dim = pool_hidden_dim
         self.pool_out_dim = pool_out_dim
         self.pooling_layer = pooling_layer
@@ -201,9 +205,16 @@ class DeepMILModule(LightningModule):
             else:
                 log_on_epoch(self, f'{stage}/{metric_name}', metric_object)
 
+    def apply_encoder(self, instances: Tensor) -> Tensor:
+        if self.encoding_chunk_size == 0:
+            return self.encoder(instances)
+        chunks = torch.split(instances, self.encoding_chunk_size)
+        encoded_chunks = [self.encoder(chunk) for chunk in chunks]
+        return torch.cat(encoded_chunks)
+
     def forward(self, instances: Tensor) -> Tuple[Tensor, Tensor]:  # type: ignore
         with set_grad_enabled(self.is_finetune):
-            instance_features = self.encoder(instances)                    # N X L x 1 x 1
+            instance_features = self.apply_encoder(instances)                    # N X L x 1 x 1
         attentions, bag_features = self.aggregation_fn(instance_features)  # K x N | K x L
         bag_features = bag_features.view(1, -1)
         bag_logit = self.classifier_fn(bag_features)

@@ -105,10 +105,13 @@ class BaseMIL(LightningContainer):
                 params.requires_grad = True
         else:
             self.model_encoder = IdentityEncoder(input_dim=(self.encoder.num_encoding,))
+            self.encoding_chunk_size = 0
+
         return DeepMILModule(encoder=self.model_encoder,
                              label_column=self.data_module.train_dataset.LABEL_COLUMN,
                              n_classes=self.data_module.train_dataset.N_CLASSES,
                              pooling_layer=self.get_pooling_layer(),
+                             encoding_chunk_size=self.encoding_chunk_size,
                              dropout_rate=self.dropout_rate,
                              class_weights=self.data_module.class_weights,
                              l_rate=self.l_rate,
