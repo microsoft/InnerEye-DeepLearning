@@ -29,7 +29,6 @@ if __name__ == '__main__':
     # copy README.md and doc files
     shutil.copy(repository_root / "README.md", markdown_root)
     shutil.copy(repository_root / "CHANGELOG.md", markdown_root)
-    shutil.copy(repository_root / "LICENSE", markdown_root)
     shutil.copytree(repository_root / "docs", markdown_root / "docs")
 
     # replace links to files in repository with urls

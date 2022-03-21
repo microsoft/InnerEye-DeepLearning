@@ -133,7 +133,7 @@ Details can be found [here](docs/deploy_on_aml.md).
 
 ## Licensing
 
-[MIT License](LICENSE)
+[MIT License](/LICENSE)
 
 **You are responsible for the performance, the necessary testing, and if needed any regulatory clearance for
  any of the models produced by this toolbox.**
