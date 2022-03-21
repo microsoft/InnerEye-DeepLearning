@@ -97,7 +97,7 @@ gets uploaded to AzureML, by skipping all test folders.
 
 ### Fixed
 
-- ([#661](https://github.com/microsoft/InnerEye-DeepLearning/pull/661)) Fix Sphinx warnings.
+- ([#699](https://github.com/microsoft/InnerEye-DeepLearning/pull/699)) Fix Sphinx warnings.
 - ([#682](https://github.com/microsoft/InnerEye-DeepLearning/pull/682)) Ensure the shape of input patches is compatible with model constraints.
 - ([#681](https://github.com/microsoft/InnerEye-DeepLearning/pull/681)) Pad model outputs if they are smaller than the inputs.
 - ([#683](https://github.com/microsoft/InnerEye-DeepLearning/pull/683)) Fix missing separator error in docs Makefile.
