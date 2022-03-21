@@ -10,29 +10,27 @@ def replace_in_file(filepath: Path, original_str: str, replace_str: str) -> None
     """
     Replace all occurences of the original_str with replace_str in the file provided.
     """
-    with filepath.open('r') as file:
-        text = file.read()
+    text = filepath.read_text()
     text = text.replace(original_str, replace_str)
-    with filepath.open('w') as file:
-        file.write(text)
+    filepath.write_text(text)
 
 
 if __name__ == '__main__':
     sphinx_root = Path(__file__).absolute().parent
     repository_root = sphinx_root.parent
-    md_root = sphinx_root / "source/md"
+    markdown_root = sphinx_root / "source" / "md"
     repository_url = "https://github.com/microsoft/InnerEye-DeepLearning"
 
     # Create directories source/md and source/md/docs where files will be copied to
-    if md_root.exists():
-        shutil.rmtree(md_root)
-    md_root.mkdir()
+    if markdown_root.exists():
+        shutil.rmtree(markdown_root)
+    markdown_root.mkdir()
 
     # copy README.md and doc files
-    shutil.copyfile(repository_root / "README.md", md_root / "README.md")
-    shutil.copytree(repository_root / "docs", md_root / "docs")
+    shutil.copyfile(repository_root / "README.md", markdown_root / "README.md")
+    shutil.copytree(repository_root / "docs", markdown_root / "docs")
 
     # replace links to files in repository with urls
-    md_file_list = md_root.rglob("*.md")
-    for filepath in md_file_list:
+    md_files = markdown_root.rglob("*.md")
+    for filepath in md_files:
         replace_in_file(filepath, "](/", f"]({repository_url}/blob/main/")
