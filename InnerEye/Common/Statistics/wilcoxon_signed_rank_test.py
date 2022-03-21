@@ -52,8 +52,7 @@ up each score from one set of results with a score from the other set.
 """
 
 from collections import defaultdict
-from itertools import filterfalse, tee
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -66,8 +65,6 @@ import InnerEye.Common.Statistics.statistical_tests as tests
 from InnerEye.Common.common_util import FULL_METRICS_DATAFRAME_FILE
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.ML.visualizers.metrics_scatterplot import create_scatterplots
-
-INTERSECT = lambda l, r: np.intersect1d(l, r, False)
 
 """
 The factor by which the Wilcoxon Z value should be divided to allow for incomplete independence of the data.
@@ -204,15 +201,6 @@ def compose_pairwise_result(threshold: float, results: Dict[str, Dict[str, float
     if test_is_valid:
         return header + lines
     return []
-
-
-def partition_results(pred: Callable, results: List[Any]) -> Tuple[List[Any], List[Any]]:
-    """
-    Helper function to partition results into passed/failed
-    """
-    t1, t2 = tee(results)
-    map_func = lambda r: (r, results[r])
-    return list(map(map_func, filterfalse(pred, t1))), list(map(map_func, filter(pred, t2)))
 
 
 def read_data(csv_file: str, subset: str = 'all', exclude: Optional[List[str]] = None) \

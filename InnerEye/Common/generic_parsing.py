@@ -146,7 +146,7 @@ class GenericConfig(param.Parameterized):
         Creates an ArgumentParser with all fields of the given argparser that are overridable.
         :return: ArgumentParser
         """
-        parser = argparse.ArgumentParser()
+        parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
         cls.add_args(parser)
 
         return parser
