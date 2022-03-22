@@ -12,6 +12,7 @@ created.
 ## Upcoming
 
 ### Added
+- ([#667](https://github.com/microsoft/InnerEye-DeepLearning/pull/667)) Automatically and linearly scale the learning rate of the SSL encoder to the number of GPUs.
 - ([#689](https://github.com/microsoft/InnerEye-DeepLearning/pull/689)) Show default argument values in help message.
 - ([#671](https://github.com/microsoft/InnerEye-DeepLearning/pull/671)) Remove sequence models and unused variables. Simplify README.
 - ([#693](https://github.com/microsoft/InnerEye-DeepLearning/pull/693)) Improve instructions for HelloWorld model in AzureML.
