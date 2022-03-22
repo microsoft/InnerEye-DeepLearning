@@ -8,7 +8,7 @@ InnerEye-DeepLearning Documentation
 
 .. toctree::
    :maxdepth: 1
-   :caption: Contents:
+   :caption: Contents
 
    md/README.md
    md/docs/WSL.md
@@ -21,13 +21,13 @@ InnerEye-DeepLearning Documentation
 
 .. toctree::
    :maxdepth: 1
-   :caption: About Model Configs:
+   :caption: About Model Configs
 
    rst/configs.rst
 
 .. toctree::
    :maxdepth: 1
-   :caption: Further reading for contributors:
+   :caption: Further reading for contributors
 
    md/docs/pull_requests.md
    md/docs/testing.md
