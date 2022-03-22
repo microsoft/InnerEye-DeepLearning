@@ -37,7 +37,7 @@ jobs that run in AzureML.
   `NIH_COVID_BYOL` to specify the name of the SSL training dataset.
 - ([#560](https://github.com/microsoft/InnerEye-DeepLearning/pull/560)) Added pre-commit hooks.
 - ([#619](https://github.com/microsoft/InnerEye-DeepLearning/pull/619)) Add DeepMIL PANDA
-- ([#559](https://github.com/microsoft/InnerEye-DeepLearning/pull/559)) Adding the accompanying code for the ["Active label cleaning: Improving dataset quality under resource constraints"](https://arxiv.org/abs/2109.00574) paper. The code can be found in the [InnerEye-DataQuality](InnerEye-DataQuality/README.md) subfolder. It provides tools for training noise robust models, running label cleaning simulation and loading our label cleaning benchmark datasets.
+- ([#559](https://github.com/microsoft/InnerEye-DeepLearning/pull/559)) Adding the accompanying code for the ["Active label cleaning: Improving dataset quality under resource constraints"](https://arxiv.org/abs/2109.00574) paper.
 - ([#589](https://github.com/microsoft/InnerEye-DeepLearning/pull/589)) Add `LightningContainer.update_azure_config()`
   hook to enable overriding `AzureConfig` parameters from a container (e.g. `experiment_name`, `cluster`, `num_nodes`).
 - ([#617](https://github.com/microsoft/InnerEye-DeepLearning/pull/617)) Commandline flag `pl_check_val_every_n_epoch` to control how often validation is happening
@@ -98,6 +98,7 @@ gets uploaded to AzureML, by skipping all test folders.
 ### Fixed
 
 - ([#701](https://github.com/microsoft/InnerEye-DeepLearning/pull/701)) Fix 3D images expected to be 4D for intensity normalization.
+- ([#699](https://github.com/microsoft/InnerEye-DeepLearning/pull/699)) Fix Sphinx warnings.
 - ([#682](https://github.com/microsoft/InnerEye-DeepLearning/pull/682)) Ensure the shape of input patches is compatible with model constraints.
 - ([#681](https://github.com/microsoft/InnerEye-DeepLearning/pull/681)) Pad model outputs if they are smaller than the inputs.
 - ([#683](https://github.com/microsoft/InnerEye-DeepLearning/pull/683)) Fix missing separator error in docs Makefile.
