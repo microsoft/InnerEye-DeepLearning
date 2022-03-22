@@ -200,7 +200,7 @@ Leave all other fields as they are for now.
 
 Summarizing, here is how the file should look like:
 
-```yml
+```yaml
 variables:
   tenant_id: '<Azure tenant ID of your company>'
   subscription_id: '<Azure subscription ID that your project is using'
