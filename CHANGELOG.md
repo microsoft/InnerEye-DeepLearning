@@ -98,6 +98,7 @@ gets uploaded to AzureML, by skipping all test folders.
 
 ### Fixed
 
+- ([#704](https://github.com/microsoft/InnerEye-DeepLearning/pull/704)) Add submodules to sys.path to fix autodoc's warning.
 - ([#699](https://github.com/microsoft/InnerEye-DeepLearning/pull/699)) Fix Sphinx warnings.
 - ([#682](https://github.com/microsoft/InnerEye-DeepLearning/pull/682)) Ensure the shape of input patches is compatible with model constraints.
 - ([#681](https://github.com/microsoft/InnerEye-DeepLearning/pull/681)) Pad model outputs if they are smaller than the inputs.
