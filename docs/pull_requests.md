@@ -12,7 +12,6 @@ AzureML workspace. A member of the InnerEye team will be happy to assist then.
 by pressing Ctrl+Alt+L, or selecting "Reformat code" in the context menu of the file(s) in the project explorer window.
 Alternatively, you should tick all of "Reformat code", "Rearrange code", "Optimize imports", "Cleanup", "Scan with mypy"
 in the PyCharm version control check-in dialog.
-* Ensure that you modified [CHANGELOG.md](../CHANGELOG.md) and described your PR there.
 * Only publish your PR for review once you have a build that is passing. You can make use of the "Create as Draft"
 feature of GitHub.
 * Link the correct Github issue.
