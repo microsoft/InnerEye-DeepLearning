@@ -84,7 +84,8 @@ instance/
 .scrapy
 
 # Sphinx documentation
-docs/_build/
+sphinx-docs/build/
+sphinx-docs/source/md/
 
 # PyBuilder
 target/
