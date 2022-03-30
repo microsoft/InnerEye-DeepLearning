@@ -10,7 +10,6 @@ Please follow the guidelines for pull requests (PRs) in [CONTRIBUTING](/docs/con
 - Link the correct GitHub issue for tracking
 - Add unit tests for all functions that you introduced or modified
 - Run automatic code formatting / linting on all files ("Format Document" Shift-Alt-F in VSCode)
-- Ensure that documentation renders correctly in Sphinx by running `make html` in the `docs` folder
 
 ## Change the default merge message
 
