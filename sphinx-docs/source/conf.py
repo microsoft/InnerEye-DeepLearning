@@ -19,6 +19,8 @@ import sys
 from pathlib import Path
 repo_dir = Path(__file__).absolute().parents[2]
 sys.path.insert(0, str(repo_dir))
+from InnerEye.Common import fixed_paths
+fixed_paths.add_submodules_to_path()
 
 
 # -- Imports -----------------------------------------------------------------
