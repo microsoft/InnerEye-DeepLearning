@@ -48,8 +48,8 @@ winget install Microsoft.WindowsTerminal
 Remember to restart your machine if you were doing a fresh installation of WSL 2 before trying further steps.
 
 Since it is possible to choose the version of WSL that a particular distribution is running, once you have WSL2
-installed, ensure that your distribution is running on top of WSL2 by executing  
-`wsl --list --verbose`  
+installed, ensure that your distribution is running on top of WSL2 by executing
+`wsl --list --verbose`
 If all is good, the output should look like this:
 
 ```

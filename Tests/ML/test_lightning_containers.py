@@ -308,7 +308,7 @@ def test_get_hyperdrive_config(number_of_cross_validation_splits: int,
         with pytest.raises(NotImplementedError) as not_implemented_error:
             container.get_hyperdrive_config(run_config=run_config)
         assert 'Parameter search is not implemented' in str(not_implemented_error.value)
-        # The error should be thrown by 
+        # The error should be thrown by
         #     InnerEye.ML.lightning_container.LightningContainer.get_parameter_search_hyperdrive_config
         # since number_of_cross_validation_splits == 0 implies a parameter search hyperdrive config and
         # not a cross validation one.

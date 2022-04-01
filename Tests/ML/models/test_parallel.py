@@ -19,7 +19,7 @@ no_or_single_gpu = not torch.cuda.is_available() or torch.cuda.device_count() <=
 
 class SimpleModel(BaseSegmentationModel):
     """
-    A simple neural network model to test model parallelisation functions. 
+    A simple neural network model to test model parallelisation functions.
     """
 
     def __init__(self, input_channels: Any, channels: Any, n_classes: int, kernel_size: int):

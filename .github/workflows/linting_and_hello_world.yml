@@ -21,7 +21,7 @@ jobs:
           pip install flake8
           python -m flake8
         shell: bash
-        if: always()        
+        if: always()
 
       # This script also does "conda init" for all shells. For bash, this modifies .bashrc.
       # However, the default "bash" in a github workflow does not execute bashrc. Hence, all

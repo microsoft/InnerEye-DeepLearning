@@ -12,7 +12,7 @@ from InnerEye.Common.fixed_paths_for_tests import full_ml_test_data_path
 
 
 class DummyClassification(ScalarModelBase):
-    "A config file for dummy image classification model for debugging purposes" 
+    "A config file for dummy image classification model for debugging purposes"
 
     def __init__(self) -> None:
         num_epochs = 4

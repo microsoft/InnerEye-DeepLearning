@@ -3,7 +3,7 @@
 === METRIC: Dice ===
 
                                                                                                                                count  mean  min  max
-Patient Structure       seriesId                                                         institutionId                                              
+Patient Structure       seriesId                                                         institutionId
 341     rectum          d41cb61517793f87f97d5d6c0cee9f91df94169c29701c10190723ff8ede419a 641eda02-90c3-45ed-b8b1-2651b6a5da6c  1.0    1.1   1.1  1.1
 366     rectum          f040ac05a1eeee9a064662adda21f703d7ba969b7dfc2787248b2c596ccf59a7 641eda02-90c3-45ed-b8b1-2651b6a5da6c  1.0    0.9   0.9  0.9
 411     rectum          6fa04f324339c532a7c06877d1129bfacd7504d9c0bf6277a393915e73e41d66 5a6ba8fe-65bc-43ec-b1fc-682c8c37e40c  1.0    0.9   0.9  0.9
