@@ -28,7 +28,7 @@ class HelloWorld(SegmentationModelBase):
 
     * This model can be trained from the commandline: python InnerEye/runner.py --model=HelloWorld
 
-    * If you want to test that your AzureML workspace is working, please follow the instructions in 
+    * If you want to test that your AzureML workspace is working, please follow the instructions in
     <repo_root>/docs/hello_world_model.md.
 
     In this example, the model is trained on 2 input image channels channel1 and channel2, and

@@ -5,7 +5,7 @@ training time:
 
 - Model: The model is registered in the AzureML registry and contains the code used at training time and pytorch
   checkpoint
-- Environment: The Azure ML environment used to train the model. This contains the docker image with all the 
+- Environment: The Azure ML environment used to train the model. This contains the docker image with all the
   dependencies that were used for training
 
 If you want to export a model from one Workspace to another you can use the following command to download and upload a

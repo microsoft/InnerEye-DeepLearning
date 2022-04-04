@@ -1,7 +1,7 @@
 # Model Diagnostics
 
 The InnerEye toolbox has extensive reporting about the model building process, as well as the performance
-of the final model. Our goal is to provide as much insight as possible about the critical steps (and 
+of the final model. Our goal is to provide as much insight as possible about the critical steps (and
 pitfalls) of building a model.
 
 ## Patch sampling for segmentation models
@@ -13,8 +13,8 @@ given [here](https://github.com/microsoft/InnerEye-DeepLearning/wiki/Adjusting-a
 At the start of training, the toolbox inspects the first 10 images of the training set. For each of them,
 1000 random crops are drawn at random, similar to how they would be drawn during training. From that, a
 heatmap is constructed, where each voxel value contains how often that specific voxels was actually contained
-in the random crop (a value between 0 and 1000). The heatmap is stored as a Nifti file, alongside the 
-original scan, in folder `outputs/patch_sampling/`. When running inside AzureML, navigate to the 
+in the random crop (a value between 0 and 1000). The heatmap is stored as a Nifti file, alongside the
+original scan, in folder `outputs/patch_sampling/`. When running inside AzureML, navigate to the
 "Outputs" tab, and go to the folder (see screenshot below).
 
 In addition, for each patient, 3 thumbnail images are generated, that overlay the heatmap on top of the

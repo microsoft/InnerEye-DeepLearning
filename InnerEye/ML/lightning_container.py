@@ -295,7 +295,7 @@ class LightningContainer(GenericConfig,
         """
         Returns a configuration for AzureML Hyperdrive that varies the cross validation split index.
         Because this adds a val/Loss metric it is important that when subclassing LightningContainer
-        your implementeation of LightningModule logs val/Loss. There is an example of this in 
+        your implementation of LightningModule logs val/Loss. There is an example of this in
         HelloRegression's validation_step method.
         :param run_config: The AzureML run configuration object that training for an individual model.
         :return: A hyperdrive configuration object.

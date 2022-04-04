@@ -59,8 +59,8 @@ def _test_generate_segmentation_report_with_partial_ground_truth(
     partial_metrics.to_csv(partial_metrics_file, index=False, float_format="%.3f", na_rep="")
     result_html = generate_segmentation_notebook(result_notebook=result_file, test_metrics=partial_metrics_file)
     result_html_text = result_html.read_text(encoding='utf-8')
-    # Look for this row in the HTML Dice table: 
-    #   <td>brainstem</td>\n      <td>0.82600</td>\n      <td>0.8570</td>\n      <td>0.87600</td>\n      <td>17.0</td>\n 
+    # Look for this row in the HTML Dice table:
+    #   <td>brainstem</td>\n      <td>0.82600</td>\n      <td>0.8570</td>\n      <td>0.87600</td>\n      <td>17.0</td>\n
     # It shows that for the brainstem label there are only 17, not 20, patients with that label,
     # because we removed the brainstem label for patients 14, 15, and 19.
 
