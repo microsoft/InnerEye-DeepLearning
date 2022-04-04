@@ -9,5 +9,8 @@
         "activityBar.background": "#07338b",
         "titleBar.activeBackground": "#07338b",
         "titleBar.activeForeground": "#F8FCE5"
-    }
+    },
+    "files.trimTrailingWhitespace": true,
+    "files.trimFinalNewlines": true,
+    "files.insertFinalNewline": true
 }

@@ -2,19 +2,19 @@
 
 ## Prerequisites
 
-In order to work with the solution, your OS environment will need [git](https://git-scm.com/) and [git lfs](https://git-lfs.github.com/) installed. Depending on the OS that you are running the installation instructions may vary. Please refer to respective documentation sections on the tools' websites for detailed instructions. 
+In order to work with the solution, your OS environment will need [git](https://git-scm.com/) and [git lfs](https://git-lfs.github.com/) installed. Depending on the OS that you are running the installation instructions may vary. Please refer to respective documentation sections on the tools' websites for detailed instructions.
 
-We recommend using PyCharm or VSCode as the Python editor. 
+We recommend using PyCharm or VSCode as the Python editor.
 
 You have two options for working with our codebase:
 * You can fork the InnerEye-DeepLearning repository, and work off that. We recommend that because it is easiest to set up.
 * Or you can create your project that uses the InnerEye-DeepLearning code, and include InnerEye-DeepLearning as a git
-submodule. We only recommended that if you are very handy with Python. More details about this option 
+submodule. We only recommended that if you are very handy with Python. More details about this option
 [are here](innereye_as_submodule.md).
 
 ## Windows Subsystem for Linux Setup
 When developing on a Windows machine, we recommend using [the Windows Subsystem for Linux, WSL2](https://docs.microsoft.com/en-us/windows/wsl/about).
-That's because PyTorch has better support for Linux.  If you want to use WSL2, please follow 
+That's because PyTorch has better support for Linux.  If you want to use WSL2, please follow
 [these instructions](/docs/WSL.md) , that correspond to the manual installation in the official docs.
 
 ## Installing Conda or Miniconda
@@ -24,11 +24,11 @@ Download a Conda or Miniconda [installer for your platform](https://docs.conda.i
 and run it.
 
 ## Creating a Conda environment
-Note that in order to create the Conda environment you will need to have build tools installed on your machine. If you are running Windows, they should be already installed with Conda distribution.   
+Note that in order to create the Conda environment you will need to have build tools installed on your machine. If you are running Windows, they should be already installed with Conda distribution.
 
-You can install build tools on Ubuntu (and Debian-based distributions) by running  
-`sudo apt-get install build-essential`  
-If you are running CentOS/RHEL distributions, you can install the build tools by running  
+You can install build tools on Ubuntu (and Debian-based distributions) by running
+`sudo apt-get install build-essential`
+If you are running CentOS/RHEL distributions, you can install the build tools by running
 `yum install gcc gcc-c++ kernel-devel make`
 
 Start the `conda` prompt for your platform. In that prompt, navigate to your repository root and run
@@ -36,25 +36,25 @@ Start the `conda` prompt for your platform. In that prompt, navigate to your rep
 
 ## Using GPU locally
 
-It is possible to run the training process on a local machine. It will not be as performant as using a GPU cluster that Azure ML offers and you will not be able to take advantage of other Azure ML features such as comparing run results, creating snapshots for repeatable machine learning experiments or keeping history of experiment runs. At the same time it could be useful to experiment with code or troubleshoot things locally. 
+It is possible to run the training process on a local machine. It will not be as performant as using a GPU cluster that Azure ML offers and you will not be able to take advantage of other Azure ML features such as comparing run results, creating snapshots for repeatable machine learning experiments or keeping history of experiment runs. At the same time it could be useful to experiment with code or troubleshoot things locally.
 
-The SDK uses PyTorch to compose and run DNN computations. PyTorch can leverage the underlying GPU via NVidia CUDA technology, which accelerates computations dramatically. 
+The SDK uses PyTorch to compose and run DNN computations. PyTorch can leverage the underlying GPU via NVidia CUDA technology, which accelerates computations dramatically.
 
-In order to enable PyTorch to use CUDA, you need to make sure that you have  
-1. Compatible graphics card with CUDA compute capability of at least 3.0 (at the moment of writing). You can check compatibility list here: https://developer.nvidia.com/cuda-gpus  
+In order to enable PyTorch to use CUDA, you need to make sure that you have
+1. Compatible graphics card with CUDA compute capability of at least 3.0 (at the moment of writing). You can check compatibility list here: https://developer.nvidia.com/cuda-gpus
 1. Recent NVidia drivers installed
 
-A quick way to check if PyTorch can use the underlying GPU for computation is to run the following line from your conda environment with all InnerEye packages installed:  
-`python -c 'import torch; print(torch.cuda.is_available())'`  
+A quick way to check if PyTorch can use the underlying GPU for computation is to run the following line from your conda environment with all InnerEye packages installed:
+`python -c 'import torch; print(torch.cuda.is_available())'`
 It will output `True` if CUDA computation is available and `False` if it's not.
 
 Some tips for installing NVidia drivers below:
 
 ### Windows
-You can download NVidia drivers for your graphics card from https://www.nvidia.com/download/index.aspx as a Windows *.exe* file and install them this way. 
+You can download NVidia drivers for your graphics card from https://www.nvidia.com/download/index.aspx as a Windows *.exe* file and install them this way.
 
 ### WSL
-Microsoft provides GPU support via WSL starting WSL 2.0. 
+Microsoft provides GPU support via WSL starting WSL 2.0.
 
 You can find more details on WSL in our separate [WSL section](WSL.md).
 
@@ -80,9 +80,9 @@ In this case we can see that the system has access to a Tesla K80 GPU and is run
 If the driver is not available, you can try the following to install:
 
 #### Ubuntu
-1. Run  
-`ubuntu-drivers devices`  
-to see what drivers are available (you may need to install the tool via `sudo apt-get install ubuntu-drivers-common` and update the package database via `sudo apt update`). You should see an output like this:  
+1. Run
+`ubuntu-drivers devices`
+to see what drivers are available (you may need to install the tool via `sudo apt-get install ubuntu-drivers-common` and update the package database via `sudo apt update`). You should see an output like this:
 ```
 ...
 vendor   : NVIDIA Corporation
@@ -95,25 +95,25 @@ driver   : nvidia-driver-450 - distro non-free
 driver   : nvidia-driver-390 - distro non-free
 driver   : xserver-xorg-video-nouveau - distro free builtin
 ```
-2. Run  
-`sudo apt install nvidia-driver-450-server`  
+2. Run
+`sudo apt install nvidia-driver-450-server`
 (or whichever is the recommended in your case)
 3. Reboot your system
 
 At this point you should be able to run the `nvidia-smi` tool and PyTorch should be able to communicate with the GPU
 
 #### CentOS/RHEL
-1. Add NVidia repository to your config manager  
+1. Add NVidia repository to your config manager
 `sudo dnf config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel8/x86_64/cuda-rhel8.repo` (if you are running RHEL8, otherwise you can get the URL for your repo from here: https://developer.download.nvidia.com/compute/cuda/repos/)
-2. Clean repository cache via  
+2. Clean repository cache via
 `sudo dnf clean all`
-3. Install drivers  
-`sudo dnf -y module install nvidia-driver:latest-dkms`  
+3. Install drivers
+`sudo dnf -y module install nvidia-driver:latest-dkms`
 4. Reboot your system
 
 At this point you should be able to run the `nvidia-smi` tool and PyTorch should be able to communicate with the GPU
 
-You can find instructions for other Linux distributions on NVidia website: https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html 
+You can find instructions for other Linux distributions on NVidia website: https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html
 
 # More Details for Tool Setup
 The following steps describe how to set up specific tools. You can execute most of those at a later
@@ -151,7 +151,7 @@ and that costs 20min per run.
   add them to `sys.path`.
 
 Once you are done testing your changes:
-* Remove the entry for `hi-ml` from `.gitmodules` 
+* Remove the entry for `hi-ml` from `.gitmodules`
 * Execute these steps from the repository root:
 ```shell
 git submodule deinit -f hi-ml
