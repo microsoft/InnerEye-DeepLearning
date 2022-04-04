@@ -252,4 +252,3 @@ class Container2(LightningContainer):
         # These arguments will be passed through to the Lightning trainer.
         return {"gradient_clip_val": 1, "limit_train_batches": 10}
 ```
-
