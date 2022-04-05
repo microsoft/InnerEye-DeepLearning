@@ -107,10 +107,10 @@ with the following available arguments:
 * `ssl_encoder`: name of the encoder to train, member of `EncoderName` class, currently supported are resnet50,
   resnet101 and densenet121,
 * `ssl_training_type`: which SSL algorithm to use, member of `SSLType` choice between BYOL and SimCLR,
-* `ssl_training_batch_size`: batch size of SSL training. This is the number of examples processed by a single GPU. 
-  Multiply this by the number of GPUs to get the effective batch size. 
-* `linear_head_batch_size`: batch size for linear head training (used for monitor of SSL embeddings quality). This is 
-  the number of examples processed by a single GPU. Multiply this by the number of GPUs to get the effective batch size. 
+* `ssl_training_batch_size`: batch size of SSL training. This is the number of examples processed by a single GPU.
+  Multiply this by the number of GPUs to get the effective batch size.
+* `linear_head_batch_size`: batch size for linear head training (used for monitor of SSL embeddings quality). This is
+  the number of examples processed by a single GPU. Multiply this by the number of GPUs to get the effective batch size.
 * `ssl_augmentation_config`: path to yaml config for augmentation to use during SSL training. Only used for NIH/Kaggle
   datasets.
 * `linear_head_augmentation_config`: path to yaml config for augmentation to use for linear head training. Only used for
@@ -133,12 +133,12 @@ To use this code with your own data, you will need to:
    and `InnerEyeDataClassBaseWithReturnIndex`. See for example how we constructed `RSNAKaggleCXR`
    class. WARNING: the first positional argument of your dataset class constructor MUST be the data directory ("root"),
    as VisionDataModule expects this in the prepare_data step.
-3. In your own container update the `_SSLDataClassMappings` member of the class so that the code knows which data class 
+3. In your own container update the `_SSLDataClassMappings` member of the class so that the code knows which data class
    to associate to your new dataset name.
-4. Create a yaml configuration file that contains the augmentations specific to your dataset. The yaml file will be 
-   consumed by the `create_transforms_from_config` function defined in the 
+4. Create a yaml configuration file that contains the augmentations specific to your dataset. The yaml file will be
+   consumed by the `create_transforms_from_config` function defined in the
    `InnerEye.ML.augmentations.transform_pipeline` module (see next paragraph for more details). Alternatively, overwrite
-   the `_get_transforms` method. To simplify this step, we have defined a series of standard operations in 
+   the `_get_transforms` method. To simplify this step, we have defined a series of standard operations in
    `SSL/transforms_utils.py` . You could for example construct a transform pipeline similar to the one created
    inside `create_transform_from_config` inside your own method.
 5. Update all necessary parameters in the model config (cf. previous paragraph)

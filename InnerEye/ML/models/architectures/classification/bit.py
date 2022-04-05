@@ -165,4 +165,3 @@ class BiTResNetV2(nn.Module):
         x = self.conv_stack(x)
         x = self.linear(x)
         return x
-

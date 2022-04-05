@@ -42,4 +42,3 @@ def test_set_temperature() -> None:
     assert after_ece.item() < before_ece.item()
     assert np.isclose(optimal_temperature, 1.44, rtol=0.1)
     assert model.temperature.requires_grad is False
-

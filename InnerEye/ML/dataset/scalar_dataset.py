@@ -498,7 +498,7 @@ class DataSourceReader():
                 is_classification_dataset=self.is_classification_dataset,
                 num_classes=self.num_classes,
                 sequence_position_numeric=_sequence_position_numeric
-            )       
+            )
         if len(self.expected_channels) > 0:
             missing_channels = self.expected_channels - set(rows[self.channel_column])
             if len(missing_channels) > 0:
