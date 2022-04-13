@@ -26,6 +26,17 @@ InnerEye-DeepLearning Documentation
    md/docs/testing.md
    md/docs/contributing.md
 
+   md/docs/hello_world_model.md
+   md/docs/deploy_on_aml.md
+   md/docs/bring_your_own_model.md
+   md/docs/fastmri.md
+   md/docs/innereye_as_submodule.md
+   md/docs/model_diagnostics.md
+   md/docs/move_model.md
+   md/docs/releases.md
+   md/docs/self_supervised_models.md
+   md/CHANGELOG.md
+
 .. toctree::
    :caption: API documentation
 
