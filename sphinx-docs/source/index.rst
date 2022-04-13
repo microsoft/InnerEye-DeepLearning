@@ -21,18 +21,15 @@ InnerEye-DeepLearning Documentation
 
 .. toctree::
    :maxdepth: 1
-   :caption: About Model Configs
-
-   rst/configs.rst
-
-.. toctree::
-   :maxdepth: 1
    :caption: Further reading for contributors
 
    md/docs/pull_requests.md
    md/docs/testing.md
    md/docs/contributing.md
 
+.. toctree::
+
+   rst/api/index
 
 
 Indices and tables

@@ -114,8 +114,9 @@ def random_crop(sample: Sample,
     :param class_weights: A weighting vector with values [0, 1] to influence the class the center crop
                           voxel belongs to (must sum to 1), uniform distribution assumed if none provided.
     :return: Tuple item 1: The cropped images, labels, and mask. Tuple item 2: The center that was chosen for the crop,
-    before shifting to be inside of the image. Tuple item 3: The slicers that convert the input image to the chosen
-    crop.
+        before shifting to be inside of the image. Tuple item 3: The slicers that convert the input image to the chosen
+        crop.
+
     :raises ValueError: If there are shape mismatches among the arguments or if the crop size is larger than the image.
     """
     slicers, center = slicers_for_random_crop(sample, crop_size, class_weights)
