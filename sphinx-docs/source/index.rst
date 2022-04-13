@@ -8,7 +8,6 @@ InnerEye-DeepLearning Documentation
 
 .. toctree::
    :maxdepth: 1
-   :caption: Contents
 
    md/README.md
    md/docs/WSL.md
