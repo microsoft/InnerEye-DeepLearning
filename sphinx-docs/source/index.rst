@@ -28,6 +28,7 @@ InnerEye-DeepLearning Documentation
    md/docs/contributing.md
 
 .. toctree::
+   :caption: API documentation
 
    rst/api/index
 
@@ -37,4 +38,3 @@ Indices and tables
 
 * :ref:`genindex`
 * :ref:`modindex`
-* :ref:`search`
