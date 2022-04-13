@@ -77,5 +77,5 @@ Then execute:
 
 ```shell
 conda activate InnerEye
-python InnerEye/ML/runner.py --model=HelloWorld
+python InnerEye/ML/runner.py --model=HelloWorld --azureml
 ```

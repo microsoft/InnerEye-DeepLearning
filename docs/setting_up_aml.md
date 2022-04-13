@@ -218,5 +218,14 @@ variables:
 
 You should be all set now.
 
+You can verify that your AzureML setup works by running in a shell:
+
+```shell
+python InnerEye/ML/runner.py --model=HelloContainer --azureml
+```
+
+This will start a simple model training job in AzureML. At the end of the submission process, it will print out "Run URL: ...". Paste that
+URL into a browser, and it will take you to the AzureML portal where you can monitor that job.
+
 You can now go to the next step, [creating a dataset](creating_dataset.md), to learn how segmentation
 datasets should be structured, and how to get your data ready for use in training.
