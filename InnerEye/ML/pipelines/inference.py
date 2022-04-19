@@ -239,6 +239,7 @@ class InferencePipeline(FullImageInferencePipelineBase):
                             patient_id: int = 0) -> InferencePipeline.Result:
         """
         Performs a single inference pass through the pipeline for the provided image
+
         :param image_channels: The input image channels to perform inference on in format: Channels x Z x Y x X.
         :param voxel_spacing_mm: Voxel spacing to use for each dimension in (Z x Y x X) order
         :param mask: A binary image used to ignore results outside it in format: Z x Y x X.

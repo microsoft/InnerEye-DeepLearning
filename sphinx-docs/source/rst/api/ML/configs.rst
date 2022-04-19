@@ -40,6 +40,4 @@ Segmentation Model Configuration
    .. autoattribute:: is_plotting_enabled
 
 .. automodule:: InnerEye.ML.config
-   :members:
-   :undoc-members:
    :exclude-members: SegmentationModelBase
