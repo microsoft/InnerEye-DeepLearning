@@ -41,6 +41,7 @@ def repository_parent_directory(path: Optional[PathOrString] = None) -> Path:
 INNEREYE_PACKAGE_NAME = "InnerEye"
 # Child paths to include in a registered model that live outside InnerEye/.
 ENVIRONMENT_YAML_FILE_NAME = "environment.yml"
+PIP_REQUIREMENTS_FILE_NAME = "requirements.txt"
 
 DEFAULT_AML_UPLOAD_DIR = "outputs"
 DEFAULT_RESULT_IMAGE_NAME = "segmentation.nii.gz"

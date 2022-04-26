@@ -5,11 +5,9 @@
 import os
 import shutil
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
-import ruamel.yaml
 import setuptools
-from ruamel.yaml.comments import CommentedMap
 
 from InnerEye.Common import fixed_paths
 from InnerEye.Common.common_util import namespace_to_path
@@ -45,7 +43,7 @@ def _get_innereye_packages() -> List[str]:
     return [x for x in setuptools.find_namespace_packages(str(package_root)) if x.startswith(INNEREYE_PACKAGE_NAME)]
 
 
-def _get_source_packages(exclusions: List[str] = None) -> List[str]:
+def _get_source_packages(exclusions: Optional[List[str]] = None) -> List[str]:
     exclusions = [] if not exclusions else exclusions
     return [x for x in _get_innereye_packages() if not any([e in x for e in exclusions])]
 
@@ -92,15 +90,7 @@ for file in package_data[INNEREYE_PACKAGE_NAME]:
             and not os.path.exists(os.path.join(str(package_root), INNEREYE_PACKAGE_NAME, file)):
         raise FileNotFoundError(f"File {file} in package data does not exist")
 
-with open(package_root / fixed_paths.ENVIRONMENT_YAML_FILE_NAME, "r") as env_file:
-    yaml_contents = ruamel.yaml.round_trip_load(env_file)
-env_dependencies = yaml_contents["dependencies"]
-pip_list = None
-for d in env_dependencies:
-    if isinstance(d, CommentedMap) and "pip" in d:
-        pip_list = list(d["pip"])
-if not pip_list:
-    raise ValueError("Expected there is a 'pip' section in the environment file?")
+pip_list = (package_root / fixed_paths.PIP_REQUIREMENTS_FILE_NAME).read_text().splitlines()
 
 git_prefix = "git+"
 required_packages = []
