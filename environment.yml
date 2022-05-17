@@ -29,7 +29,7 @@ dependencies:
       - h5py==2.10.0
       - ipython==7.31.1
       - imageio==2.15.0
-      - InnerEye-DICOM-RT==1.0.1
+      - InnerEye-DICOM-RT==1.0.3
       - joblib==0.16.0
       - jupyter==1.0.0
       - jupyter-client==6.1.5
