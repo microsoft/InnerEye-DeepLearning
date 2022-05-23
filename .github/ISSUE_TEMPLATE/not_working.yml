@@ -25,7 +25,7 @@ body:
     attributes:
       label: Code for reproduction
       description: >
-        If possible, please provide a [minimum self-contained example](https://stackoverflow.com/help/minimal-reproducible-example).
+        If applicable, please provide a [minimum self-contained example](https://stackoverflow.com/help/minimal-reproducible-example).
         It will be automatically formatted.
         Here's another useful resource: [How To Ask Questions The Smart Way](http://www.catb.org/~esr/faqs/smart-questions.html).
       placeholder: Your code here
