@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: ❓ Discussions tab
+    url: https://github.com/microsoft/InnerEye-DeepLearning/discussions/new
+    about: Ask and answer InnerEye-related questions or start a general discussion
