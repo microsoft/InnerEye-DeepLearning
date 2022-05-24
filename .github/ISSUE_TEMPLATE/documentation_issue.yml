@@ -15,7 +15,9 @@ body:
     id: summary
     attributes:
       label: Issue summary
-      description: Please provide 1-2 short sentences describing where the documentation should be improved.
+      description: Please provide 1-2 short sentences describing where the documentation should be improved. If applicable,
+        please provide the URL of the file that needs updating.
+      placeholder: Description of where an update is needed, URL of the file if possible.
     validations:
       required: true
 
