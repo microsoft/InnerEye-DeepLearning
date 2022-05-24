@@ -1,0 +1,28 @@
+name: "\U0001F4D2 Documentation Problem"
+description: If the documentation is unclear or missing information, please create a report to help us improve InnerEye-DeepLearning
+labels: ["documentation"]
+
+body:
+  - type: checkboxes
+    attributes:
+      label: Is there an existing issue for this?
+      description: Please search to see if an issue already exists for the problem you encountered.
+      options:
+      - label: I have searched the existing issues
+        required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Issue summary
+      description: Please provide 1-2 short sentences describing where the documentation should be improved.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What documentation should be provided?
+      description: Please provide a description of what information should be captured or corrected in the documentation.
+    validations:
+      required: true
