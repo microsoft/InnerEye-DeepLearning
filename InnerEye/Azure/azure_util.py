@@ -234,6 +234,9 @@ def get_all_environment_files(project_root: Path) -> List[Path]:
     files = [innereye_yaml]
     if innereye_yaml != project_yaml:
         files.append(project_yaml)
+
+    logging.info(f"Discovered the following environment files: {files}")
+
     return files
 
 

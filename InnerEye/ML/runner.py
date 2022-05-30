@@ -306,6 +306,7 @@ class Runner:
                 # be necessary if the innereye package is installed. It is necessary when working with an outer project
                 # and InnerEye as a git submodule and submitting jobs from the local machine.
                 # In case of version conflicts, the package version in the outer project is given priority.
+                logging.info(f"Attempting to merge the following conda files: {source_config.conda_dependencies_files}")
                 merge_conda_files(source_config.conda_dependencies_files, temp_conda)
 
             # Calls like `self.azure_config.get_workspace()` will fail if we have no AzureML credentials set up, and so
