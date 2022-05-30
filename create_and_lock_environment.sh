@@ -34,3 +34,4 @@ while IFS='' read -r line; do
     fi
 done < environment.yml > environment.yml.tmp
 mv environment.yml.tmp environment.yml
+cp environment.yml TestSubmodule/environment.yml
