@@ -179,14 +179,14 @@ dependencies:
     - mako==1.2.0
     - markdown==3.3.7
     - markupsafe==2.1.1
-    - marshmallow==3.15.0
+    - marshmallow==3.16.0
     - marshmallow-enum==1.5.1
     - matplotlib==3.3.0
     - matplotlib-inline==0.1.3
     - mccabe==0.6.1
     - mistune==0.8.4
     - mlflow==1.23.1
-    - mlflow-skinny==1.26.0
+    - mlflow-skinny==1.26.1
     - monai==0.6.0
     - more-itertools==8.13.0
     - msal==1.17.0
@@ -224,7 +224,7 @@ dependencies:
     - prometheus-client==0.14.1
     - prometheus-flask-exporter==0.20.1
     - prompt-toolkit==3.0.29
-    - protobuf==3.20.1
+    - protobuf==4.21.1
     - psutil==5.7.2
     - ptyprocess==0.7.0
     - py==1.11.0
