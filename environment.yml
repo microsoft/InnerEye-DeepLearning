@@ -1,7 +1,7 @@
 name: InnerEye
 channels:
-  - pytorch
   - defaults
+  - pytorch
 dependencies:
   - _libgcc_mutex=0.1=main
   - _openmp_mutex=5.1=1_gnu

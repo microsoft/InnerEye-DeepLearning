@@ -200,7 +200,7 @@ dependencies:
     - prometheus-client==0.14.1
     - prometheus-flask-exporter==0.20.1
     - prompt-toolkit==3.0.29
-    - protobuf==4.21.1
+    - protobuf==3.20.1
     - psutil==5.7.2
     - py==1.11.0
     - pyarrow==3.0.0
@@ -285,4 +285,3 @@ dependencies:
     - yacs==0.1.8
     - yarl==1.7.2
     - zipp==3.8.0
-prefix: C:\Users\a-phessey\Miniconda3\envs\InnerEye
