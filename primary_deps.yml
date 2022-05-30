@@ -47,6 +47,7 @@ dependencies:
       - papermill==2.2.2
       - param==1.9.3
       - pillow==9.0.0
+      - protobuf<=3.20.1
       - psutil==5.7.2
       - pydicom==2.0.0
       - pyflakes==2.2.0

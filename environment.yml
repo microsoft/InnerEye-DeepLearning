@@ -224,7 +224,7 @@ dependencies:
     - prometheus-client==0.14.1
     - prometheus-flask-exporter==0.20.1
     - prompt-toolkit==3.0.29
-    - protobuf==4.21.1
+    - protobuf==3.20.1
     - psutil==5.7.2
     - ptyprocess==0.7.0
     - py==1.11.0
