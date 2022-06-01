@@ -67,7 +67,7 @@ jobs:
         with:
           activate-environment: InnerEye
           auto-activate-base: false
-          environment-file: environment.yml
+          environment-file: environment_win.yml
           python-version: 3.7
         if: always()
 
