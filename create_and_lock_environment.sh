@@ -14,11 +14,13 @@ IFS=':' read -ra name_arr <<< "$name_line"
 env_name="${name_arr[1]}"
 
 # clear old conda envs, create new one
+export CONDA_ALWAYS_YES="true"
 conda env remove --name ${env_name::-1}
 conda env create --file primary_deps.yml
 
 # export new environment to environment.yml
 conda env export -n ${env_name::-1} | grep -v "prefix:" > environment.yml
+unset CONDA_ALWAYS_YES
 
 # remove python version hash (technically not locked, so still potential for problems here if python secondary deps change)
 while IFS='' read -r line; do

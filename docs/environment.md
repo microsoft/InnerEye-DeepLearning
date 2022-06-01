@@ -109,7 +109,7 @@ The SDK uses PyTorch to compose and run DNN computations. PyTorch can leverage t
 
 In order to enable PyTorch to use CUDA, you need to make sure that you have
 
-1. Compatible graphics card with CUDA compute capability of at least 3.0 (at the moment of writing). You can check compatibility list [here](https://developer.nvidia.com/cuda-gpus)
+1. Compatible graphics card with CUDA compute capability of at least 3.0 (at the moment of writing). You can check the compatibility list [on the NVIDA Developer site](https://developer.nvidia.com/cuda-gpus)
 1. Recent NVidia drivers installed
 
 A quick way to check if PyTorch can use the underlying GPU for computation is to run the following line from your conda environment with all InnerEye packages installed:
@@ -120,7 +120,7 @@ Some tips for installing NVidia drivers below:
 
 ### Windows
 
-You can download NVidia drivers for your graphics card [here](https://www.nvidia.com/download/index.aspx) as a Windows *.exe* file and install them this way.
+You can download NVidia drivers for your graphics card [the NVIDIA website](https://www.nvidia.com/download/index.aspx) as a Windows *.exe* file and install them this way.
 
 ### WSL
 
@@ -156,7 +156,7 @@ If the driver is not available, you can try the following to install:
 `ubuntu-drivers devices`
 to see what drivers are available (you may need to install the tool via `sudo apt-get install ubuntu-drivers-common` and update the package database via `sudo apt update`). You should see an output like this:
 
-   ```console
+   ```text
    ...
    vendor   : NVIDIA Corporation
    model    : GK210GL [Tesla K80]
@@ -179,7 +179,7 @@ At this point you should be able to run the `nvidia-smi` tool and PyTorch should
 #### CentOS/RHEL
 
 1. Add NVidia repository to your config manager
-`sudo dnf config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel8/x86_64/cuda-rhel8.repo` (if you are running RHEL8, otherwise you can get the URL for your repo [here](https://developer.download.nvidia.com/compute/cuda/repos/))
+`sudo dnf config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel8/x86_64/cuda-rhel8.repo` (if you are running RHEL8, otherwise you can get the URL for your repo on the [NVIDIA dev site](https://developer.download.nvidia.com/compute/cuda/repos/))
 2. Clean repository cache via
 `sudo dnf clean all`
 3. Install drivers
