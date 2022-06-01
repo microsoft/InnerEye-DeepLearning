@@ -2,6 +2,9 @@
 # See https://pre-commit.com/hooks.html for more hooks
 # See https://github.com/pre-commit/pre-commit-hooks/blob/master/.pre-commit-config.yaml for an example with more hooks
 
+ci:
+  autofix_prs: false
+
 repos:
 - repo: https://github.com/pre-commit/pre-commit-hooks
   rev: v4.0.1
