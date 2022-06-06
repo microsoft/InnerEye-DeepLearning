@@ -12,7 +12,7 @@ from typing import Optional, Tuple
 # Workaround for an issue with how AzureML and Pytorch Lightning interact: When spawning additional processes for DDP,
 # the working directory is not correctly picked up in sys.path
 print(f"Starting InnerEye runner at {sys.argv[0]}")
-innereye_root = Path(__file__).absolute().parent.parent.parent
+innereye_root = Path(__file__).resolve().parent.parent.parent
 if (innereye_root / "InnerEye").is_dir():
     innereye_root_str = str(innereye_root)
     if innereye_root_str not in sys.path:
@@ -306,6 +306,7 @@ class Runner:
                 # be necessary if the innereye package is installed. It is necessary when working with an outer project
                 # and InnerEye as a git submodule and submitting jobs from the local machine.
                 # In case of version conflicts, the package version in the outer project is given priority.
+                logging.info(f"Attempting to merge the following conda files: {source_config.conda_dependencies_files}")
                 merge_conda_files(source_config.conda_dependencies_files, temp_conda)
 
             # Calls like `self.azure_config.get_workspace()` will fail if we have no AzureML credentials set up, and so

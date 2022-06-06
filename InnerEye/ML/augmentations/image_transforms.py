@@ -76,6 +76,7 @@ class AddGaussianNoise:
 
 class ElasticTransform:
     """Elastic deformation of images as described in [Simard2003]_.
+
     .. [Simard2003] Simard, Steinkraus and Platt, "Best Practices for
        Convolutional Neural Networks applied to Visual Document Analysis", in
        Proc. of the International Conference on Document Analysis and

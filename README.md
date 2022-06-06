@@ -97,8 +97,8 @@ If it fails, please check the
 Further detailed instructions, including setup in Azure, are here:
 
 1. [Setting up your environment](docs/environment.md)
-1. [Training a Hello World segmentation model](docs/hello_world_model.md)
 1. [Setting up Azure Machine Learning](docs/setting_up_aml.md)
+1. [Training a simple segmentation model in Azure ML](docs/hello_world_model.md)
 1. [Creating a dataset](docs/creating_dataset.md)
 1. [Building models in Azure ML](docs/building_models.md)
 1. [Sample Segmentation and Classification tasks](docs/sample_tasks.md)

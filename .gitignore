@@ -130,10 +130,6 @@ venv.bak/
 .dmypy.json
 dmypy.json
 
-# other
-.vscode/
-.devcontainer/
-
 /InnerEye/ML/src/aml_config
 *.exe
 *.suo

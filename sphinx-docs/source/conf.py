@@ -77,3 +77,10 @@ source_suffix = {
     '.rst': 'restructuredtext',
     '.md': 'markdown',
 }
+
+# Autodoc options
+
+autodoc_default_options = {
+    'members': True,
+    'undoc-members': True,
+}
