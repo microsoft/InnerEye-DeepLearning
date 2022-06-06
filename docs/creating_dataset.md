@@ -30,9 +30,9 @@ InnerEye expects segmentation datasets to have the following structure:
         * Multimaps are encoded as 0=background and integers for each class.
       * The expected dimensions: (channel, Z, Y, X)
     * For numpy or nifti just the expected format is just the path to the files.
-      * Images can be encoded as float32 with dimensions (X, Y, Z)
-      * Segmentations should be encoded as binary masks with dimensions (X, Y, Z). There should be one binary mask per
-        ground truth structure. The arrays should contain 1 for all voxels that belong to the structure, and 0 for all other voxels.
+      * Images must be encoded as float32 with dimensions (X, Y, Z)
+      * Segmentations need to be encoded as binary masks in `uint8` format with dimensions (X, Y, Z). There must be one binary mask per
+        ground truth structure. The arrays need to contain 1 for all voxels that belong to the structure, and 0 for all other voxels.
         You can save those to nifti by working with numpy `uint8` arrays.
 
     Additional supported fields include `acquisition_date`, `institutionId`, `seriesID` and `tags` (meant for miscellaneous labels).
