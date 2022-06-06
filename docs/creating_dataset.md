@@ -1,9 +1,11 @@
 # Dataset Creation
+
 This document describes the dataset formats used by InnerEye for segmentation and classification tasks. After creating
 the dataset, upload it to AzureML blob storage (as described in the
 [AzureML documentation](setting_up_aml.md#step-4-create-a-storage-account-for-your-datasets))
 
 ## Segmentation Datasets
+
 This section walks through the process of creating a dataset in the format expected by the InnerEye package.
 However, if your dataset is in DICOM-RT format, you should instead use the
 [InnerEye-CreateDataset](https://github.com/microsoft/InnerEye-CreateDataset) tool.
@@ -12,30 +14,33 @@ After creating the dataset, you can also [analyze](#analysing-segmentation-datas
 Segmentation datasets should have the input scans and ground truth segmentations in Nifti format.
 
 InnerEye expects segmentation datasets to have the following structure:
- * Each subject has one or more scans, and one or more segmentation masks. There should be one segmentation mask for
+
+* Each subject has one or more scans, and one or more segmentation masks. There should be one segmentation mask for
    each ground truth structure (anatomical structure that the model should segment)
- * For convenience, scans and ground truth masks for different subjects can live in separate folders, but that's not a must.
- * Inside the root folder for the dataset, there should be a file `dataset.csv`, containing the following fields
+* For convenience, scans and ground truth masks for different subjects can live in separate folders, but that's not a must.
+* Inside the root folder for the dataset, there should be a file `dataset.csv`, containing the following fields
  at minimum:
-    * `subject`: A unique positive integer assigned to every patient
-    * `channel`: The imaging channel or ground truth structure described by this row.
-    * `filePath`: Path to the file for this scan or structure. We support nifti (nii, nii.gz), numpy (npy, npz) and hdf5(h5).
-        * For HDF5 path suffix with | separator
-            * For images <path>|<dataset_name>|<channel index>
-            * For segmentation binary <path>|<dataset_name>|<channel index>
-            * For segmentation multimap <path>|<dataset_name>|<channel index>|<multimap value>
-                * Multimaps are encoded as 0=background and integers for each class.
-            * The expected dimensions: (channel, Z, Y, X)
-        * For numpy or nifti just the expected format is just the path to the files.
-            * For images can be encoded as float32 with dimensions (X, Y, Z)
-            * For segmentations should be encoded as binary masks with dimensions (X, Y, Z)
+  * `subject`: A unique positive integer assigned to every patient
+  * `channel`: The imaging channel or ground truth structure described by this row.
+  * `filePath`: Path to the file for this scan or structure. We support nifti (`.nii`, `.nii.gz` extensions), numpy (`.npy`, `.npz`) and hdf5(`.h5`).
+    * For HDF5 files, you need set the the actual file path, and specify the HDF5 dataset name and channel as follows with `|` as a separator:
+      * For images: `<path>|<dataset_name>|<channel index>`
+      * For segmentations that are provided as binary maps: `<path>|<dataset_name>|<channel index>`
+      * For segmentations that are given as multimaps: `<path>|<dataset_name>|<channel index>|<multimap value>`
+        * Multimaps are encoded as 0=background and integers for each class.
+      * The expected dimensions: (channel, Z, Y, X)
+    * For numpy or nifti just the expected format is just the path to the files.
+      * Images must be encoded as float32 with dimensions (X, Y, Z)
+      * Segmentations need to be encoded as binary masks in `uint8` format with dimensions (X, Y, Z). There must be one binary mask per
+        ground truth structure. The arrays need to contain 1 for all voxels that belong to the structure, and 0 for all other voxels.
+        You can save those to nifti by working with numpy `uint8` arrays.
 
     Additional supported fields include `acquisition_date`, `institutionId`, `seriesID` and `tags` (meant for miscellaneous labels).
 
 For example, for a CT dataset with two structures `heart` and `lung` to be segmented, the dataset folder
 could look like:
 
-```
+```text
 dataset_folder_name
 ├──dataset.csv
 ├──subjectID1/
@@ -50,7 +55,8 @@ dataset_folder_name
 ```
 
 The `dataset.csv` for this dataset would look like:
-```
+
+```text
 subject,filePath,channel
 1,subjectID1/ct.nii.gz,ct
 1,subjectID1/heart.nii.gz,structure1
@@ -59,11 +65,14 @@ subject,filePath,channel
 2,subjectID2/heart.nii.gz,structure1
 2,subjectID2/lung.nii.gz,structure2
 ```
+
 Note: The paths in the `dataset.csv` file should **not** be absolute paths, but relative to the folder that contains
 `dataset.csv'.
 
 ### Image size requirements
+
 The images in a dataset must adhere to these constraints:
+
 * All images, across all subjects, must have already undergone geometric normalization, i.e., all images must have
 approximately the same voxel size. For example, if all images for subject 1 have voxel size 1.5mm x 1.01mm x 1.01mm,
 and all images for subject 2 have voxel size 1.51mm x 0.99mm x 0.99mm, this should be fine. In particular, this
@@ -77,7 +86,6 @@ All these constraints are automatically checked and guaranteed if the raw data i
 the [InnerEye-CreateDataset](https://github.com/microsoft/InnerEye-CreateDataset) tool to convert them to Nifti
 format. Geometric normalization can also be turned on as a pre-processing step.
 
-
 ### Uploading to Azure
 
 When running in Azure, you need to upload the folder containing the dataset (i.e., the file `dataset.csv` and the
@@ -87,20 +95,21 @@ image referenced therein) to the storage account for datasets. This is the stora
 The best way of uploading the data is via
 [Azure Storage Explorer](https://azure.microsoft.com/en-gb/features/storage-explorer/). Please follow the installation
 instructions first.
-- Find your Azure subscription in the "Explorer" bar, and inside of that, the "Storage Accounts" field, and the
-storage account you created for datasets.
-- That storage account should have a section "Blob Containers". Check if there is a container called "datasets" already.
-If not, create one using the context menu.
-- Navigate into the "datasets" container.
-- Then use "Upload/Upload Folder" and choose the folder that contains your dataset (`dataset_folder_name` in the
-above example). Leave all other settings in the upload dialog at their default.
-- This will start the upload. Depending on the number of files, that can of course take some time.
 
+* Find your Azure subscription in the "Explorer" bar, and inside of that, the "Storage Accounts" field, and the
+storage account you created for datasets.
+* That storage account should have a section "Blob Containers". Check if there is a container called "datasets" already.
+If not, create one using the context menu.
+* Navigate into the "datasets" container.
+* Then use "Upload/Upload Folder" and choose the folder that contains your dataset (`dataset_folder_name` in the
+above example). Leave all other settings in the upload dialog at their default.
+* This will start the upload. Depending on the number of files, that can of course take some time.
 
 ### Creating a model configuration
 
 For the above dataset structure for heart and lung segmentation, you would then create a model configuration that
 contains at least the following fields:
+
 ```python
 class HeartLungModel(SegmentationModelBase):
     def __init__(self) -> None:
@@ -131,11 +140,11 @@ class HeartLungModel(SegmentationModelBase):
             num_epochs=120,
             )
 ```
+
 The `local_dataset` field is required if you want to run the InnerEye toolbox on your own VM, and you want to consume
 the dataset from local storage. If you want to run the InnerEye toolbox inside of AzureML, you need to supply the
 `azure_dataset_id`, pointing to a folder in Azure blob storage. This folder should reside in the `datasets` container
 in the storage account that you designated for storing your datasets, see [the setup instructions](setting_up_aml.md).
-
 
 #### Analyzing segmentation datasets
 
@@ -145,29 +154,29 @@ with respect to a number of statistics, and which therefore may be erroneous or 
 This can be done using the analyze command provided by
 [InnerEye-CreateDataset](https://github.com/microsoft/InnerEye-CreateDataset).
 
-
 ## Classification Datasets
 
 Classification datasets should have a `dataset.csv` and a folder containing the image files. The `dataset.csv` should
 have at least the following fields:
- * subject: The subject ID, a unique positive integer assigned to every image
- * path: Path to the image file for this subject
- * value:
-   * For binary classification, a (binary) ground truth label. This can be "true" and "false" or "0" and "1".
-   * For multi-label classification, the set of all positive labels for the image, separated by a `|` character.
+
+* subject: The subject ID, a unique positive integer assigned to every image
+* path: Path to the image file for this subject
+* value:
+  * For binary classification, a (binary) ground truth label. This can be "true" and "false" or "0" and "1".
+  * For multi-label classification, the set of all positive labels for the image, separated by a `|` character.
      Ex: "0|2|4" for a sample with true labels 0, 2 and 4 and "" for a sample in which all labels are false.
-   * For regression, a scalar value.
+  * For regression, a scalar value.
 
 These, and other fields which can be added to dataset.csv are described in the examples below.
 
 For each entry (subject ID, label value, etc) needed to construct a single input sample, the entry value is read
 from the channels and columns specified for that entry.
 
-#### A simple example
+### A simple example
 
 Let's look at how to construct a `dataset.csv` (and changes we will need to make to the model config file in parallel):
 
-```
+```text
 SubjectID, FilePath, Label
 1, images/image1.npy, True
 2, images/image2.npy, False
@@ -195,13 +204,14 @@ what columns in the csv contain the subject identifiers, channel names, image fi
 NOTE: If any of the `*_column` parameters are not specified, InnerEye will look for these entries under the default column names
 if default names exist. See the CSV headers in [csv_util.py](/InnerEye/ML/utils/csv_util.py) for all the defaults.
 
-#### Using channels in dataset.csv
+### Using channels in dataset.csv
+
 Channels are fields in `dataset.csv` which can be used to filter rows. They are typically used when there are multiple
 images or labels per subject (for example, if multiple images were taken across a period of time for each subject).
 
 A slightly more complex `dataset.csv` would be the following:
 
-```
+```text
 SubjectID, Channel, FilePath, Label
 1, image_feature_1, images/image_1_feature_1.npy,
 1, image_feature_2, images/image_1_feature_2.npy,
@@ -232,14 +242,15 @@ and `image_feature_2`) and the associated label (read from the row with `Channel
 
 NOTE: There are no defaults for the `*_channels` parameters, so these must be set as parameters.
 
-#### Recognized columns in dataset.csv and filtering based on channels
+### Recognized columns in dataset.csv and filtering based on channels
+
 Other recognized fields, apart from subject, channel, file path and label are numerical features and categorical features.
 These are extra scalar and categorical values to be used as model input.
 
 Any *unrecognized* columns (any column which is both not described in the model config and has no default)
 will be converted to a dict of key-value pairs and stored in an object of type `GeneralSampleMetadata` in the sample.
 
-```
+```text
 SubjectID, Channel, FilePath, Label, Tag, weight, class
 1, image_time_1, images/image_1_time_1.npy, True, , ,
 1, image_time_2, images/image_1_time_2.npy, False, , ,
@@ -275,7 +286,8 @@ In this example, `weight` is a scalar feature read from the csv, and `class` is 
  different times with different label values. By using `label_channels=["image_time_2"]`, we can use the label associated with
  the second image for all subjects.
 
-#### Multi-label classification datasets
+### Multi-label classification datasets
+
 Classification datasets can be multi-label, i.e. they can have more than one label associated with every sample.
 In this case, in the label column, separate the (numerical) ground truth labels with a pipe character (`|`) to
 provide multiple ground truth labels for the sample.
@@ -285,7 +297,7 @@ are not supported.
 
 For example, the `dataset.csv` for a multi-label task with 4 classes (0, 1, 2, 3) would look like the following:
 
-```
+```text
 SubjectID, Channel, FilePath, Label
 1, image_feature_1, images/image_1_feature_1.npy,
 1, image_feature_2, images/image_1_feature_2.npy,
@@ -300,11 +312,13 @@ SubjectID, Channel, FilePath, Label
 4, image_feature_2, images/image_4_feature_2.npy
 4, label, ,
 ```
+
 Note that the label field for sample 4 is left empty, this indicates that all labels are negative in Sample 4.
 In multi-label tasks, the negative class (all ground truth classes being false for a sample) should not be
 considered a separate class, and should be encoded by an empty label field.
 
 The labels which are true for each sample in the `dataset.csv` shown above are:
+
 * Sample 1: 0, 2, 3
 * Sample 2: 1, 2
 * Sample 3: 1
