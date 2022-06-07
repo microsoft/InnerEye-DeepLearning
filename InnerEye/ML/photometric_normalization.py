@@ -22,6 +22,7 @@ class WindowNormalizationForScalarItem(Transform3D[ScalarItem]):
     Transform3D to apply window normalization to "images" of a ScalarItem.
     """
     # noinspection PyMissingConstructor
+
     def __init__(self,
                  output_range: Tuple[float, float] = (0, 1),
                  sharpen: float = 1.9,

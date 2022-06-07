@@ -26,6 +26,7 @@ class PassThroughModel(SegmentationModelBase):
     """
     Dummy model that returns a fixed segmentation, explained in make_nesting_rectangles.
     """
+
     def __init__(self, **kwargs: Any) -> None:
         fg_classes = ["spinalcord", "lung_r", "lung_l", "heart", "esophagus"]
         fg_display_names = ["SpinalCord", "Lung_R", "Lung_L", "Heart", "Esophagus"]
