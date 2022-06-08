@@ -389,18 +389,19 @@ def get_center_crop(image: NumpyOrTorch, crop_shape: TupleInt3) -> NumpyOrTorch:
 
 
 def check_array_range(data: np.ndarray, expected_range: Optional[Range] = None,
-                      error_prefix: str = None) -> None:
+                      error_prefix: Optional[str] = None) -> None:
     """
     Checks if all values in the given array fall into the expected range. If not, raises a
-    ValueError, and prints out statistics about the values that fell outside the expected range.
+    ``ValueError``, and prints out statistics about the values that fell outside the expected range.
     If no range is provided, it checks that all values in the array are finite (that is, they are not
-    infinity and not np.nan
+    infinity and not ``np.nan``).
 
     :param data: The array to check. It can have any size.
     :param expected_range: The interval that all array elements must fall into. The first entry is the lower
-    bound, the second entry is the upper bound.
+        bound, the second entry is the upper bound.
     :param error_prefix: A string to use as the prefix for the error message.
     """
+    data = np.asarray(data)
     if expected_range is None:
         valid_pixels = np.isfinite(data)
     else:

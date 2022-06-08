@@ -36,14 +36,14 @@ use_gpu = not no_gpu_available
 
 
 @pytest.fixture
-def image_rand_pos() -> Union[torch.Tensor, np.ndarray]:
+def image_rand_pos() -> np.ndarray:
     torch.random.manual_seed(1)
     np.random.seed(0)
     return (np.random.rand(3, 4, 4, 4) * 1000.0).astype(ImageDataType.IMAGE.value)
 
 
 @pytest.fixture
-def image_rand_pos_gpu(image_rand_pos: Union[torch.Tensor, np.ndarray]) -> Union[torch.Tensor, np.ndarray]:
+def image_rand_pos_gpu(image_rand_pos: np.ndarray) -> Union[torch.Tensor, np.ndarray]:
     return torch.tensor(image_rand_pos) if use_gpu else image_rand_pos
 
 
@@ -56,7 +56,7 @@ def assert_image_out_datatype(image_out: np.ndarray) -> None:
                                                          "datatype that we force images to have."
 
 
-def test_simplenorm_half(image_rand_pos: Union[torch.Tensor, np.ndarray]) -> None:
+def test_simplenorm_half(image_rand_pos: np.ndarray) -> None:
     image_out = photometric_normalization.simple_norm(image_rand_pos, mask_half, debug_mode=True)
     assert np.mean(image_out, dtype=np.float) == approx(-0.05052318)
     for c in range(image_out.shape[0]):
@@ -64,34 +64,42 @@ def test_simplenorm_half(image_rand_pos: Union[torch.Tensor, np.ndarray]) -> Non
     assert_image_out_datatype(image_out)
 
 
-def test_simplenorm_ones(image_rand_pos: Union[torch.Tensor, np.ndarray]) -> None:
+def test_simplenorm_ones(image_rand_pos: np.ndarray) -> None:
     image_out = photometric_normalization.simple_norm(image_rand_pos, mask_ones, debug_mode=True)
     assert np.mean(image_out) == approx(0, abs=1e-7)
     assert_image_out_datatype(image_out)
 
 
-def test_mriwindowhalf(image_rand_pos: Union[torch.Tensor, np.ndarray]) -> None:
-    image_out, status = photometric_normalization.mri_window(image_rand_pos, mask_half, (0, 1), sharpen, tail)
+def test_3d_4d(image_rand_pos: np.ndarray) -> None:
+    normalization = photometric_normalization.PhotometricNormalization()
+    shape = image_rand_pos.shape
+    spatial_shape = shape[1:]
+    assert normalization.transform(image_rand_pos).shape == shape
+    assert normalization.transform(image_rand_pos[0]).shape == spatial_shape
+
+
+def test_mriwindowhalf(image_rand_pos: np.ndarray) -> None:
+    image_out, _ = photometric_normalization.mri_window(image_rand_pos, mask_half, (0, 1), sharpen, tail)
     assert np.mean(image_out) == approx(0.2748852)
     assert_image_out_datatype(image_out)
 
 
-def test_mriwindowones(image_rand_pos: Union[torch.Tensor, np.ndarray]) -> None:
-    image_out, status = photometric_normalization.mri_window(image_rand_pos, mask_ones, (0.0, 1.0), sharpen, tail3)
+def test_mriwindowones(image_rand_pos: np.ndarray) -> None:
+    image_out, _ = photometric_normalization.mri_window(image_rand_pos, mask_ones, (0.0, 1.0), sharpen, tail3)
     assert np.mean(image_out) == approx(0.2748852)
     assert_image_out_datatype(image_out)
 
 
-def test_trimmed_norm_full(image_rand_pos: Union[torch.Tensor, np.ndarray]) -> None:
-    image_out, status = photometric_normalization.normalize_trim(image_rand_pos, mask_ones,
+def test_trimmed_norm_full(image_rand_pos: np.ndarray) -> None:
+    image_out, _ = photometric_normalization.normalize_trim(image_rand_pos, mask_ones,
                                                                  output_range=(-1, 1), sharpen=1,
                                                                  trim_percentiles=(1, 99))
     assert np.mean(image_out, dtype=np.float) == approx(-0.08756259549409151)
     assert_image_out_datatype(image_out)
 
 
-def test_trimmed_norm_half(image_rand_pos: Union[torch.Tensor, np.ndarray]) -> None:
-    image_out, status = photometric_normalization.normalize_trim(image_rand_pos, mask_half,
+def test_trimmed_norm_half(image_rand_pos: np.ndarray) -> None:
+    image_out, _ = photometric_normalization.normalize_trim(image_rand_pos, mask_half,
                                                                  output_range=(-1, 1), sharpen=1,
                                                                  trim_percentiles=(1, 99))
     assert np.mean(image_out, dtype=np.float) == approx(-0.4862089517215888)
