@@ -13,20 +13,20 @@ from InnerEye.ML.utils.split_dataset import DatasetSplits
 
 MODALITY = "mri"
 LABELS = ["hippocampus_L", "hippocampus_R"]
+# Replace the following with the id of your Azure ML Dataset
+AZURE_DATASET_ID = "adni_hippocampus_L-R_split_minus_holdout"
 
 class Hippocampus(SegmentationModelBase):
-    """
-    Hippocampus segmentation in MR scans.
-    """
+    """Hippocampus segmentation in MR scans."""
 
     def __init__(self, **kwargs: Any) -> None:
         fg_classes = LABELS
         super().__init__(
             should_validate=False,
-            azure_dataset_id="adni_hippocampus_L-R_split_minus_holdout",
+            azure_dataset_id=AZURE_DATASET_ID,
             architecture=ModelArchitectureConfig.UNet3D,
-            feature_channels=[16], 
-            crop_size=(128, 176, 176), 
+            feature_channels=[16],
+            crop_size=(128, 176, 176),
             inference_batch_size=1,
             image_channels=[MODALITY],
             ground_truth_ids=fg_classes,
@@ -41,7 +41,7 @@ class Hippocampus(SegmentationModelBase):
             sharpen=2.5,
             tail=[1.0],
             class_weights=equally_weighted_classes(fg_classes, background_weight=0.0),
-            train_batch_size=2, 
+            train_batch_size=2,
             num_epochs=200,
             l_rate=1e-3,
             l_rate_polynomial_gamma=0.9,
