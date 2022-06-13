@@ -120,7 +120,7 @@ class PhotometricNormalization(Transform3D[Sample]):
             raise ValueError("Unknown normalization method {}".format(self.norm_method))
         if patient_id is not None and self.status_of_most_recent_call is not None:
             logging.debug(f"Photonorm patient {patient_id}: {self.status_of_most_recent_call}")
-        check_array_range(image_out, error_prefix="Normalized image")
+        check_array_range(np.asarray(image_out), error_prefix="Normalized image")
 
         if is3d:
             image_out = image_out[0]

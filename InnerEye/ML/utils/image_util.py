@@ -401,7 +401,6 @@ def check_array_range(data: np.ndarray, expected_range: Optional[Range] = None,
         bound, the second entry is the upper bound.
     :param error_prefix: A string to use as the prefix for the error message.
     """
-    data = np.asarray(data)
     if expected_range is None:
         valid_pixels = np.isfinite(data)
     else:
