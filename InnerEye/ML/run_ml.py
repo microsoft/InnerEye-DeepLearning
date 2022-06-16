@@ -346,7 +346,10 @@ class MLRunner:
                 # We specify the ModelProcessing as DEFAULT here even if the run_recovery points to an ensemble run,
                 # because the current run is a single one. See the documentation of ModelProcessing for more details.
                 self.run_inference(checkpoint_paths_for_testing, ModelProcessing.DEFAULT)
-
+                
+                #if self.model_config.train_uncertainty_aggregate:
+                    # run function to train
+                
                 if self.container.generate_report:
                     self.generate_report(ModelProcessing.DEFAULT)
 
