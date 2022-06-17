@@ -49,6 +49,7 @@ from InnerEye.ML.metrics import InferenceMetrics, InferenceMetricsForSegmentatio
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
 from InnerEye.ML.model_testing import model_test
+from InnerEye.ML.uncertainty_aggregate import UncertaintyAggregate
 from InnerEye.ML.model_training import create_lightning_trainer, model_train
 from InnerEye.ML.reports.notebook_report import generate_classification_crossval_notebook, \
     generate_classification_multilabel_notebook, generate_classification_notebook, generate_segmentation_notebook, \
@@ -347,9 +348,6 @@ class MLRunner:
                 # because the current run is a single one. See the documentation of ModelProcessing for more details.
                 self.run_inference(checkpoint_paths_for_testing, ModelProcessing.DEFAULT)
                 
-                #if self.model_config.train_uncertainty_aggregate:
-                    # run function to train
-                
                 if self.container.generate_report:
                     self.generate_report(ModelProcessing.DEFAULT)
 
@@ -361,6 +359,11 @@ class MLRunner:
                     if should_wait_for_other_child_runs:
                         self.wait_for_runs_to_finish()
                         self.create_ensemble_model_and_run_inference()
+
+                if self.model_config.train_uncertainty_aggregate:
+                    # run function to train
+                    UncertaintyAggregate(self.model_config)
+
             else:
                 # Inference for all models that are specified via LightningContainers.
                 with logging_section("Model inference"):
