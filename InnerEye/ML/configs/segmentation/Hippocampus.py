@@ -40,7 +40,7 @@ class Hippocampus(SegmentationModelBase):
             trim_percentiles=(1, 99),
             sharpen=2.5,
             tail=[1.0],
-            class_weights=equally_weighted_classes(fg_classes, background_weight=0.0),
+            class_weights=equally_weighted_classes(fg_classes),
             train_batch_size=2,
             num_epochs=200,
             l_rate=1e-3,
