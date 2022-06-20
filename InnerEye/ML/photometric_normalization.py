@@ -84,6 +84,10 @@ class PhotometricNormalization(Transform3D[Sample]):
             else:
                 mask = np.ones_like(image)
 
+        is3d = image.ndim == 3
+        if is3d:
+            image = image[np.newaxis]
+
         self.status_of_most_recent_call = None
         if self.norm_method == PhotometricNormalizationMethod.Unchanged:
             image_out = image
@@ -116,7 +120,10 @@ class PhotometricNormalization(Transform3D[Sample]):
             raise ValueError("Unknown normalization method {}".format(self.norm_method))
         if patient_id is not None and self.status_of_most_recent_call is not None:
             logging.debug(f"Photonorm patient {patient_id}: {self.status_of_most_recent_call}")
-        check_array_range(image_out, error_prefix="Normalized image")
+        check_array_range(np.asarray(image_out), error_prefix="Normalized image")
+
+        if is3d:
+            image_out = image_out[0]
 
         return image_out
 

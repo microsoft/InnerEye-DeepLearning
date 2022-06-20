@@ -98,6 +98,7 @@ gets uploaded to AzureML, by skipping all test folders.
 
 #### Fixed
 
+- ([#701](https://github.com/microsoft/InnerEye-DeepLearning/pull/701)) Fix 3D images expected to be 4D for intensity normalization.
 - ([#704](https://github.com/microsoft/InnerEye-DeepLearning/pull/704)) Add submodules to sys.path to fix autodoc's warning.
 - ([#699](https://github.com/microsoft/InnerEye-DeepLearning/pull/699)) Fix Sphinx warnings.
 - ([#682](https://github.com/microsoft/InnerEye-DeepLearning/pull/682)) Ensure the shape of input patches is compatible with model constraints.
