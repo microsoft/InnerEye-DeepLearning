@@ -49,3 +49,37 @@ machines that have a higher CO2 footprint than your dev box.
 - DO provide details for issues you create
   - Describe the expected and actual behavior.
   - Provide any relevant exception message.
+
+## Using the hi-ml package
+
+To work on `hi-ml` package at the same time as `InnerEye-DeepLearning`, you can edit `hi-ml` in the git submodule which is automatically cloned as part of the [setup guide](environment.md).
+
+- In the repository root, run `git submodule add https://github.com/microsoft/hi-ml`
+- In PyCharm's project browser, mark the folders `hi-ml/hi-ml/src` and `hi-ml/hi-ml-azure/src` as Sources Root
+- Remove the entry for the `hi-ml` and `hi-ml-azure` packages from `environment.yml`
+- There is already code in `InnerEye.Common.fixed_paths.add_submodules_to_path` that will pick up the submodules and
+  add them to `sys.path`.
+
+Once you are done testing your changes:
+
+- Remove the entry for `hi-ml` from `.gitmodules`
+- Execute these steps from the repository root:
+
+  ```shell
+  git submodule deinit -f hi-ml
+  rm -rf hi-ml
+  rm -rf .git/modules/hi-ml
+  ```
+
+Alternatively, you can consume a developer version of `hi-ml` from `test.pypi`:
+
+- Remove the entry for the `hi-ml` package from `environment.yml`
+- Add a section like this to `environment.yml`, to point pip to `test.pypi`, and a specific version of th package:
+
+```yaml
+  ...
+  - pip:
+      - --extra-index-url https://test.pypi.org/simple/
+      - hi-ml==0.1.0.post236
+      ...
+```

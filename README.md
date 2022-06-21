@@ -46,30 +46,11 @@ Once training in AzureML is done, the models can be deployed from within AzureML
 
 ## Getting started
 
-We recommend using our toolbox with Linux or with the Windows Subsystem for Linux (WSL2). Much of the core
-functionality works fine on Windows, but PyTorch's full feature set is only available on Linux. Read [more about
-WSL here](docs/WSL.md).
+### Set up InnerEye
 
-Clone the repository into a subfolder of the current directory:
+Please refer to our [setup guide](docs/environment.md) for instructions on getting InnerEye-DeepLearning set up on your device.
 
-```shell
-git clone --recursive https://github.com/microsoft/InnerEye-DeepLearning
-cd InnerEye-DeepLearning
-git lfs install
-git lfs pull
-```
-
-After that, you need to set up your Python environment:
-
-- Install `conda` or `miniconda` for your operating system.
-- Create a Conda environment from the `environment.yml` file in the repository root, and activate it:
-
-```shell
-conda env create --file environment.yml
-conda activate InnerEye
-```
-
-- If the environment creation fails with odd error messages on a Windows machine, please [continue here](docs/WSL.md).
+### Run HelloWorld Model
 
 Now try to run the `HelloWorld` segmentation model - that's a very simple model that will train for 2 epochs on any
 machine, no GPU required. You need to set the `PYTHONPATH` environment variable to point to the repository root first.
@@ -94,19 +75,22 @@ If that works: Congratulations! You have successfully built your first model usi
 If it fails, please check the
 [troubleshooting page on the Wiki](https://github.com/microsoft/InnerEye-DeepLearning/wiki/Issues-with-code-setup-and-the-HelloWorld-model).
 
+## Other Documentation
+
 Further detailed instructions, including setup in Azure, are here:
 
 1. [Setting up your environment](docs/environment.md)
-1. [Setting up Azure Machine Learning](docs/setting_up_aml.md)
-1. [Training a simple segmentation model in Azure ML](docs/hello_world_model.md)
-1. [Creating a dataset](docs/creating_dataset.md)
-1. [Building models in Azure ML](docs/building_models.md)
-1. [Sample Segmentation and Classification tasks](docs/sample_tasks.md)
-1. [Debugging and monitoring models](docs/debugging_and_monitoring.md)
-1. [Model diagnostics](docs/model_diagnostics.md)
-1. [Move a model to a different workspace](docs/move_model.md)
-1. [Working with FastMRI models](docs/fastmri.md)
-1. [Active label cleaning and noise robust learning toolbox](https://github.com/microsoft/InnerEye-DeepLearning/blob/1606729c7a16e1bfeb269694314212b6e2737939/InnerEye-DataQuality/README.md)
+2. [Setting up Azure Machine Learning](docs/setting_up_aml.md)
+3. [Training a simple segmentation model in Azure ML](docs/hello_world_model.md)
+4. [Creating a dataset](docs/creating_dataset.md)
+5. [Building models in Azure ML](docs/building_models.md)
+6. [Sample Segmentation and Classification tasks](docs/sample_tasks.md)
+7. [Debugging and monitoring models](docs/debugging_and_monitoring.md)
+8. [Model diagnostics](docs/model_diagnostics.md)
+9. [Move a model to a different workspace](docs/move_model.md)
+10. [Working with FastMRI models](docs/fastmri.md)
+11. [Active label cleaning and noise robust learning toolbox](https://github.com/microsoft/InnerEye-DeepLearning/blob/1606729c7a16e1bfeb269694314212b6e2737939/InnerEye-DataQuality/README.md)
+12. [Using InnerEye as a git submodule](docs/innereye_as_submodule.md)
 
 ## Deployment
 
@@ -174,4 +158,5 @@ For more information see the [Code of Conduct FAQ](https://opensource.microsoft.
 contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
 
 ## This toolbox is maintained by the
+
 [Microsoft Medical Image Analysis team](https://www.microsoft.com/en-us/research/project/medical-image-analysis/).
