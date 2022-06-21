@@ -16,7 +16,7 @@ dependencies:
   - ffmpeg=4.2.2=h20bf706_0
   - freetype=2.11.0=h70c0345_0
   - giflib=5.2.1=h7b6447c_0
-  - gmp=6.2.1=h2531618_2
+  - gmp=6.2.1=h295c915_3
   - gnutls=3.6.15=he1e5248_0
   - intel-openmp=2021.4.0=h06a4308_3561
   - jpeg=9e=h7f8727e_0
@@ -24,12 +24,12 @@ dependencies:
   - lcms2=2.12=h3be6417_0
   - libedit=3.1.20210910=h7f8727e_0
   - libffi=3.2.1=hf484d3e_1007
-  - libgcc-ng=11.2.0=h1234567_0
-  - libgomp=11.2.0=h1234567_0
+  - libgcc-ng=11.2.0=h1234567_1
+  - libgomp=11.2.0=h1234567_1
   - libidn2=2.3.2=h7f8727e_0
   - libopus=1.3.1=h7b6447c_0
   - libpng=1.6.37=hbc83047_0
-  - libstdcxx-ng=11.2.0=h1234567_0
+  - libstdcxx-ng=11.2.0=h1234567_1
   - libtasn1=4.16.0=h27cfd23_0
   - libtiff=4.2.0=h2818925_1
   - libunistring=0.9.10=h27cfd23_0
@@ -54,7 +54,7 @@ dependencies:
   - readline=7.0=h7b6447c_5
   - setuptools=61.2.0=py37h06a4308_0
   - sqlite=3.33.0=h62c20be_0
-  - tk=8.6.11=h1ccaba5_1
+  - tk=8.6.12=h1ccaba5_0
   - torchvision=0.11.1=py37_cu113
   - typing_extensions=4.1.1=pyh06a4308_0
   - wheel=0.37.1=pyhd3eb1b0_0
@@ -63,11 +63,11 @@ dependencies:
   - zlib=1.2.12=h7f8727e_2
   - zstd=1.5.2=ha4553b6_0
   - pip:
-    - absl-py==1.0.0
+    - absl-py==1.1.0
     - adal==1.2.7
     - aiohttp==3.8.1
     - aiosignal==1.2.0
-    - alembic==1.7.7
+    - alembic==1.8.0
     - ansiwrap==0.8.4
     - applicationinsights==0.11.10
     - argon2-cffi==21.3.0
@@ -76,12 +76,12 @@ dependencies:
     - asynctest==0.13.0
     - attrs==21.4.0
     - azure-common==1.1.28
-    - azure-core==1.24.0
+    - azure-core==1.24.1
     - azure-graphrbac==0.61.1
     - azure-identity==1.7.0
     - azure-mgmt-authorization==0.61.0
     - azure-mgmt-containerregistry==10.0.0
-    - azure-mgmt-core==1.3.0
+    - azure-mgmt-core==1.3.1
     - azure-mgmt-datafactory==1.1.0
     - azure-mgmt-keyvault==9.3.0
     - azure-mgmt-resource==12.1.0
@@ -114,15 +114,14 @@ dependencies:
     - charset-normalizer==2.0.12
     - click==8.1.3
     - cloudpickle==1.6.0
-    - colorama==0.4.4
+    - colorama==0.4.5
     - commonmark==0.9.1
     - conda-merge==0.1.5
     - contextlib2==21.6.0
-    - coverage==6.4
+    - coverage==6.4.1
     - cryptography==3.3.2
-    - cucim==21.10.1
     - cycler==0.11.0
-    - databricks-cli==0.16.6
+    - databricks-cli==0.17.0
     - dataclasses-json==0.5.2
     - debugpy==1.6.0
     - decorator==5.1.1
@@ -149,14 +148,14 @@ dependencies:
     - grpcio==1.46.3
     - gunicorn==20.1.0
     - h5py==2.10.0
-    - humanize==4.1.0
+    - humanize==4.2.0
     - idna==3.3
     - imageio==2.15.0
     - importlib-metadata==4.11.4
-    - importlib-resources==5.7.1
+    - importlib-resources==5.8.0
     - iniconfig==1.1.1
     - innereye-dicom-rt==1.0.3
-    - ipykernel==6.13.0
+    - ipykernel==6.15.0
     - ipython==7.31.1
     - ipython-genutils==0.2.0
     - ipywidgets==7.7.0
@@ -168,14 +167,14 @@ dependencies:
     - jmespath==0.10.0
     - joblib==0.16.0
     - jsonpickle==2.2.0
-    - jsonschema==4.5.1
+    - jsonschema==4.6.0
     - jupyter==1.0.0
     - jupyter-client==6.1.5
     - jupyter-console==6.4.3
     - jupyter-core==4.10.0
     - jupyterlab-pygments==0.2.2
     - jupyterlab-widgets==1.1.0
-    - kiwisolver==1.4.2
+    - kiwisolver==1.4.3
     - lightning-bolts==0.4.0
     - llvmlite==0.34.0
     - mako==1.2.0
@@ -191,21 +190,21 @@ dependencies:
     - mlflow-skinny==1.26.1
     - monai==0.6.0
     - more-itertools==8.13.0
-    - msal==1.17.0
+    - msal==1.18.0
     - msal-extensions==0.3.1
-    - msrest==0.6.21
+    - msrest==0.7.1
     - msrestazure==0.6.4
     - multidict==6.0.2
     - mypy==0.910
     - mypy-extensions==0.4.3
-    - nbclient==0.6.3
+    - nbclient==0.6.4
     - nbconvert==6.5.0
     - nbformat==5.4.0
     - ndg-httpsclient==0.5.1
     - nest-asyncio==1.5.5
     - networkx==2.6.3
-    - nibabel==3.2.2
-    - notebook==6.4.11
+    - nibabel==4.0.1
+    - notebook==6.4.12
     - numba==0.51.2
     - numpy==1.19.1
     - oauthlib==3.2.0
@@ -224,7 +223,7 @@ dependencies:
     - pluggy==0.13.1
     - portalocker==2.4.0
     - prometheus-client==0.14.1
-    - prometheus-flask-exporter==0.20.1
+    - prometheus-flask-exporter==0.20.2
     - prompt-toolkit==3.0.29
     - protobuf==3.20.1
     - psutil==5.7.2
@@ -253,11 +252,11 @@ dependencies:
     - pytz==2022.1
     - pywavelets==1.3.0
     - pyyaml==6.0
-    - pyzmq==23.0.0
-    - qtconsole==5.3.0
+    - pyzmq==23.2.0
+    - qtconsole==5.3.1
     - qtpy==2.1.0
     - querystring-parser==1.2.4
-    - requests==2.27.1
+    - requests==2.28.0
     - requests-oauthlib==1.3.1
     - rich==10.13.0
     - rpdb==0.1.6
@@ -275,7 +274,7 @@ dependencies:
     - six==1.15.0
     - smmap==5.0.0
     - soupsieve==2.3.2.post1
-    - sqlalchemy==1.4.36
+    - sqlalchemy==1.4.37
     - sqlparse==0.4.2
     - stopit==1.1.2
     - stringcase==1.2.0
@@ -295,14 +294,14 @@ dependencies:
     - torchmetrics==0.6.0
     - tornado==6.1
     - tqdm==4.64.0
-    - traitlets==5.2.1.post0
+    - traitlets==5.3.0
     - typed-ast==1.4.3
     - typing-inspect==0.7.1
     - umap-learn==0.5.2
     - urllib3==1.26.7
     - wcwidth==0.2.5
     - webencodings==0.5.1
-    - websocket-client==1.3.2
+    - websocket-client==1.3.3
     - werkzeug==2.1.2
     - widgetsnbextension==3.6.0
     - wrapt==1.14.1
