@@ -23,6 +23,8 @@ from InnerEye.ML.configs.other.fastmri_varnet import VarNetWithImageLogging
 from InnerEye.ML.lightning_container import LightningContainer
 
 
+# Copied and modified from the FastMRI codebase.
+# https://github.com/facebookresearch/fastMRI/blob/main/tests/create_temp_data.py
 def create_temp_data(path: Path) -> Dict[str, Any]:
     rg = np.random.default_rng(seed=1234)
     max_num_slices = 15
