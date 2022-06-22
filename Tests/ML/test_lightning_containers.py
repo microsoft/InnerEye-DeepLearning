@@ -12,6 +12,7 @@ import param
 import pytest
 from azureml.core import ScriptRunConfig
 from azureml.train.hyperdrive.runconfig import HyperDriveConfig
+from health_azure import AzureRunInfo
 from pytorch_lightning import LightningModule
 
 from InnerEye.Azure.azure_config import AzureConfig
@@ -24,10 +25,11 @@ from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.runner import Runner
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.configs.lightning_test_containers import (DummyContainerWithAzureDataset, DummyContainerWithHooks,
-                                                        DummyContainerWithModel, DummyContainerWithPlainLightning)
+from Tests.ML.configs.fastmri_random import FastMriOnRandomData
+from Tests.ML.configs.lightning_test_containers import (
+    DummyContainerWithAzureDataset, DummyContainerWithHooks, DummyContainerWithModel, DummyContainerWithPlainLightning
+)
 from Tests.ML.util import default_runner
-from health_azure import AzureRunInfo
 
 
 def test_run_container_in_situ(test_output_dirs: OutputFolderForTests) -> None:
@@ -127,7 +129,6 @@ def test_create_fastmri_container() -> None:
     and if the submodule is created correctly.
     """
     from InnerEye.ML.configs.other.fastmri_varnet import VarNetWithImageLogging
-    from Tests.ML.configs.fastmri_random import FastMriOnRandomData
     FastMriOnRandomData()
     VarNetWithImageLogging()
 
@@ -147,7 +148,6 @@ def test_run_fastmri_container(test_output_dirs: OutputFolderForTests) -> None:
     with mock.patch("sys.argv", args):
         loaded_config, run_info = runner.run()
     assert isinstance(run_info, AzureRunInfo)
-    from Tests.ML.configs.fastmri_random import FastMriOnRandomData
     assert isinstance(runner.lightning_container, FastMriOnRandomData)
 
 
