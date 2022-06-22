@@ -8,7 +8,7 @@
 # flake8: noqa
 import shutil
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 import h5py
 import numpy as np
@@ -23,7 +23,7 @@ from InnerEye.ML.configs.other.fastmri_varnet import VarNetWithImageLogging
 from InnerEye.ML.lightning_container import LightningContainer
 
 
-def create_temp_data(path):
+def create_temp_data(path: Path) -> Dict[str, Any]:
     rg = np.random.default_rng(seed=1234)
     max_num_slices = 15
     max_num_coils = 15
@@ -71,10 +71,10 @@ def create_temp_data(path):
                 num_slices = rg.integers(2, max_num_slices)
                 if "multicoil" in split:
                     num_coils = rg.integers(2, max_num_coils)
-                    enc_size = (num_slices, num_coils, encs[i][-2], encs[i][-1])
+                    enc_size = (num_slices, num_coils, encs[i][-2], encs[i][-1])  # type: ignore
                     recon_size = (num_slices, recs[i][-2], recs[i][-1])
                 else:
-                    enc_size = (num_slices, encs[i][-2], encs[i][-1])
+                    enc_size = (num_slices, encs[i][-2], encs[i][-1])  # type: ignore
                     recon_size = (num_slices, recs[i][-2], recs[i][-1])
 
                 data = rg.normal(size=enc_size) + 1j * rg.normal(size=enc_size)
@@ -97,7 +97,7 @@ def create_temp_data(path):
                     else:
                         hf.create_dataset("mask", data=mask)
 
-                enc_size = encs[i]
+                enc_size = encs[i]  # type: ignore
 
                 enc_limits_center = enc_size[1] // 2 + 1
                 enc_limits_max = enc_size[1] - 2
@@ -117,7 +117,7 @@ def create_temp_data(path):
 
                 fcount += 1
 
-    return path / "knee_data", path / "brain_data", metadata
+    return metadata
 
 
 class FastMriRandomData(FastMriDataModule):
@@ -126,7 +126,7 @@ class FastMriRandomData(FastMriDataModule):
         if data_path.is_dir():
             shutil.rmtree(str(data_path))
         data_path.mkdir(exist_ok=False, parents=True)
-        _, _, metadata = create_temp_data(data_path)
+        metadata = create_temp_data(data_path)
 
         def retrieve_metadata_mock(a: Any, fname: Any) -> Any:
             return metadata[str(fname)]
