@@ -22,10 +22,12 @@ dependencies:
       - cryptography==3.3.2
       - dataclasses-json==0.5.2
       - docker==4.3.1
+      - fastMRI==0.2.0
       - flake8==3.8.3
       - gitpython==3.1.7
       - gputil==1.4.0
       - h5py==2.10.0
+      - hi-ml==0.2.2
       - ipython==7.31.1
       - imageio==2.15.0
       - InnerEye-DICOM-RT==1.0.3
