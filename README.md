@@ -44,55 +44,36 @@ architecture.
 
 Once training in AzureML is done, the models can be deployed from within AzureML.
 
-## Getting started
+## Quick Setup
 
-We recommend using our toolbox with Linux or with the Windows Subsystem for Linux (WSL2). Much of the core
-functionality works fine on Windows, but PyTorch's full feature set is only available on Linux. Read [more about
-WSL here](docs/WSL.md).
+This quick setup assumes you are using a machine running Ubuntu with Git, Git LFS, Conda and Python 3.7+ installed. Please refer to the [setup guide](docs/environment.md) for more detailed instructions on getting InnerEye set up with other operating systems and installing the above prerequisites.
 
-Clone the repository into a subfolder of the current directory:
+### Instructions
 
-```shell
-git clone --recursive https://github.com/microsoft/InnerEye-DeepLearning
-cd InnerEye-DeepLearning
-git lfs install
-git lfs pull
-```
+1. Clone the InnerEye-DeepLearning repo by running the following command:
 
-After that, you need to set up your Python environment:
+   ```shell
+   git clone --recursive https://github.com/microsoft/InnerEye-DeepLearning & cd InnerEye-DeepLearning
+   ```
 
-- Install `conda` or `miniconda` for your operating system.
-- Create a Conda environment from the `environment.yml` file in the repository root, and activate it:
+2. Create and activate your conda environment:
 
-```shell
-conda env create --file environment.yml
-conda activate InnerEye
-```
+   ```shell
+   conda env create --file environment.yml && conda activate InnerEye
+   ```
 
-- If the environment creation fails with odd error messages on a Windows machine, please [continue here](docs/WSL.md).
+3. Verify that your installation was successful by running the HelloWorld model (no GPU required):
 
-Now try to run the `HelloWorld` segmentation model - that's a very simple model that will train for 2 epochs on any
-machine, no GPU required. You need to set the `PYTHONPATH` environment variable to point to the repository root first.
-Assuming that your current directory is the repository root folder, on Linux `bash` that is:
+   ```shell
+   python InnerEye/ML/runner.py --model=HelloWorld
+   ```
 
-```shell
-export PYTHONPATH=`pwd`
-python InnerEye/ML/runner.py --model=HelloWorld
-```
-
-(Note the "backtick" around the `pwd` command, this is not a standard single quote!)
-
-On Windows:
-
-```shell
-set PYTHONPATH=%cd%
-python InnerEye/ML/runner.py --model=HelloWorld
-```
-
-If that works: Congratulations! You have successfully built your first model using the InnerEye toolbox.
+If the above runs with no errors: Congratulations! You have successfully built your first model using the InnerEye toolbox.
 
 If it fails, please check the
 [troubleshooting page on the Wiki](https://github.com/microsoft/InnerEye-DeepLearning/wiki/Issues-with-code-setup-and-the-HelloWorld-model).
+
+## Other Documentation
 
 Further detailed instructions, including setup in Azure, are here:
 
@@ -107,6 +88,7 @@ Further detailed instructions, including setup in Azure, are here:
 1. [Move a model to a different workspace](docs/move_model.md)
 1. [Working with FastMRI models](docs/fastmri.md)
 1. [Active label cleaning and noise robust learning toolbox](https://github.com/microsoft/InnerEye-DeepLearning/blob/1606729c7a16e1bfeb269694314212b6e2737939/InnerEye-DataQuality/README.md)
+1. [Using InnerEye as a git submodule](docs/innereye_as_submodule.md)
 
 ## Deployment
 
@@ -173,5 +155,6 @@ This project has adopted the [Microsoft Open Source Code of Conduct](https://ope
 For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or
 contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
 
-## This toolbox is maintained by the
-[Microsoft Medical Image Analysis team](https://www.microsoft.com/en-us/research/project/medical-image-analysis/).
+## Maintenance
+
+This toolbox is maintained by the [Microsoft Medical Image Analysis team](https://www.microsoft.com/en-us/research/project/medical-image-analysis/).
