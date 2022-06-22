@@ -125,17 +125,3 @@ def test_change_dir(test_output_dirs: OutputFolderForTests) -> None:
         Path("bar.txt").touch()
     assert Path.cwd() == test_output_dirs.root_dir
     assert (new_dir / "bar.txt").is_file()
-
-
-def test_add_submodules_to_path() -> None:
-    original_sys_path = sys.path
-    try:
-        fastmri_folder = repository_root_directory() / "fastMRI"
-        fastmri_str = str(fastmri_folder)
-        assert fastmri_folder.is_dir()
-        if fastmri_str in sys.path:
-            sys.path.remove(fastmri_str)
-        add_submodules_to_path()
-        assert fastmri_str in sys.path
-    finally:
-        sys.path = original_sys_path
