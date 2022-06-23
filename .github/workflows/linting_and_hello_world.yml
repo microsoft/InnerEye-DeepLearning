@@ -32,7 +32,7 @@ jobs:
           activate-environment: InnerEye
           auto-activate-base: false
           environment-file: environment.yml
-          python-version: 3.7
+          python-version: 3.8.3
         if: always()
 
       - name: mypy
@@ -68,7 +68,7 @@ jobs:
           activate-environment: InnerEye
           auto-activate-base: false
           environment-file: environment_win.yml
-          python-version: 3.7
+          python-version: 3.8.3
         if: always()
 
       - name: Run HelloWorld model

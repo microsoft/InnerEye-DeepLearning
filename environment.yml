@@ -11,7 +11,7 @@ dependencies:
   - blosc=1.21.0=h4ff587b_1
   - bzip2=1.0.8=h7b6447c_0
   - ca-certificates=2022.4.26=h06a4308_0
-  - certifi=2022.5.18.1=py37h06a4308_0
+  - certifi=2022.5.18.1=py38h06a4308_0
   - cudatoolkit=11.3.1=h2bc3f7f_2
   - ffmpeg=4.2.2=h20bf706_0
   - freetype=2.11.0=h70c0345_0
@@ -22,8 +22,8 @@ dependencies:
   - jpeg=9e=h7f8727e_0
   - lame=3.100=h7b6447c_0
   - lcms2=2.12=h3be6417_0
-  - libedit=3.1.20210910=h7f8727e_0
-  - libffi=3.2.1=hf484d3e_1007
+  - ld_impl_linux-64=2.38=h1181459_1
+  - libffi=3.3=he6710b0_2
   - libgcc-ng=11.2.0=h1234567_1
   - libgomp=11.2.0=h1234567_1
   - libidn2=2.3.2=h7f8727e_0
@@ -39,23 +39,23 @@ dependencies:
   - libwebp-base=1.2.2=h7f8727e_0
   - lz4-c=1.9.3=h295c915_1
   - mkl=2021.4.0=h06a4308_640
-  - mkl-service=2.4.0=py37h7f8727e_0
-  - mkl_fft=1.3.1=py37hd3c417c_0
-  - mkl_random=1.2.2=py37h51133e4_0
+  - mkl-service=2.4.0=py38h7f8727e_0
+  - mkl_fft=1.3.1=py38hd3c417c_0
+  - mkl_random=1.2.2=py38h51133e4_0
   - ncurses=6.3=h7f8727e_2
   - nettle=3.7.3=hbbd107a_1
   - openh264=2.1.1=h4ff587b_0
   - openssl=1.1.1o=h7f8727e_0
-  - pip=20.1.1=py37_1
-  - python=3.7.3
-  - python-blosc=1.7.0=py37h7b6447c_0
-  - pytorch=1.10.0=py3.7_cuda11.3_cudnn8.2.0_0
+  - pip=20.1.1=py38_1
+  - python=3.8.3
+  - python-blosc=1.7.0=py38h7b6447c_0
+  - pytorch=1.10.0=py3.8_cuda11.3_cudnn8.2.0_0
   - pytorch-mutex=1.0=cuda
-  - readline=7.0=h7b6447c_5
-  - setuptools=61.2.0=py37h06a4308_0
-  - sqlite=3.33.0=h62c20be_0
+  - readline=8.1.2=h7f8727e_1
+  - setuptools=61.2.0=py38h06a4308_0
+  - sqlite=3.38.3=hc218d9a_0
   - tk=8.6.12=h1ccaba5_0
-  - torchvision=0.11.1=py37_cu113
+  - torchvision=0.11.1=py38_cu113
   - typing_extensions=4.1.1=pyh06a4308_0
   - wheel=0.37.1=pyhd3eb1b0_0
   - x264=1!157.20191217=h7b6447c_0
@@ -73,7 +73,6 @@ dependencies:
     - argon2-cffi==21.3.0
     - argon2-cffi-bindings==21.2.0
     - async-timeout==4.0.2
-    - asynctest==0.13.0
     - attrs==21.4.0
     - azure-common==1.1.28
     - azure-core==1.24.1
@@ -103,7 +102,6 @@ dependencies:
     - azureml-train-automl-client==1.36.0
     - azureml-train-core==1.36.0
     - azureml-train-restclients-hyperdrive==1.36.0
-    - backcall==0.2.0
     - backports-tempfile==1.0
     - backports-weakref==1.0.post1
     - beautifulsoup4==4.11.1
@@ -124,7 +122,6 @@ dependencies:
     - databricks-cli==0.17.0
     - dataclasses-json==0.5.2
     - debugpy==1.6.0
-    - decorator==5.1.1
     - defusedxml==0.7.1
     - deprecated==1.2.13
     - distro==1.7.0
@@ -133,6 +130,7 @@ dependencies:
     - entrypoints==0.4
     - execnet==1.9.0
     - fastjsonschema==2.15.3
+    - fastmri==0.2.0
     - flake8==3.8.3
     - flask==2.1.2
     - frozenlist==1.3.0
@@ -148,6 +146,8 @@ dependencies:
     - grpcio==1.46.3
     - gunicorn==20.1.0
     - h5py==2.10.0
+    - hi-ml==0.2.2
+    - hi-ml-azure==0.2.2
     - humanize==4.2.0
     - idna==3.3
     - imageio==2.15.0
@@ -161,9 +161,8 @@ dependencies:
     - ipywidgets==7.7.0
     - isodate==0.6.1
     - itsdangerous==2.1.2
-    - jedi==0.18.1
     - jeepney==0.8.0
-    - jinja2==3.1.2
+    - jinja2==3.0.2
     - jmespath==0.10.0
     - joblib==0.16.0
     - jsonpickle==2.2.0
@@ -183,7 +182,6 @@ dependencies:
     - marshmallow==3.16.0
     - marshmallow-enum==1.5.1
     - matplotlib==3.3.0
-    - matplotlib-inline==0.1.3
     - mccabe==0.6.1
     - mistune==0.8.4
     - mlflow==1.23.1
@@ -202,7 +200,7 @@ dependencies:
     - nbformat==5.4.0
     - ndg-httpsclient==0.5.1
     - nest-asyncio==1.5.5
-    - networkx==2.6.3
+    - networkx==2.8.4
     - nibabel==4.0.1
     - notebook==6.4.12
     - numba==0.51.2
@@ -214,17 +212,14 @@ dependencies:
     - pandocfilters==1.5.0
     - papermill==2.2.2
     - param==1.9.3
-    - parso==0.8.3
     - pathspec==0.9.0
     - pexpect==4.8.0
-    - pickleshare==0.7.5
     - pillow==9.0.0
     - platformdirs==2.5.2
     - pluggy==0.13.1
     - portalocker==2.4.0
     - prometheus-client==0.14.1
     - prometheus-flask-exporter==0.20.2
-    - prompt-toolkit==3.0.29
     - protobuf==3.20.1
     - psutil==5.7.2
     - ptyprocess==0.7.0
@@ -237,12 +232,12 @@ dependencies:
     - pydeprecate==0.3.1
     - pydicom==2.0.0
     - pyflakes==2.2.0
-    - pygments==2.12.0
     - pyjwt==1.7.1
     - pynndescent==0.5.7
     - pyopenssl==20.0.1
     - pyparsing==3.0.9
     - pyrsistent==0.18.1
+    - pysocks==1.7.1
     - pytest==6.0.1
     - pytest-cov==2.10.1
     - pytest-forked==1.3.0
@@ -286,7 +281,7 @@ dependencies:
     - terminado==0.15.0
     - textwrap3==0.9.2
     - threadpoolctl==3.1.0
-    - tifffile==2021.11.2
+    - tifffile==2022.5.4
     - tinycss2==1.1.1
     - toml==0.10.2
     - tomli==2.0.1
@@ -294,12 +289,9 @@ dependencies:
     - torchmetrics==0.6.0
     - tornado==6.1
     - tqdm==4.64.0
-    - traitlets==5.3.0
-    - typed-ast==1.4.3
     - typing-inspect==0.7.1
     - umap-learn==0.5.2
     - urllib3==1.26.7
-    - wcwidth==0.2.5
     - webencodings==0.5.1
     - websocket-client==1.3.3
     - werkzeug==2.1.2

@@ -6,7 +6,7 @@ channels:
 dependencies:
   - cudatoolkit=11.3
   - pip=20.1.1
-  - python=3.7.3
+  - python=3.8.3
   - pytorch=1.10.0
   - python-blosc=1.7.0
   - torchvision=0.11.1
@@ -22,10 +22,12 @@ dependencies:
       - cryptography==3.3.2
       - dataclasses-json==0.5.2
       - docker==4.3.1
+      - fastmri==0.2.0
       - flake8==3.8.3
       - gitpython==3.1.7
       - gputil==1.4.0
       - h5py==2.10.0
+      - hi-ml==0.2.2
       - ipython==7.31.1
       - imageio==2.15.0
       - InnerEye-DICOM-RT==1.0.3
