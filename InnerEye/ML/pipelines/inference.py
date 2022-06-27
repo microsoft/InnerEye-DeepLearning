@@ -245,6 +245,7 @@ class InferencePipeline(FullImageInferencePipelineBase):
         :param patient_id: The identifier of the patient this image belongs to (defaults to 0 if None provided).
         :return InferenceResult: that contains Segmentation for each of the classes and their posterior probabilities.
         """
+        torch.cuda.empty_cache()
         if image_channels is None:
             raise Exception("image_channels cannot be None")
         if image_channels.ndim != 4:
