@@ -24,11 +24,11 @@ unset CONDA_ALWAYS_YES
 
 # remove python version hash (technically not locked, so still potential for problems here if python secondary deps change)
 while IFS='' read -r line; do
-    if [[ $line == *"- python="* ]]; then
+    if [[ $line == *"- python="* ]] || [[ $line == *"- pip="* ]] ; then
 
-        IFS='=' read -ra python_arr <<< "$line"
-        unset python_arr[-1]
-        echo "${python_arr[0]}"="${python_arr[1]}"
+        IFS='=' read -ra line_arr <<< "$line"
+        unset line_arr[-1]
+        echo "${line_arr[0]}"="${line_arr[1]}"
     elif [[ ! $line == "#"* ]]; then
         echo "${line}"
     fi
