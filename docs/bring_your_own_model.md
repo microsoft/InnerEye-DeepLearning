@@ -12,7 +12,7 @@ This can be used by
 - Defining a special container class, that encapsulates the PyTorch Lighting model to train, and the data that should
 be used for training and testing.
 - Adding essential trainer parameters like number of epochs to that container.
-- Invoking the InnerEye runner and providing the name of the container class, like this: 
+- Invoking the InnerEye runner and providing the name of the container class, like this:
 `python InnerEye/ML/runner.py --model=MyContainer`. To train in AzureML, just add a `--azureml` flag.
 
 There is a fully working example [HelloContainer](../InnerEye/ML/configs/other/HelloContainer.py), that implements
@@ -30,7 +30,7 @@ object needs to adhere to additional constraints, see below.
 training and validation data.
 - The optional `get_inference_data_module` returns a `LightningDataModule` that is used to read the data for inference
 (that is, evaluating the trained model). By default, this returns the same data as `get_training_data_module`, but you
-can override this for special models like segmentation models that are trained on equal sized image patches, but 
+can override this for special models like segmentation models that are trained on equal sized image patches, but
 evaluated on full images of varying size.
 
 Your class needs to be defined in a Python file in the `InnerEye/ML/configs` folder, otherwise it won't be picked up
@@ -40,12 +40,12 @@ model configuration classes reside in folder `My/Own/configs` from the repositor
 
 ### Cross Validation
 
-If you are doing cross validation you need to ensure that the `LightningDataModule` returned by your container's 
+If you are doing cross validation you need to ensure that the `LightningDataModule` returned by your container's
 `get_data_module` method:
 - Needs to take into account the number of cross validation splits, and the cross validation split index when
 preparing the data.
 - Needs to log val/Loss in its `validation_step` method.
-You can find a working example of handling cross validation in the 
+You can find a working example of handling cross validation in the
 [HelloContainer](../InnerEye/ML/configs/other/HelloContainer.py) class.
 
 *Example*:
@@ -83,7 +83,7 @@ class MyDataModule(LightningDataModule):
         # The data should be read off self.root_path
         test_dataset = ...
         return DataLoader(test_dataset, batch_size=5, num_workers=5)
-        
+
 class MyContainer(LightningContainer):
     def __init__(self):
         super().__init__()
@@ -99,7 +99,7 @@ class MyContainer(LightningContainer):
 ```
 
 Where does the data for training come from?
-- When training a model on a local box or VM, the data is read from the `local_dataset` folder that you define in the 
+- When training a model on a local box or VM, the data is read from the `local_dataset` folder that you define in the
 container.
 - When training a model in AzureML, the code searches for a folder called `folder_name_in_azure_blob_storage` in
 Azure blob storage. That is then downloaded or mounted. The local download path is then copied over the `local_dataset`
@@ -113,20 +113,20 @@ See below for an alternative way of running the evaluation on the test set.
 
 ### Data loaders
 The example above creates `DataLoader` objects from a dataset. When creating those, you need to specify a batch size
-(how many samples from your dataset will go into one minibatch), and a number of worker processes. Note that, by 
+(how many samples from your dataset will go into one minibatch), and a number of worker processes. Note that, by
 default, data loading will happen in the main process, meaning that your GPU will sit idle while the CPU reads data
 from disk. When specifying a number of workers, it will spawn processes that pre-fetch data from disk, and put them
 into a queue, ready for the GPU to pick it up when it is done processing the current minibatch.
 
-For more details, please see the documentation for 
-[DataLoader](https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader). There is also a 
-[tutorial describing the foundations of datasets and 
+For more details, please see the documentation for
+[DataLoader](https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader). There is also a
+[tutorial describing the foundations of datasets and
 data loaders](https://pytorch.org/tutorials/beginner/basics/data_tutorial.html)
 
 ### Outputting files during training
 
 The Lightning model returned by `create_model` needs to write its output files to the current working directory.
-When running the InnerEye toolbox outside of AzureML, the toolbox will change the current working directory to a 
+When running the InnerEye toolbox outside of AzureML, the toolbox will change the current working directory to a
 newly created output folder, with a name that contains the time stamp and and the model name.
 When running the InnerEye toolbox in AzureML, the folder structure will be set up such that all files written
 to the current working directory are later uploaded to Azure blob storage at the end of the AzureML job. The files
@@ -153,17 +153,17 @@ class MyContainer(LightningContainer):
         return MyDataModule(root_path=self.local_dataset)
 ```
 
-For further details how the `TrainerParams` are used, refer to the `create_lightning_trainer` method in 
+For further details how the `TrainerParams` are used, refer to the `create_lightning_trainer` method in
 [InnerEye/ML/model_training.py](../InnerEye/ML/model_training.py)
 
 ### Optimizer and LR scheduler arguments
 There are two possible ways of choosing the optimizer and LR scheduler:
 - The Lightning model returned by `create_model` can define its own `configure_optimizers` method, with the same
 signature as `LightningModule.configure_optimizers`. This is the typical way of configuring it for Lightning models.
-- Alternatively, the model can inherit from `LightningModuleWithOptimizer`. This class implements a 
+- Alternatively, the model can inherit from `LightningModuleWithOptimizer`. This class implements a
 `configure_optimizers` method that uses settings defined in the `OptimizerParams` class. These settings are all
 available from the command line, and you can, for example, start a new run with a different learning rate by
-supplying the additional commandline flag `--l_rate=1e-2`. 
+supplying the additional commandline flag `--l_rate=1e-2`.
 
 ### Evaluating the trained model
 The InnerEye toolbox provides two possible routes of implementing that:
@@ -189,7 +189,7 @@ model.on_inference_end()
 
 ## Overriding properties on the commandline
 
-You can define hyperparameters that affect data and/or model, as in the following code snippet: 
+You can define hyperparameters that affect data and/or model, as in the following code snippet:
 ```python
 import param
 from pytorch_lightning import LightningModule
@@ -224,7 +224,7 @@ class Container1(LightningContainer):
         # This should read data from self.local_dataset. Before training, the data folder "some_folder_in_azure"
         # (given by self.azure_dataset_id) will be downloaded or mounted, and its local path set in
         # self.local_dataset
-        return MyDataModule(root_folder=self.local_dataset) 
+        return MyDataModule(root_folder=self.local_dataset)
 ```
 
 ### Adding additional arguments for the PyTorch Lightning trainer
@@ -246,10 +246,9 @@ class Container2(LightningContainer):
         # This should read data from self.local_dataset. Before training, the data folder "some_folder_in_azure"
         # (given by self.azure_dataset_id) will be downloaded or mounted, and its local path set in
         # self.local_dataset
-        return MyDataModule(root_folder=self.local_dataset) 
+        return MyDataModule(root_folder=self.local_dataset)
 
     def get_trainer_arguments(self) -> Dict[str, Any]:
         # These arguments will be passed through to the Lightning trainer.
         return {"gradient_clip_val": 1, "limit_train_batches": 10}
 ```
-

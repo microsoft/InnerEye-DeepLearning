@@ -21,7 +21,7 @@ jobs:
           pip install flake8
           python -m flake8
         shell: bash
-        if: always()        
+        if: always()
 
       # This script also does "conda init" for all shells. For bash, this modifies .bashrc.
       # However, the default "bash" in a github workflow does not execute bashrc. Hence, all
@@ -32,7 +32,7 @@ jobs:
           activate-environment: InnerEye
           auto-activate-base: false
           environment-file: environment.yml
-          python-version: 3.7
+          python-version: 3.8.3
         if: always()
 
       - name: mypy
@@ -67,8 +67,8 @@ jobs:
         with:
           activate-environment: InnerEye
           auto-activate-base: false
-          environment-file: environment.yml
-          python-version: 3.7
+          environment-file: environment_win.yml
+          python-version: 3.8.3
         if: always()
 
       - name: Run HelloWorld model

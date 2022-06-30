@@ -3,7 +3,9 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-from typing import Any, Dict, List, Optional, OrderedDict, Set, Tuple, Union
+from typing import Any, Dict, List, Optional, Set, Tuple, Union, TYPE_CHECKING
+if TYPE_CHECKING:
+    from typing import OrderedDict
 
 import pytorch_lightning as pl
 import torch

@@ -6,4 +6,3 @@
 pip install -r requirements.txt
 ```
 1. Run `make html` from the folder sphinx-docs. This will create html files under sphinx-docs/build/html.
-    

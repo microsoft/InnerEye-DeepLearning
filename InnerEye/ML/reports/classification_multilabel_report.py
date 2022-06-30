@@ -134,7 +134,6 @@ def get_labels_and_predictions_for_prediction_target_set(csv: Path,
 def print_metrics_for_thresholded_output_for_all_prediction_targets(csv_to_set_optimal_threshold: Path,
                                                                     csv_to_compute_metrics: Path,
                                                                     config: ScalarModelBase) -> None:
-
     """
     Given csvs written during inference for the validation and test sets, print out metrics for every combination of
     prediction targets that exist in the dataset (i.e. for every subset of classes that occur in the dataset).

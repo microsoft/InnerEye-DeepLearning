@@ -1,19 +1,22 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+Early versions of this toolbox used a manually created changelog.
+As of March 2022, we have switched to using Github's auto-generated changelog.
+If you would like to view the changelog for a particular release, you can do so on the [Releases page](https://github.com/microsoft/InnerEye-DeepLearning/releases).
+Each release contains a link for "Full Changelog".
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres
-to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## Changelog for Versions before March 2022
 
-For each Pull Request, the affected code parts should be briefly described and added here in the "Upcoming" section.
-Once a release is done, the "Upcoming" section becomes the release changelog, and a new empty "Upcoming" should be
-created.
+### Upcoming
 
+#### Added
 
-## Upcoming
-
-### Added
-
+- ([#709](https://github.com/microsoft/InnerEye-DeepLearning/pull/709)) Update hi-ml submodule.
+- ([#667](https://github.com/microsoft/InnerEye-DeepLearning/pull/667)) Automatically and linearly scale the learning rate of the SSL encoder to the number of GPUs.
+- ([#689](https://github.com/microsoft/InnerEye-DeepLearning/pull/689)) Show default argument values in help message.
+- ([#671](https://github.com/microsoft/InnerEye-DeepLearning/pull/671)) Remove sequence models and unused variables. Simplify README.
+- ([#693](https://github.com/microsoft/InnerEye-DeepLearning/pull/693)) Improve instructions for HelloWorld model in AzureML.
+- ([#678](https://github.com/microsoft/InnerEye-DeepLearning/pull/678)) Add function to get log level name and use it for logging.
 - ([#666](https://github.com/microsoft/InnerEye-DeepLearning/pull/666)) Replace RadIO with TorchIO for patch-based inference.
 - ([#643](https://github.com/microsoft/InnerEye-DeepLearning/pull/643)) Test for recovery of SSL job. Tracks learning rate and train
 loss.
@@ -34,8 +37,8 @@ jobs that run in AzureML.
 - ([#554](https://github.com/microsoft/InnerEye-DeepLearning/pull/554)) Added a parameter `pretraining_dataset_id` to
   `NIH_COVID_BYOL` to specify the name of the SSL training dataset.
 - ([#560](https://github.com/microsoft/InnerEye-DeepLearning/pull/560)) Added pre-commit hooks.
--([#619](https://github.com/microsoft/InnerEye-DeepLearning/pull/619)) Add DeepMIL PANDA
-- ([#559](https://github.com/microsoft/InnerEye-DeepLearning/pull/559)) Adding the accompanying code for the ["Active label cleaning: Improving dataset quality under resource constraints"](https://arxiv.org/abs/2109.00574) paper. The code can be found in the [InnerEye-DataQuality](InnerEye-DataQuality/README.md) subfolder. It provides tools for training noise robust models, running label cleaning simulation and loading our label cleaning benchmark datasets.
+- ([#619](https://github.com/microsoft/InnerEye-DeepLearning/pull/619)) Add DeepMIL PANDA
+- ([#559](https://github.com/microsoft/InnerEye-DeepLearning/pull/559)) Adding the accompanying code for the ["Active label cleaning: Improving dataset quality under resource constraints"](https://arxiv.org/abs/2109.00574) paper.
 - ([#589](https://github.com/microsoft/InnerEye-DeepLearning/pull/589)) Add `LightningContainer.update_azure_config()`
   hook to enable overriding `AzureConfig` parameters from a container (e.g. `experiment_name`, `cluster`, `num_nodes`).
 - ([#617](https://github.com/microsoft/InnerEye-DeepLearning/pull/617)) Commandline flag `pl_check_val_every_n_epoch` to control how often validation is happening
@@ -51,8 +54,12 @@ jobs that run in AzureML.
 - ([#653](https://github.com/microsoft/InnerEye-DeepLearning/pull/653)) Add dropout to DeepMIL and fix feature extractor setup.
 - ([#650](https://github.com/microsoft/InnerEye-DeepLearning/pull/650)) Enable fine-tuning in DeepMIL using PANDA as the classification task.
 - ([#656](https://github.com/microsoft/InnerEye-DeepLearning/pull/656)) Add subsampling transform and support for MIL mean pooling.
+- ([#679](https://github.com/microsoft/InnerEye-DeepLearning/pull/679)) Add FP and TN slides/tiles to DeepMIL outputs and extend outputs to multi-class problems.
 
-### Changed
+#### Changed
+
+- ([#677](https://github.com/microsoft/InnerEye-DeepLearning/pull/677)) Update TorchIO version to include the recent bug fix related to patch-based inference.
+- ([#666](https://github.com/microsoft/InnerEye-DeepLearning/pull/666)) Replace RadIO with TorchIO for patch-based inference.
 - ([#659](https://github.com/microsoft/InnerEye-DeepLearning/pull/659)) Update cudatoolkit version from 11.1 to 11.3.
 - ([#588](https://github.com/microsoft/InnerEye-DeepLearning/pull/588)) Replace SciPy with PIL.PngImagePlugin.PngImageFile to load png files.
 - ([#585](https://github.com/microsoft/InnerEye-DeepLearning/pull/585)) Switching to PyTorch 1.10.0 and torchvision 0.11.1
@@ -89,7 +96,14 @@ gets uploaded to AzureML, by skipping all test folders.
   `autosave_every_n_val_epochs`.
 - ([#632](https://github.com/microsoft/InnerEye-DeepLearning/pull/632)) Nifti test data is no longer stored in Git LFS
 
-### Fixed
+#### Fixed
+
+- ([#701](https://github.com/microsoft/InnerEye-DeepLearning/pull/701)) Fix 3D images expected to be 4D for intensity normalization.
+- ([#704](https://github.com/microsoft/InnerEye-DeepLearning/pull/704)) Add submodules to sys.path to fix autodoc's warning.
+- ([#699](https://github.com/microsoft/InnerEye-DeepLearning/pull/699)) Fix Sphinx warnings.
+- ([#682](https://github.com/microsoft/InnerEye-DeepLearning/pull/682)) Ensure the shape of input patches is compatible with model constraints.
+- ([#681](https://github.com/microsoft/InnerEye-DeepLearning/pull/681)) Pad model outputs if they are smaller than the inputs.
+- ([#683](https://github.com/microsoft/InnerEye-DeepLearning/pull/683)) Fix missing separator error in docs Makefile.
 - ([#659](https://github.com/microsoft/InnerEye-DeepLearning/pull/659)) Fix caching and checkpointing for TCGA CRCk dataset.
 - ([#649](https://github.com/microsoft/InnerEye-DeepLearning/pull/649)) Fix for the _convert_to_tensor_if_necessary method so that PIL.Image as well as np.array get converted to torch.Tensor.
 - ([#606](https://github.com/microsoft/InnerEye-DeepLearning/pull/606)) Bug fix: registered models do not include the hi-ml submodule
@@ -128,9 +142,11 @@ in inference-only runs when using lightning containers.
 - ([#612](https://github.com/microsoft/InnerEye-DeepLearning/pull/612)) SSL online evaluator was not doing distributed training
 - ([#652](https://github.com/microsoft/InnerEye-DeepLearning/pull/652)) Run pytest build on Windows after Linux agent version upgrade
 - ([#655](https://github.com/microsoft/InnerEye-DeepLearning/pull/655)) Run pytest on Linux again, but with Ubuntu 20.04
+- ([#674](https://github.com/microsoft/InnerEye-DeepLearning/pull/674)) Fix DeepMIL metrics bug whereby hard labels were used instead of probabilities.
 
-### Removed
+#### Removed
 
+- ([#692](https://github.com/microsoft/InnerEye-DeepLearning/pull/692)) Replace InnerEye-DataQuality with a link to commit,
 - ([#577](https://github.com/microsoft/InnerEye-DeepLearning/pull/577)) Removing the monitoring of batch loading time,
   use the `BatchTimeCallback` from `hi-ml` instead
 - ([#542](https://github.com/microsoft/InnerEye-DeepLearning/pull/542)) Removed Windows test leg from build pipeline.
@@ -144,15 +160,14 @@ in inference-only runs when using lightning containers.
 - ([#596](https://github.com/microsoft/InnerEye-DeepLearning/pull/596)) Removed obsolete `TrainGlaucomaCV` from PR build.
 - ([#604](https://github.com/microsoft/InnerEye-DeepLearning/pull/604)) Removed all code that downloads datasets, this is now all handled by hi-ml
 
-### Deprecated
+#### Deprecated
 
 - ([#633](https://github.com/microsoft/InnerEye-DeepLearning/pull/633)) Model fields `recovery_checkpoint_save_interval` and `recovery_checkpoints_save_last_k` have been retired.
   Recovery checkpoint handling is now controlled by `autosave_every_n_val_epochs`.
 
+### 0.3 (2021-06-01)
 
-## 0.3 (2021-06-01)
-
-### Added
+#### Added
 
 - ([#483](https://github.com/microsoft/InnerEye-DeepLearning/pull/483)) Allow cross validation with 'bring your own' Lightning models (without ensemble building).
 - ([#489](https://github.com/microsoft/InnerEye-DeepLearning/pull/489)) Remove portal query for outliers.
@@ -232,7 +247,7 @@ console for easier diagnostics.
 - ([#463](https://github.com/microsoft/InnerEye-DeepLearning/pull/463)) Add arguments `dirs_recursive` and
   `dirs_non_recursive` to `mypy_runner.py` to let users specify a list of directories to run mypy on.
 
-### Changed
+#### Changed
 
 - ([#385](https://github.com/microsoft/InnerEye-DeepLearning/pull/385)) Starting an AzureML run now uses the
   `ScriptRunConfig` object, rather than the deprecated `Estimator` object.
@@ -265,7 +280,7 @@ console for easier diagnostics.
   `get_image_transform` (resp. `get_segmentation_transform`). These two functions replace the old
   `get_image_sample_transforms` method. See `docs/building_models.md` for more information on augmentations.
 
-### Fixed
+#### Fixed
 
 - ([#422](https://github.com/microsoft/InnerEye-DeepLearning/pull/422)) Documentation - clarified `setting_up_aml.md`
   datastore creation instructions and fixed small typos in `hello_world_model.md`
@@ -279,7 +294,8 @@ console for easier diagnostics.
 - ([#445](https://github.com/microsoft/InnerEye-DeepLearning/pull/445)) Fixed a bug when running inference for
  container models on machines with >1 GPU
 
-### Removed
+#### Removed
+
 - ([#439](https://github.com/microsoft/InnerEye-DeepLearning/pull/439)) Deprecated `start_epoch` config argument.
 - ([#450](https://github.com/microsoft/InnerEye-DeepLearning/pull/450)) Delete unused `classification_report.ipynb`.
 - ([#455](https://github.com/microsoft/InnerEye-DeepLearning/pull/455)) Removed the AzureRunner conda environment.
@@ -288,19 +304,19 @@ console for easier diagnostics.
    RandAugment & Co. The user has now instead complete freedom to specify the set of augmentations to use.
 - ([#468](https://github.com/microsoft/InnerEye-DeepLearning/pull/468)) Removed the `KneeSinglecoil` example model
 
-### Deprecated
+#### Deprecated
 
-## 0.2 (2021-01-29)
+### 0.2 (2021-01-29)
 
-### Added
+#### Added
 
 - ([#323](https://github.com/microsoft/InnerEye-DeepLearning/pull/323)) There are new model configuration fields
   (and hence, commandline options), in particular for controlling PyTorch Lightning (PL) training:
-    - `max_num_gpus` controls how many GPUs are used at most for training (default: all GPUs, value -1).
-    - `pl_num_sanity_val_steps` controls the PL trainer flag `num_sanity_val_steps`
-    - `pl_deterministic` controls the PL trainer flags `benchmark` and `deterministic`
-    - `generate_report` controls if a HTML report will be written (default: True)
-    - `recovery_checkpoint_save_interval` determines how often a checkpoint for training recovery is saved.
+  - `max_num_gpus` controls how many GPUs are used at most for training (default: all GPUs, value -1).
+  - `pl_num_sanity_val_steps` controls the PL trainer flag `num_sanity_val_steps`
+  - `pl_deterministic` controls the PL trainer flags `benchmark` and `deterministic`
+  - `generate_report` controls if a HTML report will be written (default: True)
+  - `recovery_checkpoint_save_interval` determines how often a checkpoint for training recovery is saved.
 - ([#336](https://github.com/microsoft/InnerEye-DeepLearning/pull/336)) New extensions of
   SegmentationModelBases `HeadAndNeckBase` and `ProstateBase`. Use these classes to build your own Head&Neck or Prostate
   models, by just providing a list of foreground classes.
@@ -311,21 +327,21 @@ console for easier diagnostics.
   config's `get_model_train_test_dataset_splits()` method. See the `InnerEye.ML.utils.split_dataset.DatasetSplits` class
   for details.
 
-### Changed
+#### Changed
 
 - ([#323](https://github.com/microsoft/InnerEye-DeepLearning/pull/323)) The codebase has undergone a massive
   refactoring, to use PyTorch Lightning as the foundation for all training. As a consequence of that:
-    - Training is now using Distributed Data Parallel with synchronized `batchnorm`. The number of GPUs to use can be
+  - Training is now using Distributed Data Parallel with synchronized `batchnorm`. The number of GPUs to use can be
       controlled by a new commandline argument `max_num_gpus`.
-    - Several classes, like `ModelTrainingSteps*`, have been removed completely.
-    - The final model is now always the one that is written at the end of all training epochs.
-    - The old code that options to run full image inference at multiple epochs (i.e., multiple checkpoints), this has
+  - Several classes, like `ModelTrainingSteps*`, have been removed completely.
+  - The final model is now always the one that is written at the end of all training epochs.
+  - The old code that options to run full image inference at multiple epochs (i.e., multiple checkpoints), this has
       been removed, alongside the respective commandline options `save_start_epoch`, `save_step_epochs`,
       `epochs_to_test`, `test_diff_epochs`, `test_step_epochs`, `test_start_epoch`
-    - The commandline option `register_model_only_for_epoch` is now called `only_register_model`, and is boolean.
-    - All metrics are written to AzureML and Tensorboard in a unified format. A training Dice score for 'bladder' would
+  - The commandline option `register_model_only_for_epoch` is now called `only_register_model`, and is boolean.
+  - All metrics are written to AzureML and Tensorboard in a unified format. A training Dice score for 'bladder' would
       previously be called Train_Dice/bladder, now it is train/Dice/bladder.
-    - Due to a different checkpoint format, it is no longer possible to use checkpoints written by the previous version
+  - Due to a different checkpoint format, it is no longer possible to use checkpoints written by the previous version
       of the code.
 - The arguments of the `score.py` script changed: `data_root` -> `data_folder`, it no longer assumes a fixed
   `data` subfolder. `project_root` -> `model_root`, `test_image_channels` -> `image_files`.
@@ -336,13 +352,13 @@ console for easier diagnostics.
 - ([#427](https://github.com/microsoft/InnerEye-DeepLearning/pull/427)) Move dicom loading function from SimpleITK to
   pydicom. Loading time improved by 30x.
 
-### Fixed
+#### Fixed
 
 - When registering a model, it now has a consistent folder structured, described [here](docs/deploy_on_aml.md). This
   folder structure is present irrespective of using InnerEye as a submodule or not. In particular, exactly 1 Conda
   environment will be contained in the model.
 
-### Removed
+#### Removed
 
 - The commandline options to control which checkpoint is saved, and which is used for inference, have been removed:
   `save_start_epoch`, `save_step_epochs`, `epochs_to_test`, `test_diff_epochs`, `test_step_epochs`, `test_start_epoch`
@@ -352,8 +368,8 @@ console for easier diagnostics.
 - Removed ability to perform sub-fold cross validation. The parameters `number_of_cross_validation_splits_per_fold`
   and `cross_validation_sub_fold_split_index` have been removed from ScalarModelBase.
 
-### Deprecated
+#### Deprecated
 
-## 0.1 (2020-11-13)
+### 0.1 (2020-11-13)
 
 - This is the baseline release.

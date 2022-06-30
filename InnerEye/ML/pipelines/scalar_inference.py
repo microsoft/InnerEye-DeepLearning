@@ -15,7 +15,6 @@ from InnerEye.ML.lightning_helpers import load_from_checkpoint_and_adjust_for_in
 from InnerEye.ML.lightning_models import ScalarLightning
 from InnerEye.ML.pipelines.inference import InferencePipelineBase
 from InnerEye.ML.scalar_config import EnsembleAggregationType, ScalarModelBase
-from InnerEye.ML.sequence_config import SequenceModelBase
 from InnerEye.ML.utils.model_util import get_scalar_model_inputs_and_labels
 
 
@@ -76,6 +75,7 @@ class ScalarInferencePipeline(ScalarInferencePipelineBase):
                                pipeline_id: int = 0) -> Optional[ScalarInferencePipeline]:
         """
         Creates an inference pipeline from a single checkpoint.
+
         :param path_to_checkpoint: Path to the checkpoint to recover.
         :param config: Model configuration information.
         :param pipeline_id: ID for the pipeline to be created.
@@ -96,17 +96,15 @@ class ScalarInferencePipeline(ScalarInferencePipelineBase):
     def predict(self, sample: Dict[str, Any]) -> ScalarInferencePipelineBase.Result:
         """
         Runs the forward pass on a single batch.
+
         :param sample: Single batch of input data.
-                        In the form of a dict containing at least the fields:
-                        metadata, label, images, numerical_non_image_features,
-                        categorical_non_image_features and segmentations.
-        :return: Returns ScalarInferencePipelineBase.Result with  the subject ids, ground truth labels and predictions.
+            In the form of a dictionary containing at least the fields:
+            metadata, label, images, numerical_non_image_features,
+            categorical_non_image_features and segmentations.
+        :return: ScalarInferencePipelineBase.Result with the subject ids, ground truth labels and predictions.
         """
         assert isinstance(self.model_config, ScalarModelBase)
-        target_indices = self.model_config.get_target_indices() \
-            if isinstance(self.model_config, SequenceModelBase) else []
         model_inputs_and_labels = get_scalar_model_inputs_and_labels(self.model.model,
-                                                                     target_indices=target_indices,
                                                                      sample=sample)
         model_inputs_and_labels.move_to_device(self.model.device)
         with torch.no_grad():
@@ -162,10 +160,11 @@ class ScalarEnsemblePipeline(ScalarInferencePipelineBase):
         """
         Performs inference on a single batch. First does the forward pass on all of the single inference pipelines,
         and then aggregates the results.
+
         :param sample: single batch of input data.
-                        In the form of a dict containing at least the fields:
-                        metadata, label, images, numerical_non_image_features,
-                        categorical_non_image_features and segmentations.
+            In the form of a dictionary containing at least the fields:
+            metadata, label, images, numerical_non_image_features,
+            categorical_non_image_features and segmentations.
         :return: Returns ScalarInferencePipelineBase.Result with the subject ids, ground truth labels and predictions.
         """
         results = [pipeline.predict(sample) for pipeline in self.pipelines]

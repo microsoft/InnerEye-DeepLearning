@@ -287,7 +287,7 @@ def test_simclr_lr_scheduler() -> None:
 
 @pytest.mark.gpu
 def test_simclr_training_recovery(test_output_dirs: OutputFolderForTests) -> None:
-    """ This test checks if a SSLContainer correctly resumes training. 
+    """ This test checks if a SSLContainer correctly resumes training.
     First we run SSL using a Trainer for 20 epochs.
     Second, we run a new SSL job for 15 epochs.
     Third we resume the job and run it for 5 more epochs.
@@ -332,7 +332,7 @@ def test_simclr_training_recovery(test_output_dirs: OutputFolderForTests) -> Non
 
     small_encoder = torch.nn.Sequential(torch.nn.Flatten(), torch.nn.Linear(3, 2))
     with mock.patch("InnerEye.ML.SSL.encoders.create_ssl_encoder", return_value=small_encoder):
-        with mock.patch("InnerEye.ML.SSL.encoders.get_encoder_output_dim", return_value=2):         
+        with mock.patch("InnerEye.ML.SSL.encoders.get_encoder_output_dim", return_value=2):
             # Normal run
             normal_lrs, normal_loss, _ = run_simclr_dummy_container(test_output_dirs, 20, last_checkpoint=None)
 

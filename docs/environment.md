@@ -1,67 +1,171 @@
-# Setting up your environment
+# Set up InnerEye-DeepLearning
 
-## Prerequisites
+## Operating System
 
-In order to work with the solution, your OS environment will need [git](https://git-scm.com/) and [git lfs](https://git-lfs.github.com/) installed. Depending on the OS that you are running the installation instructions may vary. Please refer to respective documentation sections on the tools' websites for detailed instructions. 
+We recommend using our toolbox with [Ubuntu 20.04 LTS](https://releases.ubuntu.com/20.04/).  Most core InnerEye functionality will be stable on other operating systems, but PyTorch's full feature set is only available on Linux. All jobs in AzureML, both training and inference, run from an Ubuntu 20.04 Docker image. This means that using Ubuntu 20.04 locally allows for maximum reproducibility between your local and AzureML environments.
 
-We recommend using PyCharm or VSCode as the Python editor. 
+For Windows users, Ubuntu can be set up with [Windows Subsystem for Linux (WSL)](https://docs.microsoft.com/en-us/windows/wsl/install). Please refer to the [InneryEye WSL docs](docs/WSL.md) for more detailed instructions on getting WSL set up.
 
-You have two options for working with our codebase:
-* You can fork the InnerEye-DeepLearning repository, and work off that. We recommend that because it is easiest to set up.
-* Or you can create your project that uses the InnerEye-DeepLearning code, and include InnerEye-DeepLearning as a git
-submodule. We only recommended that if you are very handy with Python. More details about this option 
-[are here](innereye_as_submodule.md).
+MacOS users can access an Ubuntu OS through [VirtualBox](https://www.virtualbox.org/wiki/Downloads).
 
-## Windows Subsystem for Linux Setup
-When developing on a Windows machine, we recommend using [the Windows Subsystem for Linux, WSL2](https://docs.microsoft.com/en-us/windows/wsl/about).
-That's because PyTorch has better support for Linux.  If you want to use WSL2, please follow 
-[these instructions](/docs/WSL.md) , that correspond to the manual installation in the official docs.
+## Clone Repository
 
-## Installing Conda or Miniconda
-You can skip this step if you have installed WSL as per the previous item.
+1. Ensure you have [Git CLI](https://git-scm.com/downloads) installed.
+2. Install Git Large File Storage (LFS):
 
-Download a Conda or Miniconda [installer for your platform](https://docs.conda.io/en/latest/miniconda.html)
-and run it.
+   ```shell
+   git lfs install
+   ```
 
-## Creating a Conda environment
-Note that in order to create the Conda environment you will need to have build tools installed on your machine. If you are running Windows, they should be already installed with Conda distribution.   
+3. Clone the repository:
 
-You can install build tools on Ubuntu (and Debian-based distributions) by running  
-`sudo apt-get install build-essential`  
-If you are running CentOS/RHEL distributions, you can install the build tools by running  
-`yum install gcc gcc-c++ kernel-devel make`
+   ```shell
+   git clone --recursive https://github.com/microsoft/InnerEye-DeepLearning
+   cd InnerEye-DeepLearning
+   ```
 
-Start the `conda` prompt for your platform. In that prompt, navigate to your repository root and run
-`conda env create --file environment.yml`
+To view and edit the InnerEye code, we recommended using the [VSCode](https://code.visualstudio.com/) IDE.
+
+## Set Up Conda
+
+[Conda](https://docs.conda.io/en/latest/) is an open source package management system. It is used in InnerEye to manage all python packages. Follow the instructions in this section to get it set up on your machine.
+
+### Prerequisite - Install build tools
+
+In order to create the Conda environment you will need to have the appropriate build tools installed on your machine. To do this, run the commands relevant to your operating system from the subsections below.
+
+#### MacOS / Windows Users
+
+If you are running Windows or MacOS, they will automatically be installed with your Conda distribution and you can safely skip this step.
+
+#### Ubuntu / Debian
+
+```shell
+sudo apt-get install build-essential
+```
+
+#### CentOS / RHEL
+
+```shell
+yum install gcc gcc-c++ kernel-devel make
+```
+
+### Install `conda`
+
+Check if you already have Conda installed by running `conda --version` in your shell. If you see an error such as "`command not found`", you will need to install Conda for your operating system using one of the following options:
+
+- Install [Miniconda](https://docs.conda.io/en/latest/miniconda.html) - this is the simplest and most lightweight option, and is sufficient for most use-cases.
+- Install [Conda](https://docs.conda.io/en/latest/) - more extensive package management features and system-wide installation.
+
+## Create a Conda Environment
+
+There are three important files in this repo for creating Conda environments:
+
+- **`primary_deps.yml`** - This file contains the list of primary package dependencies, and can be used to create an environment on any OS.
+- **`environment.yml`** - **DO NOT EDIT THIS FILE MANUALLY**. This file is a *lockfile* - it contains a locked list of primary and secondary dependencies that is used to create the environments for AzureML jobs and local Ubuntu environments. As such it contains Ubuntu-specific platform dependencies and cannot be used to create environments on other operating systems.
+- **`environment_win.yml`** - This is another lockfile, containing a Windows-dependent list of primary and secondary dependencies. This file can be used to create a Conda environment on windows machines.
+
+### Create environment from lockfile (Ubuntu / Windows)
+
+To create an environment from one of the lockfiles, run the following command, selecting the one appropriate to your operating system:
+
+- Ubuntu 20.04 Users:
+
+  ```shell
+  conda env create --file environment.yml
+  conda activate InnerEye
+  ```
+
+- Windows Users:
+
+  ```shell
+  conda env create --file environment_win.yml
+  conda activate InnerEye
+
+  ```
+
+### Create non-locked environment (MacOS / all other operating systems)
+
+For all other operating systems, no locked environment is provided. Instead, a new Conda environment can be created from the primary dependencies using the following commands:
+
+  ```shell
+  conda env create --file primary_deps.yml
+  conda activate InnerEye
+
+  ```
+
+*Reproducibility between local and AzureML runs is NOT guaranteed for environments created using this method. For maximum reproducibility please consider using Ubuntu 20.04 as per [our operating system instructions](#operating-system).*
+
+### Upgrade / Add Python packages in environment
+
+If you wish to alter the packages in your local Conda environment, this can be done by editing the `primary_deps.yml` file with your desired changes and then following the instructions relevant to your OS given in the subsections below.
+
+If you want to change versions of packages used in the AzureML environment, *this can only be done from an Ubuntu machine*, and is facilited through the provided script `create_and_lock_environment.sh`, instructions for which are given in the Ubuntu subsection below.
+
+#### Ubuntu 20.04 Users
+
+1. Make your desired changes in `primary_deps.yml`. Make sure your package names and versions are correct.
+2. To create a new environment and a valid `environment.yml`, run the following command:
+
+    ```shell
+    bash -i create_and_lock_environment.sh
+    ```
+
+This script will create/update your local Conda environment with your desired primary package versions, as well as a new `environment.yml` which can be ingested by AzureML to create a copy of your local environment.
+
+#### All other operating systems
+
+1. Make your desired changes in `primary_deps.yml`. Make sure your package names and versions are correct.
+2. If you have already created the environment previously, run:
+
+      ```shell
+      conda env update --file primary_deps.yml --prune
+      ```
+
+3. Otherwise, run:
+
+      ```shell
+      conda env create --file primary_deps.yml
+      ```
+
+4. (Windows Users - Optional) Create a new lockfile by activating your new environment (`conda env activate InnerEye`) and running:
+
+   ```shell
+   conda env export > environment_win.yml
+   ```
 
 ## Using GPU locally
 
-It is possible to run the training process on a local machine. It will not be as performant as using a GPU cluster that Azure ML offers and you will not be able to take advantage of other Azure ML features such as comparing run results, creating snapshots for repeatable machine learning experiments or keeping history of experiment runs. At the same time it could be useful to experiment with code or troubleshoot things locally. 
+It is possible to run the training process on a local machine. It will not be as performant as using a GPU cluster that Azure ML offers and you will not be able to take advantage of other Azure ML features such as comparing run results, creating snapshots for repeatable machine learning experiments or keeping history of experiment runs. At the same time it could be useful to experiment with code or troubleshoot things locally.
 
-The SDK uses PyTorch to compose and run DNN computations. PyTorch can leverage the underlying GPU via NVidia CUDA technology, which accelerates computations dramatically. 
+The SDK uses PyTorch to compose and run DNN computations. PyTorch can leverage the underlying GPU via NVIDIA CUDA technology, which accelerates computations dramatically.
 
-In order to enable PyTorch to use CUDA, you need to make sure that you have  
-1. Compatible graphics card with CUDA compute capability of at least 3.0 (at the moment of writing). You can check compatibility list here: https://developer.nvidia.com/cuda-gpus  
-1. Recent NVidia drivers installed
+In order to enable PyTorch to use CUDA, you need to make sure that you have
 
-A quick way to check if PyTorch can use the underlying GPU for computation is to run the following line from your conda environment with all InnerEye packages installed:  
-`python -c 'import torch; print(torch.cuda.is_available())'`  
+1. Compatible graphics card with CUDA compute capability of at least 3.0 (at the moment of writing). You can check the compatibility list [on the NVIDA Developer site](https://developer.nvidia.com/cuda-gpus)
+1. Recent NVIDIA drivers installed
+
+A quick way to check if PyTorch can use the underlying GPU for computation is to run the following line from your Conda environment with all InnerEye packages installed:
+`python -c 'import torch; print(torch.cuda.is_available())'`
 It will output `True` if CUDA computation is available and `False` if it's not.
 
-Some tips for installing NVidia drivers below:
+Some tips for installing NVIDIA drivers below:
 
 ### Windows
-You can download NVidia drivers for your graphics card from https://www.nvidia.com/download/index.aspx as a Windows *.exe* file and install them this way. 
+
+You can download NVIDIA drivers for your graphics card [the NVIDIA website](https://www.nvidia.com/download/index.aspx) as a Windows *.exe* file and install them this way.
 
 ### WSL
-Microsoft provides GPU support via WSL starting WSL 2.0. 
+
+Microsoft provides GPU support via WSL starting WSL 2.0.
 
 You can find more details on WSL in our separate [WSL section](WSL.md).
 
 ### Linux
-The exact instructions for driver installation will differ depending on the Linux distribution. Generally, you should first run the `nvidia-smi` tool to see if you have NVidia drivers installed. This tool is installed together with NVidia drivers and if your system can not find it, it may mean that the drivers are not installed. A sample output of NVidia SMI tool may look like this:
 
-```
+The exact instructions for driver installation will differ depending on the Linux distribution. Generally, you should first run the `nvidia-smi` tool to see if you have NVIDIA drivers installed. This tool is installed together with NVIDIA drivers and if your system can not find it, it may mean that the drivers are not installed. A sample output of NVIDIA SMI tool may look like this:
+
+```console
 +-----------------------------------------------------------------------------+
 | NVIDIA-SMI 450.51.06    Driver Version: 450.51.06    CUDA Version: 11.0     |
 |-------------------------------+----------------------+----------------------+
@@ -80,144 +184,41 @@ In this case we can see that the system has access to a Tesla K80 GPU and is run
 If the driver is not available, you can try the following to install:
 
 #### Ubuntu
-1. Run  
-`ubuntu-drivers devices`  
-to see what drivers are available (you may need to install the tool via `sudo apt-get install ubuntu-drivers-common` and update the package database via `sudo apt update`). You should see an output like this:  
-```
-...
-vendor   : NVIDIA Corporation
-model    : GK210GL [Tesla K80]
-driver   : nvidia-driver-450-server - distro non-free recommended
-driver   : nvidia-driver-418-server - distro non-free
-driver   : nvidia-driver-440-server - distro non-free
-driver   : nvidia-driver-435 - distro non-free
-driver   : nvidia-driver-450 - distro non-free
-driver   : nvidia-driver-390 - distro non-free
-driver   : xserver-xorg-video-nouveau - distro free builtin
-```
-2. Run  
-`sudo apt install nvidia-driver-450-server`  
+
+1. Run
+`ubuntu-drivers devices`
+to see what drivers are available (you may need to install the tool via `sudo apt-get install ubuntu-drivers-common` and update the package database via `sudo apt update`). You should see an output like this:
+
+   ```text
+   ...
+   vendor   : NVIDIA Corporation
+   model    : GK210GL [Tesla K80]
+   driver   : nvidia-driver-450-server - distro non-free recommended
+   driver   : nvidia-driver-418-server - distro non-free
+   driver   : nvidia-driver-440-server - distro non-free
+   driver   : nvidia-driver-435 - distro non-free
+   driver   : nvidia-driver-450 - distro non-free
+   driver   : nvidia-driver-390 - distro non-free
+   driver   : xserver-xorg-video-nouveau - distro free builtin
+   ```
+
+2. Run
+`sudo apt install nvidia-driver-450-server`
 (or whichever is the recommended in your case)
 3. Reboot your system
 
 At this point you should be able to run the `nvidia-smi` tool and PyTorch should be able to communicate with the GPU
 
 #### CentOS/RHEL
-1. Add NVidia repository to your config manager  
-`sudo dnf config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel8/x86_64/cuda-rhel8.repo` (if you are running RHEL8, otherwise you can get the URL for your repo from here: https://developer.download.nvidia.com/compute/cuda/repos/)
-2. Clean repository cache via  
+
+1. Add NVIDIA repository to your config manager
+`sudo dnf config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel8/x86_64/cuda-rhel8.repo` (if you are running RHEL8, otherwise you can get the URL for your repo on the [NVIDIA dev site](https://developer.download.nvidia.com/compute/cuda/repos/))
+2. Clean repository cache via
 `sudo dnf clean all`
-3. Install drivers  
-`sudo dnf -y module install nvidia-driver:latest-dkms`  
+3. Install drivers
+`sudo dnf -y module install nvidia-driver:latest-dkms`
 4. Reboot your system
 
 At this point you should be able to run the `nvidia-smi` tool and PyTorch should be able to communicate with the GPU
 
-You can find instructions for other Linux distributions on NVidia website: https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html 
-
-# More Details for Tool Setup
-The following steps describe how to set up specific tools. You can execute most of those at a later
-point, if you want to dig deeper into the code.
-
-## PyCharm
-
-Our team uses [PyCharm](https://www.jetbrains.com/pycharm/) for development, but any good editor 
-([VSCode](https://code.visualstudio.com/) for example) will do as well.
-
-This repository already contains a PyCharm configuration file in `.idea/InnerEye-DeepLearning.iml`. It should 
-automatically pick the WSL Python interpreter (see [WSL.md](WSL.md)) as the default (no need to import the settings file)
-- if it doesn't happen you will need to adjust that as described [here](https://www.jetbrains.com/help/pycharm/configuring-python-interpreter.html).
-
-
-## How to manually set up flake8 as a PyCharm external tool
-
-Go to File / Settings / Tools / External Tools / Add.
-
-    * Name: Flake8
-    * Program: $PyInterpreterDirectory$/python
-    * Arguments: -m flake8 $ProjectFileDir$
-    * Working directory: $ProjectFileDir$
-    * Advanced Options / Output Filters: $FILE_PATH$\:$LINE$\:$COLUMN$\:.*
-
-Run Flake8 by right-clicking on a source file, External Tools / Flake8
-
-## How to manually set up mypy as a PyCharm external tool
-
-Go to File / Settings / Tools / External Tools / Add.
-
-    * Name: mypy
-    * Program: $PyInterpreterDirectory$/python
-    * Arguments: $ProjectFileDir$/mypy_runner.py -m <path to mypy executable>
-      You can find the path to the mypy executable by typing `where mypy` on Windows or `which mypy` on Linux.
-      If you have configured a virtual environment in PyCharm, the path will usually be 
-      `$PyInterpreterDirectory$/Scripts/mypy.exe` on Windows and `$PyInterpreterDirectory$/mypy` on Linux.
-    * Working directory: $ProjectFileDir$
-    * Advanced Options / Output Filters: $FILE_PATH$\:$LINE$\:.*
-
-Run mypy by right-clicking on a source file, External Tools / mypy
-
-## Deleting and creating a Conda environment
-
-To delete, make sure the environment being deleted is not your current environment (just run `deactivate`). Then run 
-`conda env remove --name environmentToDelete`.
-
-To create an environment from scratch and then export it to a YAML file:
-
-    conda create --name envName python
-    pip install whatEverPackage
-    pip install packageWithVersion==1.0.42
-    conda env export --no-builds --file=my_env.yml
-
-With conda installation, the Apex library is built without the C++ files that are intended be used in backend-op
-computations such as fused_adam and fused_layernorm. This is mainly because we are unable to pass the
-required input install arguments to the setup file through a conda environment file. By building the library with
-these arguments, one could expect further speed-ups in both forward-backward model passes. If you are interested in
-installing Apex with these flags, please run the following commands in your shell:
-
-    git clone https://github.com/NVIDIA/apex; cd apex
-    git checkout 880ab925bce9f817a93988b021e12db5f67f7787
-    pip install -v --no-cache-dir --global-option="--cpp_ext" --global-option="--cuda_ext" .
-
-## Conda updates
-
-In order to update the Conda environment, you can go down two routes:
-1. You can manually edit the existing `environment.yml` file to force specific (newer) versions of an existing package.
-You can do this, for example, to force an update of the `azureml-sdk` and all its contained packages, or `pytorch`
-1. Or you can manually add and update packages, and later export the updated environment to a `yml` file.
-
-If you want to take the second route:
-1. Use `conda env update -f environment.yml --prune` to refresh if you make changes in environment.yml
-1. To update packages use `conda update --all` and `pip-review --local --interactive`
-
-
-## Using the hi-ml package
-
-To work on `hi-ml` package at the same time as `InnerEye-DeepLearning`, it can help to add the `hi-ml` package
-as a submodule, rather than a package from pypi. Any change to the package will require a full new docker image build,
-and that costs 20min per run.
-
-* In the repository root, run `git submodule add https://github.com/microsoft/hi-ml`
-* In PyCharm's project browser, mark the folders `hi-ml/hi-ml/src` and `hi-ml/hi-ml-azure/src` as Sources Root
-* Remove the entry for the `hi-ml` and `hi-ml-azure` packages from `environment.yml`
-* There is already code in `InnerEye.Common.fixed_paths.add_submodules_to_path` that will pick up the submodules and
-  add them to `sys.path`.
-
-Once you are done testing your changes:
-* Remove the entry for `hi-ml` from `.gitmodules` 
-* Execute these steps from the repository root:
-```shell
-git submodule deinit -f hi-ml
-rm -rf hi-ml
-rm -rf .git/modules/hi-ml
-```
-
-Alternatively, you can consume a developer version of `hi-ml` from `test.pypi`:
-* Remove the entry for the `hi-ml` package from `environment.yml`
-* Add a section like this to `environment.yml`, to point pip to `test.pypi`, and a specific version of th package:
-```
-  ...
-  - pip:
-      - --extra-index-url https://test.pypi.org/simple/
-      - hi-ml==0.1.0.post236
-      ...
-```
+You can find instructions for other Linux distributions on the [NVIDIA website](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html)
