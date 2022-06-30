@@ -733,6 +733,7 @@ class MLRunner:
         else:
             raise NotImplementedError("are_sibling_runs_finished only works for cross validation runs in AzureML.")
 
+    @torch.no_grad()
     def create_ensemble_model_and_run_inference(self) -> None:
         """
         Create an ensemble model from the results of the sibling runs of the present run. The present run here will
@@ -753,6 +754,8 @@ class MLRunner:
                 self.register_model(checkpoint_handler.get_best_checkpoints(), ModelProcessing.ENSEMBLE_CREATION)
 
         if not self.azure_config.only_register_model:
+            if is_global_rank_zero():
+                torch.cuda.empty_cache()
             self.run_inference(checkpoint_paths=checkpoint_handler.get_checkpoints_to_test(),
                                model_proc=ModelProcessing.ENSEMBLE_CREATION)
 
