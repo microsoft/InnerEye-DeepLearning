@@ -78,7 +78,7 @@ dependencies:
     - async-timeout==4.0.2
     - attrs==22.1.0
     - azure-common==1.1.28
-    - azure-core==1.25.0
+    - azure-core==1.24.2
     - azure-graphrbac==0.61.1
     - azure-identity==1.7.0
     - azure-mgmt-authorization==0.61.0
@@ -113,7 +113,7 @@ dependencies:
     - bleach==5.0.1
     - cachetools==4.2.4
     - cffi==1.15.1
-    - charset-normalizer==2.1.1
+    - charset-normalizer==2.1.0
     - click==8.1.3
     - cloudpickle==1.6.0
     - colorama==0.4.5
@@ -151,9 +151,9 @@ dependencies:
     - grpcio==1.47.0
     - gunicorn==20.1.0
     - h5py==2.10.0
-    - hi-ml==0.2.2
-    - hi-ml-azure==0.2.2
-    - humanize==4.3.0
+    - hi-ml==0.2.3
+    - hi-ml-azure==0.2.3
+    - humanize==4.2.3
     - idna==3.3
     - imageio==2.15.0
     - imagesize==1.4.1
@@ -182,9 +182,8 @@ dependencies:
     - kiwisolver==1.4.4
     - lightning-bolts==0.4.0
     - llvmlite==0.34.0
-    - lxml==4.9.1
     - mako==1.2.1
-    - markdown==3.4.1
+    - markdown==3.3.7
     - markupsafe==2.1.1
     - marshmallow==3.17.1
     - marshmallow-enum==1.5.1
@@ -201,8 +200,8 @@ dependencies:
     - msrestazure==0.6.4
     - multidict==6.0.2
     - mypy-extensions==0.4.3
-    - nbclient==0.6.7
-    - nbconvert==7.0.0
+    - nbclient==0.6.6
+    - nbconvert==6.5.0
     - nbformat==5.4.0
     - ndg-httpsclient==0.5.1
     - nest-asyncio==1.5.5

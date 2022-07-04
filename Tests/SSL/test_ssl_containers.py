@@ -311,7 +311,7 @@ def test_simclr_training_recovery(test_output_dirs: OutputFolderForTests) -> Non
         checkpoint_folder = test_output_dirs.create_file_or_folder_path("checkpoints")
         checkpoint_folder.mkdir(exist_ok=True)
         checkpoint = ModelCheckpoint(dirpath=checkpoint_folder,
-                                    every_n_val_epochs=1,
+                                    every_n_epochs=1,
                                     save_last=True)
 
         trainer = Trainer(default_root_dir=str(test_output_dirs.root_dir),
@@ -359,7 +359,7 @@ def test_online_evaluator_recovery(test_output_dirs: OutputFolderForTests) -> No
     checkpoint_folder = test_output_dirs.create_file_or_folder_path("checkpoints")
     checkpoint_folder.mkdir(exist_ok=True)
     checkpoints = ModelCheckpoint(dirpath=checkpoint_folder,
-                                  every_n_val_epochs=1,
+                                  every_n_epochs=1,
                                   save_last=True)
     # Create a first callback, that will be used in training.
     callback1 = SSLOnlineEvaluatorInnerEye(class_weights=None,

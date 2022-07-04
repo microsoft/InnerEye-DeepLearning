@@ -120,7 +120,7 @@ def create_lightning_trainer(container: LightningContainer,
                                                save_top_k=0)
     recovery_checkpoint_callback = ModelCheckpoint(dirpath=str(container.checkpoint_folder),
                                                    filename=AUTOSAVE_CHECKPOINT_FILE_NAME,
-                                                   every_n_val_epochs=container.autosave_every_n_val_epochs,
+                                                   every_n_epochs=container.autosave_every_n_val_epochs,
                                                    save_last=False)
     callbacks: List[Callback] = [
         last_checkpoint_callback,
