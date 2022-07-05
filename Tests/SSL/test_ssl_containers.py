@@ -469,7 +469,6 @@ def test_online_evaluator_distributed() -> None:
             trainer = Trainer(strategy="ddp", num_processes=2)
             # Test the two flags that the internal logic of on_pretrain_routine_start uses
             assert trainer._accelerator_connector.is_distributed
-            assert trainer._accelerator_connector.use_ddp
             callback.on_pretrain_routine_start(trainer, mock_module)
             # Check that SyncBatchNorm has been turned on
             mock_sync.assert_called_once()
