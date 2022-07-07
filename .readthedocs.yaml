@@ -8,7 +8,7 @@ build:
    tools:
       python: "3.8"
    jobs:
-      conda_install:
+      pre_create_environment:
          - conda env create --file environment.yml && conda activate InnerEye
 
 sphinx:
