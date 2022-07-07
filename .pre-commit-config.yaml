@@ -4,6 +4,8 @@
 
 ci:
   autofix_prs: false
+  autoupdate_commit_msg: "ENH: Autoupdate hooks [pre-commit.ci]"
+  autoupdate_schedule: monthly
 
 repos:
 - repo: https://github.com/pre-commit/pre-commit-hooks
