@@ -1,5 +1,3 @@
-hi-ml-azure
-sphinx==4.5.0
+sphinx==5.0.2
 sphinx-rtd-theme==1.0.0
 recommonmark==0.7.1
-torchvision==0.11.1
