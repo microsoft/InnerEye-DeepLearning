@@ -289,7 +289,7 @@ class InnerEyeLightning(LightningModule):
         This hook is called at the very end of training. Use that to write the very last set of training and
         validation metrics from the StoringLogger to disk.
         """
-        self.read_epoch_results_from_logger_and_store(epoch=self.current_epoch)
+        self.read_epoch_results_from_logger_and_store(epoch=self.current_epoch-1)
 
     @rank_zero_only
     def read_epoch_results_from_logger_and_store(self, epoch: int) -> None:
