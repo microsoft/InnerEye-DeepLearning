@@ -43,10 +43,6 @@ def create_model_and_store_checkpoint(config: ModelConfigBase, checkpoint_path: 
     if machine_has_gpu:
         model = model.cuda()  # type: ignore
     trainer.model = model
-    # Before saving, the values for epoch and step are incremented. Save them here in such a way that we can assert
-    # easily later. We can't mock that because otherwise the mock object would be written to disk (that fails)
-    trainer.fit_loop.current_epoch = FIXED_EPOCH - 1  # type: ignore
-    trainer.fit_loop.global_step = FIXED_GLOBAL_STEP - 1  # type: ignore
     # In PL, it is the Trainer's responsibility to save the model. Checkpoint handling refers back to the trainer
     # to get a save_func. Mimicking that here.
     trainer.save_checkpoint(checkpoint_path, weights_only=weights_only)
@@ -74,9 +70,6 @@ def test_create_model_from_lightning_checkpoint(test_output_dirs: OutputFolderFo
         assert config._train_output_size is None
     # method to get all devices of a model
     loaded_model = load_from_checkpoint_and_adjust_for_inference(config, checkpoint_path)
-    # Information about epoch and global step must be present in the message that on_checkpoint_load writes
-    assert str(FIXED_EPOCH) in loaded_model.checkpoint_loading_message
-    assert str(FIXED_GLOBAL_STEP) in loaded_model.checkpoint_loading_message
     assert loaded_model is not None
     if isinstance(config, SegmentationModelBase):
         assert config._test_output_size is not None
