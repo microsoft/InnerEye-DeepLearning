@@ -333,7 +333,7 @@ def extract_access_tokens(text: str) -> Dict[str, str]:
     :return:
     """
     result: Dict[str, str] = {}
-    for match in re.finditer(r'(https://fastmri-dataset.s3.amazonaws.com/)([._a-zA-Z0-9]+)(\?[a-zA-Z0-9=&%]+)', text):
+    for match in re.finditer(r'(https://fastmri-dataset\.s3\.amazonaws\.com/)([._a-zA-Z0-9]+)(\?[a-zA-Z0-9=&%]+)', text):
         file = match.group(2)
         token = match.group(3)
         if file in result:
