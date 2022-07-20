@@ -4,7 +4,7 @@
 
 We recommend using our toolbox with [Ubuntu 20.04 LTS](https://releases.ubuntu.com/20.04/).  Most core InnerEye functionality will be stable on other operating systems, but PyTorch's full feature set is only available on Linux. All jobs in AzureML, both training and inference, run from an Ubuntu 20.04 Docker image. This means that using Ubuntu 20.04 locally allows for maximum reproducibility between your local and AzureML environments.
 
-For Windows users, Ubuntu can be set up with [Windows Subsystem for Linux (WSL)](https://docs.microsoft.com/en-us/windows/wsl/install). Please refer to the [InneryEye WSL docs](docs/WSL.md) for more detailed instructions on getting WSL set up.
+For Windows users, Ubuntu can be set up with [Windows Subsystem for Linux (WSL)](https://docs.microsoft.com/en-us/windows/wsl/install). Please refer to the [InneryEye WSL docs](/docs/WSL.md) for more detailed instructions on getting WSL set up.
 
 MacOS users can access an Ubuntu OS through [VirtualBox](https://www.virtualbox.org/wiki/Downloads).
 
