@@ -9,33 +9,33 @@ InnerEye-DeepLearning Documentation
 .. toctree::
    :maxdepth: 1
 
-   md/README.md
-   md/docs/WSL.md
-   md/docs/environment.md
-   md/docs/setting_up_aml.md
-   md/docs/creating_dataset.md
-   md/docs/building_models.md
-   md/docs/sample_tasks.md
-   md/docs/debugging_and_monitoring.md
+   docs/README.md
+   docs/WSL.md
+   docs/environment.md
+   docs/setting_up_aml.md
+   docs/creating_dataset.md
+   docs/building_models.md
+   docs/sample_tasks.md
+   docs/debugging_and_monitoring.md
 
 .. toctree::
    :maxdepth: 1
    :caption: Further reading for contributors
 
-   md/docs/pull_requests.md
-   md/docs/testing.md
-   md/docs/contributing.md
+   docs/pull_requests.md
+   docs/testing.md
+   docs/contributing.md
 
-   md/docs/hello_world_model.md
-   md/docs/deploy_on_aml.md
-   md/docs/bring_your_own_model.md
-   md/docs/fastmri.md
-   md/docs/innereye_as_submodule.md
-   md/docs/model_diagnostics.md
-   md/docs/move_model.md
-   md/docs/releases.md
-   md/docs/self_supervised_models.md
-   md/CHANGELOG.md
+   docs/hello_world_model.md
+   docs/deploy_on_aml.md
+   docs/bring_your_own_model.md
+   docs/fastmri.md
+   docs/innereye_as_submodule.md
+   docs/model_diagnostics.md
+   docs/move_model.md
+   docs/releases.md
+   docs/self_supervised_models.md
+   docs/CHANGELOG.md
 
 .. toctree::
    :caption: API documentation

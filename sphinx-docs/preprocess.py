@@ -18,20 +18,14 @@ def replace_in_file(filepath: Path, original_str: str, replace_str: str) -> None
 if __name__ == '__main__':
     sphinx_root = Path(__file__).absolute().parent
     repository_root = sphinx_root.parent
-    markdown_root = sphinx_root / "source" / "md"
+    docs_root = sphinx_root / "source" / "docs"
     repository_url = "https://github.com/microsoft/InnerEye-DeepLearning"
 
-    # Create directories source/md and source/md/docs where files will be copied to
-    if markdown_root.exists():
-        shutil.rmtree(markdown_root)
-    markdown_root.mkdir()
-
     # copy README.md and doc files
-    shutil.copy(repository_root / "README.md", markdown_root)
-    shutil.copy(repository_root / "CHANGELOG.md", markdown_root)
-    shutil.copytree(repository_root / "docs", markdown_root / "docs")
+    shutil.copy(repository_root / "README.md", docs_root)
+    shutil.copy(repository_root / "CHANGELOG.md", docs_root)
 
     # replace links to files in repository with urls
-    md_files = markdown_root.rglob("*.md")
+    md_files = docs_root.rglob("*.md")
     for filepath in md_files:
         replace_in_file(filepath, "](/", f"]({repository_url}/blob/main/")
