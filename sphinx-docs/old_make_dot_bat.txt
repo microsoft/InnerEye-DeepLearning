@@ -27,6 +27,7 @@ if errorlevel 9009 (
 
 REM Do some preprocessing, including copying over md files to the source directory so sphinx can find them,
 REM and changing references to codefiles in md files to urls.
+echo TEST PETER PRINTING
 python preprocess.py
 
 %SPHINXBUILD% -M %1 %SOURCEDIR% %BUILDDIR% %SPHINXOPTS% %O%
