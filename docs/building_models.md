@@ -188,8 +188,9 @@ The model id is of the form "model_name:model_version". Thus your command should
 python Inner/ML/runner.py --azureml --model=Prostate --cluster=my_cluster_name \
    --no-train --model_id=Prostate:1
 ```
+
 To evaluate the model on your own Azure ML Dataset, you can override the default dataset by adding the flag
-`--azure_dataset_id=<my dataset id>`. To specify multiple Datasets, you can additionally use the flag `--extra_azure_dataset_ids`
+`--azure_dataset_id=<my dataset id>`. To specify more than one dataset, you can additionally add the flag `--extra_azure_dataset_ids` to specify the rest.
 
 
 ### From local checkpoints
