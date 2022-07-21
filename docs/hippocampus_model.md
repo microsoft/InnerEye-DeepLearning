@@ -19,9 +19,18 @@ The saved weights from the trained Hippocampus model can be downloaded along wit
 ### Registering a model in Azure ML
 To evaluate the model in Azure ML, you must first [resgister an Azure ML Model](https://docs.microsoft.com/en-us/python/api/azureml-core/azureml.core.model.model?view=azure-ml-py#remarks). To register the Hippocampus model in your AML Workspace, unpack the source code downloaded in the previous step and follow the instructions to run InnerEye's [move_model.py](https://github.com/microsoft/InnerEye-DeepLearning/blob/main/docs/move_model.md) script in the `-a=upload` direction.
 
-i.e.
 ```shell
-python InnerEye/Scripts/move_model.py -a upload --path ./ --workspace_name <workspace_name> --resource_group <resource_group> --subscription_id <subscription_id> --model_id Hippocampus:111
+WORKSPACE="fill with your workspace name"
+GROUP="fill with your resource group name"
+SUBSCRIPTION="fill with your subscription ID"
+
+python InnerEye/Scripts/move_model.py \
+    --action upload \
+    --path . \
+    --workspace_name $WORKSPACE \
+    --resource_group $GROUP \
+    --subscription_id $SUBSCRIPTION \
+    --model_id Hippocampus:111
 ```
 ### Evaluating the model
 You can evaluate the model either in Azure ML  or locally using the downloaded checkpoint files. These 2 scenarios are described in more detail, along with instructions in  [testing an existing model](https://github.com/microsoft/InnerEye-DeepLearning/blob/main/docs/building_models.md#testing-an-existing-model).
