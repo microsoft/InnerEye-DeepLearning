@@ -16,6 +16,7 @@
 # documentation root, make it absolute.
 #
 import sys
+import shutil
 from pathlib import Path
 repo_dir = Path(__file__).absolute().parents[2]
 sys.path.insert(0, str(repo_dir))
@@ -84,3 +85,14 @@ autodoc_default_options = {
     'members': True,
     'undoc-members': True,
 }
+
+
+# -- Copy markdown files to source directory --------------------------------
+
+sphinx_root = Path(__file__).absolute().parent
+repository_root = sphinx_root.parent.parent
+repository_url = "https://github.com/microsoft/InnerEye-DeepLearning"
+
+# Copy all markdown files to the markdown directory
+shutil.copy(repository_root / "README.md", sphinx_root / "docs")
+shutil.copy(repository_root / "CHANGELOG.md", sphinx_root / "docs")
