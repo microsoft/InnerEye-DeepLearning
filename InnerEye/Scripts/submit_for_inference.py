@@ -14,7 +14,7 @@ innereye_root = Path(__file__).resolve().parent.parent.parent
 if (innereye_root / "InnerEye").is_dir():
     innereye_root_str = str(innereye_root)
     if innereye_root_str not in sys.path:
-        print(f"Adding InnerEye folder to sys.path: {innereye_root_str}")
+        logging.info("Adding InnerEye folder to sys.path: %s", innereye_root_str)
         sys.path.insert(0, innereye_root_str)
 
 import param
