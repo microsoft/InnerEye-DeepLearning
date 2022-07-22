@@ -89,10 +89,25 @@ autodoc_default_options = {
 
 # -- Copy markdown files to source directory --------------------------------
 
+def replace_in_file(filepath: Path, original_str: str, replace_str: str) -> None:
+    """
+    Replace all occurences of the original_str with replace_str in the file provided.
+    """
+    text = filepath.read_text()
+    text = text.replace(original_str, replace_str)
+    filepath.write_text(text)
+
 sphinx_root = Path(__file__).absolute().parent
+docs_path = Path(sphinx_root / "docs")
 repository_root = sphinx_root.parent.parent
 repository_url = "https://github.com/microsoft/InnerEye-DeepLearning"
 
 # Copy all markdown files to the markdown directory
-shutil.copy(repository_root / "README.md", sphinx_root / "docs")
-shutil.copy(repository_root / "CHANGELOG.md", sphinx_root / "docs")
+shutil.copy(repository_root / "README.md", docs_path)
+shutil.copy(repository_root / "CHANGELOG.md", docs_path)
+
+# replace links to files in repository with urls
+md_files = docs_path.rglob("*.md")
+print(f"MY FILES: {[f for f in md_files]}")
+for filepath in md_files:
+    replace_in_file(filepath, "](/", f"]({repository_url}/blob/main/")
