@@ -24,8 +24,9 @@ Requirements: Windows 10 version 2004 or higher
 To use the commandline setup, please first install
 [winget via the appxbundle](https://github.com/microsoft/winget-cli/releases).
 
-Optionally, restart your machine and in PowerShell as Administrator type:
+Optionally, restart your machine
 
+In PowerShell as Administrator type:
 ```
 wsl --install
 ```
@@ -43,7 +44,11 @@ $> wsl --list -v
 * Ubuntu-20.04    Running         2
 ```
 
-Note the "2" in Version column.
+Note the "2" in Version column. 
+
+The instructions are [here](https://docs.microsoft.com/en-us/windows/wsl/install), but summarized in copy/paste-able form above. Optionally, you can install via the UI, pick Ubuntu version 20.04 LTS as your distribution.
+
+Then, you can start the Ubuntu either directly or starting the window using the terminal.
 
 ## Install git and Anaconda
 
