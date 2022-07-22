@@ -36,7 +36,7 @@ if __name__ == '__main__':
 
 ## Creating the model configuration
 
-You will find a variety of model configurations [here](/InnerEye/ML/configs/segmentation). Those not ending
+You will find a variety of model configurations [here](https://github.com/microsoft/InnerEye-DeepLearning/tree/main/InnerEye/ML/configs/segmentation). Those not ending
 in `Base.py` reference open-sourced data and can be used as they are. Those ending in `Base.py`
 are partially specified, and can be used by having other model configurations inherit from them and supply the missing
 parameter values: a dataset ID at least, and optionally other values. For example, a `Prostate` model might inherit
@@ -54,7 +54,7 @@ class Prostate(ProstateBase):
             azure_dataset_id="name-of-your-AML-dataset-with-prostate-data")
 ```
 
-The allowed parameters and their meanings are defined in [`SegmentationModelBase`](/InnerEye/ML/config.py).
+The allowed parameters and their meanings are defined in [`SegmentationModelBase`](https://github.com/microsoft/InnerEye-DeepLearning/tree/main/InnerEye/ML/config.py).
 The class name must be the same as the basename of the file containing it, so `Prostate.py` must contain `Prostate`.
 In `settings.yml`, set `model_configs_namespace` to `InnerEyeLocal.ML.configs` so this config
 is found by the runner.
@@ -253,7 +253,7 @@ and the generated posteriors are passed to the usual model testing downstream pi
 ### Interpreting results
 
 Once your HyperDrive AzureML runs are completed, you can visualize the results by running the
-[`plot_cross_validation.py`](/InnerEye/ML/visualizers/plot_cross_validation.py) script locally:
+[`plot_cross_validation.py`](https://github.com/microsoft/InnerEye-DeepLearning/tree/main/InnerEye/ML/visualizers/plot_cross_validation.py) script locally:
 
 ```shell
 python InnerEye/ML/visualizers/plot_cross_validation.py --run_recovery_id ... --epoch ...
@@ -266,8 +266,8 @@ find them in the production portal, and run statistical tests to compute the sig
 across the splits and with respect to other runs that you specify. This is done for you during
  the run itself (see below), but you can use the script post hoc to compare arbitrary runs
  with each other. Details of the tests can be found
-in [`wilcoxon_signed_rank_test.py`](/InnerEye/Common/Statistics/wilcoxon_signed_rank_test.py)
-and [`mann_whitney_test.py`](/InnerEye/Common/Statistics/mann_whitney_test.py).
+in [`wilcoxon_signed_rank_test.py`](https://github.com/microsoft/InnerEye-DeepLearning/tree/main/InnerEye/Common/Statistics/wilcoxon_signed_rank_test.py)
+and [`mann_whitney_test.py`](https://github.com/microsoft/InnerEye-DeepLearning/tree/main/InnerEye/Common/Statistics/mann_whitney_test.py).
 
 ## Where are my outputs and models?
 

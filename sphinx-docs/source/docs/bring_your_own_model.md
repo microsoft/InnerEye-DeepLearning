@@ -126,7 +126,7 @@ from disk. When specifying a number of workers, it will spawn processes that pre
 into a queue, ready for the GPU to pick it up when it is done processing the current minibatch.
 
 For more details, please see the documentation for
-[DataLoader](https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader). There is also a
+[DataLoader](https://pytorch.org/stable/data.html#torch.utils.data.DataLoader). There is also a
 [tutorial describing the foundations of datasets and
 data loaders](https://pytorch.org/tutorials/beginner/basics/data_tutorial.html)
 

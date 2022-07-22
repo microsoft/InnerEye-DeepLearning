@@ -9,4 +9,4 @@ If your code relies on specific functions inside the InnerEye code base, you sho
 The current InnerEye codebase is not published as a Python package, and hence does not have implicit version numbers.
 We are applying tagging instead, with increases corresponding to what otherwise would be major/minor versions.
 
-Please refer to the [Changelog](../CHANGELOG.md) for an overview of recent changes.
+Please refer to the [Changelog](https://github.com/microsoft/InnerEye-DeepLearning/blob/main/CHANGELOG.md) for an overview of recent changes.

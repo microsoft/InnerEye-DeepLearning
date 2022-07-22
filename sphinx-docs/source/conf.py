@@ -89,11 +89,25 @@ autodoc_default_options = {
 
 # -- Copy markdown files to source directory --------------------------------
 
+def replace_in_file(filepath: Path, original_str: str, replace_str: str) -> None:
+    """
+    Replace all occurences of the original_str with replace_str in the file provided.
+    """
+    text = filepath.read_text()
+    text = text.replace(original_str, replace_str)
+    filepath.write_text(text)
+
 
 sphinx_root = Path(__file__).absolute().parent
 docs_path = Path(sphinx_root / "docs")
 repository_root = sphinx_root.parent.parent
 
 # Copy all markdown files to the markdown directory
-shutil.copy(repository_root / "README.md", docs_path)
-shutil.copy(repository_root / "CHANGELOG.md", docs_path)
+files_to_copy = ["README.md", "CHANGELOG.md", "LICENSE"]
+for file_to_copy in files_to_copy:
+    shutil.copy(repository_root / file_to_copy, docs_path)
+
+# replace links to files in repository with urls
+md_files = docs_path.rglob("*.md")
+for filepath in md_files:
+    replace_in_file(filepath, "docs/", "")

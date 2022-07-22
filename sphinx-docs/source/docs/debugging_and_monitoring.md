@@ -2,7 +2,7 @@
 
 ## Using TensorBoard to monitor AzureML jobs
 
-* **Existing jobs**: execute [`InnerEye/Azure/tensorboard_monitor.py`](/InnerEye/Azure/tensorboard_monitor.py)
+* **Existing jobs**: execute [`InnerEye/Azure/tensorboard_monitor.py`](https://github.com/microsoft/InnerEye-DeepLearning/tree/main/InnerEye/Azure/tensorboard_monitor.py)
 with either an experiment id `--experiment_name` or a list of run ids `--run_ids job1,job2,job3`.
 If an experiment id is provided then all of the runs in that experiment will be monitored. Additionally You can also
 filter runs by type by the run's status, setting the `--filters Running,Completed` parameter to a subset of
@@ -27,9 +27,9 @@ well as a separate TensorBoard logs file under `Diagnostics`.
 For full debugging of any non-trivial model, you will need a GPU. Some basic debugging can also be carried out on
 standard Linux or Windows machines.
 
-The main entry point into the code is [`InnerEye/ML/runner.py`](/InnerEye/ML/runner.py). The code takes its
+The main entry point into the code is [`InnerEye/ML/runner.py`](https://github.com/microsoft/InnerEye-DeepLearning/tree/main/InnerEye/ML/runner.py). The code takes its
 configuration elements from commandline arguments and a settings file,
-[`InnerEye/settings.yml`](/InnerEye/settings.yml).
+[`InnerEye/settings.yml`](https://github.com/microsoft/InnerEye-DeepLearning/tree/main/InnerEye/settings.yml).
 
 A password for the (optional) Azure Service
 Principal is read from `InnerEyeTestVariables.txt` in the repository root directory. The file

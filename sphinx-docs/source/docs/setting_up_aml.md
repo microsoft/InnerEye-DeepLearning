@@ -12,7 +12,7 @@ In short, you will need to:
 * Optional: Register your application to create a Service Principal Object.
 * Optional: Set up a storage account to store your datasets. You may already have such a storage account, or you may
 want to re-use the storage account that is created with the AzureML workspace - in both cases, you can skip this step.
-* Update your [settings.yml](/InnerEye/settings.yml) file and KeyVault with your own credentials.
+* Update your [settings.yml](https://github.com/microsoft/InnerEye-DeepLearning/tree/main/InnerEye/settings.yml) file and KeyVault with your own credentials.
 
 Once you're done with these steps, you will be ready for the next steps described in [Creating a dataset](https://github.com/microsoft/InnerEye-createdataset),
 [Building models in Azure ML](building_models.md) and
@@ -43,7 +43,7 @@ need to be kept inside of the UK)
 
 You can invoke the deployment also by going to [Azure](https://ms.portal.azure.com/#create/Microsoft.Template),
 selecting "Build your own template", and in the editor upload the
-[json template file](/azure-pipelines/azure_deployment_template.json) included in the repository.
+[json template file]([/azure-pipelines/azure_deployment_template.json](https://github.com/microsoft/InnerEye-DeepLearning/blob/main/azure-pipelines/azure_deployment_template.json) included in the repository.
 
 ### Step 1: Create an AzureML workspace
 

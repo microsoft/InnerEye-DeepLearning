@@ -58,7 +58,7 @@ This example is based on the [Lung CT Segmentation Challenge 2017](https://wiki.
 
 ### Downloading and preparing the lung dataset
 
-The dataset <sup>[[3]][#3]([4)](#4)</sup> can be downloaded [here](https://wiki.cancerimagingarchive.net/display/Public/Lung+CT+Segmentation+Challenge+2017#021ca3c9a0724b0d9df784f1699d35e2).
+The dataset <sup>[[3]][#3]([4](#4)</sup> can be downloaded [here](https://wiki.cancerimagingarchive.net/display/Public/Lung+CT+Segmentation+Challenge+2017#021ca3c9a0724b0d9df784f1699d35e2).
 
 You need to convert the dataset from DICOM-RT to NIFTI. Before this, place the downloaded dataset in another
  parent folder, which we will call `datasets`. This file structure is expected by the conversion tool.
