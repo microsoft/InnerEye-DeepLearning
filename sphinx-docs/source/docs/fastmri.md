@@ -91,7 +91,7 @@ Hence, after the downloading completes, you are ready to use the InnerEye toolbo
 the FastMRI data.
 
 There are 2 example models already coded up in the InnerEye toolbox, defined in
-[fastmri_varnet.py](../../../InnerEye/ML/configs/other/fastmri_varnet.py): `KneeMulticoil` and
+[fastmri_varnet.py](https://github.com/microsoft/InnerEye-DeepLearning/tree/main/InnerEye/ML/configs/other/fastmri_varnet.py): `KneeMulticoil` and
 `BrainMulticoil`. As with all InnerEye models, you can start a training run by specifying the name of the class
 that defines the model, like this:
 
@@ -204,7 +204,7 @@ The code will recognize that an Azure dataset named `brain_multicoil` is already
 and skip the download.
 
 If you choose to download the dataset to a different folder, for example `/foo/brain_multicoil`, you will need to
-make a small adjustment to the model in [fastmri_varnet.py](../../../InnerEye/ML/configs/other/fastmri_varnet.py),
+make a small adjustment to the model in [fastmri_varnet.py](https://github.com/microsoft/InnerEye-DeepLearning/tree/main/InnerEye/ML/configs/other/fastmri_varnet.py),
 and add the `local_dataset` argument like this:
 
 ```python

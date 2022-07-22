@@ -179,7 +179,7 @@ create a container called "datasets".
 
 ### Step 6: Update the variables in `settings.yml`
 
-The [settings.yml](../../../InnerEye/settings.yml) file is used to store your Azure setup. In order to be able to
+The [settings.yml](https://github.com/microsoft/InnerEye-DeepLearning/tree/main/InnerEye/settings.yml) file is used to store your Azure setup. In order to be able to
 train your model you will need to update this file using the settings for your Azure subscription.
 
 1. You will first need to retrieve your `tenant_id`. You can find your tenant id by navigating to
@@ -188,7 +188,7 @@ resource. Copy and paste the GUID to the `tenant_id` field of the `.yml` file. M
 [here](https://docs.microsoft.com/en-us/azure/active-directory/develop/quickstart-create-new-tenant).
 1. You then need to retrieve your subscription id. In the search bar look for `Subscriptions`. Then in the subscriptions list,
 look for the subscription you are using for your workspace. Copy the value of the `Subscription ID` in the corresponding
-field of [settings.yml](../../../InnerEye/settings.yml).
+field of [settings.yml](https://github.com/microsoft/InnerEye-DeepLearning/tree/main/InnerEye/settings.yml).
 1. Copy the application ID of your Service Principal that you retrieved earlier (cf. Step 3) to the `application_id` field.
 If you did not set up a Service Principal, fill that with an empty string or leave out altogether.
 1. Update the `resource_group:` field with your resource group name (created in Step 1).

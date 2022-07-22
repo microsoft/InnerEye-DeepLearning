@@ -314,7 +314,7 @@ the `metrics.csv` files of the current run and the comparison run(s).
   between the current run and any specified baselines (earlier runs) to compare with. Each paragraph of that file compares two models and
   indicates, for each structure, when the Dice scores for the second model are significantly better
   or worse than the first. For full details, see the
-  [source code](../../../InnerEye/Common/Statistics/wilcoxon_signed_rank_test.py).
+  [source code](https://github.com/microsoft/InnerEye-DeepLearning/tree/main/InnerEye/Common/Statistics/wilcoxon_signed_rank_test.py).
   * A directory `scatterplots`, containing a `png` file for every pairing of the current model
   with one of the baselines. Each one is named `AAA_vs_BBB.png`, where `AAA` and `BBB` are the run IDs
   of the two models. Each plot shows the Dice scores on the test set for the models.

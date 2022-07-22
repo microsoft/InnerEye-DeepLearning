@@ -17,7 +17,7 @@ be used for training and testing.
 - Invoking the InnerEye runner and providing the name of the container class, like this:
 `python InnerEye/ML/runner.py --model=MyContainer`. To train in AzureML, just add a `--azureml` flag.
 
-There is a fully working example [HelloContainer](../../../InnerEye/ML/configs/other/HelloContainer.py), that implements
+There is a fully working example [HelloContainer](https://github.com/microsoft/InnerEye-DeepLearning/tree/main/InnerEye/ML/configs/other/HelloContainer.py), that implements
 a simple 1-dimensional regression model from data stored in a CSV file. You can run that
 from the command line by `python InnerEye/ML/runner.py --model=HelloContainer`.
 
@@ -50,7 +50,7 @@ If you are doing cross validation you need to ensure that the `LightningDataModu
 preparing the data.
 - Needs to log val/Loss in its `validation_step` method.
 You can find a working example of handling cross validation in the
-[HelloContainer](../../../InnerEye/ML/configs/other/HelloContainer.py) class.
+[HelloContainer](https://github.com/microsoft/InnerEye-DeepLearning/tree/main/InnerEye/ML/configs/other/HelloContainer.py) class.
 
 *Example*:
 
@@ -163,7 +163,7 @@ class MyContainer(LightningContainer):
 ```
 
 For further details how the `TrainerParams` are used, refer to the `create_lightning_trainer` method in
-[InnerEye/ML/model_training.py](../../../InnerEye/ML/model_training.py)
+[InnerEye/ML/model_training.py](https://github.com/microsoft/InnerEye-DeepLearning/tree/main/InnerEye/ML/model_training.py)
 
 ### Optimizer and LR scheduler arguments
 

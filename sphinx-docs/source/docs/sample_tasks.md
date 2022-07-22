@@ -83,7 +83,7 @@ into a folder in the `datasets` container, for example `my_lung_dataset`. This f
 ### Creating the lung model configuration and starting training
 
 You can then create a new model configuration, based on the template
-[Lung.py](../../../InnerEye/ML/configs/segmentation/Lung.py). To do this, create a file
+[Lung.py](https://github.com/microsoft/InnerEye-DeepLearning/tree/main/InnerEye/ML/configs/segmentation/Lung.py). To do this, create a file
 `InnerEye/ML/configs/segmentation/MyLungModel.py`, where you create a subclass of the template Lung model, and
 add the `azure_dataset_id` field (i.e., the name of the folder that contains the uploaded data from above),
 so that it looks like:
