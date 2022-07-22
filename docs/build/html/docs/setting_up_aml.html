@@ -1,0 +1,532 @@
+<!doctype html>
+<html class="no-js" lang="en">
+  <head><meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Dataset Creation" href="creating_dataset.html" /><link rel="prev" title="Set up InnerEye-DeepLearning" href="environment.html" />
+
+    <meta name="generator" content="sphinx-5.0.2, furo 2022.06.21"/>
+        <title>How to setup Azure Machine Learning for InnerEye - InnerEye-DeepLearning 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=40978830699223671f4072448e654b5958f38b89" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f8f8f8;
+  --color-code-foreground: black;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-half" viewBox="0 0 24 24">
+    <title>Auto light/dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-shadow">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M13 12h5" />
+      <path d="M13 15h4" />
+      <path d="M13 18h1" />
+      <path d="M13 9h4" />
+      <path d="M13 6h1" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc">
+<label class="overlay sidebar-overlay" for="__navigation">
+  <div class="visually-hidden">Hide navigation sidebar</div>
+</label>
+<label class="overlay toc-overlay" for="__toc">
+  <div class="visually-hidden">Hide table of contents sidebar</div>
+</label>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <div class="visually-hidden">Toggle site navigation sidebar</div>
+        <i class="icon"><svg><use href="#svg-menu"></use></svg></i>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../index.html"><div class="brand">InnerEye-DeepLearning 1.0.0 documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle">
+          <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+          <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <div class="visually-hidden">Toggle table of contents sidebar</div>
+        <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../index.html">
+  
+  
+  <span class="sidebar-brand-text">InnerEye-DeepLearning 1.0.0 documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../search.html" role="search">
+  <input class="sidebar-search" placeholder=Search name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="innereye_deeplearning.html">InnerEye-DeepLearning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="WSL.html">How to use the Windows Subsystem for Linux (WSL2) for development</a></li>
+<li class="toctree-l1"><a class="reference internal" href="environment.html">Set up InnerEye-DeepLearning</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">How to setup Azure Machine Learning for InnerEye</a></li>
+<li class="toctree-l1"><a class="reference internal" href="creating_dataset.html">Dataset Creation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="building_models.html">Building Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sample_tasks.html">Sample Tasks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="debugging_and_monitoring.html">Debugging and Monitoring Jobs</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Further reading for contributors</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="pull_requests.html">Suggested Workflow for Pull Requests</a></li>
+<li class="toctree-l1"><a class="reference internal" href="testing.html">Pytest and testing on CPU and GPU machines</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hello_world_model.html">Training a Hello World segmentation model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="deploy_on_aml.html">Model Deployment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bring_your_own_model.html">Bring Your Own PyTorch Lightning Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="fastmri.html">Working with FastMRI models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="innereye_as_submodule.html">Using the InnerEye code as a git submodule of your project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="model_diagnostics.html">Model Diagnostics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="move_model.html">Move a model to other workspace</a></li>
+<li class="toctree-l1"><a class="reference internal" href="releases.html">Releases</a></li>
+<li class="toctree-l1"><a class="reference internal" href="self_supervised_models.html">Training of self-supervised models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="CHANGELOG.html">Changelog</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API documentation (🚧 Work In Progress 🚧)</span></p>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../rst/api/ML/index.html">Machine learning</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../rst/api/ML/configs.html">Segmentation Model Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../rst/api/ML/runner.html">Runner</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../rst/api/ML/augmentations.html">Data augmentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../rst/api/ML/photometric_normalization.html">Photometric normalization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../rst/api/ML/pipelines.html">Pipelines</a></li>
+</ul>
+</li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle">
+              <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+              <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <div class="visually-hidden">Toggle table of contents sidebar</div>
+            <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+          </label>
+        </div>
+        <article role="main">
+          <section id="how-to-setup-azure-machine-learning-for-innereye">
+<h1>How to setup Azure Machine Learning for InnerEye<a class="headerlink" href="#how-to-setup-azure-machine-learning-for-innereye" title="Permalink to this heading"></a></h1>
+<p>Our preferred way to use AzureML is using the <a class="reference external" href="https://microsoft.github.io/AzureTRE/">AzureTRE</a></p>
+<p>In order to be able to train models on Azure Machine Learning (AML) you will need to setup your environment in the
+Azure Portal first. In this document we will walk you through this process step-by-step.</p>
+<p>In short, you will need to:</p>
+<ul class="simple">
+<li><p>Set up an Azure Machine Learning (AzureML) Workspace</p></li>
+<li><p>Create a compute cluster to run your experiments.</p></li>
+<li><p>Optional: Register your application to create a Service Principal Object.</p></li>
+<li><p>Optional: Set up a storage account to store your datasets. You may already have such a storage account, or you may
+want to re-use the storage account that is created with the AzureML workspace - in both cases, you can skip this step.</p></li>
+<li><p>Update your <a class="reference external" href="https://github.com/microsoft/InnerEye-DeepLearning/tree/main/InnerEye/settings.yml">settings.yml</a> file and KeyVault with your own credentials.</p></li>
+</ul>
+<p>Once you’re done with these steps, you will be ready for the next steps described in <a class="reference external" href="https://github.com/microsoft/InnerEye-createdataset">Creating a dataset</a>,
+<a class="reference internal" href="building_models.html"><span class="doc">Building models in Azure ML</span></a> and
+<a class="reference internal" href="sample_tasks.html"><span class="doc">Sample segmentation and classification tasks</span></a>.</p>
+<p><strong>Prerequisite</strong>: an Azure account and a corresponding Azure subscription. See the
+<a class="reference external" href="https://azure.microsoft.com/en-us/get-started/">Get started with Azure</a> page
+for more information on how to set up your account and your subscription. Here are more detailed instructions on how to
+<a class="reference external" href="https://docs.microsoft.com/en-us/azure/cost-management-billing/manage/">manage accounts and subscriptions with Azure</a>.</p>
+<section id="automatic-deployment">
+<h2>Automatic Deployment<a class="headerlink" href="#automatic-deployment" title="Permalink to this heading"></a></h2>
+<p>Click on the button below to automatically create</p>
+<ul class="simple">
+<li><p>an AzureML workspace</p></li>
+<li><p>an associated storage account that will hold all training results</p></li>
+<li><p>and a computer cluster for training.
+This replaces steps 1 and 2 below.</p></li>
+<li><p>You will be asked to create a new <code class="docutils literal notranslate"><span class="pre">Resource</span> <span class="pre">Group</span></code>, a logical grouping that will hold all the Azure resources that
+the script will create. In doing that, you will need to choose a location where all your Azure resources live - here,
+pick a location that is compliant with the legal requirements that your own datasets have (for example, your data may
+need to be kept inside of the UK)</p></li>
+<li><p>Then choose a name for your AzureML workspace. <strong>Use letters and numbers only</strong>, because other resources will be
+created using the workspace name as a prefix!</p></li>
+</ul>
+<p><a class="reference external" href="https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FMicrosoft%2FInnerEye-DeepLearning%2Fmain%2Fazure-pipelines%2Fazure_deployment_template.json"><img alt="Deploy To Azure" src="https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/1-CONTRIBUTION-GUIDE/images/deploytoazure.svg?sanitize=true" /></a></p>
+<p>You can invoke the deployment also by going to <a class="reference external" href="https://ms.portal.azure.com/#create/Microsoft.Template">Azure</a>,
+selecting “Build your own template”, and in the editor upload the
+[json template file](<a class="reference external" href="https://github.com/microsoft/InnerEye-DeepLearning/blob/main/azure-pipelines/azure_deployment_template.json">/azure-pipelines/azure_deployment_template.json</a> included in the repository.</p>
+<section id="step-1-create-an-azureml-workspace">
+<h3>Step 1: Create an AzureML workspace<a class="headerlink" href="#step-1-create-an-azureml-workspace" title="Permalink to this heading"></a></h3>
+<p>You can skip this if you have chosen automatic deployment above.</p>
+<p>Assuming you have an Azure account and an Azure subscription, to create an AzureML workspace you will need to:</p>
+<ol class="simple">
+<li><p>Connect to the <a class="reference external" href="https://aka.ms/portal">Azure portal</a> with your account.</p></li>
+<li><p>At the top of the home page, you will see a list of Azure services (alternatively you can also use the search bar).
+You will need to select “Machine Learning” and click <code class="docutils literal notranslate"><span class="pre">+</span> <span class="pre">Create</span></code>. You will then have to select your subscription,
+and create a new <code class="docutils literal notranslate"><span class="pre">Resource</span> <span class="pre">Group</span></code>. Then, give your workspace a name, such as
+<code class="docutils literal notranslate"><span class="pre">MyInnerEye-Workspace</span></code>, and choose the correct Region suitable for your location as well as the
+desired <code class="docutils literal notranslate"><span class="pre">Workspace</span> <span class="pre">Edition</span></code>. Finish by clicking on <code class="docutils literal notranslate"><span class="pre">Review</span> <span class="pre">+</span> <span class="pre">Create</span></code> and then <code class="docutils literal notranslate"><span class="pre">Create</span></code>.</p></li>
+</ol>
+<p>You can find more details about how to set up an AzureML workspace in
+the Azure documentation <a class="reference external" href="https://docs.microsoft.com/en-us/azure/machine-learning/how-to-manage-workspace">here</a>.</p>
+</section>
+<section id="step-2-create-a-compute-cluster-for-your-experiments">
+<h3>Step 2: Create a compute cluster for your experiments<a class="headerlink" href="#step-2-create-a-compute-cluster-for-your-experiments" title="Permalink to this heading"></a></h3>
+<p>In order to be able to run experiments you will need to create a compute cluster attached to your AzureML workspace.
+You can skip this if you have chosen automatic deployment above.</p>
+<p>We recommend using <a class="reference external" href="https://docs.microsoft.com/en-us/azure/batch/batch-low-pri-vms">low priority</a> clusters, since
+they only cost a fraction of the dedicated VMs.
+As a reference:</p>
+<ul class="simple">
+<li><p>The Prostate, HeadAndNeck, and the Lung model require VMs with 4 GPUs with at least 24GB of memory
+per GPU, for example <code class="docutils literal notranslate"><span class="pre">Standard_ND24s</span></code> (4 GPUs, 24GB per GPU).</p></li>
+<li><p>It is possible to train all of these models on machines with fewer GPUs, or GPUs with less memory. If using GPUs with
+less memory, some model parameters will need to be adjusted. As a starting point, we would suggest reducing the <code class="docutils literal notranslate"><span class="pre">train_batch_size</span></code>,
+and if that is not sufficient, reducing the <code class="docutils literal notranslate"><span class="pre">crop_size</span></code>, bearing in mind though that the size of the crops has a large
+impact on the model’s accuracy.</p></li>
+</ul>
+<p>You need to ensure that your Azure subscription actually has a quota for accessing GPU machines. To see your quota,
+find your newly created AzureML workspace in the <a class="reference external" href="http://portal.azure.com">Azure portal</a>, using the search bar at the
+top. Then choose “Usage and Quotas” in the left hand navigation. You should see your actual core usage and your quota,
+like “0/100” meaning that you are using 0 nodes out of a quota of 100. If you don’t see a quota for both dedicated AND
+low priority nodes, click on the “Request Quota” button at the bottom of the page to create a ticket with Azure support.</p>
+<p>Details about creating compute clusters can be found
+<a class="reference external" href="https://docs.microsoft.com/en-us/azure/machine-learning/how-to-set-up-training-targets#set-up-in-azure-machine-learning-studio">here</a>.
+Note down the name of your compute cluster - this will later go into the <code class="docutils literal notranslate"><span class="pre">cluster</span></code> entry of your settings
+file <code class="docutils literal notranslate"><span class="pre">settings.yml</span></code>.</p>
+</section>
+<section id="step-3-optional-create-a-service-principal-authentication-object">
+<h3>Step 3 (Optional): Create a Service Principal Authentication object<a class="headerlink" href="#step-3-optional-create-a-service-principal-authentication-object" title="Permalink to this heading"></a></h3>
+<p>Training runs in AzureML can be submitted either under the name of user who started it, or as a generic identity called
+“Service Principal”. Using the generic identity is essential if you would like to submit training runs from code,
+for example from within an Azure pipeline. But even if you are not planning to submit training runs from code, you
+may choose to use a Service Principal because it can make access management easier.</p>
+<p>If you would like the training runs to have the identity of the user who started it, there’s nothing special to do -
+when you first try to submit a job, you will be prompted to authenticate in the browser.</p>
+<p>If you would like to use Service Principal, you will need to create it in Azure first, and then store its password
+in a file inside your repository. This
+will allow you to access all resources linked to your newly created Azure ML workspace with a single secret key after you
+have finished the setup. You can find more information about application registrations and service principal objects
+<a class="reference external" href="https://docs.microsoft.com/en-us/azure/active-directory/develop/app-objects-and-service-principals">here</a>.</p>
+<p>To create the Service Principal:</p>
+<ol class="simple">
+<li><p>Navigate back to <a class="reference external" href="https://aka.ms/portal">aka.ms/portal</a></p></li>
+<li><p>Navigate to <code class="docutils literal notranslate"><span class="pre">App</span> <span class="pre">registrations</span></code> (use the top search bar to find it).</p></li>
+<li><p>Click on <code class="docutils literal notranslate"><span class="pre">+</span> <span class="pre">New</span> <span class="pre">registration</span></code> on the top left of the page.</p></li>
+<li><p>Choose a name for your application e.g. <code class="docutils literal notranslate"><span class="pre">MyInnerEye-ServicePrincipal</span></code> and click <code class="docutils literal notranslate"><span class="pre">Register</span></code>.</p></li>
+<li><p>Once it is created you will see your application in the list appearing under <code class="docutils literal notranslate"><span class="pre">App</span> <span class="pre">registrations</span></code>. This step might take
+a few minutes. Click on the resource to access its properties. In particular, you will need the application ID.
+You can find this ID in the <code class="docutils literal notranslate"><span class="pre">Overview</span></code> tab (accessible from the list on the left of the page).
+Note it down for later - this will go into the <code class="docutils literal notranslate"><span class="pre">application_id</span></code> entry of your settings
+file <code class="docutils literal notranslate"><span class="pre">settings.yml</span></code>.</p></li>
+<li><p>You need to create an application secret to access the resources managed by this service principal.
+On the pane on the left find <code class="docutils literal notranslate"><span class="pre">Certificates</span> <span class="pre">&amp;</span> <span class="pre">Secrets</span></code>. Click on <code class="docutils literal notranslate"><span class="pre">+</span> <span class="pre">New</span> <span class="pre">client</span> <span class="pre">secret</span></code> (bottom of the page), note down your token.
+Warning: this token will only appear once at the creation of the token, you will not be able to re-display it again later.</p></li>
+<li><p>Save your application secret in your local machine:</p>
+<ol class="simple">
+<li><p>You can either set the environment variable <code class="docutils literal notranslate"><span class="pre">APPLICATION_KEY</span></code> to the application secret you just generated.</p></li>
+<li><p>Or you can create a file called <code class="docutils literal notranslate"><span class="pre">InnerEyeTestVariables.txt</span></code> in the root directory of your git repository.
+That file should contain a single line of the form <code class="docutils literal notranslate"><span class="pre">APPLICATION_KEY=TheApplicationSecretYouJustCreated</span></code></p></li>
+</ol>
+</li>
+<li><p>You will need to share this application secret with your colleagues if they also want to use Service Principal
+authentication. They will also either need to set the environment variable, or create the text file with the secret.</p></li>
+</ol>
+<p>Now that your service principal is created, you need to give permission for it to access and manage your AzureML workspace.
+To do so:</p>
+<ol class="simple">
+<li><p>Go to your AzureML workspace. To find it you can type the name of your workspace in the search bar above.</p></li>
+<li><p>On the <code class="docutils literal notranslate"><span class="pre">Overview</span></code> page, there is a link to the Resource Group that contains the workspace. Click on that.</p></li>
+<li><p>When on the Resource Group, navigate to <code class="docutils literal notranslate"><span class="pre">Access</span> <span class="pre">control</span></code>. Then click on <code class="docutils literal notranslate"><span class="pre">+</span> <span class="pre">Add</span></code> &gt; <code class="docutils literal notranslate"><span class="pre">Add</span> <span class="pre">role</span> <span class="pre">assignment</span></code>. A pane will appear on the
+the right. Select <code class="docutils literal notranslate"><span class="pre">Role</span> <span class="pre">&gt;</span> <span class="pre">Contributor</span></code>. In the <code class="docutils literal notranslate"><span class="pre">Select</span></code> field type the name
+of your Service Principal and select it. Finish by clicking <code class="docutils literal notranslate"><span class="pre">Save</span></code> at the bottom of the pane.</p></li>
+</ol>
+<p>Your Service Principal is now all set!</p>
+</section>
+<section id="step-4-create-a-storage-account-for-your-datasets">
+<h3>Step 4: Create a storage account for your datasets<a class="headerlink" href="#step-4-create-a-storage-account-for-your-datasets" title="Permalink to this heading"></a></h3>
+<p>In order to train your model in the cloud, you will need to upload your datasets to Azure. For this, you will have two options:</p>
+<ul class="simple">
+<li><p>Store your datasets in the storage account linked to your AzureML workspace (see Step 1 above).</p></li>
+<li><p>Create a new storage account whom you will only use for dataset storage purposes.</p></li>
+</ul>
+<p>If you want to create a new storage account:</p>
+<ol class="simple">
+<li><p>Go to <a class="reference external" href="https://aka.ms/portal">aka.ms/portal</a></p></li>
+<li><p>Type <code class="docutils literal notranslate"><span class="pre">storage</span> <span class="pre">accounts</span></code> in the top search bar and open the corresponding page.</p></li>
+<li><p>On the top of the page click on <code class="docutils literal notranslate"><span class="pre">+</span> <span class="pre">Add</span></code>.</p></li>
+<li><p>Select your subscription and the resource group that you created earlier.</p></li>
+<li><p>Specify a name for your storage account, and a location suitable for your data.</p></li>
+<li><p>Click create.</p></li>
+<li><p>Once your resource is created you can access it by typing its name in the top search bar.</p></li>
+</ol>
+<p>Once your datasets storage account is ready, find it in the Azure portal, and choose “Containers” in the left hand
+navigation. Create a new container called “datasets”. Inside of this container, each dataset will later occupy one
+folder.</p>
+</section>
+<section id="step-5-create-a-datastore">
+<h3>Step 5: Create a datastore<a class="headerlink" href="#step-5-create-a-datastore" title="Permalink to this heading"></a></h3>
+<p>You will now need to create a datastore in AzureML.</p>
+<ul class="simple">
+<li><p>For that, you need to know the account key for the storage account
+that holds your datasets - this can be the name of  the storage account created in Step 4, or the storage account that came with the
+AzureML workspace in Step 1.</p></li>
+<li><p>Find the storage account in the Azure.</p></li>
+<li><p>In the left hand pane, choose “Access keys”, and copy one of the keys to the clipboard.</p></li>
+<li><p>Now go to your AzureML workspace and launch Azure Machine Learning Studio (blue button in the main pane marked “Launch Studio”)</p></li>
+<li><p>In the left hand navigation pane of Azure Machine Learning Studio, choose “Datastores”.- Click <code class="docutils literal notranslate"><span class="pre">+</span> <span class="pre">New</span> <span class="pre">datastore</span></code>.</p></li>
+<li><p>Create a datastore called <code class="docutils literal notranslate"><span class="pre">innereyedatasets</span></code>.</p></li>
+<li><p>In the fields for storage account, type in your dataset storage account
+name (newly created or the AzureML one).</p></li>
+<li><p>In blob containers, choose “datasets” from the dropdown. If the dropdown is empty, go back to Step 4 and
+create a container called “datasets”.</p></li>
+<li><p>Choose “Authentication Type: Account Key” and paste the storage account key from the clipboard into the
+“Account Key” field.</p></li>
+<li><p>Done!</p></li>
+</ul>
+</section>
+<section id="step-6-update-the-variables-in-settings-yml">
+<h3>Step 6: Update the variables in <code class="docutils literal notranslate"><span class="pre">settings.yml</span></code><a class="headerlink" href="#step-6-update-the-variables-in-settings-yml" title="Permalink to this heading"></a></h3>
+<p>The <a class="reference external" href="https://github.com/microsoft/InnerEye-DeepLearning/tree/main/InnerEye/settings.yml">settings.yml</a> file is used to store your Azure setup. In order to be able to
+train your model you will need to update this file using the settings for your Azure subscription.</p>
+<ol class="simple">
+<li><p>You will first need to retrieve your <code class="docutils literal notranslate"><span class="pre">tenant_id</span></code>. You can find your tenant id by navigating to
+<code class="docutils literal notranslate"><span class="pre">Azure</span> <span class="pre">Active</span> <span class="pre">Directory</span> <span class="pre">&gt;</span> <span class="pre">Properties</span> <span class="pre">&gt;</span> <span class="pre">Tenant</span> <span class="pre">ID</span></code> (use the search bar above to access the <code class="docutils literal notranslate"><span class="pre">Azure</span> <span class="pre">Active</span> <span class="pre">Directory</span></code>
+resource. Copy and paste the GUID to the <code class="docutils literal notranslate"><span class="pre">tenant_id</span></code> field of the <code class="docutils literal notranslate"><span class="pre">.yml</span></code> file. More information about Azure tenants can be found
+<a class="reference external" href="https://docs.microsoft.com/en-us/azure/active-directory/develop/quickstart-create-new-tenant">here</a>.</p></li>
+<li><p>You then need to retrieve your subscription id. In the search bar look for <code class="docutils literal notranslate"><span class="pre">Subscriptions</span></code>. Then in the subscriptions list,
+look for the subscription you are using for your workspace. Copy the value of the <code class="docutils literal notranslate"><span class="pre">Subscription</span> <span class="pre">ID</span></code> in the corresponding
+field of <a class="reference external" href="https://github.com/microsoft/InnerEye-DeepLearning/tree/main/InnerEye/settings.yml">settings.yml</a>.</p></li>
+<li><p>Copy the application ID of your Service Principal that you retrieved earlier (cf. Step 3) to the <code class="docutils literal notranslate"><span class="pre">application_id</span></code> field.
+If you did not set up a Service Principal, fill that with an empty string or leave out altogether.</p></li>
+<li><p>Update the <code class="docutils literal notranslate"><span class="pre">resource_group:</span></code> field with your resource group name (created in Step 1).</p></li>
+<li><p>Update the <code class="docutils literal notranslate"><span class="pre">workspace_name:</span></code> field with the name of the AzureML workspace created in Step 1.</p></li>
+<li><p>Update the <code class="docutils literal notranslate"><span class="pre">cluster:</span></code> field with the name of your own compute cluster (Step 2). If you chose automatic
+deployment, this cluster will be called “NC24-LowPrio”</p></li>
+</ol>
+<p>Leave all other fields as they are for now.</p>
+<p>Summarizing, here is how the file should look like:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">variables</span><span class="p">:</span><span class="w"></span>
+<span class="w">  </span><span class="nt">tenant_id</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;&lt;Azure</span><span class="nv"> </span><span class="s">tenant</span><span class="nv"> </span><span class="s">ID</span><span class="nv"> </span><span class="s">of</span><span class="nv"> </span><span class="s">your</span><span class="nv"> </span><span class="s">company&gt;&#39;</span><span class="w"></span>
+<span class="w">  </span><span class="nt">subscription_id</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;&lt;Azure</span><span class="nv"> </span><span class="s">subscription</span><span class="nv"> </span><span class="s">ID</span><span class="nv"> </span><span class="s">that</span><span class="nv"> </span><span class="s">your</span><span class="nv"> </span><span class="s">project</span><span class="nv"> </span><span class="s">is</span><span class="nv"> </span><span class="s">using&#39;</span><span class="w"></span>
+<span class="w">  </span><span class="nt">application_id</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;&lt;Optional:</span><span class="nv"> </span><span class="s">Service</span><span class="nv"> </span><span class="s">Principal</span><span class="nv"> </span><span class="s">ID</span><span class="nv"> </span><span class="s">for</span><span class="nv"> </span><span class="s">job</span><span class="nv"> </span><span class="s">submission.&#39;</span><span class="w"></span>
+<span class="w">  </span><span class="nt">azureml_datastore</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;&lt;The</span><span class="nv"> </span><span class="s">AzureML</span><span class="nv"> </span><span class="s">datastore</span><span class="nv"> </span><span class="s">that</span><span class="nv"> </span><span class="s">you</span><span class="nv"> </span><span class="s">created</span><span class="nv"> </span><span class="s">inside</span><span class="nv"> </span><span class="s">of</span><span class="nv"> </span><span class="s">your</span><span class="nv"> </span><span class="s">AzureML</span><span class="nv"> </span><span class="s">workspace&gt;&#39;</span><span class="w"></span>
+<span class="w">  </span><span class="nt">resource_group</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;&lt;The</span><span class="nv"> </span><span class="s">Azure</span><span class="nv"> </span><span class="s">resource</span><span class="nv"> </span><span class="s">group</span><span class="nv"> </span><span class="s">that</span><span class="nv"> </span><span class="s">holds</span><span class="nv"> </span><span class="s">your</span><span class="nv"> </span><span class="s">AzureML</span><span class="nv"> </span><span class="s">workspace&gt;&#39;</span><span class="w"></span>
+<span class="w">  </span><span class="nt">docker_shm_size</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;440g&#39;</span><span class="w"></span>
+<span class="w">  </span><span class="nt">workspace_name</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;&lt;The</span><span class="nv"> </span><span class="s">name</span><span class="nv"> </span><span class="s">of</span><span class="nv"> </span><span class="s">your</span><span class="nv"> </span><span class="s">AzureML</span><span class="nv"> </span><span class="s">workspace&gt;&#39;</span><span class="w"></span>
+<span class="w">  </span><span class="nt">cluster</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;&lt;The</span><span class="nv"> </span><span class="s">AzureML</span><span class="nv"> </span><span class="s">compute</span><span class="nv"> </span><span class="s">cluster</span><span class="nv"> </span><span class="s">that</span><span class="nv"> </span><span class="s">you</span><span class="nv"> </span><span class="s">are</span><span class="nv"> </span><span class="s">using</span><span class="nv"> </span><span class="s">by</span><span class="nv"> </span><span class="s">default.&gt;&#39;</span><span class="w"></span>
+<span class="w">  </span><span class="nt">model_configs_namespace</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;&lt;When</span><span class="nv"> </span><span class="s">using</span><span class="nv"> </span><span class="s">as</span><span class="nv"> </span><span class="s">submodule:</span><span class="nv"> </span><span class="s">Python</span><span class="nv"> </span><span class="s">namespace</span><span class="nv"> </span><span class="s">where</span><span class="nv"> </span><span class="s">model</span><span class="nv"> </span><span class="s">configurations</span><span class="nv"> </span><span class="s">live.&gt;&#39;</span><span class="w"></span>
+<span class="w">  </span><span class="nt">extra_code_directory</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;&lt;When</span><span class="nv"> </span><span class="s">using</span><span class="nv"> </span><span class="s">as</span><span class="nv"> </span><span class="s">submodule:</span><span class="nv"> </span><span class="s">Folder</span><span class="nv"> </span><span class="s">with</span><span class="nv"> </span><span class="s">extra</span><span class="nv"> </span><span class="s">Python</span><span class="nv"> </span><span class="s">code</span><span class="nv"> </span><span class="s">to</span><span class="nv"> </span><span class="s">run</span><span class="nv"> </span><span class="s">your</span><span class="nv"> </span><span class="s">models&gt;&#39;</span><span class="w"></span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="done">
+<h2>Done<a class="headerlink" href="#done" title="Permalink to this heading"></a></h2>
+<p>You should be all set now.</p>
+<p>You can verify that your AzureML setup works by running in a shell:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>python InnerEye/ML/runner.py --model<span class="o">=</span>HelloContainer --azureml
+</pre></div>
+</div>
+<p>This will start a simple model training job in AzureML. At the end of the submission process, it will print out “Run URL: …”. Paste that
+URL into a browser, and it will take you to the AzureML portal where you can monitor that job.</p>
+<p>You can now go to the next step, <a class="reference internal" href="creating_dataset.html"><span class="doc">creating a dataset</span></a>, to learn how segmentation
+datasets should be structured, and how to get your data ready for use in training.</p>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="creating_dataset.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">Dataset Creation</div>
+              </div>
+              <svg><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="environment.html">
+              <svg><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">Set up InnerEye-DeepLearning</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; Microsoft Corporation
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            <div class="icons">
+              
+            </div>
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            Contents
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">How to setup Azure Machine Learning for InnerEye</a><ul>
+<li><a class="reference internal" href="#automatic-deployment">Automatic Deployment</a><ul>
+<li><a class="reference internal" href="#step-1-create-an-azureml-workspace">Step 1: Create an AzureML workspace</a></li>
+<li><a class="reference internal" href="#step-2-create-a-compute-cluster-for-your-experiments">Step 2: Create a compute cluster for your experiments</a></li>
+<li><a class="reference internal" href="#step-3-optional-create-a-service-principal-authentication-object">Step 3 (Optional): Create a Service Principal Authentication object</a></li>
+<li><a class="reference internal" href="#step-4-create-a-storage-account-for-your-datasets">Step 4: Create a storage account for your datasets</a></li>
+<li><a class="reference internal" href="#step-5-create-a-datastore">Step 5: Create a datastore</a></li>
+<li><a class="reference internal" href="#step-6-update-the-variables-in-settings-yml">Step 6: Update the variables in <code class="docutils literal notranslate"><span class="pre">settings.yml</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#done">Done</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/scripts/furo.js"></script>
+    </body>
+</html>

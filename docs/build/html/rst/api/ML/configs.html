@@ -1,0 +1,1261 @@
+<!doctype html>
+<html class="no-js" lang="en">
+  <head><meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+<link rel="index" title="Index" href="../../../genindex.html" /><link rel="search" title="Search" href="../../../search.html" /><link rel="next" title="Runner" href="runner.html" /><link rel="prev" title="Machine learning" href="index.html" />
+
+    <meta name="generator" content="sphinx-5.0.2, furo 2022.06.21"/>
+        <title>Segmentation Model Configuration - InnerEye-DeepLearning 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo.css?digest=40978830699223671f4072448e654b5958f38b89" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f8f8f8;
+  --color-code-foreground: black;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-half" viewBox="0 0 24 24">
+    <title>Auto light/dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-shadow">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M13 12h5" />
+      <path d="M13 15h4" />
+      <path d="M13 18h1" />
+      <path d="M13 9h4" />
+      <path d="M13 6h1" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc">
+<label class="overlay sidebar-overlay" for="__navigation">
+  <div class="visually-hidden">Hide navigation sidebar</div>
+</label>
+<label class="overlay toc-overlay" for="__toc">
+  <div class="visually-hidden">Hide table of contents sidebar</div>
+</label>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <div class="visually-hidden">Toggle site navigation sidebar</div>
+        <i class="icon"><svg><use href="#svg-menu"></use></svg></i>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../../index.html"><div class="brand">InnerEye-DeepLearning 1.0.0 documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle">
+          <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+          <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
+        <div class="visually-hidden">Toggle table of contents sidebar</div>
+        <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../../index.html">
+  
+  
+  <span class="sidebar-brand-text">InnerEye-DeepLearning 1.0.0 documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../../search.html" role="search">
+  <input class="sidebar-search" placeholder=Search name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs/innereye_deeplearning.html">InnerEye-DeepLearning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs/WSL.html">How to use the Windows Subsystem for Linux (WSL2) for development</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs/environment.html">Set up InnerEye-DeepLearning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs/setting_up_aml.html">How to setup Azure Machine Learning for InnerEye</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs/creating_dataset.html">Dataset Creation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs/building_models.html">Building Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs/sample_tasks.html">Sample Tasks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs/debugging_and_monitoring.html">Debugging and Monitoring Jobs</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Further reading for contributors</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs/pull_requests.html">Suggested Workflow for Pull Requests</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs/testing.html">Pytest and testing on CPU and GPU machines</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs/contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs/hello_world_model.html">Training a Hello World segmentation model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs/deploy_on_aml.html">Model Deployment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs/bring_your_own_model.html">Bring Your Own PyTorch Lightning Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs/fastmri.html">Working with FastMRI models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs/innereye_as_submodule.html">Using the InnerEye code as a git submodule of your project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs/model_diagnostics.html">Model Diagnostics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs/move_model.html">Move a model to other workspace</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs/releases.html">Releases</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs/self_supervised_models.html">Training of self-supervised models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs/CHANGELOG.html">Changelog</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API documentation (🚧 Work In Progress 🚧)</span></p>
+<ul class="current">
+<li class="toctree-l1 current has-children"><a class="reference internal" href="index.html">Machine learning</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
+<li class="toctree-l2 current current-page"><a class="current reference internal" href="#">Segmentation Model Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="runner.html">Runner</a></li>
+<li class="toctree-l2"><a class="reference internal" href="augmentations.html">Data augmentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="photometric_normalization.html">Photometric normalization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pipelines.html">Pipelines</a></li>
+</ul>
+</li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle">
+              <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+              <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
+            <div class="visually-hidden">Toggle table of contents sidebar</div>
+            <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+          </label>
+        </div>
+        <article role="main">
+          <section id="segmentation-model-configuration">
+<h1>Segmentation Model Configuration<a class="headerlink" href="#segmentation-model-configuration" title="Permalink to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">InnerEye.ML.config.</span></span><span class="sig-name descname"><span class="pre">SegmentationModelBase</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">center_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inference_stride_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_l_rate</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">largest_connected_component_foreground_classes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">params</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/InnerEye/ML/config.html#SegmentationModelBase"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase" title="Permalink to this definition"></a></dt>
+<dd><p>A class that holds all settings that are specific to segmentation models.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.activation_map_layers">
+<span class="sig-name descname"><span class="pre">activation_map_layers</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.activation_map_layers" title="Permalink to this definition"></a></dt>
+<dd><p>Layer name hierarchy (parent, child recursive) as by model definition. If None, no activation maps will be saved</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.architecture">
+<span class="sig-name descname"><span class="pre">architecture</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Basic'</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.architecture" title="Permalink to this definition"></a></dt>
+<dd><p>The segmentation model architecture to use.
+Valid options are defined at <a class="reference internal" href="#InnerEye.ML.config.ModelArchitectureConfig" title="InnerEye.ML.config.ModelArchitectureConfig"><code class="xref py py-class docutils literal notranslate"><span class="pre">ModelArchitectureConfig</span></code></a>: ‘Basic (DeepMedic)’, ‘UNet3D’, ‘UNet2D’</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.loss_type">
+<span class="sig-name descname"><span class="pre">loss_type</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#InnerEye.ML.config.SegmentationLoss" title="InnerEye.ML.config.SegmentationLoss"><span class="pre">SegmentationLoss</span></a></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'SoftDice'</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.loss_type" title="Permalink to this definition"></a></dt>
+<dd><p>The loss type to use during training.
+Valid options are defined at <a class="reference internal" href="#InnerEye.ML.config.SegmentationLoss" title="InnerEye.ML.config.SegmentationLoss"><code class="xref py py-class docutils literal notranslate"><span class="pre">SegmentationLoss</span></code></a>: “SoftDice”, “CrossEntropy”, “Focal”, “Mixture”</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.mixture_loss_components">
+<span class="sig-name descname"><span class="pre">mixture_loss_components</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#InnerEye.ML.config.MixtureLossComponent" title="InnerEye.ML.config.MixtureLossComponent"><span class="pre">MixtureLossComponent</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.mixture_loss_components" title="Permalink to this definition"></a></dt>
+<dd><p>List of pairs of weights, loss types and class-weight-power values for use when loss_type is
+<code class="xref py py-attr docutils literal notranslate"><span class="pre">SegmentationLoss.MixtureLoss</span></code>”.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.loss_class_weight_power">
+<span class="sig-name descname"><span class="pre">loss_class_weight_power</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.loss_class_weight_power" title="Permalink to this definition"></a></dt>
+<dd><p>For weighted loss, power to which to raise the weights per class. If this is None, loss is not weighted.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.focal_loss_gamma">
+<span class="sig-name descname"><span class="pre">focal_loss_gamma</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1.0</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.focal_loss_gamma" title="Permalink to this definition"></a></dt>
+<dd><p>Gamma value for focal loss: weight for each pixel is posterior likelihood to the power -focal_loss_gamma.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.dataset_expected_spacing_xyz">
+<span class="sig-name descname"><span class="pre">dataset_expected_spacing_xyz</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">TupleFloat3</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.dataset_expected_spacing_xyz" title="Permalink to this definition"></a></dt>
+<dd><p>The spacing X, Y, Z expected for all images in the dataset</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.feature_channels">
+<span class="sig-name descname"><span class="pre">feature_channels</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.feature_channels" title="Permalink to this definition"></a></dt>
+<dd><p>The number of feature channels at different stages of the model.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.kernel_size">
+<span class="sig-name descname"><span class="pre">kernel_size</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">3</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.kernel_size" title="Permalink to this definition"></a></dt>
+<dd><p>The size of the convolution kernels.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.crop_size">
+<span class="sig-name descname"><span class="pre">crop_size</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">TupleInt3</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">(1,</span> <span class="pre">1,</span> <span class="pre">1)</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.crop_size" title="Permalink to this definition"></a></dt>
+<dd><p>The size of the random crops that will be drawn from the input images during training. This is also the
+input size of the model.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.image_channels">
+<span class="sig-name descname"><span class="pre">image_channels</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.image_channels" title="Permalink to this definition"></a></dt>
+<dd><p>The names of the image input channels that the model consumes. These channels must be present in the
+dataset.csv file.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.ground_truth_ids">
+<span class="sig-name descname"><span class="pre">ground_truth_ids</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.ground_truth_ids" title="Permalink to this definition"></a></dt>
+<dd><p>The names of the ground truth channels that the model consumes. These channels must be present in the
+dataset.csv file</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.mask_id">
+<span class="sig-name descname"><span class="pre">mask_id</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.mask_id" title="Permalink to this definition"></a></dt>
+<dd><p>The name of the channel that contains the <cite>inside/outside body</cite> information (to mask out the background).
+This channel must be present in the dataset</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.norm_method">
+<span class="sig-name descname"><span class="pre">norm_method</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#InnerEye.ML.config.PhotometricNormalizationMethod" title="InnerEye.ML.config.PhotometricNormalizationMethod"><span class="pre">PhotometricNormalizationMethod</span></a></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'CT</span> <span class="pre">Window'</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.norm_method" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.window">
+<span class="sig-name descname"><span class="pre">window</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">600</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.window" title="Permalink to this definition"></a></dt>
+<dd><p>The Window setting for the <a class="reference internal" href="#InnerEye.ML.config.PhotometricNormalizationMethod.CtWindow" title="InnerEye.ML.config.PhotometricNormalizationMethod.CtWindow"><code class="xref py py-attr docutils literal notranslate"><span class="pre">PhotometricNormalizationMethod.CtWindow</span></code></a> normalization.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.level">
+<span class="sig-name descname"><span class="pre">level</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">50</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.level" title="Permalink to this definition"></a></dt>
+<dd><p>The level setting for the <a class="reference internal" href="#InnerEye.ML.config.PhotometricNormalizationMethod.CtWindow" title="InnerEye.ML.config.PhotometricNormalizationMethod.CtWindow"><code class="xref py py-attr docutils literal notranslate"><span class="pre">PhotometricNormalizationMethod.CtWindow</span></code></a> normalization.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.output_range">
+<span class="sig-name descname"><span class="pre">output_range</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">TupleFloat2</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">(-1.0,</span> <span class="pre">1.0)</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.output_range" title="Permalink to this definition"></a></dt>
+<dd><p>The value range that image normalization should produce. This is the input range to the network.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.debug_mode">
+<span class="sig-name descname"><span class="pre">debug_mode</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.debug_mode" title="Permalink to this definition"></a></dt>
+<dd><p>If true, create additional plots during image normalization.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.tail">
+<span class="sig-name descname"><span class="pre">tail</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.tail" title="Permalink to this definition"></a></dt>
+<dd><p>Tail parameter allows window range to be extended to right, used in
+<a class="reference internal" href="#InnerEye.ML.config.PhotometricNormalizationMethod.MriWindow" title="InnerEye.ML.config.PhotometricNormalizationMethod.MriWindow"><code class="xref py py-attr docutils literal notranslate"><span class="pre">PhotometricNormalizationMethod.MriWindow</span></code></a>. The value must be a list with one entry per input channel
+if the model has multiple input channels</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.sharpen">
+<span class="sig-name descname"><span class="pre">sharpen</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.9</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.sharpen" title="Permalink to this definition"></a></dt>
+<dd><p>Sharpen parameter specifies number of standard deviations from mean to be included in window range.
+Used in <a class="reference internal" href="#InnerEye.ML.config.PhotometricNormalizationMethod.MriWindow" title="InnerEye.ML.config.PhotometricNormalizationMethod.MriWindow"><code class="xref py py-attr docutils literal notranslate"><span class="pre">PhotometricNormalizationMethod.MriWindow</span></code></a></p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.trim_percentiles">
+<span class="sig-name descname"><span class="pre">trim_percentiles</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">TupleFloat2</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">(1.0,</span> <span class="pre">99.0)</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.trim_percentiles" title="Permalink to this definition"></a></dt>
+<dd><p>Percentile at which to trim input distribution prior to normalization. Used in
+<a class="reference internal" href="#InnerEye.ML.config.PhotometricNormalizationMethod.TrimmedNorm" title="InnerEye.ML.config.PhotometricNormalizationMethod.TrimmedNorm"><code class="xref py py-attr docutils literal notranslate"><span class="pre">PhotometricNormalizationMethod.TrimmedNorm</span></code></a></p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.padding_mode">
+<span class="sig-name descname"><span class="pre">padding_mode</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#InnerEye.ML.config.PaddingMode" title="InnerEye.ML.config.PaddingMode"><span class="pre">PaddingMode</span></a></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'edge'</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.padding_mode" title="Permalink to this definition"></a></dt>
+<dd><p>Padding mode to use for training and inference. See <a class="reference internal" href="#InnerEye.ML.config.PaddingMode" title="InnerEye.ML.config.PaddingMode"><code class="xref py py-attr docutils literal notranslate"><span class="pre">PaddingMode</span></code></a> for valid options.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.inference_batch_size">
+<span class="sig-name descname"><span class="pre">inference_batch_size</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">8</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.inference_batch_size" title="Permalink to this definition"></a></dt>
+<dd><p>The batch size to use for inference forward pass.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.test_crop_size">
+<span class="sig-name descname"><span class="pre">test_crop_size</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">TupleInt3</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.test_crop_size" title="Permalink to this definition"></a></dt>
+<dd><p>The crop size to use for model testing. If nothing is specified, crop_size parameter is used instead,
+i.e. training and testing crop size will be the same.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.class_weights">
+<span class="sig-name descname"><span class="pre">class_weights</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.class_weights" title="Permalink to this definition"></a></dt>
+<dd><p>The per-class probabilities for picking a center point of a crop.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.ensemble_aggregation_type">
+<span class="sig-name descname"><span class="pre">ensemble_aggregation_type</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#InnerEye.ML.config.EnsembleAggregationType" title="InnerEye.ML.config.EnsembleAggregationType"><span class="pre">EnsembleAggregationType</span></a></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Average'</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.ensemble_aggregation_type" title="Permalink to this definition"></a></dt>
+<dd><p>The aggregation method to use when testing ensemble models. See :attr: <cite>EnsembleAggregationType</cite> for options.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.posterior_smoothing_mm">
+<span class="sig-name descname"><span class="pre">posterior_smoothing_mm</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">TupleInt3</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.posterior_smoothing_mm" title="Permalink to this definition"></a></dt>
+<dd><p>The size of the smoothing kernel in mm to be used for smoothing posteriors before computing the final
+segmentations. No smoothing is performed if set to None.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.store_dataset_sample">
+<span class="sig-name descname"><span class="pre">store_dataset_sample</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.store_dataset_sample" title="Permalink to this definition"></a></dt>
+<dd><p>If True save image and segmentations for one image in a batch for each training epoch</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.comparison_blob_storage_paths">
+<span class="sig-name descname"><span class="pre">comparison_blob_storage_paths</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.comparison_blob_storage_paths" title="Permalink to this definition"></a></dt>
+<dd><p>List of (name, container) pairs, where name is a descriptive name and container is a Azure ML storage account
+container name to be used for statistical comparisons</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.slice_exclusion_rules">
+<span class="sig-name descname"><span class="pre">slice_exclusion_rules</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#InnerEye.ML.config.SliceExclusionRule" title="InnerEye.ML.config.SliceExclusionRule"><span class="pre">SliceExclusionRule</span></a><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">[]</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.slice_exclusion_rules" title="Permalink to this definition"></a></dt>
+<dd><p>List of rules for structures that should be prevented from sharing the same slice.
+These are not applied if <a class="reference internal" href="#id8" title="InnerEye.ML.config.SegmentationModelBase.disable_extra_postprocessing"><code class="xref py py-attr docutils literal notranslate"><span class="pre">disable_extra_postprocessing</span></code></a> is True.
+Parameter should be a list of <a class="reference internal" href="#InnerEye.ML.config.SliceExclusionRule" title="InnerEye.ML.config.SliceExclusionRule"><code class="xref py py-attr docutils literal notranslate"><span class="pre">SliceExclusionRule</span></code></a> objects.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.summed_probability_rules">
+<span class="sig-name descname"><span class="pre">summed_probability_rules</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#InnerEye.ML.config.SummedProbabilityRule" title="InnerEye.ML.config.SummedProbabilityRule"><span class="pre">SummedProbabilityRule</span></a><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">[]</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.summed_probability_rules" title="Permalink to this definition"></a></dt>
+<dd><p>List of rules for class pairs whose summed probability is used to create the segmentation map from predicted
+posterior probabilities.
+These are not applied if <a class="reference internal" href="#id8" title="InnerEye.ML.config.SegmentationModelBase.disable_extra_postprocessing"><code class="xref py py-attr docutils literal notranslate"><span class="pre">disable_extra_postprocessing</span></code></a> is True.
+Parameter should be a list of <a class="reference internal" href="#InnerEye.ML.config.SummedProbabilityRule" title="InnerEye.ML.config.SummedProbabilityRule"><code class="xref py py-attr docutils literal notranslate"><span class="pre">SummedProbabilityRule</span></code></a> objects.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.disable_extra_postprocessing">
+<span class="sig-name descname"><span class="pre">disable_extra_postprocessing</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.disable_extra_postprocessing" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to ignore <a class="reference internal" href="#id28" title="InnerEye.ML.config.SegmentationModelBase.slice_exclusion_rules"><code class="xref py py-attr docutils literal notranslate"><span class="pre">slice_exclusion_rules</span></code></a> and <a class="reference internal" href="#id30" title="InnerEye.ML.config.SegmentationModelBase.summed_probability_rules"><code class="xref py py-attr docutils literal notranslate"><span class="pre">summed_probability_rules</span></code></a> even if defined</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.ground_truth_ids_display_names">
+<span class="sig-name descname"><span class="pre">ground_truth_ids_display_names</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.ground_truth_ids_display_names" title="Permalink to this definition"></a></dt>
+<dd><p>User friendly display names to be used for each of the predicted GT classes. Default is ground_truth_ids if
+None provided</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.col_type_converters">
+<span class="sig-name descname"><span class="pre">col_type_converters</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.col_type_converters" title="Permalink to this definition"></a></dt>
+<dd><p>Dictionary of types to enforce for certain DataFrame columns, where key is column name and value is desired type.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.is_plotting_enabled">
+<span class="sig-name descname"><span class="pre">is_plotting_enabled</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.is_plotting_enabled" title="Permalink to this definition"></a></dt>
+<dd><p>If true, various overview plots with results are generated during model evaluation. Set to False if you see
+non-deterministic pull request build failures.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id0">
+<span class="sig-name descname"><span class="pre">activation_map_layers</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#id0" title="Permalink to this definition"></a></dt>
+<dd><p>Layer name hierarchy (parent, child recursive) as by model definition. If None, no activation maps will be saved</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.allow_incomplete_labels">
+<span class="sig-name descname"><span class="pre">allow_incomplete_labels</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.allow_incomplete_labels" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id1">
+<span class="sig-name descname"><span class="pre">architecture</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Basic'</span></em><a class="headerlink" href="#id1" title="Permalink to this definition"></a></dt>
+<dd><p>The segmentation model architecture to use.
+Valid options are defined at <a class="reference internal" href="#InnerEye.ML.config.ModelArchitectureConfig" title="InnerEye.ML.config.ModelArchitectureConfig"><code class="xref py py-class docutils literal notranslate"><span class="pre">ModelArchitectureConfig</span></code></a>: ‘Basic (DeepMedic)’, ‘UNet3D’, ‘UNet2D’</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.center_size">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">center_size</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.center_size" title="Permalink to this definition"></a></dt>
+<dd><p>Gets the size of the center crop that the model predicts.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.check_exclusive">
+<span class="sig-name descname"><span class="pre">check_exclusive</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.check_exclusive" title="Permalink to this definition"></a></dt>
+<dd><p>FocalLoss) will fail with a cryptic error message. Set to false if you are sure that you want to use labels that
+are not mutually exclusive.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.class_and_index_with_background">
+<span class="sig-name descname"><span class="pre">class_and_index_with_background</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/InnerEye/ML/config.html#SegmentationModelBase.class_and_index_with_background"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.class_and_index_with_background" title="Permalink to this definition"></a></dt>
+<dd><p>Returns a dict of class names to indices, including the background class.
+The class index assumes that background is class 0, foreground starts at 1.
+For example, if the ground_truth_ids are [“foo”, “bar”], the result
+is {“background”: 0, “foo”: 1, “bar”: 2}</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>A dict, one entry for each entry in ground_truth_ids + 1 for the background class.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id2">
+<span class="sig-name descname"><span class="pre">class_weights</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#id2" title="Permalink to this definition"></a></dt>
+<dd><p>The per-class probabilities for picking a center point of a crop.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id3">
+<span class="sig-name descname"><span class="pre">col_type_converters</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#id3" title="Permalink to this definition"></a></dt>
+<dd><p>Dictionary of types to enforce for certain DataFrame columns, where key is column name and value is desired type.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.colours">
+<span class="sig-name descname"><span class="pre">colours</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">TupleInt3</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.colours" title="Permalink to this definition"></a></dt>
+<dd><p>Colours in (R, G, B) for the structures, same order as in ground_truth_ids_display_names</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id4">
+<span class="sig-name descname"><span class="pre">comparison_blob_storage_paths</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#id4" title="Permalink to this definition"></a></dt>
+<dd><p>List of (name, container) pairs, where name is a descriptive name and container is a Azure ML storage account
+container name to be used for statistical comparisons</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.create_and_set_torch_datasets">
+<span class="sig-name descname"><span class="pre">create_and_set_torch_datasets</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">for_training</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">for_inference</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="../../../_modules/InnerEye/ML/config.html#SegmentationModelBase.create_and_set_torch_datasets"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.create_and_set_torch_datasets" title="Permalink to this definition"></a></dt>
+<dd><p>Creates torch datasets for all model execution modes, and stores them in the object.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.create_model">
+<span class="sig-name descname"><span class="pre">create_model</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Any</span></span></span><a class="reference internal" href="../../../_modules/InnerEye/ML/config.html#SegmentationModelBase.create_model"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.create_model" title="Permalink to this definition"></a></dt>
+<dd><p>Creates a PyTorch model from the settings stored in the present object.
+:return: The network model as a torch.nn.Module object</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id5">
+<span class="sig-name descname"><span class="pre">crop_size</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">TupleInt3</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">(1,</span> <span class="pre">1,</span> <span class="pre">1)</span></em><a class="headerlink" href="#id5" title="Permalink to this definition"></a></dt>
+<dd><p>The size of the random crops that will be drawn from the input images during training. This is also the
+input size of the model.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id6">
+<span class="sig-name descname"><span class="pre">dataset_expected_spacing_xyz</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">TupleFloat3</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#id6" title="Permalink to this definition"></a></dt>
+<dd><p>The spacing X, Y, Z expected for all images in the dataset</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id7">
+<span class="sig-name descname"><span class="pre">debug_mode</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></em><a class="headerlink" href="#id7" title="Permalink to this definition"></a></dt>
+<dd><p>If true, create additional plots during image normalization.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id8">
+<span class="sig-name descname"><span class="pre">disable_extra_postprocessing</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></em><a class="headerlink" href="#id8" title="Permalink to this definition"></a></dt>
+<dd><p>Whether to ignore <a class="reference internal" href="#id28" title="InnerEye.ML.config.SegmentationModelBase.slice_exclusion_rules"><code class="xref py py-attr docutils literal notranslate"><span class="pre">slice_exclusion_rules</span></code></a> and <a class="reference internal" href="#id30" title="InnerEye.ML.config.SegmentationModelBase.summed_probability_rules"><code class="xref py py-attr docutils literal notranslate"><span class="pre">summed_probability_rules</span></code></a> even if defined</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id9">
+<span class="sig-name descname"><span class="pre">ensemble_aggregation_type</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#InnerEye.ML.config.EnsembleAggregationType" title="InnerEye.ML.config.EnsembleAggregationType"><span class="pre">EnsembleAggregationType</span></a></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Average'</span></em><a class="headerlink" href="#id9" title="Permalink to this definition"></a></dt>
+<dd><p>The aggregation method to use when testing ensemble models. See :attr: <cite>EnsembleAggregationType</cite> for options.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.example_images_folder">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">example_images_folder</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Path</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.example_images_folder" title="Permalink to this definition"></a></dt>
+<dd><p>Gets the full path in which the example images should be stored during training.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id10">
+<span class="sig-name descname"><span class="pre">feature_channels</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#id10" title="Permalink to this definition"></a></dt>
+<dd><p>The number of feature channels at different stages of the model.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.fill_holes">
+<span class="sig-name descname"><span class="pre">fill_holes</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">bool</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.fill_holes" title="Permalink to this definition"></a></dt>
+<dd><p>List of bool specifiying if structures need filling holes. If True, the output of the model for that class
+will include postprocessing to fill holes, in the same order as in ground_truth_ids_display_names</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id11">
+<span class="sig-name descname"><span class="pre">focal_loss_gamma</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1.0</span></em><a class="headerlink" href="#id11" title="Permalink to this definition"></a></dt>
+<dd><p>Gamma value for focal loss: weight for each pixel is posterior likelihood to the power -focal_loss_gamma.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.get_cropped_image_sample_transforms">
+<span class="sig-name descname"><span class="pre">get_cropped_image_sample_transforms</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ModelTransformsPerExecutionMode</span></span></span><a class="reference internal" href="../../../_modules/InnerEye/ML/config.html#SegmentationModelBase.get_cropped_image_sample_transforms"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.get_cropped_image_sample_transforms" title="Permalink to this definition"></a></dt>
+<dd><p>Get transforms to perform on cropped samples for each model execution mode.
+By default no transformation is performed.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.get_full_image_sample_transforms">
+<span class="sig-name descname"><span class="pre">get_full_image_sample_transforms</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ModelTransformsPerExecutionMode</span></span></span><a class="reference internal" href="../../../_modules/InnerEye/ML/config.html#SegmentationModelBase.get_full_image_sample_transforms"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.get_full_image_sample_transforms" title="Permalink to this definition"></a></dt>
+<dd><p>Get transforms to perform on full image samples for each model execution mode.
+By default only PhotometricNormalization is performed.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.get_model_train_test_dataset_splits">
+<span class="sig-name descname"><span class="pre">get_model_train_test_dataset_splits</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset_df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">DatasetSplits</span></span></span><a class="reference internal" href="../../../_modules/InnerEye/ML/config.html#SegmentationModelBase.get_model_train_test_dataset_splits"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.get_model_train_test_dataset_splits" title="Permalink to this definition"></a></dt>
+<dd><p>Computes the training, validation and test splits for the model, from a dataframe that contains
+the full dataset.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>dataset_df</strong> – A dataframe that contains the full dataset that the model is using.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>An instance of DatasetSplits with dataframes for training, validation and testing.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.get_output_size">
+<span class="sig-name descname"><span class="pre">get_output_size</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">execution_mode</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ModelExecutionMode</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">ModelExecutionMode.TRAIN</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/InnerEye/ML/config.html#SegmentationModelBase.get_output_size"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.get_output_size" title="Permalink to this definition"></a></dt>
+<dd><p>Returns shape of model’s output tensor for training, validation and testing inference modes</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.get_parameter_search_hyperdrive_config">
+<span class="sig-name descname"><span class="pre">get_parameter_search_hyperdrive_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">run_config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ScriptRunConfig</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">HyperDriveConfig</span></span></span><a class="reference internal" href="../../../_modules/InnerEye/ML/config.html#SegmentationModelBase.get_parameter_search_hyperdrive_config"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.get_parameter_search_hyperdrive_config" title="Permalink to this definition"></a></dt>
+<dd><p>Turns the given AzureML estimator (settings for running a job in AzureML) into a configuration object
+for doing hyperparameter searches.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>run_config</strong> – The settings for running a single AzureML job.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A HyperDriveConfig object for running multiple AzureML jobs.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id12">
+<span class="sig-name descname"><span class="pre">ground_truth_ids</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#id12" title="Permalink to this definition"></a></dt>
+<dd><p>The names of the ground truth channels that the model consumes. These channels must be present in the
+dataset.csv file</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id13">
+<span class="sig-name descname"><span class="pre">ground_truth_ids_display_names</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#id13" title="Permalink to this definition"></a></dt>
+<dd><p>User friendly display names to be used for each of the predicted GT classes. Default is ground_truth_ids if
+None provided</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id14">
+<span class="sig-name descname"><span class="pre">image_channels</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#id14" title="Permalink to this definition"></a></dt>
+<dd><p>The names of the image input channels that the model consumes. These channels must be present in the
+dataset.csv file.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id15">
+<span class="sig-name descname"><span class="pre">inference_batch_size</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">8</span></em><a class="headerlink" href="#id15" title="Permalink to this definition"></a></dt>
+<dd><p>The batch size to use for inference forward pass.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.inference_stride_size">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">inference_stride_size</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.inference_stride_size" title="Permalink to this definition"></a></dt>
+<dd><p>Gets the stride size that should be used when stitching patches at inference time.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.interpreter">
+<span class="sig-name descname"><span class="pre">interpreter</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Default_Interpreter'</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.interpreter" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id16">
+<span class="sig-name descname"><span class="pre">is_plotting_enabled</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></em><a class="headerlink" href="#id16" title="Permalink to this definition"></a></dt>
+<dd><p>If true, various overview plots with results are generated during model evaluation. Set to False if you see
+non-deterministic pull request build failures.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id17">
+<span class="sig-name descname"><span class="pre">kernel_size</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">3</span></em><a class="headerlink" href="#id17" title="Permalink to this definition"></a></dt>
+<dd><p>The size of the convolution kernels.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.largest_connected_component_foreground_classes">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">largest_connected_component_foreground_classes</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Sequence</span><span class="p"><span class="pre">[</span></span><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.largest_connected_component_foreground_classes" title="Permalink to this definition"></a></dt>
+<dd><p>Gets the list of classes for which the largest connected components should be computed when predicting.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id18">
+<span class="sig-name descname"><span class="pre">level</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">50</span></em><a class="headerlink" href="#id18" title="Permalink to this definition"></a></dt>
+<dd><p>The level setting for the <a class="reference internal" href="#InnerEye.ML.config.PhotometricNormalizationMethod.CtWindow" title="InnerEye.ML.config.PhotometricNormalizationMethod.CtWindow"><code class="xref py py-attr docutils literal notranslate"><span class="pre">PhotometricNormalizationMethod.CtWindow</span></code></a> normalization.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id19">
+<span class="sig-name descname"><span class="pre">loss_class_weight_power</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#id19" title="Permalink to this definition"></a></dt>
+<dd><p>For weighted loss, power to which to raise the weights per class. If this is None, loss is not weighted.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id20">
+<span class="sig-name descname"><span class="pre">loss_type</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#InnerEye.ML.config.SegmentationLoss" title="InnerEye.ML.config.SegmentationLoss"><span class="pre">SegmentationLoss</span></a></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'SoftDice'</span></em><a class="headerlink" href="#id20" title="Permalink to this definition"></a></dt>
+<dd><p>The loss type to use during training.
+Valid options are defined at <a class="reference internal" href="#InnerEye.ML.config.SegmentationLoss" title="InnerEye.ML.config.SegmentationLoss"><code class="xref py py-class docutils literal notranslate"><span class="pre">SegmentationLoss</span></code></a>: “SoftDice”, “CrossEntropy”, “Focal”, “Mixture”</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.manufacturer">
+<span class="sig-name descname"><span class="pre">manufacturer</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Default_Manufacturer'</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.manufacturer" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id21">
+<span class="sig-name descname"><span class="pre">mask_id</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#id21" title="Permalink to this definition"></a></dt>
+<dd><p>The name of the channel that contains the <cite>inside/outside body</cite> information (to mask out the background).
+This channel must be present in the dataset</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id22">
+<span class="sig-name descname"><span class="pre">mixture_loss_components</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#InnerEye.ML.config.MixtureLossComponent" title="InnerEye.ML.config.MixtureLossComponent"><span class="pre">MixtureLossComponent</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#id22" title="Permalink to this definition"></a></dt>
+<dd><p>List of pairs of weights, loss types and class-weight-power values for use when loss_type is
+<code class="xref py py-attr docutils literal notranslate"><span class="pre">SegmentationLoss.MixtureLoss</span></code>”.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.name">
+<span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'SegmentationModelBase'</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.name" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id23">
+<span class="sig-name descname"><span class="pre">norm_method</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#InnerEye.ML.config.PhotometricNormalizationMethod" title="InnerEye.ML.config.PhotometricNormalizationMethod"><span class="pre">PhotometricNormalizationMethod</span></a></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'CT</span> <span class="pre">Window'</span></em><a class="headerlink" href="#id23" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.num_downsampling_paths">
+<span class="sig-name descname"><span class="pre">num_downsampling_paths</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">4</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.num_downsampling_paths" title="Permalink to this definition"></a></dt>
+<dd><p>The number of image levels used in Unet (in encoding and decoding paths).</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.number_of_classes">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">number_of_classes</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.number_of_classes" title="Permalink to this definition"></a></dt>
+<dd><p>Returns the number of ground truth ids, including the background class.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.number_of_image_channels">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">number_of_image_channels</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.number_of_image_channels" title="Permalink to this definition"></a></dt>
+<dd><p>Gets the number of image input channels that the model has (usually 1 CT channel, or multiple MR).</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id24">
+<span class="sig-name descname"><span class="pre">output_range</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">TupleFloat2</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">(-1.0,</span> <span class="pre">1.0)</span></em><a class="headerlink" href="#id24" title="Permalink to this definition"></a></dt>
+<dd><p>The value range that image normalization should produce. This is the input range to the network.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id25">
+<span class="sig-name descname"><span class="pre">padding_mode</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#InnerEye.ML.config.PaddingMode" title="InnerEye.ML.config.PaddingMode"><span class="pre">PaddingMode</span></a></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'edge'</span></em><a class="headerlink" href="#id25" title="Permalink to this definition"></a></dt>
+<dd><p>Padding mode to use for training and inference. See <a class="reference internal" href="#InnerEye.ML.config.PaddingMode" title="InnerEye.ML.config.PaddingMode"><code class="xref py py-attr docutils literal notranslate"><span class="pre">PaddingMode</span></code></a> for valid options.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.param">
+<span class="sig-name descname"><span class="pre">param</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;param.parameterized.Parameters</span> <span class="pre">object&gt;</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.param" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id26">
+<span class="sig-name descname"><span class="pre">posterior_smoothing_mm</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">TupleInt3</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#id26" title="Permalink to this definition"></a></dt>
+<dd><p>The size of the smoothing kernel in mm to be used for smoothing posteriors before computing the final
+segmentations. No smoothing is performed if set to None.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.read_dataset_into_dataframe_and_pre_process">
+<span class="sig-name descname"><span class="pre">read_dataset_into_dataframe_and_pre_process</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="../../../_modules/InnerEye/ML/config.html#SegmentationModelBase.read_dataset_into_dataframe_and_pre_process"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.read_dataset_into_dataframe_and_pre_process" title="Permalink to this definition"></a></dt>
+<dd><p>Loads a dataset from the dataset_csv file, and stores it in the present object.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.roi_interpreted_types">
+<span class="sig-name descname"><span class="pre">roi_interpreted_types</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.roi_interpreted_types" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.set_derived_model_properties">
+<span class="sig-name descname"><span class="pre">set_derived_model_properties</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="../../../_modules/InnerEye/ML/config.html#SegmentationModelBase.set_derived_model_properties"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.set_derived_model_properties" title="Permalink to this definition"></a></dt>
+<dd><p>Updates the model config parameters that depend on how the segmentation model is structured.
+In particular, this computes the model’s output size for the training and the inference crops.
+If the inference stride size is not set, then set it to be equal to the size of the inference output patches.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id27">
+<span class="sig-name descname"><span class="pre">sharpen</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.9</span></em><a class="headerlink" href="#id27" title="Permalink to this definition"></a></dt>
+<dd><p>Sharpen parameter specifies number of standard deviations from mean to be included in window range.
+Used in <a class="reference internal" href="#InnerEye.ML.config.PhotometricNormalizationMethod.MriWindow" title="InnerEye.ML.config.PhotometricNormalizationMethod.MriWindow"><code class="xref py py-attr docutils literal notranslate"><span class="pre">PhotometricNormalizationMethod.MriWindow</span></code></a></p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.show_patch_sampling">
+<span class="sig-name descname"><span class="pre">show_patch_sampling</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.show_patch_sampling" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id28">
+<span class="sig-name descname"><span class="pre">slice_exclusion_rules</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#InnerEye.ML.config.SliceExclusionRule" title="InnerEye.ML.config.SliceExclusionRule"><span class="pre">SliceExclusionRule</span></a><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">[]</span></em><a class="headerlink" href="#id28" title="Permalink to this definition"></a></dt>
+<dd><p>List of rules for structures that should be prevented from sharing the same slice.
+These are not applied if <a class="reference internal" href="#id8" title="InnerEye.ML.config.SegmentationModelBase.disable_extra_postprocessing"><code class="xref py py-attr docutils literal notranslate"><span class="pre">disable_extra_postprocessing</span></code></a> is True.
+Parameter should be a list of <a class="reference internal" href="#InnerEye.ML.config.SliceExclusionRule" title="InnerEye.ML.config.SliceExclusionRule"><code class="xref py py-attr docutils literal notranslate"><span class="pre">SliceExclusionRule</span></code></a> objects.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id29">
+<span class="sig-name descname"><span class="pre">store_dataset_sample</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></em><a class="headerlink" href="#id29" title="Permalink to this definition"></a></dt>
+<dd><p>If True save image and segmentations for one image in a batch for each training epoch</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id30">
+<span class="sig-name descname"><span class="pre">summed_probability_rules</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#InnerEye.ML.config.SummedProbabilityRule" title="InnerEye.ML.config.SummedProbabilityRule"><span class="pre">SummedProbabilityRule</span></a><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">[]</span></em><a class="headerlink" href="#id30" title="Permalink to this definition"></a></dt>
+<dd><p>List of rules for class pairs whose summed probability is used to create the segmentation map from predicted
+posterior probabilities.
+These are not applied if <a class="reference internal" href="#id8" title="InnerEye.ML.config.SegmentationModelBase.disable_extra_postprocessing"><code class="xref py py-attr docutils literal notranslate"><span class="pre">disable_extra_postprocessing</span></code></a> is True.
+Parameter should be a list of <a class="reference internal" href="#InnerEye.ML.config.SummedProbabilityRule" title="InnerEye.ML.config.SummedProbabilityRule"><code class="xref py py-attr docutils literal notranslate"><span class="pre">SummedProbabilityRule</span></code></a> objects.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id31">
+<span class="sig-name descname"><span class="pre">tail</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#id31" title="Permalink to this definition"></a></dt>
+<dd><p>Tail parameter allows window range to be extended to right, used in
+<a class="reference internal" href="#InnerEye.ML.config.PhotometricNormalizationMethod.MriWindow" title="InnerEye.ML.config.PhotometricNormalizationMethod.MriWindow"><code class="xref py py-attr docutils literal notranslate"><span class="pre">PhotometricNormalizationMethod.MriWindow</span></code></a>. The value must be a list with one entry per input channel
+if the model has multiple input channels</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id32">
+<span class="sig-name descname"><span class="pre">test_crop_size</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">TupleInt3</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#id32" title="Permalink to this definition"></a></dt>
+<dd><p>The crop size to use for model testing. If nothing is specified, crop_size parameter is used instead,
+i.e. training and testing crop size will be the same.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id33">
+<span class="sig-name descname"><span class="pre">trim_percentiles</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">TupleFloat2</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">(1.0,</span> <span class="pre">99.0)</span></em><a class="headerlink" href="#id33" title="Permalink to this definition"></a></dt>
+<dd><p>Percentile at which to trim input distribution prior to normalization. Used in
+<a class="reference internal" href="#InnerEye.ML.config.PhotometricNormalizationMethod.TrimmedNorm" title="InnerEye.ML.config.PhotometricNormalizationMethod.TrimmedNorm"><code class="xref py py-attr docutils literal notranslate"><span class="pre">PhotometricNormalizationMethod.TrimmedNorm</span></code></a></p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.validate">
+<span class="sig-name descname"><span class="pre">validate</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="../../../_modules/InnerEye/ML/config.html#SegmentationModelBase.validate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.validate" title="Permalink to this definition"></a></dt>
+<dd><p>Validates the parameters stored in the present object.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.validate_class_weights">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">validate_class_weights</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">class_weights</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="../../../_modules/InnerEye/ML/config.html#SegmentationModelBase.validate_class_weights"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.validate_class_weights" title="Permalink to this definition"></a></dt>
+<dd><p>Checks that the given list of class weights is valid: The weights must be positive and add up to 1.0.
+Raises a ValueError if that is not the case.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationModelBase.validate_inference_stride_size">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">validate_inference_stride_size</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">inference_stride_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="../../../_modules/InnerEye/ML/config.html#SegmentationModelBase.validate_inference_stride_size"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#InnerEye.ML.config.SegmentationModelBase.validate_inference_stride_size" title="Permalink to this definition"></a></dt>
+<dd><p>Checks that patch stride size is positive and smaller than output patch size to ensure that posterior
+predictions are obtained for all pixels</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id34">
+<span class="sig-name descname"><span class="pre">window</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">600</span></em><a class="headerlink" href="#id34" title="Permalink to this definition"></a></dt>
+<dd><p>The Window setting for the <a class="reference internal" href="#InnerEye.ML.config.PhotometricNormalizationMethod.CtWindow" title="InnerEye.ML.config.PhotometricNormalizationMethod.CtWindow"><code class="xref py py-attr docutils literal notranslate"><span class="pre">PhotometricNormalizationMethod.CtWindow</span></code></a> normalization.</p>
+</dd></dl>
+
+</dd></dl>
+
+<span class="target" id="module-InnerEye.ML.config"></span><dl class="py class">
+<dt class="sig sig-object py" id="InnerEye.ML.config.EnsembleAggregationType">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">InnerEye.ML.config.</span></span><span class="sig-name descname"><span class="pre">EnsembleAggregationType</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/InnerEye/ML/config.html#EnsembleAggregationType"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#InnerEye.ML.config.EnsembleAggregationType" title="Permalink to this definition"></a></dt>
+<dd><p>An enumeration.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.EnsembleAggregationType.Average">
+<span class="sig-name descname"><span class="pre">Average</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Average'</span></em><a class="headerlink" href="#InnerEye.ML.config.EnsembleAggregationType.Average" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="InnerEye.ML.config.MixtureLossComponent">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">InnerEye.ML.config.</span></span><span class="sig-name descname"><span class="pre">MixtureLossComponent</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">weight</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">loss_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#InnerEye.ML.config.SegmentationLoss" title="InnerEye.ML.config.SegmentationLoss"><span class="pre">SegmentationLoss</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">class_weight_power</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/InnerEye/ML/config.html#MixtureLossComponent"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#InnerEye.ML.config.MixtureLossComponent" title="Permalink to this definition"></a></dt>
+<dd><p>A member of the value of the mixture_loss_components parameter.</p>
+<dl class="simple">
+<dt>Parameters for the loss function will be pulled from the model config,</dt><dd><p>except <a class="reference internal" href="#id19" title="InnerEye.ML.config.SegmentationModelBase.loss_class_weight_power"><code class="xref py py-attr docutils literal notranslate"><span class="pre">SegmentationModelBase.loss_class_weight_power</span></code></a> which is ignored.</p>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.MixtureLossComponent.class_weight_power">
+<span class="sig-name descname"><span class="pre">class_weight_power</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><a class="headerlink" href="#InnerEye.ML.config.MixtureLossComponent.class_weight_power" title="Permalink to this definition"></a></dt>
+<dd><p>For weighted loss, power to which to raise the weights per class.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.MixtureLossComponent.loss_type">
+<span class="sig-name descname"><span class="pre">loss_type</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#InnerEye.ML.config.SegmentationLoss" title="InnerEye.ML.config.SegmentationLoss"><span class="pre">SegmentationLoss</span></a></em><a class="headerlink" href="#InnerEye.ML.config.MixtureLossComponent.loss_type" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.MixtureLossComponent.weight">
+<span class="sig-name descname"><span class="pre">weight</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><a class="headerlink" href="#InnerEye.ML.config.MixtureLossComponent.weight" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="InnerEye.ML.config.ModelArchitectureConfig">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">InnerEye.ML.config.</span></span><span class="sig-name descname"><span class="pre">ModelArchitectureConfig</span></span><a class="reference internal" href="../../../_modules/InnerEye/ML/config.html#ModelArchitectureConfig"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#InnerEye.ML.config.ModelArchitectureConfig" title="Permalink to this definition"></a></dt>
+<dd><p>Supported model architecture types</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.ModelArchitectureConfig.Basic">
+<span class="sig-name descname"><span class="pre">Basic</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Basic'</span></em><a class="headerlink" href="#InnerEye.ML.config.ModelArchitectureConfig.Basic" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.ModelArchitectureConfig.UNet2D">
+<span class="sig-name descname"><span class="pre">UNet2D</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'UNet2D'</span></em><a class="headerlink" href="#InnerEye.ML.config.ModelArchitectureConfig.UNet2D" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.ModelArchitectureConfig.UNet3D">
+<span class="sig-name descname"><span class="pre">UNet3D</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'UNet3D'</span></em><a class="headerlink" href="#InnerEye.ML.config.ModelArchitectureConfig.UNet3D" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="InnerEye.ML.config.PaddingMode">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">InnerEye.ML.config.</span></span><span class="sig-name descname"><span class="pre">PaddingMode</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/InnerEye/ML/config.html#PaddingMode"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#InnerEye.ML.config.PaddingMode" title="Permalink to this definition"></a></dt>
+<dd><p>Supported padding modes for numpy and torch image padding.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.PaddingMode.Edge">
+<span class="sig-name descname"><span class="pre">Edge</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'edge'</span></em><a class="headerlink" href="#InnerEye.ML.config.PaddingMode.Edge" title="Permalink to this definition"></a></dt>
+<dd><p>Pads with the edge values of array.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.PaddingMode.LinearRamp">
+<span class="sig-name descname"><span class="pre">LinearRamp</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'linear_ramp'</span></em><a class="headerlink" href="#InnerEye.ML.config.PaddingMode.LinearRamp" title="Permalink to this definition"></a></dt>
+<dd><p>Pads with the linear ramp between end_value and the array edge value.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.PaddingMode.Maximum">
+<span class="sig-name descname"><span class="pre">Maximum</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'maximum'</span></em><a class="headerlink" href="#InnerEye.ML.config.PaddingMode.Maximum" title="Permalink to this definition"></a></dt>
+<dd><p>Pads with the maximum value of all or part of the vector along each axis.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.PaddingMode.Mean">
+<span class="sig-name descname"><span class="pre">Mean</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'mean'</span></em><a class="headerlink" href="#InnerEye.ML.config.PaddingMode.Mean" title="Permalink to this definition"></a></dt>
+<dd><p>Pads with the mean value of all or part of the vector along each axis.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.PaddingMode.Median">
+<span class="sig-name descname"><span class="pre">Median</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'median'</span></em><a class="headerlink" href="#InnerEye.ML.config.PaddingMode.Median" title="Permalink to this definition"></a></dt>
+<dd><p>Pads with the median value of all or part of the vector along each axis.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.PaddingMode.Minimum">
+<span class="sig-name descname"><span class="pre">Minimum</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'minimum'</span></em><a class="headerlink" href="#InnerEye.ML.config.PaddingMode.Minimum" title="Permalink to this definition"></a></dt>
+<dd><p>Pads with the minimum value of all or part of the vector along each axis.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.PaddingMode.NoPadding">
+<span class="sig-name descname"><span class="pre">NoPadding</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'no_padding'</span></em><a class="headerlink" href="#InnerEye.ML.config.PaddingMode.NoPadding" title="Permalink to this definition"></a></dt>
+<dd><p>No padding is performed</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.PaddingMode.Reflect">
+<span class="sig-name descname"><span class="pre">Reflect</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'reflect'</span></em><a class="headerlink" href="#InnerEye.ML.config.PaddingMode.Reflect" title="Permalink to this definition"></a></dt>
+<dd><p>Pads with the reflection of the vector mirrored on the first and last values of the vector along each axis.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.PaddingMode.Symmetric">
+<span class="sig-name descname"><span class="pre">Symmetric</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'symmetric'</span></em><a class="headerlink" href="#InnerEye.ML.config.PaddingMode.Symmetric" title="Permalink to this definition"></a></dt>
+<dd><p>Pads with the reflection of the vector mirrored along the edge of the array.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.PaddingMode.Wrap">
+<span class="sig-name descname"><span class="pre">Wrap</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'wrap'</span></em><a class="headerlink" href="#InnerEye.ML.config.PaddingMode.Wrap" title="Permalink to this definition"></a></dt>
+<dd><p>Pads with the wrap of the vector along the axis.
+The first values are used to pad the end and the end values are used to pad the beginning.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.PaddingMode.Zero">
+<span class="sig-name descname"><span class="pre">Zero</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'constant'</span></em><a class="headerlink" href="#InnerEye.ML.config.PaddingMode.Zero" title="Permalink to this definition"></a></dt>
+<dd><p>Zero padding scheme.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="InnerEye.ML.config.PhotometricNormalizationMethod">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">InnerEye.ML.config.</span></span><span class="sig-name descname"><span class="pre">PhotometricNormalizationMethod</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/InnerEye/ML/config.html#PhotometricNormalizationMethod"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#InnerEye.ML.config.PhotometricNormalizationMethod" title="Permalink to this definition"></a></dt>
+<dd><p>Contains the valid methods that can be used to perform photometric normalization of a medical image.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.PhotometricNormalizationMethod.CtWindow">
+<span class="sig-name descname"><span class="pre">CtWindow</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'CT</span> <span class="pre">Window'</span></em><a class="headerlink" href="#InnerEye.ML.config.PhotometricNormalizationMethod.CtWindow" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.PhotometricNormalizationMethod.MriWindow">
+<span class="sig-name descname"><span class="pre">MriWindow</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'MRI</span> <span class="pre">Window'</span></em><a class="headerlink" href="#InnerEye.ML.config.PhotometricNormalizationMethod.MriWindow" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.PhotometricNormalizationMethod.SimpleNorm">
+<span class="sig-name descname"><span class="pre">SimpleNorm</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Simple</span> <span class="pre">Norm'</span></em><a class="headerlink" href="#InnerEye.ML.config.PhotometricNormalizationMethod.SimpleNorm" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.PhotometricNormalizationMethod.TrimmedNorm">
+<span class="sig-name descname"><span class="pre">TrimmedNorm</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Trimmed</span> <span class="pre">Norm'</span></em><a class="headerlink" href="#InnerEye.ML.config.PhotometricNormalizationMethod.TrimmedNorm" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.PhotometricNormalizationMethod.Unchanged">
+<span class="sig-name descname"><span class="pre">Unchanged</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'None'</span></em><a class="headerlink" href="#InnerEye.ML.config.PhotometricNormalizationMethod.Unchanged" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationLoss">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">InnerEye.ML.config.</span></span><span class="sig-name descname"><span class="pre">SegmentationLoss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/InnerEye/ML/config.html#SegmentationLoss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#InnerEye.ML.config.SegmentationLoss" title="Permalink to this definition"></a></dt>
+<dd><p>The types of training loss that are supported for segmentation models.
+Parameters that can be set in the segmentation configs related to loss functions:</p>
+<div class="line-block">
+<div class="line">SoftDice: <a class="reference internal" href="#id19" title="InnerEye.ML.config.SegmentationModelBase.loss_class_weight_power"><code class="xref py py-attr docutils literal notranslate"><span class="pre">SegmentationModelBase.loss_class_weight_power</span></code></a></div>
+<div class="line">CrossEntropy: <a class="reference internal" href="#id19" title="InnerEye.ML.config.SegmentationModelBase.loss_class_weight_power"><code class="xref py py-attr docutils literal notranslate"><span class="pre">SegmentationModelBase.loss_class_weight_power</span></code></a>,
+<code class="xref py py-attr docutils literal notranslate"><span class="pre">DeepLearningConfig.label_smoothing_eps</span></code></div>
+<div class="line">Focal: <a class="reference internal" href="#id19" title="InnerEye.ML.config.SegmentationModelBase.loss_class_weight_power"><code class="xref py py-attr docutils literal notranslate"><span class="pre">SegmentationModelBase.loss_class_weight_power</span></code></a>,
+<code class="xref py py-attr docutils literal notranslate"><span class="pre">DeepLearningConfig.label_smoothing_eps</span></code>,
+<a class="reference internal" href="#id11" title="InnerEye.ML.config.SegmentationModelBase.focal_loss_gamma"><code class="xref py py-attr docutils literal notranslate"><span class="pre">SegmentationModelBase.focal_loss_gamma</span></code></a></div>
+<div class="line">Mixture: <a class="reference internal" href="#id22" title="InnerEye.ML.config.SegmentationModelBase.mixture_loss_components"><code class="xref py py-attr docutils literal notranslate"><span class="pre">SegmentationModelBase.mixture_loss_components</span></code></a>.
+See <a class="reference internal" href="#InnerEye.ML.config.MixtureLossComponent" title="InnerEye.ML.config.MixtureLossComponent"><code class="xref py py-class docutils literal notranslate"><span class="pre">MixtureLossComponent</span></code></a> for component parameters.</div>
+</div>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationLoss.CrossEntropy">
+<span class="sig-name descname"><span class="pre">CrossEntropy</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'CrossEntropy'</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationLoss.CrossEntropy" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationLoss.Focal">
+<span class="sig-name descname"><span class="pre">Focal</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Focal'</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationLoss.Focal" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationLoss.Mixture">
+<span class="sig-name descname"><span class="pre">Mixture</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Mixture'</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationLoss.Mixture" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SegmentationLoss.SoftDice">
+<span class="sig-name descname"><span class="pre">SoftDice</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'SoftDice'</span></em><a class="headerlink" href="#InnerEye.ML.config.SegmentationLoss.SoftDice" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SliceExclusionRule">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">InnerEye.ML.config.</span></span><span class="sig-name descname"><span class="pre">SliceExclusionRule</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">higher_class</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lower_class</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">higher_dominates</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/InnerEye/ML/config.html#SliceExclusionRule"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#InnerEye.ML.config.SliceExclusionRule" title="Permalink to this definition"></a></dt>
+<dd><p>Rule mandating that voxels of higher_class must always be in strictly higher slices than those of lower_class
+(slices are along the z-axis). If this is not the case, then if higher_dominates is True, any lower_class voxels in
+a higher or equal slice to any higher_class voxels are converted to higher_class. If higher_dominates
+is False, any higher_class voxels in a lower or equal slice to any lower_class voxels are converted to lower_class.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SliceExclusionRule.higher_class">
+<span class="sig-name descname"><span class="pre">higher_class</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#InnerEye.ML.config.SliceExclusionRule.higher_class" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SliceExclusionRule.higher_dominates">
+<span class="sig-name descname"><span class="pre">higher_dominates</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#InnerEye.ML.config.SliceExclusionRule.higher_dominates" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SliceExclusionRule.lower_class">
+<span class="sig-name descname"><span class="pre">lower_class</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#InnerEye.ML.config.SliceExclusionRule.lower_class" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SliceExclusionRule.validate">
+<span class="sig-name descname"><span class="pre">validate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ground_truth_ids</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="../../../_modules/InnerEye/ML/config.html#SliceExclusionRule.validate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#InnerEye.ML.config.SliceExclusionRule.validate" title="Permalink to this definition"></a></dt>
+<dd><p>Check this rule is valid for the given set of ground_truth_ids.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SummedProbabilityRule">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">InnerEye.ML.config.</span></span><span class="sig-name descname"><span class="pre">SummedProbabilityRule</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">first_class</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">second_class</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">external_class</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../_modules/InnerEye/ML/config.html#SummedProbabilityRule"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#InnerEye.ML.config.SummedProbabilityRule" title="Permalink to this definition"></a></dt>
+<dd><p>At the boundary between two classes, the predicted class probability for both classes may be low. To avoid these
+voxels being categorized as external voxels, the summed probability of first_class and second_class will be used
+to create the segmentation map. If the summed probability of first_class and second_class is greater than
+external_class, we will label the voxel with first_class or second_class (whichever has the higher probability)
+instead of external_class.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SummedProbabilityRule.external_class">
+<span class="sig-name descname"><span class="pre">external_class</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#InnerEye.ML.config.SummedProbabilityRule.external_class" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SummedProbabilityRule.first_class">
+<span class="sig-name descname"><span class="pre">first_class</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#InnerEye.ML.config.SummedProbabilityRule.first_class" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SummedProbabilityRule.second_class">
+<span class="sig-name descname"><span class="pre">second_class</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#InnerEye.ML.config.SummedProbabilityRule.second_class" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="InnerEye.ML.config.SummedProbabilityRule.validate">
+<span class="sig-name descname"><span class="pre">validate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ground_truth_ids</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="../../../_modules/InnerEye/ML/config.html#SummedProbabilityRule.validate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#InnerEye.ML.config.SummedProbabilityRule.validate" title="Permalink to this definition"></a></dt>
+<dd><p>Check this rule is valid for the given set of ground_truth_ids.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="InnerEye.ML.config.equally_weighted_classes">
+<span class="sig-prename descclassname"><span class="pre">InnerEye.ML.config.</span></span><span class="sig-name descname"><span class="pre">equally_weighted_classes</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">foreground_classes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">background_weight</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span></span></span><a class="reference internal" href="../../../_modules/InnerEye/ML/config.html#equally_weighted_classes"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#InnerEye.ML.config.equally_weighted_classes" title="Permalink to this definition"></a></dt>
+<dd><p>Computes a list of weights for the background class and all foreground classes. If no background_weight
+is given, all foreground classes and the background class (class index 0) are given equal weight.
+If a background_weight is given explicitly, that weight is assigned to class index 0, and the rest of the weight
+is equally distributed across all foreground classes. All weights will sum to 1.0</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>foreground_classes</strong> – The list of foreground classes that the model uses.</p></li>
+<li><p><strong>background_weight</strong> – The weight that should be given to the background class (index 0). This can be None.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A list of length len(foreground_classes) + 1, with weights for all classes including the background class.
+The weights will sum to 1.0</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="InnerEye.ML.config.get_center_size">
+<span class="sig-prename descclassname"><span class="pre">InnerEye.ML.config.</span></span><span class="sig-name descname"><span class="pre">get_center_size</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">arch</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">crop_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../_modules/InnerEye/ML/config.html#get_center_size"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#InnerEye.ML.config.get_center_size" title="Permalink to this definition"></a></dt>
+<dd><p>Computes the size of the output tensor, if the model is fed with an input tensor of the given crop_size.
+This makes a lot of assumptions about the architectures that are hardcoded, this method should be used with care.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>arch</strong> – The model architecture that is used.</p></li>
+<li><p><strong>crop_size</strong> – The size of the model’s input tensor.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The size of the model’s output tensor.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="runner.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">Runner</div>
+              </div>
+              <svg><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="index.html">
+              <svg><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">Machine learning</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; Microsoft Corporation
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            <div class="icons">
+              
+            </div>
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer no-toc">
+      
+      
+      
+    </aside>
+  </div>
+</div><script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+    <script src="../../../_static/jquery.js"></script>
+    <script src="../../../_static/underscore.js"></script>
+    <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../../../_static/doctools.js"></script>
+    <script src="../../../_static/scripts/furo.js"></script>
+    </body>
+</html>

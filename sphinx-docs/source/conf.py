@@ -108,6 +108,5 @@ shutil.copy(repository_root / "CHANGELOG.md", docs_path)
 
 # replace links to files in repository with urls
 md_files = docs_path.rglob("*.md")
-print(f"MY FILES: {[f for f in md_files]}")
 for filepath in md_files:
-    replace_in_file(filepath, "](/", f"]({repository_url}/blob/main/")
+    replace_in_file(filepath, "../../..", f"{repository_url}/tree/main/")

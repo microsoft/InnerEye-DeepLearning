@@ -18,7 +18,7 @@ Here, we provide implementations for four datasets to get you kickstarted with s
   [NIH Chest-Xray](https://www.kaggle.com/nih-chest-xrays/data) (112k Chest-Xray scans) or
   [CheXpert](https://stanfordmlgroup.github.io/competitions/chexpert/) (228k scans).
 
-### Multi-dataset support
+## Multi-dataset support
 
 During self-supervised training, a separate linear classifier is trained on top of learnt image embeddings. In this way,
 users can continuously monitor the representativeness of learnt image embeddings for a given downstream classification
@@ -37,7 +37,7 @@ Here we described how to quickly start a training job with our ready made config
 
 To kick-off a training for a SimCLR and BYOL models on CIFAR10, simply run
 
-```
+```shell
 python ML/runner.py --model=CIFAR10BYOL
 python ML/runner.py --model=CIFAR10SimCLR
 ```
@@ -48,7 +48,7 @@ For this dataset, it will automatically take care of downloading the dataset to 
 
 #### Step 0: Get the data
 
-#### If you run on your local machine:
+#### If you run on your local machine
 
 Prior to starting training a model on this dataset, you will need to download it from Kaggle to your machine:
 
@@ -82,11 +82,11 @@ the dataset location fields:
 Example to train a SSL model with BYOL on the NIH dataset and monitor the embeddings quality on the Kaggle RSNA
 Pneumonia Challenge classification task:
 
-```
+```shell
 python ML/runner.py --model=NIH_RSNA_BYOL
 ```
 
-## Configuring your own SSL models:
+## Configuring your own SSL models
 
 ### About SSLContainer configuration
 
@@ -120,11 +120,12 @@ with the following available arguments:
 * `num_epochs`: number of epochs to train for.
 
 In case you wish to first test your model locally, here some optional arguments that can be useful:
+
 * `local_dataset`: path to local dataset, if passed the azure dataset will be ignored
 * `is_debug_model`: if True it will only run on the first batch of each epoch
 * `drop_last`: if False (True by default) it will keep the last batch also if incomplete
 
-### Creating your own datamodules:
+### Creating your own datamodules
 
 To use this code with your own data, you will need to:
 
@@ -156,16 +157,16 @@ the ``cxr_linear_head_augmentations.yaml`` config defines the augmentations to u
 
 WARNING: this file will be ignored for CIFAR examples where we use the default pl-bolts augmentations.
 
-## Finetuning a linear head on top of a pretrained SSL model.
+## Finetuning a linear head on top of a pretrained SSL model
 
 Alongside with the modules to train your SSL models, we also provide examplary modules that allow you to build a
 classifier on top of a pretrained SSL model. The base class for these modules is `SSLClassifierContainer`. It builds on
 top of the `SSLContainer` with additional command line arguments allowing you to specify where to find the checkpoint
 for your pretrained model. For this you have two options:
 
-- If you are running locally, you can provide the local path to your pretrained model checkpoint
+* If you are running locally, you can provide the local path to your pretrained model checkpoint
   via `--local_weights_path`.
-- If your are running on AML, use the `pretraining_run_recovery_id` field. Providing this field, will mean that AML will
+* If your are running on AML, use the `pretraining_run_recovery_id` field. Providing this field, will mean that AML will
   automatically download the checkpoints to the current node, will pick the latest checkpoint to build the classifier on
   top. Beware not to confuse `pretraining_run_recovery_id` with `run_recovery_id` as the latter is use to continue training on
   the same model (which is not the case here).
@@ -179,7 +180,7 @@ argument. By default, this is set to True.
 We provide an example of such a classifier container for CIFAR named `SSLClassifierCIFAR`. To launch a finetuning run
 for this model on CIFAR10, just run
 
-```
+```shell
 python ML/runner.py --model=SSLClassifierCIFAR --pretraining_run_recovery_id={THE_ID_TO_YOUR_SSL_TRAINING_JOB}
 ```
 
@@ -188,12 +189,12 @@ python ML/runner.py --model=SSLClassifierCIFAR --pretraining_run_recovery_id={TH
 Similarly, we provide class to allow you to simply start a finetuning job for CXR model in `CXRImageClassifier`. By
 default, this will launch a finetuning job on the RSNA Pneumonia dataset. To start the run:
 
-```
+```shell
 python ML/runner.py --model=CXRImageClassifier --pretraining_run_recovery_id={THE_ID_TO_YOUR_SSL_TRAINING_JOB}
 ```
 
 or for a local run
 
-```
+```shell
 python ML/runner.py --model=CXRImageClassifier --local_weights_path={LOCAL_PATH_TO_YOUR_SSL_CHECKPOINT}
 ```

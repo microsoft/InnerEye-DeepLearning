@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>InnerEye.ML.runner &mdash; InnerEye-DeepLearning 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../../index.html" class="icon icon-home"> InnerEye-DeepLearning
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs/innereye_deeplearning.html">InnerEye-DeepLearning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs/WSL.html">How to use the Windows Subsystem for Linux (WSL2) for development</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs/environment.html">Set up InnerEye-DeepLearning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs/setting_up_aml.html">How to setup Azure Machine Learning for InnerEye</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs/creating_dataset.html">Dataset Creation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs/building_models.html">Building Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs/sample_tasks.html">Sample Tasks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs/debugging_and_monitoring.html">Debugging and Monitoring Jobs</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Further reading for contributors</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs/pull_requests.html">Suggested Workflow for Pull Requests</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs/testing.html">Pytest and testing on CPU and GPU machines</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs/contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs/hello_world_model.html">Training a Hello World segmentation model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs/deploy_on_aml.html">Model Deployment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs/bring_your_own_model.html">Bring Your Own PyTorch Lightning Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs/fastmri.html">Working with FastMRI models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs/innereye_as_submodule.html">Using the InnerEye code as a git submodule of your project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs/model_diagnostics.html">Model Diagnostics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs/move_model.html">Move a model to other workspace</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs/releases.html">Releases</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs/self_supervised_models.html">Training of self-supervised models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../docs/CHANGELOG.html">Changelog</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API documentation (🚧 Work In Progress 🚧)</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../rst/api/ML/index.html">Machine learning</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">InnerEye-DeepLearning</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+      <li>InnerEye.ML.runner</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for InnerEye.ML.runner</h1><div class="highlight"><pre>
+<span></span><span class="c1">#  ------------------------------------------------------------------------------------------</span>
+<span class="c1">#  Copyright (c) Microsoft Corporation. All rights reserved.</span>
+<span class="c1">#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.</span>
+<span class="c1">#  ------------------------------------------------------------------------------------------</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">uuid</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span>
+
+<span class="c1"># Workaround for an issue with how AzureML and Pytorch Lightning interact: When spawning additional processes for DDP,</span>
+<span class="c1"># the working directory is not correctly picked up in sys.path</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Starting InnerEye runner at </span><span class="si">{</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="n">innereye_root</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">parent</span>
+<span class="k">if</span> <span class="p">(</span><span class="n">innereye_root</span> <span class="o">/</span> <span class="s2">&quot;InnerEye&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
+    <span class="n">innereye_root_str</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">innereye_root</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">innereye_root_str</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Adding InnerEye folder to sys.path: </span><span class="si">{</span><span class="n">innereye_root_str</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">innereye_root_str</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">InnerEye.Common</span> <span class="kn">import</span> <span class="n">fixed_paths</span>
+
+<span class="c1"># This must be added before all other imports because they might rely on hi-ml already, and that can optionally live</span>
+<span class="c1"># in a submodule</span>
+<span class="n">fixed_paths</span><span class="o">.</span><span class="n">add_submodules_to_path</span><span class="p">()</span>
+
+<span class="kn">from</span> <span class="nn">azureml._base_sdk_common</span> <span class="kn">import</span> <span class="n">user_agent</span>
+<span class="kn">from</span> <span class="nn">azureml._restclient.constants</span> <span class="kn">import</span> <span class="n">RunStatus</span>
+<span class="kn">from</span> <span class="nn">azureml.core</span> <span class="kn">import</span> <span class="n">Run</span><span class="p">,</span> <span class="n">ScriptRunConfig</span>
+<span class="kn">from</span> <span class="nn">health_azure</span> <span class="kn">import</span> <span class="n">AzureRunInfo</span><span class="p">,</span> <span class="n">submit_to_azure_if_needed</span>
+<span class="kn">from</span> <span class="nn">health_azure.utils</span> <span class="kn">import</span> <span class="n">create_run_recovery_id</span><span class="p">,</span> <span class="n">is_global_rank_zero</span><span class="p">,</span> <span class="n">is_local_rank_zero</span><span class="p">,</span> <span class="n">merge_conda_files</span><span class="p">,</span> \
+    <span class="n">to_azure_friendly_string</span>
+<span class="kn">import</span> <span class="nn">matplotlib</span>
+
+<span class="kn">from</span> <span class="nn">InnerEye.Azure.tensorboard_monitor</span> <span class="kn">import</span> <span class="n">AMLTensorBoardMonitorConfig</span><span class="p">,</span> <span class="n">monitor</span>
+<span class="kn">from</span> <span class="nn">InnerEye.Azure</span> <span class="kn">import</span> <span class="n">azure_util</span>
+<span class="kn">from</span> <span class="nn">InnerEye.Azure.azure_config</span> <span class="kn">import</span> <span class="n">AzureConfig</span><span class="p">,</span> <span class="n">ParserResult</span><span class="p">,</span> <span class="n">SourceConfig</span>
+<span class="kn">from</span> <span class="nn">InnerEye.Azure.azure_runner</span> <span class="kn">import</span> <span class="p">(</span><span class="n">DEFAULT_DOCKER_BASE_IMAGE</span><span class="p">,</span> <span class="n">create_dataset_configs</span><span class="p">,</span> <span class="n">create_experiment_name</span><span class="p">,</span>
+                                         <span class="n">create_runner_parser</span><span class="p">,</span>
+                                         <span class="n">get_git_tags</span><span class="p">,</span>
+                                         <span class="n">parse_args_and_add_yaml_variables</span><span class="p">,</span>
+                                         <span class="n">parse_arguments</span><span class="p">,</span> <span class="n">additional_run_tags</span><span class="p">,</span>
+                                         <span class="n">set_environment_variables_for_multi_node</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">InnerEye.Azure.azure_util</span> <span class="kn">import</span> <span class="p">(</span><span class="n">RUN_CONTEXT</span><span class="p">,</span> <span class="n">RUN_RECOVERY_ID_KEY_NAME</span><span class="p">,</span> <span class="n">get_all_environment_files</span><span class="p">,</span>
+                                       <span class="n">is_offline_run_context</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">InnerEye.Azure.run_pytest</span> <span class="kn">import</span> <span class="n">download_pytest_result</span><span class="p">,</span> <span class="n">run_pytest</span>
+<span class="kn">from</span> <span class="nn">InnerEye.Common.common_util</span> <span class="kn">import</span> <span class="p">(</span><span class="n">FULL_METRICS_DATAFRAME_FILE</span><span class="p">,</span> <span class="n">METRICS_AGGREGATES_FILE</span><span class="p">,</span>
+                                         <span class="n">is_linux</span><span class="p">,</span> <span class="n">logging_to_stdout</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">InnerEye.Common.generic_parsing</span> <span class="kn">import</span> <span class="n">GenericConfig</span>
+<span class="kn">from</span> <span class="nn">InnerEye.ML.common</span> <span class="kn">import</span> <span class="n">DATASET_CSV_FILE_NAME</span>
+<span class="kn">from</span> <span class="nn">InnerEye.ML.deep_learning_config</span> <span class="kn">import</span> <span class="n">DeepLearningConfig</span>
+<span class="kn">from</span> <span class="nn">InnerEye.ML.lightning_base</span> <span class="kn">import</span> <span class="n">InnerEyeContainer</span>
+<span class="kn">from</span> <span class="nn">InnerEye.ML.model_config_base</span> <span class="kn">import</span> <span class="n">ModelConfigBase</span>
+<span class="kn">from</span> <span class="nn">InnerEye.ML.run_ml</span> <span class="kn">import</span> <span class="n">MLRunner</span><span class="p">,</span> <span class="n">ModelDeploymentHookSignature</span><span class="p">,</span> <span class="n">PostCrossValidationHookSignature</span>
+<span class="kn">from</span> <span class="nn">InnerEye.ML.utils.config_loader</span> <span class="kn">import</span> <span class="n">ModelConfigLoader</span>
+<span class="kn">from</span> <span class="nn">InnerEye.ML.lightning_container</span> <span class="kn">import</span> <span class="n">LightningContainer</span>
+
+<span class="c1"># We change the current working directory before starting the actual training. However, this throws off starting</span>
+<span class="c1"># the child training threads because sys.argv[0] is a relative path when running in AzureML. Turn that into an absolute</span>
+<span class="c1"># path.</span>
+<span class="n">runner_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+<span class="k">if</span> <span class="ow">not</span> <span class="n">runner_path</span><span class="o">.</span><span class="n">is_absolute</span><span class="p">():</span>
+    <span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">runner_path</span><span class="o">.</span><span class="n">absolute</span><span class="p">())</span>
+
+
+<div class="viewcode-block" id="initialize_rpdb"><a class="viewcode-back" href="../../../rst/api/ML/runner.html#InnerEye.ML.runner.initialize_rpdb">[docs]</a><span class="k">def</span> <span class="nf">initialize_rpdb</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    On Linux only, import and initialize rpdb, to enable remote debugging if necessary.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># rpdb signal trapping does not work on Windows, as there is no SIGTRAP:</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">is_linux</span><span class="p">():</span>
+        <span class="k">return</span>
+    <span class="n">rpdb</span> <span class="o">=</span> <span class="nb">__import__</span><span class="p">(</span><span class="s1">&#39;rpdb&#39;</span><span class="p">)</span>  <span class="c1"># hack so that the pre-commit hook does not flag this line</span>
+    <span class="n">rpdb_port</span> <span class="o">=</span> <span class="mi">4444</span>
+    <span class="n">rpdb</span><span class="o">.</span><span class="n">handle_trap</span><span class="p">(</span><span class="n">port</span><span class="o">=</span><span class="n">rpdb_port</span><span class="p">)</span>
+    <span class="c1"># For some reason, os.getpid() does not return the ID of what appears to be the currently running process.</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;rpdb is handling traps. To debug: identify the main runner.py process, then as root: &quot;</span>
+                 <span class="sa">f</span><span class="s2">&quot;kill -TRAP &lt;process_id&gt;; nc 127.0.0.1 </span><span class="si">{</span><span class="n">rpdb_port</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="package_setup_and_hacks"><a class="viewcode-back" href="../../../rst/api/ML/runner.html#InnerEye.ML.runner.package_setup_and_hacks">[docs]</a><span class="k">def</span> <span class="nf">package_setup_and_hacks</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Set up the Python packages where needed. In particular, reduce the logging level for some of the used</span>
+<span class="sd">    libraries, which are particularly talkative in DEBUG mode. Usually when running in DEBUG mode, we want</span>
+<span class="sd">    diagnostics about the model building itself, but not for the underlying libraries.</span>
+<span class="sd">    It also adds workarounds for known issues in some packages.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Numba code generation is extremely talkative in DEBUG mode, disable that.</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;numba&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">WARNING</span><span class="p">)</span>
+    <span class="c1"># Matplotlib is also very talkative in DEBUG mode, filling half of the log file in a PR build.</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;matplotlib&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+    <span class="c1"># Urllib3 prints out connection information for each call to write metrics, etc</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;urllib3&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;msrest&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+    <span class="c1"># AzureML prints too many details about logging metrics</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;azureml&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+    <span class="c1"># Jupyter notebook report generation</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;papermill&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">&#39;nbconvert&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
+    <span class="c1"># This is working around a spurious error message thrown by MKL, see</span>
+    <span class="c1"># https://github.com/pytorch/pytorch/issues/37377</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;MKL_THREADING_LAYER&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;GNU&#39;</span>
+    <span class="c1"># Workaround for issues with matplotlib on some X servers, see</span>
+    <span class="c1"># https://stackoverflow.com/questions/45993879/matplot-lib-fatal-io-error-25-inappropriate-ioctl-for-device-on-x</span>
+    <span class="c1"># -server-loc</span>
+    <span class="n">matplotlib</span><span class="o">.</span><span class="n">use</span><span class="p">(</span><span class="s1">&#39;Agg&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Runner"><a class="viewcode-back" href="../../../rst/api/ML/runner.html#InnerEye.ML.runner.Runner">[docs]</a><span class="k">class</span> <span class="nc">Runner</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This class contains the high-level logic to start a training run: choose a model configuration by name,</span>
+<span class="sd">    submit to AzureML if needed, or otherwise start the actual training and test loop.</span>
+<span class="sd">    :param project_root: The root folder that contains all of the source code that should be executed.</span>
+<span class="sd">    :param yaml_config_file: The path to the YAML file that contains values to supply into sys.argv.</span>
+<span class="sd">    :param post_cross_validation_hook: A function to call after waiting for completion of cross validation runs.</span>
+<span class="sd">    The function is called with the model configuration and the path to the downloaded and merged metrics files.</span>
+<span class="sd">    :param model_deployment_hook: an optional function for deploying a model in an application-specific way.</span>
+<span class="sd">    If present, it should take a model config (SegmentationModelBase), an AzureConfig, and an AzureML</span>
+<span class="sd">    Model as arguments, and return an optional Path and a further object of any type.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">project_root</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+                 <span class="n">yaml_config_file</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+                 <span class="n">post_cross_validation_hook</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">PostCrossValidationHookSignature</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">model_deployment_hook</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ModelDeploymentHookSignature</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">project_root</span> <span class="o">=</span> <span class="n">project_root</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">yaml_config_file</span> <span class="o">=</span> <span class="n">yaml_config_file</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">post_cross_validation_hook</span> <span class="o">=</span> <span class="n">post_cross_validation_hook</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model_deployment_hook</span> <span class="o">=</span> <span class="n">model_deployment_hook</span>
+        <span class="c1"># model_config and azure_config are placeholders for now, and are set properly when command line args are</span>
+        <span class="c1"># parsed.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model_config</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">DeepLearningConfig</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">azure_config</span><span class="p">:</span> <span class="n">AzureConfig</span> <span class="o">=</span> <span class="n">AzureConfig</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lightning_container</span><span class="p">:</span> <span class="n">LightningContainer</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># type: ignore</span>
+        <span class="c1"># This field stores the MLRunner object that has been created in the most recent call to the run() method.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ml_runner</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">MLRunner</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="Runner.parse_and_load_model"><a class="viewcode-back" href="../../../rst/api/ML/runner.html#InnerEye.ML.runner.Runner.parse_and_load_model">[docs]</a>    <span class="k">def</span> <span class="nf">parse_and_load_model</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ParserResult</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Parses the command line arguments, and creates configuration objects for the model itself, and for the</span>
+<span class="sd">        Azure-related parameters. Sets self.azure_config and self.model_config to their proper values. Returns the</span>
+<span class="sd">        parser output from parsing the model commandline arguments.</span>
+<span class="sd">        If no &quot;model&quot; argument is provided on the commandline, self.model_config will be set to None, and the return</span>
+<span class="sd">        value is None.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Create a parser that will understand only the args we need for an AzureConfig</span>
+        <span class="n">parser1</span> <span class="o">=</span> <span class="n">create_runner_parser</span><span class="p">()</span>
+        <span class="n">parser_result</span> <span class="o">=</span> <span class="n">parse_args_and_add_yaml_variables</span><span class="p">(</span><span class="n">parser1</span><span class="p">,</span>
+                                                          <span class="n">yaml_config_file</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">yaml_config_file</span><span class="p">,</span>
+                                                          <span class="n">project_root</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">project_root</span><span class="p">,</span>
+                                                          <span class="n">fail_on_unknown_args</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">azure_config</span> <span class="o">=</span> <span class="n">AzureConfig</span><span class="p">(</span><span class="o">**</span><span class="n">parser_result</span><span class="o">.</span><span class="n">args</span><span class="p">)</span>
+        <span class="n">azure_config</span><span class="o">.</span><span class="n">project_root</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">project_root</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">azure_config</span> <span class="o">=</span> <span class="n">azure_config</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model_config</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">azure_config</span><span class="o">.</span><span class="n">model</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Parameter &#39;model&#39; needs to be set to tell InnerEye which model to run.&quot;</span><span class="p">)</span>
+        <span class="n">model_config_loader</span><span class="p">:</span> <span class="n">ModelConfigLoader</span> <span class="o">=</span> <span class="n">ModelConfigLoader</span><span class="p">(</span><span class="o">**</span><span class="n">parser_result</span><span class="o">.</span><span class="n">args</span><span class="p">)</span>
+        <span class="c1"># Create the model as per the &quot;model&quot; commandline option. This can return either a built-in config</span>
+        <span class="c1"># of type DeepLearningConfig, or a LightningContainer.</span>
+        <span class="n">config_or_container</span> <span class="o">=</span> <span class="n">model_config_loader</span><span class="o">.</span><span class="n">create_model_config_from_name</span><span class="p">(</span><span class="n">model_name</span><span class="o">=</span><span class="n">azure_config</span><span class="o">.</span><span class="n">model</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">parse_overrides_and_apply</span><span class="p">(</span><span class="n">c</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span> <span class="n">previous_parser_result</span><span class="p">:</span> <span class="n">ParserResult</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ParserResult</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">GenericConfig</span><span class="p">)</span>
+            <span class="n">parser</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">c</span><span class="p">)</span><span class="o">.</span><span class="n">create_argparser</span><span class="p">()</span>
+            <span class="c1"># For each parser, feed in the unknown settings from the previous parser. All commandline args should</span>
+            <span class="c1"># be consumed by name, hence fail if there is something that is still unknown.</span>
+            <span class="n">parser_result</span> <span class="o">=</span> <span class="n">parse_arguments</span><span class="p">(</span><span class="n">parser</span><span class="p">,</span>
+                                            <span class="n">settings_from_yaml</span><span class="o">=</span><span class="n">previous_parser_result</span><span class="o">.</span><span class="n">unknown_settings_from_yaml</span><span class="p">,</span>
+                                            <span class="n">args</span><span class="o">=</span><span class="n">previous_parser_result</span><span class="o">.</span><span class="n">unknown</span><span class="p">,</span>
+                                            <span class="n">fail_on_unknown_args</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="c1"># Apply the overrides and validate. Overrides can come from either YAML settings or the commandline.</span>
+            <span class="n">c</span><span class="o">.</span><span class="n">apply_overrides</span><span class="p">(</span><span class="n">parser_result</span><span class="o">.</span><span class="n">known_settings_from_yaml</span><span class="p">)</span>
+            <span class="n">c</span><span class="o">.</span><span class="n">apply_overrides</span><span class="p">(</span><span class="n">parser_result</span><span class="o">.</span><span class="n">overrides</span><span class="p">)</span>
+            <span class="n">c</span><span class="o">.</span><span class="n">validate</span><span class="p">()</span>
+            <span class="k">return</span> <span class="n">parser_result</span>
+
+        <span class="c1"># Now create a parser that understands overrides at model/container level.</span>
+        <span class="n">parser_result</span> <span class="o">=</span> <span class="n">parse_overrides_and_apply</span><span class="p">(</span><span class="n">config_or_container</span><span class="p">,</span> <span class="n">parser_result</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">config_or_container</span><span class="p">,</span> <span class="n">LightningContainer</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">lightning_container</span> <span class="o">=</span> <span class="n">config_or_container</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">config_or_container</span><span class="p">,</span> <span class="n">ModelConfigBase</span><span class="p">):</span>
+            <span class="c1"># Built-in InnerEye models use a fake container</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">model_config</span> <span class="o">=</span> <span class="n">config_or_container</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">lightning_container</span> <span class="o">=</span> <span class="n">InnerEyeContainer</span><span class="p">(</span><span class="n">config_or_container</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Don&#39;t know how to handle a loaded configuration of type </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">config_or_container</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Allow overriding AzureConfig params from within the container.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lightning_container</span><span class="o">.</span><span class="n">update_azure_config</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">azure_config</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">azure_config</span><span class="o">.</span><span class="n">extra_code_directory</span><span class="p">:</span>
+            <span class="n">exist</span> <span class="o">=</span> <span class="s2">&quot;exists&quot;</span> <span class="k">if</span> <span class="n">Path</span><span class="p">(</span><span class="n">azure_config</span><span class="o">.</span><span class="n">extra_code_directory</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="k">else</span> <span class="s2">&quot;does not exist&quot;</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;extra_code_directory is </span><span class="si">{</span><span class="n">azure_config</span><span class="o">.</span><span class="n">extra_code_directory</span><span class="si">}</span><span class="s2">, which </span><span class="si">{</span><span class="n">exist</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;extra_code_directory is unset&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">parser_result</span></div>
+
+<div class="viewcode-block" id="Runner.run"><a class="viewcode-back" href="../../../rst/api/ML/runner.html#InnerEye.ML.runner.Runner.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Optional</span><span class="p">[</span><span class="n">DeepLearningConfig</span><span class="p">],</span> <span class="n">AzureRunInfo</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The main entry point for training and testing models from the commandline. This chooses a model to train</span>
+<span class="sd">        via a commandline argument, runs training or testing, and writes all required info to disk and logs.</span>
+<span class="sd">        :return: If submitting to AzureML, returns the model configuration that was used for training,</span>
+<span class="sd">        including commandline overrides applied (if any).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Usually, when we set logging to DEBUG, we want diagnostics about the model</span>
+        <span class="c1"># build itself, but not the tons of debug information that AzureML submissions create.</span>
+        <span class="n">logging_to_stdout</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span> <span class="k">if</span> <span class="n">is_local_rank_zero</span><span class="p">()</span> <span class="k">else</span> <span class="s2">&quot;ERROR&quot;</span><span class="p">)</span>
+        <span class="n">initialize_rpdb</span><span class="p">()</span>
+        <span class="n">user_agent</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">azure_util</span><span class="o">.</span><span class="n">INNEREYE_SDK_NAME</span><span class="p">,</span> <span class="n">azure_util</span><span class="o">.</span><span class="n">INNEREYE_SDK_VERSION</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parse_and_load_model</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">lightning_container</span><span class="o">.</span><span class="n">perform_cross_validation</span><span class="p">:</span>
+            <span class="c1"># force hyperdrive usage if performing cross validation</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">azure_config</span><span class="o">.</span><span class="n">hyperdrive</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">azure_run_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">submit_to_azureml_if_needed</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_in_situ</span><span class="p">(</span><span class="n">azure_run_info</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_config</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">lightning_container</span><span class="p">,</span> <span class="n">azure_run_info</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_config</span><span class="p">,</span> <span class="n">azure_run_info</span></div>
+
+<div class="viewcode-block" id="Runner.submit_to_azureml_if_needed"><a class="viewcode-back" href="../../../rst/api/ML/runner.html#InnerEye.ML.runner.Runner.submit_to_azureml_if_needed">[docs]</a>    <span class="k">def</span> <span class="nf">submit_to_azureml_if_needed</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AzureRunInfo</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Submit a job to AzureML, returning the resulting Run object, or exiting if we were asked to wait for</span>
+<span class="sd">        completion and the Run did not succeed.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">azure_config</span><span class="o">.</span><span class="n">azureml</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model_config</span><span class="p">,</span> <span class="n">DeepLearningConfig</span><span class="p">)</span> \
+                <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">lightning_container</span><span class="o">.</span><span class="n">azure_dataset_id</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;When running an InnerEye built-in model in AzureML, the &#39;azure_dataset_id&#39; &quot;</span>
+                             <span class="s2">&quot;property must be set.&quot;</span><span class="p">)</span>
+        <span class="c1"># https://docs.nvidia.com/cuda/cublas/index.html#cublasApi_reproducibility</span>
+        <span class="n">env_variables</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;CUBLAS_WORKSPACE_CONFIG&quot;</span><span class="p">:</span> <span class="s2">&quot;:4096:8&quot;</span><span class="p">}</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">lightning_container</span><span class="o">.</span><span class="n">pl_deterministic</span> <span class="k">else</span> <span class="p">{}</span>
+        <span class="n">source_config</span> <span class="o">=</span> <span class="n">SourceConfig</span><span class="p">(</span>
+            <span class="n">root_folder</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">project_root</span><span class="p">,</span>
+            <span class="n">entry_script</span><span class="o">=</span><span class="n">Path</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">resolve</span><span class="p">(),</span>
+            <span class="n">script_params</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span>
+            <span class="n">conda_dependencies_files</span><span class="o">=</span><span class="n">get_all_environment_files</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">project_root</span><span class="p">),</span>
+            <span class="n">hyperdrive_config_func</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model_config</span><span class="o">.</span><span class="n">get_hyperdrive_config</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_config</span>
+                                    <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">lightning_container</span><span class="o">.</span><span class="n">get_hyperdrive_config</span><span class="p">),</span>
+            <span class="c1"># For large jobs, upload of results can time out because of large checkpoint files. Default is 600</span>
+            <span class="n">upload_timeout_seconds</span><span class="o">=</span><span class="mi">86400</span><span class="p">,</span>
+            <span class="n">environment_variables</span><span class="o">=</span><span class="n">env_variables</span>
+        <span class="p">)</span>
+        <span class="c1"># Reduce the size of the snapshot by adding unused folders to amlignore. The Test* subfolders are only needed</span>
+        <span class="c1"># when running pytest.</span>
+        <span class="n">ignored_folders</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">azure_config</span><span class="o">.</span><span class="n">pytest_mark</span><span class="p">:</span>
+            <span class="n">ignored_folders</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="s2">&quot;Tests&quot;</span><span class="p">,</span> <span class="s2">&quot;TestsOutsidePackage&quot;</span><span class="p">])</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">lightning_container</span><span class="o">.</span><span class="n">regression_test_folder</span><span class="p">:</span>
+            <span class="n">ignored_folders</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;RegressionTestResults&quot;</span><span class="p">)</span>
+
+        <span class="n">all_local_datasets</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lightning_container</span><span class="o">.</span><span class="n">all_local_dataset_paths</span><span class="p">()</span>
+        <span class="n">input_datasets</span> <span class="o">=</span> \
+            <span class="n">create_dataset_configs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">azure_config</span><span class="p">,</span>
+                                   <span class="n">all_azure_dataset_ids</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">lightning_container</span><span class="o">.</span><span class="n">all_azure_dataset_ids</span><span class="p">(),</span>
+                                   <span class="n">all_dataset_mountpoints</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">lightning_container</span><span class="o">.</span><span class="n">all_dataset_mountpoints</span><span class="p">(),</span>
+                                   <span class="n">all_local_datasets</span><span class="o">=</span><span class="n">all_local_datasets</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
+
+        <span class="k">def</span> <span class="nf">after_submission_hook</span><span class="p">(</span><span class="n">azure_run</span><span class="p">:</span> <span class="n">Run</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            A function that will be called right after job submission.</span>
+<span class="sd">            &quot;&quot;&quot;</span>
+            <span class="c1"># Set the default display name to what was provided as the &quot;tag&quot;. This will affect single runs</span>
+            <span class="c1"># and Hyperdrive parent runs</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">azure_config</span><span class="o">.</span><span class="n">tag</span><span class="p">:</span>
+                <span class="n">azure_run</span><span class="o">.</span><span class="n">display_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">azure_config</span><span class="o">.</span><span class="n">tag</span>
+            <span class="c1"># Add an extra tag that depends on the run that was actually submitted. This is used for later filtering</span>
+            <span class="c1"># run in cross validation analysis</span>
+            <span class="n">recovery_id</span> <span class="o">=</span> <span class="n">create_run_recovery_id</span><span class="p">(</span><span class="n">azure_run</span><span class="p">)</span>
+            <span class="n">azure_run</span><span class="o">.</span><span class="n">tag</span><span class="p">(</span><span class="n">RUN_RECOVERY_ID_KEY_NAME</span><span class="p">,</span> <span class="n">recovery_id</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;If this run fails, re-start runner.py and supply these additional arguments: &quot;</span>
+                  <span class="sa">f</span><span class="s2">&quot;--run_recovery_id=</span><span class="si">{</span><span class="n">recovery_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">azure_config</span><span class="o">.</span><span class="n">tensorboard</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Starting TensorBoard now because you specified --tensorboard&quot;</span><span class="p">)</span>
+                <span class="n">monitor</span><span class="p">(</span><span class="n">monitor_config</span><span class="o">=</span><span class="n">AMLTensorBoardMonitorConfig</span><span class="p">(</span><span class="n">run_ids</span><span class="o">=</span><span class="p">[</span><span class="n">azure_run</span><span class="o">.</span><span class="n">id</span><span class="p">]),</span>
+                        <span class="n">azure_config</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">azure_config</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;To monitor this run locally using TensorBoard, run the script: &quot;</span>
+                      <span class="sa">f</span><span class="s2">&quot;InnerEye/Azure/tensorboard_monitor.py --run_ids=</span><span class="si">{</span><span class="n">azure_run</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">azure_config</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">:</span>
+                <span class="c1"># We want the job output to be visible on the console. Do not exit yet if the job fails, because we</span>
+                <span class="c1"># may need to download the pytest result file.</span>
+                <span class="n">azure_run</span><span class="o">.</span><span class="n">wait_for_completion</span><span class="p">(</span><span class="n">show_output</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">raise_on_error</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">azure_config</span><span class="o">.</span><span class="n">pytest_mark</span><span class="p">:</span>
+                    <span class="c1"># The AzureML job can optionally run pytest. Attempt to download it to the current directory.</span>
+                    <span class="c1"># A build step will pick up that file and publish it to Azure DevOps.</span>
+                    <span class="c1"># If pytest_mark is set, this file must exist.</span>
+                    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Downloading pytest result file.&quot;</span><span class="p">)</span>
+                    <span class="n">download_pytest_result</span><span class="p">(</span><span class="n">azure_run</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">azure_run</span><span class="o">.</span><span class="n">status</span> <span class="o">==</span> <span class="n">RunStatus</span><span class="o">.</span><span class="n">FAILED</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The AzureML run failed. Please check this URL for details: &quot;</span>
+                                     <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">azure_run</span><span class="o">.</span><span class="n">get_portal_url</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">hyperdrive_config</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">azure_config</span><span class="o">.</span><span class="n">hyperdrive</span><span class="p">:</span>
+            <span class="n">hyperdrive_config</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lightning_container</span><span class="o">.</span><span class="n">get_hyperdrive_config</span><span class="p">(</span><span class="n">ScriptRunConfig</span><span class="p">(</span><span class="n">source_directory</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">))</span>
+
+        <span class="c1"># Create a temporary file for the merged conda file, that will be removed after submission of the job.</span>
+        <span class="n">temp_conda</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">source_config</span><span class="o">.</span><span class="n">conda_dependencies_files</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">temp_conda</span> <span class="o">=</span> <span class="n">source_config</span><span class="o">.</span><span class="n">root_folder</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;temp_environment-</span><span class="si">{</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()</span><span class="o">.</span><span class="n">hex</span><span class="p">[:</span><span class="mi">8</span><span class="p">]</span><span class="si">}</span><span class="s2">.yml&quot;</span>
+                <span class="c1"># Merge the project-specific dependencies with the packages that InnerEye itself needs. This should not</span>
+                <span class="c1"># be necessary if the innereye package is installed. It is necessary when working with an outer project</span>
+                <span class="c1"># and InnerEye as a git submodule and submitting jobs from the local machine.</span>
+                <span class="c1"># In case of version conflicts, the package version in the outer project is given priority.</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Attempting to merge the following conda files: </span><span class="si">{</span><span class="n">source_config</span><span class="o">.</span><span class="n">conda_dependencies_files</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">merge_conda_files</span><span class="p">(</span><span class="n">source_config</span><span class="o">.</span><span class="n">conda_dependencies_files</span><span class="p">,</span> <span class="n">temp_conda</span><span class="p">)</span>
+
+            <span class="c1"># Calls like `self.azure_config.get_workspace()` will fail if we have no AzureML credentials set up, and so</span>
+            <span class="c1"># we should only attempt them if we intend to elevate this to AzureML</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">azure_config</span><span class="o">.</span><span class="n">azureml</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">azure_config</span><span class="o">.</span><span class="n">cluster</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;self.azure_config.cluster not set, but we need a compute_cluster_name to submit&quot;</span>
+                                     <span class="s2">&quot;the script to run in AzureML&quot;</span><span class="p">)</span>
+                <span class="n">azure_run_info</span> <span class="o">=</span> <span class="n">submit_to_azure_if_needed</span><span class="p">(</span>
+                    <span class="n">entry_script</span><span class="o">=</span><span class="n">source_config</span><span class="o">.</span><span class="n">entry_script</span><span class="p">,</span>
+                    <span class="n">snapshot_root_directory</span><span class="o">=</span><span class="n">source_config</span><span class="o">.</span><span class="n">root_folder</span><span class="p">,</span>
+                    <span class="n">script_params</span><span class="o">=</span><span class="n">source_config</span><span class="o">.</span><span class="n">script_params</span><span class="p">,</span>
+                    <span class="n">conda_environment_file</span><span class="o">=</span><span class="n">temp_conda</span> <span class="ow">or</span> <span class="n">source_config</span><span class="o">.</span><span class="n">conda_dependencies_files</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                    <span class="n">aml_workspace</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">azure_config</span><span class="o">.</span><span class="n">get_workspace</span><span class="p">(),</span>
+                    <span class="n">compute_cluster_name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">azure_config</span><span class="o">.</span><span class="n">cluster</span><span class="p">,</span>
+                    <span class="n">environment_variables</span><span class="o">=</span><span class="n">source_config</span><span class="o">.</span><span class="n">environment_variables</span><span class="p">,</span>
+                    <span class="n">default_datastore</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">azure_config</span><span class="o">.</span><span class="n">azureml_datastore</span><span class="p">,</span>
+                    <span class="n">experiment_name</span><span class="o">=</span><span class="n">to_azure_friendly_string</span><span class="p">(</span><span class="n">create_experiment_name</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">azure_config</span><span class="p">)),</span>
+                    <span class="n">max_run_duration</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">azure_config</span><span class="o">.</span><span class="n">max_run_duration</span><span class="p">,</span>
+                    <span class="n">input_datasets</span><span class="o">=</span><span class="n">input_datasets</span><span class="p">,</span>
+                    <span class="n">num_nodes</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">azure_config</span><span class="o">.</span><span class="n">num_nodes</span><span class="p">,</span>
+                    <span class="n">wait_for_completion</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                    <span class="n">ignored_folders</span><span class="o">=</span><span class="n">ignored_folders</span><span class="p">,</span>
+                    <span class="n">pip_extra_index_url</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">azure_config</span><span class="o">.</span><span class="n">pip_extra_index_url</span><span class="p">,</span>
+                    <span class="n">submit_to_azureml</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">azure_config</span><span class="o">.</span><span class="n">azureml</span><span class="p">,</span>
+                    <span class="n">docker_base_image</span><span class="o">=</span><span class="n">DEFAULT_DOCKER_BASE_IMAGE</span><span class="p">,</span>
+                    <span class="n">docker_shm_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">azure_config</span><span class="o">.</span><span class="n">docker_shm_size</span><span class="p">,</span>
+                    <span class="n">tags</span><span class="o">=</span><span class="n">additional_run_tags</span><span class="p">(</span>
+                        <span class="n">azure_config</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">azure_config</span><span class="p">,</span>
+                        <span class="n">commandline_args</span><span class="o">=</span><span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">source_config</span><span class="o">.</span><span class="n">script_params</span><span class="p">)),</span>
+                    <span class="n">after_submission</span><span class="o">=</span><span class="n">after_submission_hook</span><span class="p">,</span>
+                    <span class="n">hyperdrive_config</span><span class="o">=</span><span class="n">hyperdrive_config</span><span class="p">)</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">azure_config</span><span class="o">.</span><span class="n">tag</span> <span class="ow">and</span> <span class="n">azure_run_info</span><span class="o">.</span><span class="n">run</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">lightning_container</span><span class="o">.</span><span class="n">perform_cross_validation</span><span class="p">:</span>
+                        <span class="c1"># This code is only reached inside Azure. Set display name again - this will now affect</span>
+                        <span class="c1"># Hypdrive child runs (for other jobs, this has already been done after submission)</span>
+                        <span class="n">cv_index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lightning_container</span><span class="o">.</span><span class="n">cross_validation_split_index</span>
+                        <span class="n">full_display_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">azure_config</span><span class="o">.</span><span class="n">tag</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">cv_index</span><span class="si">}</span><span class="s2">&quot;</span>
+                        <span class="n">azure_run_info</span><span class="o">.</span><span class="n">run</span><span class="o">.</span><span class="n">display_name</span> <span class="o">=</span> <span class="n">full_display_name</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">azure_run_info</span> <span class="o">=</span> <span class="n">submit_to_azure_if_needed</span><span class="p">(</span>
+                    <span class="n">input_datasets</span><span class="o">=</span><span class="n">input_datasets</span><span class="p">,</span>
+                    <span class="n">submit_to_azureml</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">temp_conda</span><span class="p">:</span>
+                <span class="n">temp_conda</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>
+        <span class="c1"># submit_to_azure_if_needed calls sys.exit after submitting to AzureML. We only reach this when running</span>
+        <span class="c1"># the script locally or in AzureML.</span>
+        <span class="k">return</span> <span class="n">azure_run_info</span></div>
+
+<div class="viewcode-block" id="Runner.print_git_tags"><a class="viewcode-back" href="../../../rst/api/ML/runner.html#InnerEye.ML.runner.Runner.print_git_tags">[docs]</a>    <span class="k">def</span> <span class="nf">print_git_tags</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        When running in AzureML, print all the tags that contain information about the git repository status,</span>
+<span class="sd">        for answering the question &quot;which code version was used&quot; from a log file only.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">git_tags</span> <span class="o">=</span> <span class="n">get_git_tags</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">azure_config</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">is_offline_run_context</span><span class="p">(</span><span class="n">RUN_CONTEXT</span><span class="p">):</span>
+            <span class="c1"># When running on a VM outside AzureML, we can read git information from the current repository</span>
+            <span class="n">tags_to_print</span> <span class="o">=</span> <span class="n">git_tags</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># When running in AzureML, the git repo information is not necessarily passed in, but we copy the git</span>
+            <span class="c1"># information into run tags after submitting the job, and can read it out here.</span>
+            <span class="c1"># Only print out those tags that were created from git-related information</span>
+            <span class="n">tags_to_print</span> <span class="o">=</span> <span class="p">{</span><span class="n">key</span><span class="p">:</span> <span class="n">value</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">RUN_CONTEXT</span><span class="o">.</span><span class="n">get_tags</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">git_tags</span><span class="p">}</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Git repository information:&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">tags_to_print</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;    </span><span class="si">{</span><span class="n">key</span><span class="si">:</span><span class="s2">20</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Runner.run_in_situ"><a class="viewcode-back" href="../../../rst/api/ML/runner.html#InnerEye.ML.runner.Runner.run_in_situ">[docs]</a>    <span class="k">def</span> <span class="nf">run_in_situ</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">azure_run_info</span><span class="p">:</span> <span class="n">AzureRunInfo</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Actually run the AzureML job; this method will typically run on an Azure VM.</span>
+<span class="sd">        :param azure_run_info: Contains all information about the present run in AzureML, in particular where the</span>
+<span class="sd">        datasets are mounted.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Only set the logging level now. Usually, when we set logging to DEBUG, we want diagnostics about the model</span>
+        <span class="c1"># build itself, but not the tons of debug information that AzureML submissions create.</span>
+        <span class="c1"># Suppress the logging from all processes but the one for GPU 0 on each node, to make log files more readable</span>
+        <span class="n">logging_to_stdout</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">azure_config</span><span class="o">.</span><span class="n">log_level</span> <span class="k">if</span> <span class="n">is_local_rank_zero</span><span class="p">()</span> <span class="k">else</span> <span class="s2">&quot;ERROR&quot;</span><span class="p">)</span>
+        <span class="n">package_setup_and_hacks</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">is_global_rank_zero</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">print_git_tags</span><span class="p">()</span>
+        <span class="c1"># For the PR build in AzureML, we can either pytest, or the training of the simple PR model. Running both</span>
+        <span class="c1"># only works when using DDP_spawn, but that has as a side-effect that it messes up memory consumption of the</span>
+        <span class="c1"># large models.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">azure_config</span><span class="o">.</span><span class="n">pytest_mark</span><span class="p">:</span>
+            <span class="n">outputs_folder</span> <span class="o">=</span> <span class="n">Path</span><span class="o">.</span><span class="n">cwd</span><span class="p">()</span> <span class="o">/</span> <span class="n">fixed_paths</span><span class="o">.</span><span class="n">DEFAULT_AML_UPLOAD_DIR</span>
+            <span class="n">pytest_passed</span><span class="p">,</span> <span class="n">results_file_path</span> <span class="o">=</span> <span class="n">run_pytest</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">azure_config</span><span class="o">.</span><span class="n">pytest_mark</span><span class="p">,</span> <span class="n">outputs_folder</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">pytest_passed</span><span class="p">:</span>
+                <span class="c1"># Terminate if pytest has failed. This makes the smoke test in</span>
+                <span class="c1"># PR builds fail if pytest fails.</span>
+                <span class="n">pytest_failures</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Not all PyTest tests passed. See </span><span class="si">{</span><span class="n">results_file_path</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">pytest_failures</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Set environment variables for multi-node training if needed. This function will terminate early</span>
+            <span class="c1"># if it detects that it is not in a multi-node environment.</span>
+            <span class="n">set_environment_variables_for_multi_node</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ml_runner</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_ml_runner</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ml_runner</span><span class="o">.</span><span class="n">setup</span><span class="p">(</span><span class="n">azure_run_info</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ml_runner</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="Runner.create_ml_runner"><a class="viewcode-back" href="../../../rst/api/ML/runner.html#InnerEye.ML.runner.Runner.create_ml_runner">[docs]</a>    <span class="k">def</span> <span class="nf">create_ml_runner</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MLRunner</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create and return an ML runner using the attributes of this Runner object.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">MLRunner</span><span class="p">(</span>
+            <span class="n">model_config</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">model_config</span><span class="p">,</span>
+            <span class="n">container</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">lightning_container</span><span class="p">,</span>
+            <span class="n">azure_config</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">azure_config</span><span class="p">,</span>
+            <span class="n">project_root</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">project_root</span><span class="p">,</span>
+            <span class="n">post_cross_validation_hook</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">post_cross_validation_hook</span><span class="p">,</span>
+            <span class="n">model_deployment_hook</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">model_deployment_hook</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="default_post_cross_validation_hook"><a class="viewcode-back" href="../../../rst/api/ML/runner.html#InnerEye.ML.runner.default_post_cross_validation_hook">[docs]</a><span class="k">def</span> <span class="nf">default_post_cross_validation_hook</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="n">ModelConfigBase</span><span class="p">,</span> <span class="n">root_folder</span><span class="p">:</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A function to run after cross validation results have been aggregated, before they are uploaded to AzureML.</span>
+<span class="sd">    :param config: The configuration of the model that should be trained.</span>
+<span class="sd">    :param root_folder: The folder with all aggregated and per-split files.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Analyzing cross validation results for model </span><span class="si">{</span><span class="n">config</span><span class="o">.</span><span class="n">model_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Expecting all cross validation result files in folder </span><span class="si">{</span><span class="n">root_folder</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">description</span><span class="p">)</span> <span class="ow">in</span> <span class="p">[</span>
+        <span class="p">(</span><span class="n">DATASET_CSV_FILE_NAME</span><span class="p">,</span> <span class="s2">&quot;Dataset&quot;</span><span class="p">),</span>
+        <span class="p">(</span><span class="n">METRICS_AGGREGATES_FILE</span><span class="p">,</span> <span class="s2">&quot;Metrics aggregated at epoch level&quot;</span><span class="p">),</span>
+        <span class="p">(</span><span class="n">FULL_METRICS_DATAFRAME_FILE</span><span class="p">,</span> <span class="s2">&quot;Metrics at subject level&quot;</span><span class="p">)</span>
+    <span class="p">]:</span>
+        <span class="n">full_file</span> <span class="o">=</span> <span class="n">root_folder</span> <span class="o">/</span> <span class="n">file</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">description</span><span class="si">}</span><span class="s2"> (exists=</span><span class="si">{</span><span class="n">full_file</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span><span class="si">}</span><span class="s2">): </span><span class="si">{</span><span class="n">full_file</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="run"><a class="viewcode-back" href="../../../rst/api/ML/runner.html#InnerEye.ML.runner.run">[docs]</a><span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="n">project_root</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+        <span class="n">yaml_config_file</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+        <span class="n">post_cross_validation_hook</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">PostCrossValidationHookSignature</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">model_deployment_hook</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ModelDeploymentHookSignature</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> \
+        <span class="n">Tuple</span><span class="p">[</span><span class="n">Optional</span><span class="p">[</span><span class="n">DeepLearningConfig</span><span class="p">],</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Run</span><span class="p">]]:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The main entry point for training and testing models from the commandline. This chooses a model to train</span>
+<span class="sd">    via a commandline argument, runs training or testing, and writes all required info to disk and logs.</span>
+<span class="sd">    :return: If submitting to AzureML, returns the model configuration that was used for training,</span>
+<span class="sd">    including commandline overrides applied (if any). For details on the arguments, see the constructor of Runner.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">runner</span> <span class="o">=</span> <span class="n">Runner</span><span class="p">(</span><span class="n">project_root</span><span class="p">,</span> <span class="n">yaml_config_file</span><span class="p">,</span> <span class="n">post_cross_validation_hook</span><span class="p">,</span> <span class="n">model_deployment_hook</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">runner</span><span class="o">.</span><span class="n">run</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="main"><a class="viewcode-back" href="../../../rst/api/ML/runner.html#InnerEye.ML.runner.main">[docs]</a><span class="k">def</span> <span class="nf">main</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">run</span><span class="p">(</span><span class="n">project_root</span><span class="o">=</span><span class="n">fixed_paths</span><span class="o">.</span><span class="n">repository_root_directory</span><span class="p">(),</span>
+        <span class="n">yaml_config_file</span><span class="o">=</span><span class="n">fixed_paths</span><span class="o">.</span><span class="n">SETTINGS_YAML_FILE</span><span class="p">,</span>
+        <span class="n">post_cross_validation_hook</span><span class="o">=</span><span class="n">default_post_cross_validation_hook</span><span class="p">)</span></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright Microsoft Corporation.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

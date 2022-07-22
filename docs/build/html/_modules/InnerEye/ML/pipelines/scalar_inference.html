@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>InnerEye.ML.pipelines.scalar_inference &mdash; InnerEye-DeepLearning 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../../../" id="documentation_options" src="../../../../_static/documentation_options.js"></script>
+        <script src="../../../../_static/jquery.js"></script>
+        <script src="../../../../_static/underscore.js"></script>
+        <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../../../_static/doctools.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../../../index.html" class="icon icon-home"> InnerEye-DeepLearning
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../docs/innereye_deeplearning.html">InnerEye-DeepLearning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../docs/WSL.html">How to use the Windows Subsystem for Linux (WSL2) for development</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../docs/environment.html">Set up InnerEye-DeepLearning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../docs/setting_up_aml.html">How to setup Azure Machine Learning for InnerEye</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../docs/creating_dataset.html">Dataset Creation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../docs/building_models.html">Building Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../docs/sample_tasks.html">Sample Tasks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../docs/debugging_and_monitoring.html">Debugging and Monitoring Jobs</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Further reading for contributors</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../docs/pull_requests.html">Suggested Workflow for Pull Requests</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../docs/testing.html">Pytest and testing on CPU and GPU machines</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../docs/contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../docs/hello_world_model.html">Training a Hello World segmentation model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../docs/deploy_on_aml.html">Model Deployment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../docs/bring_your_own_model.html">Bring Your Own PyTorch Lightning Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../docs/fastmri.html">Working with FastMRI models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../docs/innereye_as_submodule.html">Using the InnerEye code as a git submodule of your project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../docs/model_diagnostics.html">Model Diagnostics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../docs/move_model.html">Move a model to other workspace</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../docs/releases.html">Releases</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../docs/self_supervised_models.html">Training of self-supervised models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../docs/CHANGELOG.html">Changelog</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API documentation (🚧 Work In Progress 🚧)</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../rst/api/ML/index.html">Machine learning</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">InnerEye-DeepLearning</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../../../index.html">Module code</a> &raquo;</li>
+      <li>InnerEye.ML.pipelines.scalar_inference</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for InnerEye.ML.pipelines.scalar_inference</h1><div class="highlight"><pre>
+<span></span><span class="c1">#  ------------------------------------------------------------------------------------------</span>
+<span class="c1">#  Copyright (c) Microsoft Corporation. All rights reserved.</span>
+<span class="c1">#  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.</span>
+<span class="c1">#  ------------------------------------------------------------------------------------------</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span>
+
+<span class="kn">import</span> <span class="nn">torch</span>
+
+<span class="kn">from</span> <span class="nn">InnerEye.ML.lightning_helpers</span> <span class="kn">import</span> <span class="n">load_from_checkpoint_and_adjust_for_inference</span>
+<span class="kn">from</span> <span class="nn">InnerEye.ML.lightning_models</span> <span class="kn">import</span> <span class="n">ScalarLightning</span>
+<span class="kn">from</span> <span class="nn">InnerEye.ML.pipelines.inference</span> <span class="kn">import</span> <span class="n">InferencePipelineBase</span>
+<span class="kn">from</span> <span class="nn">InnerEye.ML.scalar_config</span> <span class="kn">import</span> <span class="n">EnsembleAggregationType</span><span class="p">,</span> <span class="n">ScalarModelBase</span>
+<span class="kn">from</span> <span class="nn">InnerEye.ML.utils.model_util</span> <span class="kn">import</span> <span class="n">get_scalar_model_inputs_and_labels</span>
+
+
+<div class="viewcode-block" id="ScalarInferencePipelineBase"><a class="viewcode-back" href="../../../../rst/api/ML/pipelines.html#InnerEye.ML.pipelines.scalar_inference.ScalarInferencePipelineBase">[docs]</a><span class="k">class</span> <span class="nc">ScalarInferencePipelineBase</span><span class="p">(</span><span class="n">InferencePipelineBase</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Base class for classification inference pipelines: inference pipelines for single and ensemble classification</span>
+<span class="sd">    inference pipelines will inherit this.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model_config</span><span class="p">:</span> <span class="n">ScalarModelBase</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">model_config</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ScalarInferencePipelineBase.predict"><a class="viewcode-back" href="../../../../rst/api/ML/pipelines.html#InnerEye.ML.pipelines.scalar_inference.ScalarInferencePipelineBase.predict">[docs]</a>    <span class="k">def</span> <span class="nf">predict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">ScalarInferencePipelineBase</span><span class="o">.</span><span class="n">Result</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;predict must be implemented by concrete classes&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ScalarInferencePipelineBase.Result"><a class="viewcode-back" href="../../../../rst/api/ML/pipelines.html#InnerEye.ML.pipelines.scalar_inference.ScalarInferencePipelineBase.Result">[docs]</a>    <span class="nd">@dataclass</span>
+    <span class="k">class</span> <span class="nc">Result</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Contains the inference results from a single pass of the inference pipeline on an input batch.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">subject_ids</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+        <span class="n">labels</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span>
+        <span class="n">posteriors</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span>
+
+        <span class="k">def</span> <span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">subject_ids</span><span class="p">)</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Got </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2"> labels for </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">subject_ids</span><span class="p">)</span><span class="si">}</span><span class="s2"> samples.&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">subject_ids</span><span class="p">)</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">posteriors</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Got </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">posteriors</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2"> predictions for </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">subject_ids</span><span class="p">)</span><span class="si">}</span><span class="s2"> samples.&quot;</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="ScalarInferencePipeline"><a class="viewcode-back" href="../../../../rst/api/ML/pipelines.html#InnerEye.ML.pipelines.scalar_inference.ScalarInferencePipeline">[docs]</a><span class="k">class</span> <span class="nc">ScalarInferencePipeline</span><span class="p">(</span><span class="n">ScalarInferencePipelineBase</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Pipeline for inference from a single model on classification tasks.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">model</span><span class="p">:</span> <span class="n">ScalarLightning</span><span class="p">,</span>
+                 <span class="n">model_config</span><span class="p">:</span> <span class="n">ScalarModelBase</span><span class="p">,</span>
+                 <span class="n">pipeline_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param model: Model recovered from the checkpoint.</span>
+<span class="sd">        :param model_config: Model configuration information.</span>
+<span class="sd">        :param pipeline_id: ID for this pipeline (useful for ensembles).</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">model_config</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">model</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pipeline_id</span> <span class="o">=</span> <span class="n">pipeline_id</span>
+        <span class="c1"># Switch model to evaluation mode (if not, results will be different from what we got during training,</span>
+        <span class="c1"># because batchnorm operates differently).</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
+
+<div class="viewcode-block" id="ScalarInferencePipeline.create_from_checkpoint"><a class="viewcode-back" href="../../../../rst/api/ML/pipelines.html#InnerEye.ML.pipelines.scalar_inference.ScalarInferencePipeline.create_from_checkpoint">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">create_from_checkpoint</span><span class="p">(</span><span class="n">path_to_checkpoint</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+                               <span class="n">config</span><span class="p">:</span> <span class="n">ScalarModelBase</span><span class="p">,</span>
+                               <span class="n">pipeline_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ScalarInferencePipeline</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Creates an inference pipeline from a single checkpoint.</span>
+
+<span class="sd">        :param path_to_checkpoint: Path to the checkpoint to recover.</span>
+<span class="sd">        :param config: Model configuration information.</span>
+<span class="sd">        :param pipeline_id: ID for the pipeline to be created.</span>
+<span class="sd">        :return: ScalarInferencePipeline if recovery from checkpoint successful. None if unsuccessful.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">path_to_checkpoint</span><span class="o">.</span><span class="n">is_file</span><span class="p">():</span>
+            <span class="c1"># not raising a value error here: This is used to create individual pipelines for ensembles,</span>
+            <span class="c1">#                                   possible one model cannot be created but others can</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not recover model from checkpoint path </span><span class="si">{</span><span class="n">path_to_checkpoint</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">compute_mean_teacher_model</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Mean teacher models not supported yet.&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">model</span> <span class="o">=</span> <span class="n">load_from_checkpoint_and_adjust_for_inference</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">path_to_checkpoint</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">ScalarLightning</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">ScalarInferencePipeline</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">config</span><span class="p">,</span> <span class="n">pipeline_id</span><span class="o">=</span><span class="n">pipeline_id</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ScalarInferencePipeline.predict"><a class="viewcode-back" href="../../../../rst/api/ML/pipelines.html#InnerEye.ML.pipelines.scalar_inference.ScalarInferencePipeline.predict">[docs]</a>    <span class="k">def</span> <span class="nf">predict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">ScalarInferencePipelineBase</span><span class="o">.</span><span class="n">Result</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Runs the forward pass on a single batch.</span>
+
+<span class="sd">        :param sample: Single batch of input data.</span>
+<span class="sd">            In the form of a dictionary containing at least the fields:</span>
+<span class="sd">            metadata, label, images, numerical_non_image_features,</span>
+<span class="sd">            categorical_non_image_features and segmentations.</span>
+<span class="sd">        :return: ScalarInferencePipelineBase.Result with the subject ids, ground truth labels and predictions.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model_config</span><span class="p">,</span> <span class="n">ScalarModelBase</span><span class="p">)</span>
+        <span class="n">model_inputs_and_labels</span> <span class="o">=</span> <span class="n">get_scalar_model_inputs_and_labels</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">model</span><span class="p">,</span>
+                                                                     <span class="n">sample</span><span class="o">=</span><span class="n">sample</span><span class="p">)</span>
+        <span class="n">model_inputs_and_labels</span><span class="o">.</span><span class="n">move_to_device</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
+            <span class="c1"># This already gives the model outputs converted to posteriors</span>
+            <span class="n">posteriors</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">forward</span><span class="p">(</span><span class="o">*</span><span class="n">model_inputs_and_labels</span><span class="o">.</span><span class="n">model_inputs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">ScalarInferencePipelineBase</span><span class="o">.</span><span class="n">Result</span><span class="p">(</span><span class="n">subject_ids</span><span class="o">=</span><span class="n">model_inputs_and_labels</span><span class="o">.</span><span class="n">subject_ids</span><span class="p">,</span>
+                                                  <span class="n">labels</span><span class="o">=</span><span class="n">model_inputs_and_labels</span><span class="o">.</span><span class="n">labels</span><span class="p">,</span>
+                                                  <span class="n">posteriors</span><span class="o">=</span><span class="n">posteriors</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="ScalarEnsemblePipeline"><a class="viewcode-back" href="../../../../rst/api/ML/pipelines.html#InnerEye.ML.pipelines.scalar_inference.ScalarEnsemblePipeline">[docs]</a><span class="k">class</span> <span class="nc">ScalarEnsemblePipeline</span><span class="p">(</span><span class="n">ScalarInferencePipelineBase</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Pipeline for inference from an ensemble model on classification tasks. This pipeline creates models from</span>
+<span class="sd">    multiple checkpoints and aggregates the predictions across models.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">pipelines</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">ScalarInferencePipeline</span><span class="p">],</span>
+                 <span class="n">model_config</span><span class="p">:</span> <span class="n">ScalarModelBase</span><span class="p">,</span>
+                 <span class="n">ensemble_aggregation_type</span><span class="p">:</span> <span class="n">EnsembleAggregationType</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param pipelines: A set of inference pipelines, one for each recovered checkpoint.</span>
+<span class="sd">        :param model_config: Model configuration information.</span>
+<span class="sd">        :param ensemble_aggregation_type: Type of aggregation to perform on the model outputs.</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">model_config</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pipelines</span> <span class="o">=</span> <span class="n">pipelines</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">aggregation_type</span> <span class="o">=</span> <span class="n">ensemble_aggregation_type</span>
+
+<div class="viewcode-block" id="ScalarEnsemblePipeline.create_from_checkpoint"><a class="viewcode-back" href="../../../../rst/api/ML/pipelines.html#InnerEye.ML.pipelines.scalar_inference.ScalarEnsemblePipeline.create_from_checkpoint">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">create_from_checkpoint</span><span class="p">(</span><span class="n">paths_to_checkpoint</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Path</span><span class="p">],</span>
+                               <span class="n">config</span><span class="p">:</span> <span class="n">ScalarModelBase</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ScalarEnsemblePipeline</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Creates an ensemble pipeline from a list of checkpoints.</span>
+<span class="sd">        :param paths_to_checkpoint: List of paths to the checkpoints to be recovered.</span>
+<span class="sd">        :param config: Model configuration information.</span>
+<span class="sd">        :return:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">inference_pipelines</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">pipeline_id</span><span class="p">,</span> <span class="n">path</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">paths_to_checkpoint</span><span class="p">):</span>
+            <span class="n">pipeline</span> <span class="o">=</span> <span class="n">ScalarInferencePipeline</span><span class="o">.</span><span class="n">create_from_checkpoint</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">config</span><span class="p">,</span> <span class="n">pipeline_id</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">pipeline</span><span class="p">:</span>
+                <span class="n">inference_pipelines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pipeline</span><span class="p">)</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Recovered </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">inference_pipelines</span><span class="p">)</span><span class="si">}</span><span class="s2"> out of </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">paths_to_checkpoint</span><span class="p">)</span><span class="si">}</span><span class="s2"> checkpoints&quot;</span><span class="p">)</span>
+
+        <span class="c1"># check if at least one inference pipeline has been created</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">inference_pipelines</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Could not recover any of the given checkpoints&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">ScalarEnsemblePipeline</span><span class="p">(</span><span class="n">inference_pipelines</span><span class="p">,</span> <span class="n">config</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">ensemble_aggregation_type</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ScalarEnsemblePipeline.predict"><a class="viewcode-back" href="../../../../rst/api/ML/pipelines.html#InnerEye.ML.pipelines.scalar_inference.ScalarEnsemblePipeline.predict">[docs]</a>    <span class="k">def</span> <span class="nf">predict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">ScalarInferencePipelineBase</span><span class="o">.</span><span class="n">Result</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Performs inference on a single batch. First does the forward pass on all of the single inference pipelines,</span>
+<span class="sd">        and then aggregates the results.</span>
+
+<span class="sd">        :param sample: single batch of input data.</span>
+<span class="sd">            In the form of a dictionary containing at least the fields:</span>
+<span class="sd">            metadata, label, images, numerical_non_image_features,</span>
+<span class="sd">            categorical_non_image_features and segmentations.</span>
+<span class="sd">        :return: Returns ScalarInferencePipelineBase.Result with the subject ids, ground truth labels and predictions.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="p">[</span><span class="n">pipeline</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">sample</span><span class="p">)</span> <span class="k">for</span> <span class="n">pipeline</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">pipelines</span><span class="p">]</span>
+        <span class="c1"># Gather all model outputs into a single tensor</span>
+        <span class="n">posteriors</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">result</span><span class="o">.</span><span class="n">posteriors</span> <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">results</span><span class="p">])</span>
+        <span class="n">posteriors_aggregated</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aggregate_model_outputs</span><span class="p">(</span><span class="n">posteriors</span><span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">ScalarInferencePipelineBase</span><span class="o">.</span><span class="n">Result</span><span class="p">(</span><span class="n">subject_ids</span><span class="o">=</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">subject_ids</span><span class="p">,</span>
+                                                    <span class="n">labels</span><span class="o">=</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">labels</span><span class="p">,</span>
+                                                    <span class="n">posteriors</span><span class="o">=</span><span class="n">posteriors_aggregated</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">result</span></div>
+
+<div class="viewcode-block" id="ScalarEnsemblePipeline.aggregate_model_outputs"><a class="viewcode-back" href="../../../../rst/api/ML/pipelines.html#InnerEye.ML.pipelines.scalar_inference.ScalarEnsemblePipeline.aggregate_model_outputs">[docs]</a>    <span class="k">def</span> <span class="nf">aggregate_model_outputs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model_outputs</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Aggregates the forward pass results from the individual models in the ensemble.</span>
+<span class="sd">        :param model_outputs: List of model outputs for every model in the ensemble.</span>
+<span class="sd">        (Number of ensembles) x (batch_size) x 1</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># aggregate model outputs</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">aggregation_type</span> <span class="o">==</span> <span class="n">EnsembleAggregationType</span><span class="o">.</span><span class="n">Average</span><span class="p">:</span>
+            <span class="n">aggregated_outputs</span> <span class="o">=</span> <span class="n">model_outputs</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Ensemble aggregation type </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">aggregation_type</span><span class="si">}</span><span class="s2"> not implemented.&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">aggregated_outputs</span></div></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright Microsoft Corporation.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

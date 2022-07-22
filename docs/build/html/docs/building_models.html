@@ -1,0 +1,711 @@
+<!doctype html>
+<html class="no-js" lang="en">
+  <head><meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Sample Tasks" href="sample_tasks.html" /><link rel="prev" title="Dataset Creation" href="creating_dataset.html" />
+
+    <meta name="generator" content="sphinx-5.0.2, furo 2022.06.21"/>
+        <title>Building Models - InnerEye-DeepLearning 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=40978830699223671f4072448e654b5958f38b89" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f8f8f8;
+  --color-code-foreground: black;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-half" viewBox="0 0 24 24">
+    <title>Auto light/dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-shadow">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M13 12h5" />
+      <path d="M13 15h4" />
+      <path d="M13 18h1" />
+      <path d="M13 9h4" />
+      <path d="M13 6h1" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc">
+<label class="overlay sidebar-overlay" for="__navigation">
+  <div class="visually-hidden">Hide navigation sidebar</div>
+</label>
+<label class="overlay toc-overlay" for="__toc">
+  <div class="visually-hidden">Hide table of contents sidebar</div>
+</label>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <div class="visually-hidden">Toggle site navigation sidebar</div>
+        <i class="icon"><svg><use href="#svg-menu"></use></svg></i>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../index.html"><div class="brand">InnerEye-DeepLearning 1.0.0 documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle">
+          <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+          <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <div class="visually-hidden">Toggle table of contents sidebar</div>
+        <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../index.html">
+  
+  
+  <span class="sidebar-brand-text">InnerEye-DeepLearning 1.0.0 documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../search.html" role="search">
+  <input class="sidebar-search" placeholder=Search name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="innereye_deeplearning.html">InnerEye-DeepLearning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="WSL.html">How to use the Windows Subsystem for Linux (WSL2) for development</a></li>
+<li class="toctree-l1"><a class="reference internal" href="environment.html">Set up InnerEye-DeepLearning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="setting_up_aml.html">How to setup Azure Machine Learning for InnerEye</a></li>
+<li class="toctree-l1"><a class="reference internal" href="creating_dataset.html">Dataset Creation</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Building Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sample_tasks.html">Sample Tasks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="debugging_and_monitoring.html">Debugging and Monitoring Jobs</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Further reading for contributors</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="pull_requests.html">Suggested Workflow for Pull Requests</a></li>
+<li class="toctree-l1"><a class="reference internal" href="testing.html">Pytest and testing on CPU and GPU machines</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hello_world_model.html">Training a Hello World segmentation model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="deploy_on_aml.html">Model Deployment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bring_your_own_model.html">Bring Your Own PyTorch Lightning Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="fastmri.html">Working with FastMRI models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="innereye_as_submodule.html">Using the InnerEye code as a git submodule of your project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="model_diagnostics.html">Model Diagnostics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="move_model.html">Move a model to other workspace</a></li>
+<li class="toctree-l1"><a class="reference internal" href="releases.html">Releases</a></li>
+<li class="toctree-l1"><a class="reference internal" href="self_supervised_models.html">Training of self-supervised models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="CHANGELOG.html">Changelog</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API documentation (🚧 Work In Progress 🚧)</span></p>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../rst/api/ML/index.html">Machine learning</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../rst/api/ML/configs.html">Segmentation Model Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../rst/api/ML/runner.html">Runner</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../rst/api/ML/augmentations.html">Data augmentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../rst/api/ML/photometric_normalization.html">Photometric normalization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../rst/api/ML/pipelines.html">Pipelines</a></li>
+</ul>
+</li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle">
+              <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+              <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <div class="visually-hidden">Toggle table of contents sidebar</div>
+            <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+          </label>
+        </div>
+        <article role="main">
+          <section id="building-models">
+<h1>Building Models<a class="headerlink" href="#building-models" title="Permalink to this heading"></a></h1>
+<section id="setting-up-training">
+<h2>Setting up training<a class="headerlink" href="#setting-up-training" title="Permalink to this heading"></a></h2>
+<p>To train new models, you can either work within the InnerEye/ directory hierarchy or create a local hierarchy beside it
+and with the same internal organization (although with far fewer files).
+We recommend the latter as it offers more flexibility and better separation of concerns. Here we will assume you
+create a directory <code class="docutils literal notranslate"><span class="pre">InnerEyeLocal</span></code> beside <code class="docutils literal notranslate"><span class="pre">InnerEye</span></code>.</p>
+<p>As well as your configurations (dealt with below) you will need these files:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">settings.yml</span></code>: A file similar to <code class="docutils literal notranslate"><span class="pre">InnerEye\settings.yml</span></code> containing all your Azure settings.
+The value of <code class="docutils literal notranslate"><span class="pre">extra_code_directory</span></code> should (in our example) be <code class="docutils literal notranslate"><span class="pre">'InnerEyeLocal'</span></code>,
+and model_configs_namespace should be <code class="docutils literal notranslate"><span class="pre">'InnerEyeLocal.ML.configs'</span></code>.</p></li>
+<li><p>A folder like <code class="docutils literal notranslate"><span class="pre">InnerEyeLocal</span></code> that contains your additional code, and model configurations.</p></li>
+<li><p>A file <code class="docutils literal notranslate"><span class="pre">InnerEyeLocal/ML/runner.py</span></code> that invokes the InnerEye training runner, but that points the code to your environment and Azure
+settings.</p></li>
+</ul>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">InnerEye.ML</span> <span class="kn">import</span> <span class="n">runner</span>
+
+
+<span class="k">def</span> <span class="nf">main</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">current</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">realpath</span><span class="p">(</span><span class="vm">__file__</span><span class="p">))</span>
+    <span class="n">project_root</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">realpath</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">current</span><span class="p">,</span> <span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;..&quot;</span><span class="p">)))</span>
+    <span class="n">runner</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">project_root</span><span class="o">=</span><span class="n">project_root</span><span class="p">,</span>
+               <span class="n">yaml_config_file</span><span class="o">=</span><span class="n">project_root</span> <span class="o">/</span> <span class="s2">&quot;relative/path/to/settings.yml&quot;</span><span class="p">,</span>
+               <span class="n">post_cross_validation_hook</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</pre></div>
+</div>
+</section>
+<section id="creating-the-model-configuration">
+<h2>Creating the model configuration<a class="headerlink" href="#creating-the-model-configuration" title="Permalink to this heading"></a></h2>
+<p>You will find a variety of model configurations <a class="reference external" href="https://github.com/microsoft/InnerEye-DeepLearning/tree/main/InnerEye/ML/configs/segmentation">here</a>. Those not ending
+in <code class="docutils literal notranslate"><span class="pre">Base.py</span></code> reference open-sourced data and can be used as they are. Those ending in <code class="docutils literal notranslate"><span class="pre">Base.py</span></code>
+are partially specified, and can be used by having other model configurations inherit from them and supply the missing
+parameter values: a dataset ID at least, and optionally other values. For example, a <code class="docutils literal notranslate"><span class="pre">Prostate</span></code> model might inherit
+very simply from <code class="docutils literal notranslate"><span class="pre">ProstateBase</span></code> by creating <code class="docutils literal notranslate"><span class="pre">Prostate.py</span></code> in the directory <code class="docutils literal notranslate"><span class="pre">InnerEyeLocal/ML/configs/segmentation</span></code>
+with the following contents:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">InnerEye.ML.configs.segmentation.ProstateBase</span> <span class="kn">import</span> <span class="n">ProstateBase</span>
+
+
+<span class="k">class</span> <span class="nc">Prostate</span><span class="p">(</span><span class="n">ProstateBase</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">ground_truth_ids</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;femur_r&quot;</span><span class="p">,</span> <span class="s2">&quot;femur_l&quot;</span><span class="p">,</span> <span class="s2">&quot;rectum&quot;</span><span class="p">,</span> <span class="s2">&quot;prostate&quot;</span><span class="p">],</span>
+            <span class="n">azure_dataset_id</span><span class="o">=</span><span class="s2">&quot;name-of-your-AML-dataset-with-prostate-data&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The allowed parameters and their meanings are defined in <a class="reference external" href="https://github.com/microsoft/InnerEye-DeepLearning/tree/main/InnerEye/ML/config.py"><code class="docutils literal notranslate"><span class="pre">SegmentationModelBase</span></code></a>.
+The class name must be the same as the basename of the file containing it, so <code class="docutils literal notranslate"><span class="pre">Prostate.py</span></code> must contain <code class="docutils literal notranslate"><span class="pre">Prostate</span></code>.
+In <code class="docutils literal notranslate"><span class="pre">settings.yml</span></code>, set <code class="docutils literal notranslate"><span class="pre">model_configs_namespace</span></code> to <code class="docutils literal notranslate"><span class="pre">InnerEyeLocal.ML.configs</span></code> so this config
+is found by the runner.</p>
+<p>A <code class="docutils literal notranslate"><span class="pre">Head</span> <span class="pre">and</span> <span class="pre">Neck</span></code> model might inherit from <code class="docutils literal notranslate"><span class="pre">HeadAndNeckBase</span></code> by creating <code class="docutils literal notranslate"><span class="pre">HeadAndNeck.py</span></code> with the following contents:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">InnerEye.ML.configs.segmentation.HeadAndNeckBase</span> <span class="kn">import</span> <span class="n">HeadAndNeckBase</span>
+
+
+<span class="k">class</span> <span class="nc">HeadAndNeck</span><span class="p">(</span><span class="n">HeadAndNeckBase</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">ground_truth_ids</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;parotid_l&quot;</span><span class="p">,</span> <span class="s2">&quot;parotid_r&quot;</span><span class="p">,</span> <span class="s2">&quot;smg_l&quot;</span><span class="p">,</span> <span class="s2">&quot;smg_r&quot;</span><span class="p">,</span> <span class="s2">&quot;spinal_cord&quot;</span><span class="p">]</span>
+            <span class="n">azure_dataset_id</span><span class="o">=</span><span class="s2">&quot;name-of-your-AML-dataset-with-prostate-data&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="training-a-new-model">
+<h2>Training a new model<a class="headerlink" href="#training-a-new-model" title="Permalink to this heading"></a></h2>
+<ul class="simple">
+<li><p>Set up your model configuration as above and update <code class="docutils literal notranslate"><span class="pre">azure_dataset_id</span></code> to the name of your Dataset in the AML workspace.
+It is enough to put your dataset into blob storage. The dataset should be a contained in a folder at the root of the datasets container.
+The InnerEye runner will check if there is a dataset in the AzureML workspace already, and if not, generate it directly from blob storage.</p></li>
+<li><p>Train a new model, for example <code class="docutils literal notranslate"><span class="pre">Prostate</span></code>:</p></li>
+</ul>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>python InnerEyeLocal/ML/runner.py --azureml --model<span class="o">=</span>Prostate
+</pre></div>
+</div>
+<p>Alternatively, you can train the model on your current machine if it is powerful enough. In
+this case, you would simply omit the <code class="docutils literal notranslate"><span class="pre">azureml</span></code> flag, and instead of specifying
+<code class="docutils literal notranslate"><span class="pre">azure_dataset_id</span></code> in the class constructor, you can instead use <code class="docutils literal notranslate"><span class="pre">local_dataset=&quot;my/data/folder&quot;</span></code>,
+where the folder <code class="docutils literal notranslate"><span class="pre">my/data/folder</span></code> contains a <code class="docutils literal notranslate"><span class="pre">dataset.csv</span></code> file and all the files that are referenced therein.</p>
+</section>
+<section id="boolean-options">
+<h2>Boolean Options<a class="headerlink" href="#boolean-options" title="Permalink to this heading"></a></h2>
+<p>Note that for command line options that take a boolean argument, and that are <code class="docutils literal notranslate"><span class="pre">False</span></code> by default, there are multiple ways of setting the option. For example alternatives to  <code class="docutils literal notranslate"><span class="pre">--azureml</span></code> include:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">--azureml=True</span></code>, or <code class="docutils literal notranslate"><span class="pre">--azureml=true</span></code>, or <code class="docutils literal notranslate"><span class="pre">--azureml=T</span></code>, or <code class="docutils literal notranslate"><span class="pre">--azureml=t</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--azureml=Yes</span></code>, or <code class="docutils literal notranslate"><span class="pre">--azureml=yes</span></code>, or <code class="docutils literal notranslate"><span class="pre">--azureml=Y</span></code>, or <code class="docutils literal notranslate"><span class="pre">--azureml=y</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--azureml=On</span></code>, or <code class="docutils literal notranslate"><span class="pre">--azureml=on</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--azureml=1</span></code></p></li>
+</ul>
+<p>Conversely, for command line options that take a boolean argument, and that are <code class="docutils literal notranslate"><span class="pre">True</span></code> by default, there are multiple ways of un-setting the option. For example alternatives to <code class="docutils literal notranslate"><span class="pre">--no-train</span></code> include:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">--train=False</span></code>, or <code class="docutils literal notranslate"><span class="pre">--train=false</span></code>, or <code class="docutils literal notranslate"><span class="pre">--train=F</span></code>, or <code class="docutils literal notranslate"><span class="pre">--train=f</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--train=No</span></code>, or <code class="docutils literal notranslate"><span class="pre">--train=no</span></code>, or <code class="docutils literal notranslate"><span class="pre">--train=N</span></code>, or <code class="docutils literal notranslate"><span class="pre">--train=n</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--train=Off</span></code>, or <code class="docutils literal notranslate"><span class="pre">--train=off</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--train=0</span></code></p></li>
+</ul>
+</section>
+<section id="training-using-multiple-machines">
+<h2>Training using multiple machines<a class="headerlink" href="#training-using-multiple-machines" title="Permalink to this heading"></a></h2>
+<p>To speed up training in AzureML, you can use multiple machines, by specifying the additional
+<code class="docutils literal notranslate"><span class="pre">--num_nodes</span></code> argument. For example, to use 2 machines to train, specify:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>python InnerEyeLocal/ML/runner.py --azureml --model<span class="o">=</span>Prostate --num_nodes<span class="o">=</span><span class="m">2</span>
+</pre></div>
+</div>
+<p>On each of the 2 machines, all available GPUs will be used. Model inference will always use only one machine.</p>
+<p>For the Prostate model, we observed a 2.8x speedup for model training when using 4 nodes, and a 1.65x speedup
+when using 2 nodes.</p>
+</section>
+<section id="azureml-run-hierarchy">
+<h2>AzureML Run Hierarchy<a class="headerlink" href="#azureml-run-hierarchy" title="Permalink to this heading"></a></h2>
+<p>AzureML structures all jobs in a hierarchical fashion:</p>
+<ul class="simple">
+<li><p>The top-level concept is a workspace</p></li>
+<li><p>Inside of a workspace, there are multiple experiments. Upon starting a training run, the name of the experiment
+needs to be supplied. The InnerEye toolbox is set specifically to work with git repositories, and it automatically
+sets the experiment name to match the name of the current git branch.</p></li>
+<li><p>Inside of an experiment, there are multiple runs. When starting the InnerEye toolbox as above, a run will be created.</p></li>
+<li><p>A run can have child runs - see below in the discussion about cross validation.</p></li>
+</ul>
+</section>
+<section id="k-fold-model-cross-validation">
+<h2>K-Fold Model Cross Validation<a class="headerlink" href="#k-fold-model-cross-validation" title="Permalink to this heading"></a></h2>
+<p>For running K-fold cross validation, the InnerEye toolbox schedules multiple training runs in the cloud that run
+at the same time (provided that the cluster has capacity). This means that a complete cross validation run usually
+takes as long as a single training run.</p>
+<p>To start cross validation, you can either modify the <code class="docutils literal notranslate"><span class="pre">number_of_cross_validation_splits</span></code> property of your model,
+or supply it on the command line: provide all the usual switches, and add <code class="docutils literal notranslate"><span class="pre">--number_of_cross_validation_splits=N</span></code>,
+for some <code class="docutils literal notranslate"><span class="pre">N</span></code> greater than 1; a value of 5 is typical. This will start a
+<a class="reference external" href="https://docs.microsoft.com/en-us/azure/machine-learning/how-to-tune-hyperparameters">HyperDrive run</a>: a parent
+AzureML job, with <code class="docutils literal notranslate"><span class="pre">N</span></code> child runs that will execute in parallel. You can see the child runs in the AzureML UI in the
+“Child Runs” tab.</p>
+<p>The dataset splits for those <code class="docutils literal notranslate"><span class="pre">N</span></code> child runs will be
+computed from the union of the Training and Validation sets. The Test set is unchanged. Note that the Test set can be
+empty, in which case the union of all validation sets for the <code class="docutils literal notranslate"><span class="pre">N</span></code> child runs will be the full dataset.</p>
+</section>
+<section id="recovering-failed-runs-and-continuing-training">
+<h2>Recovering failed runs and continuing training<a class="headerlink" href="#recovering-failed-runs-and-continuing-training" title="Permalink to this heading"></a></h2>
+<p>To train further with an already-created model, give the above command with the <code class="docutils literal notranslate"><span class="pre">run_recovery_id</span></code> argument:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>--run_recovery_id<span class="o">=</span>foo_bar:foo_bar_12345_abcd
+</pre></div>
+</div>
+<p>The run recovery ID is of the form “experiment_id:run_id”. When you trained your original model, it will have been
+queued as a “Run” inside of an “Experiment”. The experiment will be given a name derived from the branch name - for
+example, branch <code class="docutils literal notranslate"><span class="pre">foo/bar</span></code> will queue a run in experiment <code class="docutils literal notranslate"><span class="pre">foo_bar</span></code>. Inside the “Tags” section of your run, you should
+see an element <code class="docutils literal notranslate"><span class="pre">run_recovery_id</span></code>. It will look something like <code class="docutils literal notranslate"><span class="pre">foo_bar:foo_bar_12345_abcd</span></code>.</p>
+<p>If you are recovering a HyperDrive run, the value of <code class="docutils literal notranslate"><span class="pre">--run_recovery_id</span></code> should for the parent,
+and <code class="docutils literal notranslate"><span class="pre">--number_of_cross_validation_splits</span></code> should have the same value as in the recovered run.
+For example:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>--run_recovery_id<span class="o">=</span>foo_bar:HD_55d4beef-7be9-45d7-89a5-1acf1f99078a --start_epoch<span class="o">=</span><span class="m">120</span> --number_of_cross_validation_splits<span class="o">=</span><span class="m">5</span>
+</pre></div>
+</div>
+<p>The run recovery ID of a parent HyperDrive run is currently not displayed in the “Details” section
+of the AzureML UI. The easiest way to get it is to go to any of the child runs and use its
+run recovery ID without the final underscore and digit.</p>
+</section>
+<section id="testing-an-existing-model">
+<h2>Testing an existing model<a class="headerlink" href="#testing-an-existing-model" title="Permalink to this heading"></a></h2>
+<p>To evaluate an existing model on a test set, you can use registered models from previous runs in AzureML, a set of
+local checkpoints or a set of URLs pointing to model checkpoints. For all these options, you will need to set the
+flag <code class="docutils literal notranslate"><span class="pre">no-train</span></code> along with additional command line arguments to specify the checkpoints.</p>
+<section id="from-a-registered-model-on-azureml">
+<h3>From a registered model on AzureML<a class="headerlink" href="#from-a-registered-model-on-azureml" title="Permalink to this heading"></a></h3>
+<p>You will need to specify the registered model to run on using the <code class="docutils literal notranslate"><span class="pre">model_id</span></code> argument. You can find the model name and
+version by clicking on <code class="docutils literal notranslate"><span class="pre">Registered</span> <span class="pre">Models</span></code> on the Details tab of a run in the AzureML UI.
+The model id is of the form “model_name:model_version”. Thus your command should look like this:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>python Inner/ML/runner.py --azureml --model<span class="o">=</span>Prostate --cluster<span class="o">=</span>my_cluster_name <span class="se">\</span>
+   --no-train --model_id<span class="o">=</span>Prostate:1
+</pre></div>
+</div>
+<p>To evaluate the model on your own Azure ML Dataset, you can override the default dataset by adding the flag
+<code class="docutils literal notranslate"><span class="pre">--azure_dataset_id=&lt;my</span> <span class="pre">dataset</span> <span class="pre">id&gt;</span></code>. To specify more than one dataset, you can additionally add the flag <code class="docutils literal notranslate"><span class="pre">--extra_azure_dataset_ids</span></code> to specify the rest.</p>
+</section>
+<section id="from-local-checkpoints">
+<h3>From local checkpoints<a class="headerlink" href="#from-local-checkpoints" title="Permalink to this heading"></a></h3>
+<p>To evaluate a model using one or more local checkpoints, use the <code class="docutils literal notranslate"><span class="pre">local_weights_path</span></code> argument to specify the path(s) to the
+model checkpoint(s) on the local disk.</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>python Inner/ML/runner.py --model<span class="o">=</span>Prostate --no-train --local_weights_path<span class="o">=</span>path_to_your_checkpoint
+</pre></div>
+</div>
+<p>To run on multiple checkpoints (if you have trained an ensemble model), specify each checkpoint using the argument
+<code class="docutils literal notranslate"><span class="pre">local_weights_path</span></code>.</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>python Inner/ML/runner.py --model<span class="o">=</span>Prostate --no-train --local_weights_path<span class="o">=</span>path_to_first_checkpoint,path_to_second_checkpoint
+</pre></div>
+</div>
+</section>
+<section id="from-urls">
+<h3>From URLs<a class="headerlink" href="#from-urls" title="Permalink to this heading"></a></h3>
+<p>To evaluate a model using one or more checkpoints each specified by a URL, use the <code class="docutils literal notranslate"><span class="pre">weights_url</span></code> argument to specify the
+url(s) from which the model checkpoint(s) should be downloaded.</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>python Inner/ML/runner.py --model<span class="o">=</span>Prostate --no-train --weights_url<span class="o">=</span>url_for_your_checkpoint
+</pre></div>
+</div>
+<p>To run on multiple checkpoints (if you have trained an ensemble model), specify each checkpoint using the argument
+<code class="docutils literal notranslate"><span class="pre">weights_url</span></code>.</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>python Inner/ML/runner.py --model<span class="o">=</span>Prostate --no-train --weights_url<span class="o">=</span>url_for_first_checkpoint,url_for_second_checkpoint
+</pre></div>
+</div>
+</section>
+<section id="running-a-registered-azureml-model-on-a-single-image-on-the-local-disk">
+<h3>Running a registered AzureML model on a single image on the local disk<a class="headerlink" href="#running-a-registered-azureml-model-on-a-single-image-on-the-local-disk" title="Permalink to this heading"></a></h3>
+<p>To submit an AzureML run to apply a model to a single image on your local disc,
+you can use the script <code class="docutils literal notranslate"><span class="pre">submit_for_inference.py</span></code>, with a command of this form:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>python InnerEye/Scripts/submit_for_inference.py --image_file ~/somewhere/ct.nii.gz --model_id Prostate:555 <span class="se">\</span>
+  --settings ../somewhere_else/settings.yml --download_folder ~/my_existing_folder
+</pre></div>
+</div>
+</section>
+</section>
+<section id="model-ensembles">
+<h2>Model Ensembles<a class="headerlink" href="#model-ensembles" title="Permalink to this heading"></a></h2>
+<p>An ensemble model will be created automatically and registered in the AzureML model registry whenever cross-validation
+models are trained. The ensemble model creation is done by the child whose <code class="docutils literal notranslate"><span class="pre">cross_validation_split_index</span></code> is 0;
+you can identify this child by looking at the “Child Runs” tab in the parent run page in AzureML.</p>
+<p>To find the registered ensemble model, find the Hyperdrive parent run in AzureML. In the “Details” tab, there is an
+entry for “Registered models”, that links to the ensemble model that was just created. Note that each of the child runs
+also registers a model, namely the one that was built off its specific subset of data, without taking into account
+the other crossvalidation folds.</p>
+<p>As well as registering the model, child run 0 runs the ensemble model on the validation and test sets. The results are
+aggregated based on the <code class="docutils literal notranslate"><span class="pre">ensemble_aggregation_type</span></code> value in the model config,
+and the generated posteriors are passed to the usual model testing downstream pipelines, e.g. metrics computation.</p>
+<section id="interpreting-results">
+<h3>Interpreting results<a class="headerlink" href="#interpreting-results" title="Permalink to this heading"></a></h3>
+<p>Once your HyperDrive AzureML runs are completed, you can visualize the results by running the
+<a class="reference external" href="https://github.com/microsoft/InnerEye-DeepLearning/tree/main/InnerEye/ML/visualizers/plot_cross_validation.py"><code class="docutils literal notranslate"><span class="pre">plot_cross_validation.py</span></code></a> script locally:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>python InnerEye/ML/visualizers/plot_cross_validation.py --run_recovery_id ... --epoch ...
+</pre></div>
+</div>
+<p>filling in the run recovery ID of the parent run and the epoch number (one of the test epochs, e.g. the last epoch)
+for which you want results plotted. The script will also output several <code class="docutils literal notranslate"><span class="pre">..._outliers.txt</span></code> file with all of the outliers
+across the splits and a portal query to
+find them in the production portal, and run statistical tests to compute the significance of differences between scores
+across the splits and with respect to other runs that you specify. This is done for you during
+the run itself (see below), but you can use the script post hoc to compare arbitrary runs
+with each other. Details of the tests can be found
+in <a class="reference external" href="https://github.com/microsoft/InnerEye-DeepLearning/tree/main/InnerEye/Common/Statistics/wilcoxon_signed_rank_test.py"><code class="docutils literal notranslate"><span class="pre">wilcoxon_signed_rank_test.py</span></code></a>
+and <a class="reference external" href="https://github.com/microsoft/InnerEye-DeepLearning/tree/main/InnerEye/Common/Statistics/mann_whitney_test.py"><code class="docutils literal notranslate"><span class="pre">mann_whitney_test.py</span></code></a>.</p>
+</section>
+</section>
+<section id="where-are-my-outputs-and-models">
+<h2>Where are my outputs and models?<a class="headerlink" href="#where-are-my-outputs-and-models" title="Permalink to this heading"></a></h2>
+<ul class="simple">
+<li><p>AzureML writes all its results to the storage account you have specified. Inside of that account, you will
+find a container named <code class="docutils literal notranslate"><span class="pre">azureml</span></code>. You can access that with
+<a class="reference external" href="https://azure.microsoft.com/en-us/features/storage-explorer/">Azure StorageExplorer</a>. The checkpoints and other
+files of a run will be in folder <code class="docutils literal notranslate"><span class="pre">azureml/ExperimentRun/dcid.my_run_id</span></code>, where <code class="docutils literal notranslate"><span class="pre">my_run_id</span></code> is the “Run Id” visible in
+the “Details” section of the run. If you want to download all the results files or a large subset of them,
+we recommend you access them this way.</p></li>
+<li><p>The results can also be viewed in the “Outputs and Logs” section of the run. This is likely to be more
+convenient for viewing and inspecting single files.</p></li>
+<li><p>All files that the model training writes to the <code class="docutils literal notranslate"><span class="pre">./outputs</span></code> folder are automatically uploaded at the end of
+the AzureML training job, and are put into <code class="docutils literal notranslate"><span class="pre">outputs</span></code> in Blob Storage and in the run itself.
+Similarly, what the model training writes to the <code class="docutils literal notranslate"><span class="pre">./logs</span></code> folder gets uploaded to <code class="docutils literal notranslate"><span class="pre">logs</span></code>.</p></li>
+<li><p>You can monitor the file system that is mounted on the compute node, by navigating to your
+storage account in Azure. In the blade, click on “Files” and, navigate through to <code class="docutils literal notranslate"><span class="pre">azureml/azureml/my_run_id</span></code>. This
+will show all files that are mounted as the working directory on the compute VM.</p></li>
+</ul>
+<p>The organization of the <code class="docutils literal notranslate"><span class="pre">outputs</span></code> directory is as follows:</p>
+<ul class="simple">
+<li><p>A <code class="docutils literal notranslate"><span class="pre">checkpoints</span></code> directory containing the checkpointed model file(s).</p></li>
+<li><p>For each test epoch <code class="docutils literal notranslate"><span class="pre">NNN</span></code>, a directory <code class="docutils literal notranslate"><span class="pre">epoch_NNN</span></code>, each of whose subdirectories <code class="docutils literal notranslate"><span class="pre">Test</span></code> and <code class="docutils literal notranslate"><span class="pre">Val</span></code>
+contains the following:</p>
+<ul>
+<li><p>A <code class="docutils literal notranslate"><span class="pre">metrics.csv</span></code> file, giving the Dice and Hausdorff scores for every structure
+of every subject in the test and validation sets respectively.</p></li>
+<li><p>A <code class="docutils literal notranslate"><span class="pre">metrics_aggregates.csv</span></code> file, aggregating the information in <code class="docutils literal notranslate"><span class="pre">metrics.csv</span></code> by subject to give
+minimum, maximum, mean and standard deviation values for both Dice and Hausdorff scores.</p></li>
+<li><p>A <code class="docutils literal notranslate"><span class="pre">metrics_boxplot.png</span></code> file, containing box-and-whisker plots for the same information.</p></li>
+<li><p>Various files identifying the dataset and structure names.</p></li>
+<li><p>A <code class="docutils literal notranslate"><span class="pre">thumbnails</span></code> directory, containing an image file for the maximal predicted slice for each
+structure of each test or validation subject.</p></li>
+<li><p>For each test or validation subject, a directory containing a Nifti file for each predicted structure.</p></li>
+</ul>
+</li>
+<li><p>If there are comparison runs (specified by the config parameter <code class="docutils literal notranslate"><span class="pre">comparison_blob_storage_paths</span></code>),
+there will be a subdirectory named after each of those runs, each containing its own <code class="docutils literal notranslate"><span class="pre">epoch_NNN</span></code> subdirectory,
+and there will be a file <code class="docutils literal notranslate"><span class="pre">MetricsAcrossAllRuns.csv</span></code> directly under <code class="docutils literal notranslate"><span class="pre">outputs</span></code>, combining the data from
+the <code class="docutils literal notranslate"><span class="pre">metrics.csv</span></code> files of the current run and the comparison run(s).</p></li>
+<li><p>Additional files directly under <code class="docutils literal notranslate"><span class="pre">outputs</span></code>:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">args.txt</span></code> contains the configuration information.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">buildinformation.json</span></code> contains information on the build, partially overlapping with the content
+of the “Details” tab.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dataset.csv</span></code> for the whole dataset (see <a class="reference internal" href="creating_dataset.html"><span class="doc">“Creating Datasets</span></a> for details),
+and <code class="docutils literal notranslate"><span class="pre">test_dataset.csv</span></code>, <code class="docutils literal notranslate"><span class="pre">train_dataset.csv</span></code> and <code class="docutils literal notranslate"><span class="pre">val_dataset.csv</span></code> for those subsets of it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">BaselineComparisonWilcoxonSignedRankTestResults.txt</span></code>, containing the results of comparisons
+between the current run and any specified baselines (earlier runs) to compare with. Each paragraph of that file compares two models and
+indicates, for each structure, when the Dice scores for the second model are significantly better
+or worse than the first. For full details, see the
+<a class="reference external" href="https://github.com/microsoft/InnerEye-DeepLearning/tree/main/InnerEye/Common/Statistics/wilcoxon_signed_rank_test.py">source code</a>.</p></li>
+<li><p>A directory <code class="docutils literal notranslate"><span class="pre">scatterplots</span></code>, containing a <code class="docutils literal notranslate"><span class="pre">png</span></code> file for every pairing of the current model
+with one of the baselines. Each one is named <code class="docutils literal notranslate"><span class="pre">AAA_vs_BBB.png</span></code>, where <code class="docutils literal notranslate"><span class="pre">AAA</span></code> and <code class="docutils literal notranslate"><span class="pre">BBB</span></code> are the run IDs
+of the two models. Each plot shows the Dice scores on the test set for the models.</p></li>
+<li><p>For both segmentation and classification models an IPython Notebook <code class="docutils literal notranslate"><span class="pre">report.ipynb</span></code> will be generated in the
+<code class="docutils literal notranslate"><span class="pre">outputs</span></code> directory. This report will be based on the checkpoint that was written in the last training
+epoch (stored in <code class="docutils literal notranslate"><span class="pre">checkpoints/last.ckpt</span></code>).</p>
+<ul>
+<li><p>For segmentation models, this report will contain detailed metrics per structure, and outliers
+(test set images that had a particularly high error rate for one or more structures). The information
+about outliers can be used to double-check the existing annotations for errors.</p></li>
+<li><p>For classification models, the report shows metrics on the validation and test sets, ROC and PR Curves,
+and a list of the best and worst performing images from the test set.</p></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p>Ensemble models are created by the zero’th child (with <code class="docutils literal notranslate"><span class="pre">cross_validation_split_index=0</span></code>) in each
+cross-validation run. Results from inference on the test and validation sets are uploaded to the
+parent run, and can be found in <code class="docutils literal notranslate"><span class="pre">epoch_NNN</span></code> directories as above.
+In addition, various scores and plots from the ensemble and from individual child
+runs are uploaded to the parent run, in the <code class="docutils literal notranslate"><span class="pre">CrossValResults</span></code> directory. This contains:</p>
+<ul class="simple">
+<li><p>Subdirectories named 0, 1, 2, … for all the child runs including the zero’th one, as well
+as <code class="docutils literal notranslate"><span class="pre">ENSEMBLE</span></code>, containing their respective <code class="docutils literal notranslate"><span class="pre">epoch_NNN</span></code> directories.</p></li>
+<li><p>Files <code class="docutils literal notranslate"><span class="pre">Dice_Test_Splits.png</span></code> and <code class="docutils literal notranslate"><span class="pre">Dice_Val_Splits.png</span></code>, containing box plots of the Dice scores
+on those datasets for each structure and each (component and ensemble) model. These give a visual
+overview of the results in the <code class="docutils literal notranslate"><span class="pre">metrics.csv</span></code> files detailed above. When there are many different
+structures, several such plots are created, with a different subset of structures in each one.</p></li>
+<li><p>Similarly, <code class="docutils literal notranslate"><span class="pre">HausdorffDistance_mm_Test_splits.png</span></code> and <code class="docutils literal notranslate"><span class="pre">HausdorffDistance_mm_Val_splits.png</span></code> contain
+box plots of Hausdorff distances.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MetricsAcrossAllRuns.csv</span></code> combines the data from all the <code class="docutils literal notranslate"><span class="pre">metrics.csv</span></code> files.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Test_outliers.txt</span></code> and <code class="docutils literal notranslate"><span class="pre">Val_outliers.txt</span></code> highlight particular outlier scores (both Dice and
+Hausdorff) in the test and validation sets respectively.</p></li>
+<li><p>A <code class="docutils literal notranslate"><span class="pre">scatterplots</span></code> directory and a file <code class="docutils literal notranslate"><span class="pre">CrossValidationWilcoxonSignedRankTestResults.txt</span></code>,
+for comparisons between the ensemble and its component models.</p></li>
+</ul>
+<p>There is also a directory <code class="docutils literal notranslate"><span class="pre">BaselineComparisons</span></code>, containing the Wilcoxon test results and
+scatterplots for the ensemble, as described above for single runs.</p>
+</section>
+<section id="augmentations-for-classification-models">
+<h2>Augmentations for classification models<a class="headerlink" href="#augmentations-for-classification-models" title="Permalink to this heading"></a></h2>
+<p>For classification models, you can define an augmentation pipeline to apply to your images input (resp. segmentations) at
+training, validation and test time. In order to define such a series of transformations, you will need to overload the
+<code class="docutils literal notranslate"><span class="pre">get_image_transform</span></code>  (resp. <code class="docutils literal notranslate"><span class="pre">get_segmention_transform</span></code>) method of your config class. This method expects you to return
+a <code class="docutils literal notranslate"><span class="pre">ModelTransformsPerExecutionMode</span></code>, that maps each execution mode to one transform function. We also provide the
+<code class="docutils literal notranslate"><span class="pre">ImageTransformationPipeline</span></code> a class that creates a pipeline of transforms, from a list of individual transforms and
+ensures the correct conversion of 2D or 3D PIL.Image or tensor inputs to the obtained pipeline.</p>
+<p><code class="docutils literal notranslate"><span class="pre">ImageTransformationPipeline</span></code> takes two arguments for its constructor:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">transforms</span></code>: a list of image transforms, in particular you can feed in standard <a class="reference external" href="https://pytorch.org/vision/0.8/transforms.html">torchvision transforms</a> or
+any other transforms as long as they support an input <code class="docutils literal notranslate"><span class="pre">[Z,</span> <span class="pre">C,</span> <span class="pre">H,</span> <span class="pre">W]</span></code> (where Z is the 3rd dimension (1 for 2D images),
+C number of channels, H and W the height and width of each 2D slide - this is supported for standard torchvision
+transforms.). You can also define your own transforms as long as they expect such a <code class="docutils literal notranslate"><span class="pre">[Z,</span> <span class="pre">C,</span> <span class="pre">H,</span> <span class="pre">W]</span></code> input. You can
+find some examples of custom transforms class in <code class="docutils literal notranslate"><span class="pre">InnerEye/ML/augmentation/image_transforms.py</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">use_different_transformation_per_channel</span></code>: if True, apply a different version of the augmentation pipeline
+for each channel. If False, applies the same transformation to each channel, separately. Default to False.</p></li>
+</ul>
+<p>Below you can find an example of <code class="docutils literal notranslate"><span class="pre">get_image_transform</span></code> that would resize your input images to 256 x 256, and at
+training time only apply random rotation of +/- 10 degrees, and apply some brightness distortion,
+using standard pytorch vision transforms.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">get_image_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ModelTransformsPerExecutionMode</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get transforms to perform on image samples for each model execution mode.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">ModelTransformsPerExecutionMode</span><span class="p">(</span>
+        <span class="n">train</span><span class="o">=</span><span class="n">ImageTransformationPipeline</span><span class="p">(</span><span class="n">transforms</span><span class="o">=</span><span class="p">[</span><span class="n">Resize</span><span class="p">(</span><span class="mi">256</span><span class="p">),</span> <span class="n">RandomAffine</span><span class="p">(</span><span class="n">degrees</span><span class="o">=</span><span class="mi">10</span><span class="p">),</span> <span class="n">ColorJitter</span><span class="p">(</span><span class="n">brightness</span><span class="o">=</span><span class="mf">0.2</span><span class="p">)]),</span>
+        <span class="n">val</span><span class="o">=</span><span class="n">ImageTransformationPipeline</span><span class="p">(</span><span class="n">transforms</span><span class="o">=</span><span class="p">[</span><span class="n">Resize</span><span class="p">(</span><span class="mi">256</span><span class="p">)]),</span>
+        <span class="n">test</span><span class="o">=</span><span class="n">ImageTransformationPipeline</span><span class="p">(</span><span class="n">transforms</span><span class="o">=</span><span class="p">[</span><span class="n">Resize</span><span class="p">(</span><span class="mi">256</span><span class="p">)]))</span>
+</pre></div>
+</div>
+</section>
+<section id="segmentation-models-and-inference">
+<h2>Segmentation Models and Inference<a class="headerlink" href="#segmentation-models-and-inference" title="Permalink to this heading"></a></h2>
+<p>By default when building a segmentation model a full image inference will be performed on the validation and test data sets;
+and when building an ensemble model, a full image inference will be performed on the test data set only (because the
+training and validation sets are first combined before being split into each of the folds).
+There are a total of six command line options for controlling this in more detail.</p>
+<p>For non-ensemble models use any of the following command line options to enable or disable inference on training, test, or validation data sets:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>--inference_on_train_set<span class="o">=</span>True or False
+--inference_on_test_set<span class="o">=</span>True or False
+--inference_on_val_set<span class="o">=</span>True or False
+</pre></div>
+</div>
+<p>For ensemble models use any of the following corresponding command line options:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>--ensemble_inference_on_train_set<span class="o">=</span>True or False
+--ensemble_inference_on_test_set<span class="o">=</span>True or False
+--ensemble_inference_on_val_set<span class="o">=</span>True or False
+</pre></div>
+</div>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="sample_tasks.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">Sample Tasks</div>
+              </div>
+              <svg><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="creating_dataset.html">
+              <svg><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">Dataset Creation</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; Microsoft Corporation
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            <div class="icons">
+              
+            </div>
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            Contents
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Building Models</a><ul>
+<li><a class="reference internal" href="#setting-up-training">Setting up training</a></li>
+<li><a class="reference internal" href="#creating-the-model-configuration">Creating the model configuration</a></li>
+<li><a class="reference internal" href="#training-a-new-model">Training a new model</a></li>
+<li><a class="reference internal" href="#boolean-options">Boolean Options</a></li>
+<li><a class="reference internal" href="#training-using-multiple-machines">Training using multiple machines</a></li>
+<li><a class="reference internal" href="#azureml-run-hierarchy">AzureML Run Hierarchy</a></li>
+<li><a class="reference internal" href="#k-fold-model-cross-validation">K-Fold Model Cross Validation</a></li>
+<li><a class="reference internal" href="#recovering-failed-runs-and-continuing-training">Recovering failed runs and continuing training</a></li>
+<li><a class="reference internal" href="#testing-an-existing-model">Testing an existing model</a><ul>
+<li><a class="reference internal" href="#from-a-registered-model-on-azureml">From a registered model on AzureML</a></li>
+<li><a class="reference internal" href="#from-local-checkpoints">From local checkpoints</a></li>
+<li><a class="reference internal" href="#from-urls">From URLs</a></li>
+<li><a class="reference internal" href="#running-a-registered-azureml-model-on-a-single-image-on-the-local-disk">Running a registered AzureML model on a single image on the local disk</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#model-ensembles">Model Ensembles</a><ul>
+<li><a class="reference internal" href="#interpreting-results">Interpreting results</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#where-are-my-outputs-and-models">Where are my outputs and models?</a></li>
+<li><a class="reference internal" href="#augmentations-for-classification-models">Augmentations for classification models</a></li>
+<li><a class="reference internal" href="#segmentation-models-and-inference">Segmentation Models and Inference</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/scripts/furo.js"></script>
+    </body>
+</html>

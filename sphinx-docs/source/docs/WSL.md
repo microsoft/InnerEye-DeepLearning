@@ -15,7 +15,7 @@ If you are running a Windows box with a GPU, please follow the documentation
 [here](https://docs.microsoft.com/en-us/windows/win32/direct3d12/gpu-cuda-in-wsl) to access the GPU from within WSL2.
 
 You can also find a video walkthrough of WSL2+CUDA installation
-here: https://channel9.msdn.com/Shows/Tabs-vs-Spaces/GPU-Accelerated-Machine-Learning-with-WSL-2
+[here](https://channel9.msdn.com/Shows/Tabs-vs-Spaces/GPU-Accelerated-Machine-Learning-with-WSL-2)
 
 ## Install WSL2
 
@@ -38,7 +38,7 @@ installed, ensure that your distribution is running on top of WSL2 by executing
 `wsl --list --verbose`
 If all is good, the output should look like this:
 
-```
+```shell
 $> wsl --list -v
   NAME            STATE           VERSION
 * Ubuntu-20.04    Running         2
@@ -63,17 +63,17 @@ Start the Windows Terminal app, create an Ubuntu tab. In the shell, run the foll
 - Create conda environment: `conda env create --file environment.yml`
 - Clean your pyc files (in case you have some left from Windows):
 
-```
+```shell
 find * -name '*.pyc' | xargs -d'\n' rm`
 ```
 
 ## Configure PyCharm
 
-- https://www.jetbrains.com/help/pycharm/using-wsl-as-a-remote-interpreter.html
+- [Instructions for using WSL as a remote interpreter](https://www.jetbrains.com/help/pycharm/using-wsl-as-a-remote-interpreter.html)
 - You might need to reset all your firewall settings to make the debugger work with PyCharm. This can be done with these
   PowerShell commands (as Administrator):
 
-```
+```shell
 $myIp = (Ubuntu2004 run "cat /etc/resolv.conf | grep nameserver | cut -d' ' -f2")
 New-NetFirewallRule -DisplayName "WSL" -Direction Inbound  -LocalAddress $myIp -Action Allow
 ```
@@ -86,4 +86,4 @@ New-NetFirewallRule -DisplayName "WSL" -Direction Inbound  -LocalAddress $myIp -
 
 ## Configure VSCode
 
-- https://code.visualstudio.com/docs/remote/wsl
+- [Instructions for configuring WSL in VSCode](https://code.visualstudio.com/docs/remote/wsl)

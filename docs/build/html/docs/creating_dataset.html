@@ -1,0 +1,649 @@
+<!doctype html>
+<html class="no-js" lang="en">
+  <head><meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Building Models" href="building_models.html" /><link rel="prev" title="How to setup Azure Machine Learning for InnerEye" href="setting_up_aml.html" />
+
+    <meta name="generator" content="sphinx-5.0.2, furo 2022.06.21"/>
+        <title>Dataset Creation - InnerEye-DeepLearning 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=40978830699223671f4072448e654b5958f38b89" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f8f8f8;
+  --color-code-foreground: black;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-half" viewBox="0 0 24 24">
+    <title>Auto light/dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-shadow">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M13 12h5" />
+      <path d="M13 15h4" />
+      <path d="M13 18h1" />
+      <path d="M13 9h4" />
+      <path d="M13 6h1" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc">
+<label class="overlay sidebar-overlay" for="__navigation">
+  <div class="visually-hidden">Hide navigation sidebar</div>
+</label>
+<label class="overlay toc-overlay" for="__toc">
+  <div class="visually-hidden">Hide table of contents sidebar</div>
+</label>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <div class="visually-hidden">Toggle site navigation sidebar</div>
+        <i class="icon"><svg><use href="#svg-menu"></use></svg></i>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../index.html"><div class="brand">InnerEye-DeepLearning 1.0.0 documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle">
+          <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+          <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <div class="visually-hidden">Toggle table of contents sidebar</div>
+        <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../index.html">
+  
+  
+  <span class="sidebar-brand-text">InnerEye-DeepLearning 1.0.0 documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../search.html" role="search">
+  <input class="sidebar-search" placeholder=Search name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="innereye_deeplearning.html">InnerEye-DeepLearning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="WSL.html">How to use the Windows Subsystem for Linux (WSL2) for development</a></li>
+<li class="toctree-l1"><a class="reference internal" href="environment.html">Set up InnerEye-DeepLearning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="setting_up_aml.html">How to setup Azure Machine Learning for InnerEye</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Dataset Creation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="building_models.html">Building Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sample_tasks.html">Sample Tasks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="debugging_and_monitoring.html">Debugging and Monitoring Jobs</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Further reading for contributors</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="pull_requests.html">Suggested Workflow for Pull Requests</a></li>
+<li class="toctree-l1"><a class="reference internal" href="testing.html">Pytest and testing on CPU and GPU machines</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hello_world_model.html">Training a Hello World segmentation model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="deploy_on_aml.html">Model Deployment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bring_your_own_model.html">Bring Your Own PyTorch Lightning Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="fastmri.html">Working with FastMRI models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="innereye_as_submodule.html">Using the InnerEye code as a git submodule of your project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="model_diagnostics.html">Model Diagnostics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="move_model.html">Move a model to other workspace</a></li>
+<li class="toctree-l1"><a class="reference internal" href="releases.html">Releases</a></li>
+<li class="toctree-l1"><a class="reference internal" href="self_supervised_models.html">Training of self-supervised models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="CHANGELOG.html">Changelog</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API documentation (🚧 Work In Progress 🚧)</span></p>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../rst/api/ML/index.html">Machine learning</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../rst/api/ML/configs.html">Segmentation Model Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../rst/api/ML/runner.html">Runner</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../rst/api/ML/augmentations.html">Data augmentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../rst/api/ML/photometric_normalization.html">Photometric normalization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../rst/api/ML/pipelines.html">Pipelines</a></li>
+</ul>
+</li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle">
+              <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+              <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <div class="visually-hidden">Toggle table of contents sidebar</div>
+            <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+          </label>
+        </div>
+        <article role="main">
+          <section id="dataset-creation">
+<h1>Dataset Creation<a class="headerlink" href="#dataset-creation" title="Permalink to this heading"></a></h1>
+<p>This document describes the dataset formats used by InnerEye for segmentation and classification tasks. After creating
+the dataset, upload it to AzureML blob storage (as described in the
+<a class="reference external" href="setting_up_aml.md#step-4-create-a-storage-account-for-your-datasets">AzureML documentation</a>)</p>
+<section id="segmentation-datasets">
+<h2>Segmentation Datasets<a class="headerlink" href="#segmentation-datasets" title="Permalink to this heading"></a></h2>
+<p>This section walks through the process of creating a dataset in the format expected by the InnerEye package.
+However, if your dataset is in DICOM-RT format, you should instead use the
+<a class="reference external" href="https://github.com/microsoft/InnerEye-CreateDataset">InnerEye-CreateDataset</a> tool.
+After creating the dataset, you can also <a class="reference external" href="#analysing-segmentation-datasets">analyze</a> the structures in it.</p>
+<p>Segmentation datasets should have the input scans and ground truth segmentations in Nifti format.</p>
+<p>InnerEye expects segmentation datasets to have the following structure:</p>
+<ul>
+<li><p>Each subject has one or more scans, and one or more segmentation masks. There should be one segmentation mask for
+each ground truth structure (anatomical structure that the model should segment)</p></li>
+<li><p>For convenience, scans and ground truth masks for different subjects can live in separate folders, but that’s not a must.</p></li>
+<li><p>Inside the root folder for the dataset, there should be a file <code class="docutils literal notranslate"><span class="pre">dataset.csv</span></code>, containing the following fields
+at minimum:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">subject</span></code>: A unique positive integer assigned to every patient</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">channel</span></code>: The imaging channel or ground truth structure described by this row.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">filePath</span></code>: Path to the file for this scan or structure. We support nifti (<code class="docutils literal notranslate"><span class="pre">.nii</span></code>, <code class="docutils literal notranslate"><span class="pre">.nii.gz</span></code> extensions), numpy (<code class="docutils literal notranslate"><span class="pre">.npy</span></code>, <code class="docutils literal notranslate"><span class="pre">.npz</span></code>) and hdf5(<code class="docutils literal notranslate"><span class="pre">.h5</span></code>).</p>
+<ul class="simple">
+<li><p>For HDF5 files, you need set the the actual file path, and specify the HDF5 dataset name and channel as follows with <code class="docutils literal notranslate"><span class="pre">|</span></code> as a separator:</p>
+<ul>
+<li><p>For images: <code class="docutils literal notranslate"><span class="pre">&lt;path&gt;|&lt;dataset_name&gt;|&lt;channel</span> <span class="pre">index&gt;</span></code></p></li>
+<li><p>For segmentations that are provided as binary maps: <code class="docutils literal notranslate"><span class="pre">&lt;path&gt;|&lt;dataset_name&gt;|&lt;channel</span> <span class="pre">index&gt;</span></code></p></li>
+<li><p>For segmentations that are given as multimaps: <code class="docutils literal notranslate"><span class="pre">&lt;path&gt;|&lt;dataset_name&gt;|&lt;channel</span> <span class="pre">index&gt;|&lt;multimap</span> <span class="pre">value&gt;</span></code></p>
+<ul>
+<li><p>Multimaps are encoded as 0=background and integers for each class.</p></li>
+</ul>
+</li>
+<li><p>The expected dimensions: (channel, Z, Y, X)</p></li>
+</ul>
+</li>
+<li><p>For numpy or nifti just the expected format is just the path to the files.</p>
+<ul>
+<li><p>Images must be encoded as float32 with dimensions (X, Y, Z)</p></li>
+<li><p>Segmentations need to be encoded as binary masks in <code class="docutils literal notranslate"><span class="pre">uint8</span></code> format with dimensions (X, Y, Z). There must be one binary mask per
+ground truth structure. The arrays need to contain 1 for all voxels that belong to the structure, and 0 for all other voxels.
+You can save those to nifti by working with numpy <code class="docutils literal notranslate"><span class="pre">uint8</span></code> arrays.</p></li>
+</ul>
+</li>
+</ul>
+<p>Additional supported fields include <code class="docutils literal notranslate"><span class="pre">acquisition_date</span></code>, <code class="docutils literal notranslate"><span class="pre">institutionId</span></code>, <code class="docutils literal notranslate"><span class="pre">seriesID</span></code> and <code class="docutils literal notranslate"><span class="pre">tags</span></code> (meant for miscellaneous labels).</p>
+</li>
+</ul>
+</li>
+</ul>
+<p>For example, for a CT dataset with two structures <code class="docutils literal notranslate"><span class="pre">heart</span></code> and <code class="docutils literal notranslate"><span class="pre">lung</span></code> to be segmented, the dataset folder
+could look like:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>dataset_folder_name
+├──dataset.csv
+├──subjectID1/
+│  ├── ct.nii.gz
+│  ├── heart.nii.gz
+│  └── lung.nii.gz
+├──subjectID2/
+|  ├── ct.nii.gz
+|  ├── heart.nii.gz
+|  ├── lung.nii.gz
+├──...
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">dataset.csv</span></code> for this dataset would look like:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>subject,filePath,channel
+1,subjectID1/ct.nii.gz,ct
+1,subjectID1/heart.nii.gz,structure1
+1,subjectID1/lung.nii.gz,structure2
+2,subjectID2/ct.nii.gz,ct
+2,subjectID2/heart.nii.gz,structure1
+2,subjectID2/lung.nii.gz,structure2
+</pre></div>
+</div>
+<p>Note: The paths in the <code class="docutils literal notranslate"><span class="pre">dataset.csv</span></code> file should <strong>not</strong> be absolute paths, but relative to the folder that contains
+`dataset.csv’.</p>
+<section id="image-size-requirements">
+<h3>Image size requirements<a class="headerlink" href="#image-size-requirements" title="Permalink to this heading"></a></h3>
+<p>The images in a dataset must adhere to these constraints:</p>
+<ul class="simple">
+<li><p>All images, across all subjects, must have already undergone geometric normalization, i.e., all images must have
+approximately the same voxel size. For example, if all images for subject 1 have voxel size 1.5mm x 1.01mm x 1.01mm,
+and all images for subject 2 have voxel size 1.51mm x 0.99mm x 0.99mm, this should be fine. In particular, this
+constraint does not mean that voxels need to be isotropic.</p></li>
+<li><p>All images for a particular subject must have the same dimensions. In the above example, if <code class="docutils literal notranslate"><span class="pre">subjectID1/ct.nii.gz</span></code>
+has size 200 x 256 x 256, then <code class="docutils literal notranslate"><span class="pre">subjectID1/heart.nii.gz</span></code> and <code class="docutils literal notranslate"><span class="pre">subjectID1/lung.nii.gz</span></code> must have exactly the
+same dimensions.</p></li>
+<li><p>It is not required that images for different subjects have the same dimensions.</p></li>
+</ul>
+<p>All these constraints are automatically checked and guaranteed if the raw data is in DICOM format and you are using
+the <a class="reference external" href="https://github.com/microsoft/InnerEye-CreateDataset">InnerEye-CreateDataset</a> tool to convert them to Nifti
+format. Geometric normalization can also be turned on as a pre-processing step.</p>
+</section>
+<section id="uploading-to-azure">
+<h3>Uploading to Azure<a class="headerlink" href="#uploading-to-azure" title="Permalink to this heading"></a></h3>
+<p>When running in Azure, you need to upload the folder containing the dataset (i.e., the file <code class="docutils literal notranslate"><span class="pre">dataset.csv</span></code> and the
+image referenced therein) to the storage account for datasets. This is the storage account you created in the
+<a class="reference internal" href="setting_up_aml.html"><span class="doc">Azure setup, Step 4</span></a>.</p>
+<p>The best way of uploading the data is via
+<a class="reference external" href="https://azure.microsoft.com/en-gb/features/storage-explorer/">Azure Storage Explorer</a>. Please follow the installation
+instructions first.</p>
+<ul class="simple">
+<li><p>Find your Azure subscription in the “Explorer” bar, and inside of that, the “Storage Accounts” field, and the
+storage account you created for datasets.</p></li>
+<li><p>That storage account should have a section “Blob Containers”. Check if there is a container called “datasets” already.
+If not, create one using the context menu.</p></li>
+<li><p>Navigate into the “datasets” container.</p></li>
+<li><p>Then use “Upload/Upload Folder” and choose the folder that contains your dataset (<code class="docutils literal notranslate"><span class="pre">dataset_folder_name</span></code> in the
+above example). Leave all other settings in the upload dialog at their default.</p></li>
+<li><p>This will start the upload. Depending on the number of files, that can of course take some time.</p></li>
+</ul>
+</section>
+<section id="creating-a-model-configuration">
+<h3>Creating a model configuration<a class="headerlink" href="#creating-a-model-configuration" title="Permalink to this heading"></a></h3>
+<p>For the above dataset structure for heart and lung segmentation, you would then create a model configuration that
+contains at least the following fields:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">HeartLungModel</span><span class="p">(</span><span class="n">SegmentationModelBase</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">azure_dataset_id</span><span class="o">=</span><span class="s2">&quot;dataset_folder_name&quot;</span><span class="p">,</span>
+            <span class="c1"># Adjust this to where your dataset_folder is on your local box</span>
+            <span class="n">local_dataset</span><span class="o">=</span><span class="s2">&quot;/home/me/dataset_folder_name&quot;</span><span class="p">,</span>
+            <span class="n">image_channels</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;ct&quot;</span><span class="p">],</span>
+            <span class="n">ground_truth_ids</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;heart&quot;</span><span class="p">,</span> <span class="s2">&quot;lung&quot;</span><span class="p">],</span>
+            <span class="c1"># Segmentation architecture</span>
+            <span class="n">architecture</span><span class="o">=</span><span class="s2">&quot;UNet3D&quot;</span><span class="p">,</span>
+            <span class="n">feature_channels</span><span class="o">=</span><span class="p">[</span><span class="mi">32</span><span class="p">],</span>
+            <span class="c1"># Size of patches that are used for training, as (z, y, x) tuple</span>
+            <span class="n">crop_size</span><span class="o">=</span><span class="p">(</span><span class="mi">64</span><span class="p">,</span> <span class="mi">224</span><span class="p">,</span> <span class="mi">224</span><span class="p">),</span>
+            <span class="c1"># Reduce this if you see GPU out of memory errors</span>
+            <span class="n">train_batch_size</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span>
+            <span class="c1"># Size of patches that are used when evaluating the model</span>
+            <span class="n">test_crop_size</span><span class="o">=</span><span class="p">(</span><span class="mi">128</span><span class="p">,</span> <span class="mi">512</span><span class="p">,</span> <span class="mi">512</span><span class="p">),</span>
+            <span class="n">inference_stride_size</span><span class="o">=</span><span class="p">(</span><span class="mi">64</span><span class="p">,</span> <span class="mi">256</span><span class="p">,</span> <span class="mi">256</span><span class="p">),</span>
+            <span class="c1"># Use CT Window and Level as image pre-processing</span>
+            <span class="n">norm_method</span><span class="o">=</span><span class="n">PhotometricNormalizationMethod</span><span class="o">.</span><span class="n">CtWindow</span><span class="p">,</span>
+            <span class="n">level</span><span class="o">=</span><span class="mi">40</span><span class="p">,</span>
+            <span class="n">window</span><span class="o">=</span><span class="mi">400</span><span class="p">,</span>
+            <span class="c1"># Learning rate settings</span>
+            <span class="n">l_rate</span><span class="o">=</span><span class="mf">1e-3</span><span class="p">,</span>
+            <span class="n">min_l_rate</span><span class="o">=</span><span class="mf">1e-5</span><span class="p">,</span>
+            <span class="n">l_rate_polynomial_gamma</span><span class="o">=</span><span class="mf">0.9</span><span class="p">,</span>
+            <span class="n">num_epochs</span><span class="o">=</span><span class="mi">120</span><span class="p">,</span>
+            <span class="p">)</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">local_dataset</span></code> field is required if you want to run the InnerEye toolbox on your own VM, and you want to consume
+the dataset from local storage. If you want to run the InnerEye toolbox inside of AzureML, you need to supply the
+<code class="docutils literal notranslate"><span class="pre">azure_dataset_id</span></code>, pointing to a folder in Azure blob storage. This folder should reside in the <code class="docutils literal notranslate"><span class="pre">datasets</span></code> container
+in the storage account that you designated for storing your datasets, see <a class="reference internal" href="setting_up_aml.html"><span class="doc">the setup instructions</span></a>.</p>
+<section id="analyzing-segmentation-datasets">
+<h4>Analyzing segmentation datasets<a class="headerlink" href="#analyzing-segmentation-datasets" title="Permalink to this heading"></a></h4>
+<p>Once you have created your Azure dataset, either by the process described here or with the CreateDataset tool,
+you may want to analyze it in order to detect images and structures that are outliers
+with respect to a number of statistics, and which therefore may be erroneous or unsuitable for your application.
+This can be done using the analyze command provided by
+<a class="reference external" href="https://github.com/microsoft/InnerEye-CreateDataset">InnerEye-CreateDataset</a>.</p>
+</section>
+</section>
+</section>
+<section id="classification-datasets">
+<h2>Classification Datasets<a class="headerlink" href="#classification-datasets" title="Permalink to this heading"></a></h2>
+<p>Classification datasets should have a <code class="docutils literal notranslate"><span class="pre">dataset.csv</span></code> and a folder containing the image files. The <code class="docutils literal notranslate"><span class="pre">dataset.csv</span></code> should
+have at least the following fields:</p>
+<ul class="simple">
+<li><p>subject: The subject ID, a unique positive integer assigned to every image</p></li>
+<li><p>path: Path to the image file for this subject</p></li>
+<li><p>value:</p>
+<ul>
+<li><p>For binary classification, a (binary) ground truth label. This can be “true” and “false” or “0” and “1”.</p></li>
+<li><p>For multi-label classification, the set of all positive labels for the image, separated by a <code class="docutils literal notranslate"><span class="pre">|</span></code> character.
+Ex: “0|2|4” for a sample with true labels 0, 2 and 4 and “” for a sample in which all labels are false.</p></li>
+<li><p>For regression, a scalar value.</p></li>
+</ul>
+</li>
+</ul>
+<p>These, and other fields which can be added to dataset.csv are described in the examples below.</p>
+<p>For each entry (subject ID, label value, etc) needed to construct a single input sample, the entry value is read
+from the channels and columns specified for that entry.</p>
+<section id="a-simple-example">
+<h3>A simple example<a class="headerlink" href="#a-simple-example" title="Permalink to this heading"></a></h3>
+<p>Let’s look at how to construct a <code class="docutils literal notranslate"><span class="pre">dataset.csv</span></code> (and changes we will need to make to the model config file in parallel):</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>SubjectID, FilePath, Label
+1, images/image1.npy, True
+2, images/image2.npy, False
+</pre></div>
+</div>
+<p>This is the simplest <code class="docutils literal notranslate"><span class="pre">dataset.csv</span></code> possible. It has two images with subject IDs <code class="docutils literal notranslate"><span class="pre">1</span></code> and <code class="docutils literal notranslate"><span class="pre">2</span></code>, stored at <code class="docutils literal notranslate"><span class="pre">images/images1.npy</span></code>
+and <code class="docutils literal notranslate"><span class="pre">images/images2.npy</span></code>. This dataset is a classification dataset, since the label values are binary.</p>
+<p>To use this <code class="docutils literal notranslate"><span class="pre">dataset.csv</span></code>, we need to make some additions to the model config. We will use the <code class="docutils literal notranslate"><span class="pre">GlaucomaPublicExt</span></code> config from
+the <a class="reference external" href="sample_tasks.md#creating-the-classification-model-configuration">sample tasks</a>
+in this example. The class should now resemble:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">GlaucomaPublicExt</span><span class="p">(</span><span class="n">GlaucomaPublic</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">azure_dataset_id</span><span class="o">=</span><span class="s2">&quot;name_of_your_dataset_on_azure&quot;</span><span class="p">,</span>
+                         <span class="n">subject_column</span><span class="o">=</span><span class="s2">&quot;SubjectID&quot;</span><span class="p">,</span>
+                         <span class="n">image_file_column</span><span class="o">=</span><span class="s2">&quot;FilePath&quot;</span><span class="p">,</span>
+                         <span class="n">label_value_column</span><span class="o">=</span><span class="s2">&quot;Label&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The parameters <code class="docutils literal notranslate"><span class="pre">subject_column</span></code>, <code class="docutils literal notranslate"><span class="pre">channel_column</span></code>, <code class="docutils literal notranslate"><span class="pre">image_file_column</span></code> and <code class="docutils literal notranslate"><span class="pre">label_value_column</span></code> tell InnerEye
+what columns in the csv contain the subject identifiers, channel names, image file paths and labels.</p>
+<p>NOTE: If any of the <code class="docutils literal notranslate"><span class="pre">*_column</span></code> parameters are not specified, InnerEye will look for these entries under the default column names
+if default names exist. See the CSV headers in <a class="reference external" href="https://github.com/microsoft/InnerEye-DeepLearning/tree/main/InnerEye/ML/utils/csv_util.py">csv_util.py</a> for all the defaults.</p>
+</section>
+<section id="using-channels-in-dataset-csv">
+<h3>Using channels in dataset.csv<a class="headerlink" href="#using-channels-in-dataset-csv" title="Permalink to this heading"></a></h3>
+<p>Channels are fields in <code class="docutils literal notranslate"><span class="pre">dataset.csv</span></code> which can be used to filter rows. They are typically used when there are multiple
+images or labels per subject (for example, if multiple images were taken across a period of time for each subject).</p>
+<p>A slightly more complex <code class="docutils literal notranslate"><span class="pre">dataset.csv</span></code> would be the following:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>SubjectID, Channel, FilePath, Label
+1, image_feature_1, images/image_1_feature_1.npy,
+1, image_feature_2, images/image_1_feature_2.npy,
+1, label, , True
+2, image_feature_1, images/image_2_feature_1.npy
+2, image_feature_2, images/image_2_feature_2.npy
+2, label, , False
+</pre></div>
+</div>
+<p>The config file would be</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">GlaucomaPublicExt</span><span class="p">(</span><span class="n">GlaucomaPublic</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">azure_dataset_id</span><span class="o">=</span><span class="s2">&quot;name_of_your_dataset_on_azure&quot;</span><span class="p">,</span>
+                         <span class="n">subject_column</span><span class="o">=</span><span class="s2">&quot;SubjectID&quot;</span><span class="p">,</span>
+                         <span class="n">channel_column</span><span class="o">=</span><span class="s2">&quot;Channel&quot;</span><span class="p">,</span>
+                         <span class="n">image_channels</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;image_feature_1&quot;</span><span class="p">,</span> <span class="s2">&quot;image_feature_2&quot;</span><span class="p">],</span>
+                         <span class="n">image_file_column</span><span class="o">=</span><span class="s2">&quot;FilePath&quot;</span><span class="p">,</span>
+                         <span class="n">label_channels</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;label&quot;</span><span class="p">],</span>
+                         <span class="n">label_value_column</span><span class="o">=</span><span class="s2">&quot;Label&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The added parameters <code class="docutils literal notranslate"><span class="pre">image_channels</span></code> and <code class="docutils literal notranslate"><span class="pre">label_channels</span></code> tell InnerEye to search for image file paths for each subject
+in rows labelled with <code class="docutils literal notranslate"><span class="pre">image_feature_1</span></code> or <code class="docutils literal notranslate"><span class="pre">image_feature_2</span></code> and for label values in the rows labelled with <code class="docutils literal notranslate"><span class="pre">label</span></code>.
+Thus, in this dataset, each sample will have 2 image features (read from rows with <code class="docutils literal notranslate"><span class="pre">Channel</span></code> set to <code class="docutils literal notranslate"><span class="pre">image_feature_1</span></code>
+and <code class="docutils literal notranslate"><span class="pre">image_feature_2</span></code>) and the associated label (read from the row with <code class="docutils literal notranslate"><span class="pre">Channel</span></code> set to <code class="docutils literal notranslate"><span class="pre">label</span></code>).</p>
+<p>NOTE: There are no defaults for the <code class="docutils literal notranslate"><span class="pre">*_channels</span></code> parameters, so these must be set as parameters.</p>
+</section>
+<section id="recognized-columns-in-dataset-csv-and-filtering-based-on-channels">
+<h3>Recognized columns in dataset.csv and filtering based on channels<a class="headerlink" href="#recognized-columns-in-dataset-csv-and-filtering-based-on-channels" title="Permalink to this heading"></a></h3>
+<p>Other recognized fields, apart from subject, channel, file path and label are numerical features and categorical features.
+These are extra scalar and categorical values to be used as model input.</p>
+<p>Any <em>unrecognized</em> columns (any column which is both not described in the model config and has no default)
+will be converted to a dict of key-value pairs and stored in an object of type <code class="docutils literal notranslate"><span class="pre">GeneralSampleMetadata</span></code> in the sample.</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>SubjectID, Channel, FilePath, Label, Tag, weight, class
+1, image_time_1, images/image_1_time_1.npy, True, , ,
+1, image_time_2, images/image_1_time_2.npy, False, , ,
+1, scalar, , , , 0.5,
+1, categorical, , , , , 2
+1, tags, , ,foo, ,
+2, image_time_1, images/image_2_time_1.npy, True, , ,
+2, image_time_2, images/image_2_time_2.npy, True, , ,
+2, tags, , , bar, ,
+1, scalar, , , , 0.3,
+1, categorical, , , , , 4
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">GlaucomaPublicExt</span><span class="p">(</span><span class="n">GlaucomaPublic</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">azure_dataset_id</span><span class="o">=</span><span class="s2">&quot;name_of_your_dataset_on_azure&quot;</span><span class="p">,</span>
+                         <span class="n">subject_column</span><span class="o">=</span><span class="s2">&quot;SubjectID&quot;</span><span class="p">,</span>
+                         <span class="n">channel_column</span><span class="o">=</span><span class="s2">&quot;Channel&quot;</span><span class="p">,</span>
+                         <span class="n">image_channels</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;image_time_1&quot;</span><span class="p">,</span> <span class="s2">&quot;image_time_2&quot;</span><span class="p">],</span>
+                         <span class="n">image_file_column</span><span class="o">=</span><span class="s2">&quot;FilePath&quot;</span><span class="p">,</span>
+                         <span class="n">label_channels</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;image_time_2&quot;</span><span class="p">],</span>
+                         <span class="n">label_value_column</span><span class="o">=</span><span class="s2">&quot;Label&quot;</span><span class="p">,</span>
+                         <span class="n">non_image_feature_channels</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;scalar&quot;</span><span class="p">],</span>
+                         <span class="n">numerical_columns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;weight&quot;</span><span class="p">],</span>
+                         <span class="n">categorical_columns</span><span class="o">=</span><span class="s2">&quot;class&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>In this example, <code class="docutils literal notranslate"><span class="pre">weight</span></code> is a scalar feature read from the csv, and <code class="docutils literal notranslate"><span class="pre">class</span></code> is a categorical feature. The extra field
+<code class="docutils literal notranslate"><span class="pre">Tag</span></code> is not a recognized field, and so the dataloader will return the tags in the form of key:value pairs for each sample.</p>
+<p><strong>Filtering on channels</strong>: This example also shows why filtering values by channel is useful: In this example, each subject has 2 images taken at
+different times with different label values. By using <code class="docutils literal notranslate"><span class="pre">label_channels=[&quot;image_time_2&quot;]</span></code>, we can use the label associated with
+the second image for all subjects.</p>
+</section>
+<section id="multi-label-classification-datasets">
+<h3>Multi-label classification datasets<a class="headerlink" href="#multi-label-classification-datasets" title="Permalink to this heading"></a></h3>
+<p>Classification datasets can be multi-label, i.e. they can have more than one label associated with every sample.
+In this case, in the label column, separate the (numerical) ground truth labels with a pipe character (<code class="docutils literal notranslate"><span class="pre">|</span></code>) to
+provide multiple ground truth labels for the sample.</p>
+<p>Note that only <em>multi-label</em> datasets are supported, <em>multi-class</em> datasets (where the labels are mutually exclusive)
+are not supported.</p>
+<p>For example, the <code class="docutils literal notranslate"><span class="pre">dataset.csv</span></code> for a multi-label task with 4 classes (0, 1, 2, 3) would look like the following:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>SubjectID, Channel, FilePath, Label
+1, image_feature_1, images/image_1_feature_1.npy,
+1, image_feature_2, images/image_1_feature_2.npy,
+1, label, , 0|2|3
+2, image_feature_1, images/image_2_feature_1.npy
+2, image_feature_2, images/image_2_feature_2.npy
+2, label, , 1|2
+3, image_feature_1, images/image_3_feature_1.npy
+3, image_feature_2, images/image_3_feature_2.npy
+3, label, , 1
+4, image_feature_1, images/image_4_feature_1.npy
+4, image_feature_2, images/image_4_feature_2.npy
+4, label, ,
+</pre></div>
+</div>
+<p>Note that the label field for sample 4 is left empty, this indicates that all labels are negative in Sample 4.
+In multi-label tasks, the negative class (all ground truth classes being false for a sample) should not be
+considered a separate class, and should be encoded by an empty label field.</p>
+<p>The labels which are true for each sample in the <code class="docutils literal notranslate"><span class="pre">dataset.csv</span></code> shown above are:</p>
+<ul class="simple">
+<li><p>Sample 1: 0, 2, 3</p></li>
+<li><p>Sample 2: 1, 2</p></li>
+<li><p>Sample 3: 1</p></li>
+<li><p>Sample 4: No labels are true for this sample</p></li>
+</ul>
+<p>The config file would be</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">GlaucomaPublicExt</span><span class="p">(</span><span class="n">GlaucomaPublic</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">azure_dataset_id</span><span class="o">=</span><span class="s2">&quot;name_of_your_dataset_on_azure&quot;</span><span class="p">,</span>
+                         <span class="n">subject_column</span><span class="o">=</span><span class="s2">&quot;SubjectID&quot;</span><span class="p">,</span>
+                         <span class="n">channel_column</span><span class="o">=</span><span class="s2">&quot;Channel&quot;</span><span class="p">,</span>
+                         <span class="n">image_channels</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;image_feature_1&quot;</span><span class="p">,</span> <span class="s2">&quot;image_feature_2&quot;</span><span class="p">],</span>
+                         <span class="n">image_file_column</span><span class="o">=</span><span class="s2">&quot;FilePath&quot;</span><span class="p">,</span>
+                         <span class="n">label_channels</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;label&quot;</span><span class="p">],</span>
+                         <span class="n">label_value_column</span><span class="o">=</span><span class="s2">&quot;Label&quot;</span><span class="p">,</span>
+                         <span class="n">class_names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;class0&quot;</span><span class="p">,</span> <span class="s2">&quot;class1&quot;</span><span class="p">,</span> <span class="s2">&quot;class2&quot;</span><span class="p">,</span> <span class="s2">&quot;class3&quot;</span><span class="p">])</span>
+</pre></div>
+</div>
+<p>The added parameter <code class="docutils literal notranslate"><span class="pre">class_names</span></code> gives the string name corresponding to each ground truth class index.
+In multi-label configs, the <code class="docutils literal notranslate"><span class="pre">class_names</span></code> parameter must be specified, so that InnerEye can recognize that the task is
+a multi-label task and parse the <code class="docutils literal notranslate"><span class="pre">dataset.csv</span></code> accordingly. In binary tasks, the class_names field can optionally be
+set to a list with a single string in it corresponding to the name of the positive class.</p>
+</section>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="building_models.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">Building Models</div>
+              </div>
+              <svg><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="setting_up_aml.html">
+              <svg><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">How to setup Azure Machine Learning for InnerEye</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; Microsoft Corporation
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            <div class="icons">
+              
+            </div>
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            Contents
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Dataset Creation</a><ul>
+<li><a class="reference internal" href="#segmentation-datasets">Segmentation Datasets</a><ul>
+<li><a class="reference internal" href="#image-size-requirements">Image size requirements</a></li>
+<li><a class="reference internal" href="#uploading-to-azure">Uploading to Azure</a></li>
+<li><a class="reference internal" href="#creating-a-model-configuration">Creating a model configuration</a><ul>
+<li><a class="reference internal" href="#analyzing-segmentation-datasets">Analyzing segmentation datasets</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#classification-datasets">Classification Datasets</a><ul>
+<li><a class="reference internal" href="#a-simple-example">A simple example</a></li>
+<li><a class="reference internal" href="#using-channels-in-dataset-csv">Using channels in dataset.csv</a></li>
+<li><a class="reference internal" href="#recognized-columns-in-dataset-csv-and-filtering-based-on-channels">Recognized columns in dataset.csv and filtering based on channels</a></li>
+<li><a class="reference internal" href="#multi-label-classification-datasets">Multi-label classification datasets</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/scripts/furo.js"></script>
+    </body>
+</html>

@@ -1,0 +1,428 @@
+<!doctype html>
+<html class="no-js" lang="en">
+  <head><meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" />
+
+    <meta name="generator" content="sphinx-5.0.2, furo 2022.06.21"/>
+        <title>Trained model for hippocampal segmentation - InnerEye-DeepLearning 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=40978830699223671f4072448e654b5958f38b89" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f8f8f8;
+  --color-code-foreground: black;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-half" viewBox="0 0 24 24">
+    <title>Auto light/dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-shadow">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M13 12h5" />
+      <path d="M13 15h4" />
+      <path d="M13 18h1" />
+      <path d="M13 9h4" />
+      <path d="M13 6h1" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc">
+<label class="overlay sidebar-overlay" for="__navigation">
+  <div class="visually-hidden">Hide navigation sidebar</div>
+</label>
+<label class="overlay toc-overlay" for="__toc">
+  <div class="visually-hidden">Hide table of contents sidebar</div>
+</label>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <div class="visually-hidden">Toggle site navigation sidebar</div>
+        <i class="icon"><svg><use href="#svg-menu"></use></svg></i>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../index.html"><div class="brand">InnerEye-DeepLearning 1.0.0 documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle">
+          <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+          <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <div class="visually-hidden">Toggle table of contents sidebar</div>
+        <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../index.html">
+  
+  
+  <span class="sidebar-brand-text">InnerEye-DeepLearning 1.0.0 documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../search.html" role="search">
+  <input class="sidebar-search" placeholder=Search name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <ul>
+<li class="toctree-l1"><a class="reference internal" href="innereye_deeplearning.html">InnerEye-DeepLearning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="WSL.html">How to use the Windows Subsystem for Linux (WSL2) for development</a></li>
+<li class="toctree-l1"><a class="reference internal" href="environment.html">Set up InnerEye-DeepLearning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="setting_up_aml.html">How to setup Azure Machine Learning for InnerEye</a></li>
+<li class="toctree-l1"><a class="reference internal" href="creating_dataset.html">Dataset Creation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="building_models.html">Building Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sample_tasks.html">Sample Tasks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="debugging_and_monitoring.html">Debugging and Monitoring Jobs</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Further reading for contributors</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="pull_requests.html">Suggested Workflow for Pull Requests</a></li>
+<li class="toctree-l1"><a class="reference internal" href="testing.html">Pytest and testing on CPU and GPU machines</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hello_world_model.html">Training a Hello World segmentation model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="deploy_on_aml.html">Model Deployment</a></li>
+<li class="toctree-l1"><a class="reference internal" href="bring_your_own_model.html">Bring Your Own PyTorch Lightning Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="fastmri.html">Working with FastMRI models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="innereye_as_submodule.html">Using the InnerEye code as a git submodule of your project</a></li>
+<li class="toctree-l1"><a class="reference internal" href="model_diagnostics.html">Model Diagnostics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="move_model.html">Move a model to other workspace</a></li>
+<li class="toctree-l1"><a class="reference internal" href="releases.html">Releases</a></li>
+<li class="toctree-l1"><a class="reference internal" href="self_supervised_models.html">Training of self-supervised models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="CHANGELOG.html">Changelog</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API documentation (🚧 Work In Progress 🚧)</span></p>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../rst/api/ML/index.html">Machine learning</a><input class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul>
+<li class="toctree-l2"><a class="reference internal" href="../rst/api/ML/configs.html">Segmentation Model Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../rst/api/ML/runner.html">Runner</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../rst/api/ML/augmentations.html">Data augmentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../rst/api/ML/photometric_normalization.html">Photometric normalization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../rst/api/ML/pipelines.html">Pipelines</a></li>
+</ul>
+</li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle">
+              <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+              <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <div class="visually-hidden">Toggle table of contents sidebar</div>
+            <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+          </label>
+        </div>
+        <article role="main">
+          <section id="trained-model-for-hippocampal-segmentation">
+<h1>Trained model for hippocampal segmentation<a class="headerlink" href="#trained-model-for-hippocampal-segmentation" title="Permalink to this heading"></a></h1>
+<section id="purpose">
+<h2>Purpose<a class="headerlink" href="#purpose" title="Permalink to this heading"></a></h2>
+<p>This documentation describes how to use our pre-trained model to segment the left and right hippocampi from brain MRI scans. The model was trained on data from the <a class="reference external" href="https://adni.loni.usc.edu/">ADNI</a> dataset (for more information see the model card below). This data is publicly available via their website, but users must sign a Data Use Agreement in order to gain access. We do not provide access to the data. The following description assumes the user has their own dataset to evaluate/ retrain the model on.</p>
+</section>
+<section id="terms-of-use">
+<h2>Terms of use<a class="headerlink" href="#terms-of-use" title="Permalink to this heading"></a></h2>
+<p>Please note that this model is intended for research purposes only. You are responsible for the performance, the necessary testing, and if needed any regulatory clearance for any of the models produced by this toolbox.</p>
+</section>
+<hr class="docutils" />
+<section id="usage">
+<h2>Usage<a class="headerlink" href="#usage" title="Permalink to this heading"></a></h2>
+<p>The following instructions assume you have completed the preceding setup steps in the <a class="reference external" href="https://github.com/microsoft/InnerEye-DeepLearning/">InnerEye README</a>, in particular, <a class="reference external" href="https://github.com/microsoft/InnerEye-DeepLearning/blob/main/docs/setting_up_aml.md">Setting up Azure Machine Learning</a>.</p>
+<section id="create-an-azure-ml-dataset">
+<h3>Create an Azure ML Dataset<a class="headerlink" href="#create-an-azure-ml-dataset" title="Permalink to this heading"></a></h3>
+<p>To evaluate this model on your own data, you will first need to register an <a class="reference external" href="https://docs.microsoft.com/en-us/azure/machine-learning/v1/how-to-create-register-datasets">Azure ML Dataset</a>. You can follow the instructions in the InnerEye repo for <a class="reference external" href="https://github.com/microsoft/InnerEye-DeepLearning/blob/main/docs/creating_dataset.md">creating datasets</a> in order to do this.</p>
+</section>
+</section>
+<section id="downloading-the-model">
+<h2>Downloading the model<a class="headerlink" href="#downloading-the-model" title="Permalink to this heading"></a></h2>
+<p>The saved weights from the trained Hippocampus model can be downloaded along with the source code used to train it from <a class="reference external" href="https://github.com/microsoft/InnerEye-DeepLearning/releases">our github releases page</a>.</p>
+<section id="registering-a-model-in-azure-ml">
+<h3>Registering a model in Azure ML<a class="headerlink" href="#registering-a-model-in-azure-ml" title="Permalink to this heading"></a></h3>
+<p>To evaluate the model in Azure ML, you must first <a class="reference external" href="https://docs.microsoft.com/en-us/python/api/azureml-core/azureml.core.model.model?view=azure-ml-py#remarks">resgister an Azure ML Model</a>. To register the Hippocampus model in your AML Workspace, unpack the source code downloaded in the previous step and follow InnerEye’s <a class="reference external" href="https://github.com/microsoft/InnerEye-DeepLearning/blob/main/docs/move_model.md">instructions to upload models to Azure ML</a>.</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span><span class="nv">WORKSPACE</span><span class="o">=</span><span class="s2">&quot;fill with your workspace name&quot;</span>
+<span class="nv">GROUP</span><span class="o">=</span><span class="s2">&quot;fill with your resource group name&quot;</span>
+<span class="nv">SUBSCRIPTION</span><span class="o">=</span><span class="s2">&quot;fill with your subscription ID&quot;</span>
+
+python InnerEye/Scripts/move_model.py <span class="se">\</span>
+    --action upload <span class="se">\</span>
+    --path . <span class="se">\</span>
+    --workspace_name <span class="nv">$WORKSPACE</span> <span class="se">\</span>
+    --resource_group <span class="nv">$GROUP</span> <span class="se">\</span>
+    --subscription_id <span class="nv">$SUBSCRIPTION</span> <span class="se">\</span>
+    --model_id Hippocampus:118
+</pre></div>
+</div>
+</section>
+<section id="evaluating-the-model">
+<h3>Evaluating the model<a class="headerlink" href="#evaluating-the-model" title="Permalink to this heading"></a></h3>
+<p>You can evaluate the model either in Azure ML or locally using the downloaded checkpoint files. These 2 scenarios are described in more detail, along with instructions in <a class="reference external" href="https://github.com/microsoft/InnerEye-DeepLearning/blob/main/docs/building_models.md#testing-an-existing-model">testing an existing model</a>.</p>
+<p>For example, to evalute the model on your Dataset in Azure ML:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span><span class="nv">CLUSTER</span><span class="o">=</span><span class="s2">&quot;fill with your cluster name&quot;</span>
+<span class="nv">DATASET_ID</span><span class="o">=</span><span class="s2">&quot;fill with your dataset name&quot;</span>
+
+python InnerEye/ML/runner.py <span class="se">\</span>
+    --azure_dataset_id <span class="nv">$DATASET_ID</span> <span class="se">\</span>
+    --model Hippocampus <span class="se">\</span>
+    --model_id Hippocampus:111 <span class="se">\</span>
+    --experiment_name evaluate_hippocampus_model <span class="se">\</span>
+    --azureml <span class="se">\</span>
+    --no-train <span class="se">\</span>
+    --cluster <span class="nv">$CLUSTER</span>
+    --restrict_subjects<span class="o">=</span><span class="m">0</span>,0,+
+</pre></div>
+</div>
+</section>
+<section id="connected-components">
+<h3>Connected components<a class="headerlink" href="#connected-components" title="Permalink to this heading"></a></h3>
+<p>It is possible to apply connected compoents as a post-processing step, although by default this is disabled. To enable, update the property <code class="docutils literal notranslate"><span class="pre">largest_connected_component_foreground_classes</span></code> of the Hippocampus class in <code class="docutils literal notranslate"><span class="pre">InnerEye/ML/configs/segmentation/Hippocampus.py</span></code></p>
+</section>
+<section id="deploy-with-innereye-gateway">
+<h3>Deploy with InnerEye Gateway<a class="headerlink" href="#deploy-with-innereye-gateway" title="Permalink to this heading"></a></h3>
+<p>To deploy this model, see the instructions in the <a class="reference external" href="https://github.com/microsoft/InnerEye-DeepLearning/">InnerEye README</a>.</p>
+</section>
+</section>
+</section>
+<hr class="docutils" />
+<section id="hippocampal-segmentation-model-card">
+<h1>Hippocampal Segmentation Model Card<a class="headerlink" href="#hippocampal-segmentation-model-card" title="Permalink to this heading"></a></h1>
+<section id="model-details">
+<h2>Model details<a class="headerlink" href="#model-details" title="Permalink to this heading"></a></h2>
+<ul class="simple">
+<li><p>Organiation: Biomedical Imaging Team at Micrsoft Research, Cambridge UK.</p></li>
+<li><p>Model date: 5th July 2022.</p></li>
+<li><p>Model version: 0.1 . Currently only one version of the model has been released. We do not expect to update the model frequently.</p></li>
+<li><p>Model type: 3d UNET ensemble of 3d UNet. Training details are as described in <a class="reference external" href="https://jamanetwork.com/journals/jamanetworkopen/fullarticle/2773292">this paper</a>.</p></li>
+<li><p>Training details: 5 fold ensemble model. Trained on a subsection of the ADNI dataset (described in detail below)</p></li>
+<li><p>License: The model is released under MIT license as described <a class="reference external" href="https://github.com/microsoft/InnerEye-DeepLearning/blob/main/LICENSE">here</a>.</p></li>
+<li><p>Contect: innereyeinfo&#64;microsoft.com.</p></li>
+</ul>
+</section>
+<section id="limitations">
+<h2>Limitations<a class="headerlink" href="#limitations" title="Permalink to this heading"></a></h2>
+<p>This model has been trained on a subset of the ADNI dataset. There have been various phases of ADNI spanning different time periods. In this Model Card we refer to the original, or ADNI 1, stud.y This dataset comprises scans and metadata from patients between the ages of 55-90 from 57 different sites across the US and Canada <a class="reference external" href="https://adni.loni.usc.edu/study-design/#background-container">source</a>. Therefore a major limitation of this model would be the ability to generalise to patients outside of this demographic. Another limitation is that  The MRI protocol for ADNI1 (which was collected between 2004-2009) focused on imaging on 1.5T scanners <a class="reference external" href="https://adni.loni.usc.edu/methods/mri-tool/mri-analysis/">source</a>. Modern scanners may have higher field strengths and therefore different levels of contrast which could lead to different performance from the results we report.</p>
+<p>The results of this model have not been validated by clinical experts. We expect the user to evaluate the result</p>
+</section>
+<section id="intended-uses">
+<h2>Intended Uses<a class="headerlink" href="#intended-uses" title="Permalink to this heading"></a></h2>
+<p>This model is for research purposes only. It is intended to be used for the task of segmentating hippocampi from brain MRI scans. Any other task is out of scope for this model.</p>
+</section>
+<section id="about-the-data">
+<h2>About the data<a class="headerlink" href="#about-the-data" title="Permalink to this heading"></a></h2>
+<p>The model was trained on 998 pairs of MRI segmentation + segmentation. The model was further validated on 127 pairs of images and tested on 125 pairs. A further 317 pairs were retained as a held-out test set for the final evaluation of the model, which is what we report performance on.</p>
+<p>All of this data comes from the Alzheimers Disease Neuroimaging Initiative study <a class="reference external" href="https://adni.loni.usc.edu/">link to website</a>. The data is publicly available, but requires signing a Data Use Agreement before access is granted.</p>
+</section>
+<section id="about-the-ground-truth-segmentations">
+<h2>About the ground-truth segmentations<a class="headerlink" href="#about-the-ground-truth-segmentations" title="Permalink to this heading"></a></h2>
+<p>The segmentations were also downloaded from the ADNI dataset. They were created semi-automatically using software from <a class="reference external" href="https://www.medtronic.com/us-en/healthcare-professionals/products/neurological/surgical-navigation-systems.html">Medtronic Surgical Navigation Technologies</a>. Further information is available on the <a class="reference external" href="https://adni.loni.usc.edu/">ADNI website</a>.</p>
+</section>
+<section id="metrics">
+<h2>Metrics<a class="headerlink" href="#metrics" title="Permalink to this heading"></a></h2>
+<p>Note that due to the ADNI Data Usage Agreement we are only able to share aggregate-level metrics from our evaluation. Evaluation is performed on a heldout test set of 252 pairs of MRI + segmentation pairs from the ADNI dataset.</p>
+<p>Dice Score for Left and Right hippocampus respectively on a held-out test set of :</p>
+</section>
+<section id="hippocampus-metrics-boxplot-png-structure-count-dicenumeric-mean-dicenumeric-std-dicenumeric-min-dicenumeric-max-hausdorffdistance-mm-mean-hausdorffdistance-mm-std-hausdorffdistance-mm-min-hausdorffdistance-mm-max-meandistance-mm-mean-meandistance-mm-std-meandistance-mm-min-meandistance-mm-max-hippocampus-l-252-0-918-0-022-0-819-0-953-2-206-0-812-1-206-6-964-0-168-0-054-0-096-0-399-hippocampus-r-252-0-918-0-024-0-816-0-954-2-185-0-706-1-206-4-966-0-168-0-055-0-094-0-433">
+<h2><img alt="hippocampus_metrics_boxplot.png" src="docs/hippocampus_metrics_boxplot.png" />
+| Structure     | count   | DiceNumeric_mean | DiceNumeric_std | DiceNumeric_min | DiceNumeric_max | HausdorffDistance_mm_mean | HausdorffDistance_mm_std | HausdorffDistance_mm_min | HausdorffDistance_mm_max | MeanDistance_mm_mean | MeanDistance_mm_std | MeanDistance_mm_min | MeanDistance_mm_max |
+|—————|———|——————|—————–|—————–|—————–|—————————|————————–|————————–|————————–|———————-|———————|———————|———————|
+| hippocampus_L | 252     | 0.918            | 0.022           | 0.819           | 0.953           | 2.206                     | 0.812                    | 1.206                    | 6.964                    | 0.168                | 0.054               | 0.096               | 0.399               |
+| hippocampus_R | 252     | 0.918            | 0.024           | 0.816           | 0.954           | 2.185                     | 0.706                    | 1.206                    | 4.966                    | 0.168                | 0.055               | 0.094               | 0.433               |
+|               |         |                  |                 |                 |                 |                           |                          |                          |                          |                      |                     |                     |                     |<a class="headerlink" href="#hippocampus-metrics-boxplot-png-structure-count-dicenumeric-mean-dicenumeric-std-dicenumeric-min-dicenumeric-max-hausdorffdistance-mm-mean-hausdorffdistance-mm-std-hausdorffdistance-mm-min-hausdorffdistance-mm-max-meandistance-mm-mean-meandistance-mm-std-meandistance-mm-min-meandistance-mm-max-hippocampus-l-252-0-918-0-022-0-819-0-953-2-206-0-812-1-206-6-964-0-168-0-054-0-096-0-399-hippocampus-r-252-0-918-0-024-0-816-0-954-2-185-0-706-1-206-4-966-0-168-0-055-0-094-0-433" title="Permalink to this heading"></a></h2>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; Microsoft Corporation
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            <div class="icons">
+              
+            </div>
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            Contents
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Trained model for hippocampal segmentation</a><ul>
+<li><a class="reference internal" href="#purpose">Purpose</a></li>
+<li><a class="reference internal" href="#terms-of-use">Terms of use</a></li>
+<li><a class="reference internal" href="#usage">Usage</a><ul>
+<li><a class="reference internal" href="#create-an-azure-ml-dataset">Create an Azure ML Dataset</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#downloading-the-model">Downloading the model</a><ul>
+<li><a class="reference internal" href="#registering-a-model-in-azure-ml">Registering a model in Azure ML</a></li>
+<li><a class="reference internal" href="#evaluating-the-model">Evaluating the model</a></li>
+<li><a class="reference internal" href="#connected-components">Connected components</a></li>
+<li><a class="reference internal" href="#deploy-with-innereye-gateway">Deploy with InnerEye Gateway</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#hippocampal-segmentation-model-card">Hippocampal Segmentation Model Card</a><ul>
+<li><a class="reference internal" href="#model-details">Model details</a></li>
+<li><a class="reference internal" href="#limitations">Limitations</a></li>
+<li><a class="reference internal" href="#intended-uses">Intended Uses</a></li>
+<li><a class="reference internal" href="#about-the-data">About the data</a></li>
+<li><a class="reference internal" href="#about-the-ground-truth-segmentations">About the ground-truth segmentations</a></li>
+<li><a class="reference internal" href="#metrics">Metrics</a></li>
+<li><a class="reference internal" href="#hippocampus-metrics-boxplot-png-structure-count-dicenumeric-mean-dicenumeric-std-dicenumeric-min-dicenumeric-max-hausdorffdistance-mm-mean-hausdorffdistance-mm-std-hausdorffdistance-mm-min-hausdorffdistance-mm-max-meandistance-mm-mean-meandistance-mm-std-meandistance-mm-min-meandistance-mm-max-hippocampus-l-252-0-918-0-022-0-819-0-953-2-206-0-812-1-206-6-964-0-168-0-054-0-096-0-399-hippocampus-r-252-0-918-0-024-0-816-0-954-2-185-0-706-1-206-4-966-0-168-0-055-0-094-0-433">
+| Structure     | count   | DiceNumeric_mean | DiceNumeric_std | DiceNumeric_min | DiceNumeric_max | HausdorffDistance_mm_mean | HausdorffDistance_mm_std | HausdorffDistance_mm_min | HausdorffDistance_mm_max | MeanDistance_mm_mean | MeanDistance_mm_std | MeanDistance_mm_min | MeanDistance_mm_max |
+|—————|———|——————|—————–|—————–|—————–|—————————|————————–|————————–|————————–|———————-|———————|———————|———————|
+| hippocampus_L | 252     | 0.918            | 0.022           | 0.819           | 0.953           | 2.206                     | 0.812                    | 1.206                    | 6.964                    | 0.168                | 0.054               | 0.096               | 0.399               |
+| hippocampus_R | 252     | 0.918            | 0.024           | 0.816           | 0.954           | 2.185                     | 0.706                    | 1.206                    | 4.966                    | 0.168                | 0.055               | 0.094               | 0.433               |
+|               |         |                  |                 |                 |                 |                           |                          |                          |                          |                      |                     |                     |                     |</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/scripts/furo.js"></script>
+    </body>
+</html>
