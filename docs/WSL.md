@@ -24,7 +24,7 @@ Requirements: Windows 10 version 2004 or higher
 To use the commandline setup, please first install
 [winget via the appxbundle](https://github.com/microsoft/winget-cli/releases).
 
-Optionally, restart your machine
+Optionally, restart your machine.
 
 In PowerShell as Administrator type:
 ```
