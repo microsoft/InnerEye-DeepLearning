@@ -48,7 +48,7 @@ Note the "2" in Version column.
 
 The instructions are [here](https://docs.microsoft.com/en-us/windows/wsl/install), but summarized in copy/paste-able form above. Optionally, you can install via the UI, pick Ubuntu version 20.04 LTS as your distribution.
 
-Then, you can start the Ubuntu either directly or starting the window using the terminal.
+Then, you can start the Ubuntu either directly from the Start menu, or via the WindowsTerminal app.
 
 ## Install git and Anaconda
 
