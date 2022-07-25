@@ -85,10 +85,7 @@ instance/
 
 # Sphinx documentation
 sphinx-docs/build/
-sphinx-docs/source/md/
 sphinx-docs/source/docs/CHANGELOG.md
-sphinx-docs/source/docs/README.md
-sphinx-docs/source/docs/LICENSE
 
 # PyBuilder
 target/

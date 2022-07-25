@@ -20,7 +20,7 @@ InnerEye-DeepLearning Documentation
 
 .. toctree::
    :maxdepth: 1
-   :caption: Further reading for contributors and Peter
+   :caption: Further reading for contributors
 
    docs/pull_requests.md
    docs/testing.md

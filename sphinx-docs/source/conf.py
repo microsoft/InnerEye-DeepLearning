@@ -16,7 +16,6 @@
 # documentation root, make it absolute.
 #
 import sys
-import shutil
 from pathlib import Path
 repo_dir = Path(__file__).absolute().parents[2]
 sys.path.insert(0, str(repo_dir))
@@ -102,10 +101,12 @@ sphinx_root = Path(__file__).absolute().parent
 docs_path = Path(sphinx_root / "docs")
 repository_root = sphinx_root.parent.parent
 
-# Copy all markdown files to the markdown directory
-files_to_copy = ["README.md", "CHANGELOG.md", "LICENSE"]
-for file_to_copy in files_to_copy:
-    shutil.copy(repository_root / file_to_copy, docs_path)
+# Symlink to all files that are in the head of the repository
+files_to_symlink = ["CHANGELOG.md"]
+for file_to_symlink in files_to_symlink:
+    symlink_path = docs_path / file_to_symlink
+    target_path = repository_root / file_to_symlink
+    symlink_path.symlink_to(target_path)
 
 # replace links to files in repository with urls
 md_files = docs_path.rglob("*.md")
