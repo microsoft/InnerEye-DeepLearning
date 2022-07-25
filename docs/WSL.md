@@ -44,7 +44,7 @@ $> wsl --list -v
 * Ubuntu-20.04    Running         2
 ```
 
-Note the "2" in the "Version" column. 
+Note the "2" in the "Version" column.
 
 The instructions are [here](https://docs.microsoft.com/en-us/windows/wsl/install), but summarized in copy/paste-able form above. Optionally, you can install via the UI, pick Ubuntu version 20.04 LTS as your distribution.
 
