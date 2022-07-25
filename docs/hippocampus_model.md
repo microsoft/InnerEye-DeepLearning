@@ -48,6 +48,7 @@ You can evaluate the model either in Azure ML or locally using the downloaded ch
 For example, to evalute the model on your Dataset in Azure ML:
 
 ```shell
+CLUSTER="fill with your cluster name"
 DATASET_ID="fill with your dataset name"
 
 python InnerEye/ML/runner.py \
@@ -56,8 +57,14 @@ python InnerEye/ML/runner.py \
     --model_id Hippocampus:111 \
     --experiment_name evaluate_hippocampus_model \
     --azureml \
-    --no-train
+    --no-train \
+    --cluster $CLUSTER
+    --restrict_subjects=0,0,+
 ```
+
+### Connected components
+
+It is possible to apply connected compoents as a post-processing step, altho by default this is disabled. To enable, update the property `largest_connected_component_foreground_classes` of the Hippocampus class in `InnerEye/ML/configs/segmentation/Hippocampus.py`
 
 ### Deploy with InnerEye Gateway
 
