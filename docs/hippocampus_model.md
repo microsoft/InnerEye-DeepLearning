@@ -3,7 +3,7 @@
 
 ## Purpose
 
-This documentation describes how to use our pre-trained model to segment the left and right hippocampi from brain MRI scans. The model was trained on 998 MRI scan + segmentation pairs from the [ADNI](https://adni.loni.usc.edu/) dataset. This data is publicly available via their website, but users must sign a Data Use Agreement in order to gain access. We do not provide access to the data. The following description assumes the user has their own dataset to evaluate/ retrain the model on.
+This documentation describes how to use our pre-trained model to segment the left and right hippocampi from brain MRI scans. The model was trained on data from the [ADNI](https://adni.loni.usc.edu/) dataset (for more information see the model card below). This data is publicly available via their website, but users must sign a Data Use Agreement in order to gain access. We do not provide access to the data. The following description assumes the user has their own dataset to evaluate/ retrain the model on.
 
 ## Terms of use
 
@@ -21,7 +21,7 @@ To evaluate this model on your own data, you will first need to register an [Azu
 
 ## Downloading the model
 
-The saved weights from the trained Hippocampus model can be downloaded along with the source code used to train it from [our github releases page](https://github.com/microsoft/hi-ml/releases).
+The saved weights from the trained Hippocampus model can be downloaded along with the source code used to train it from [our github releases page](https://github.com/microsoft/InnerEye-DeepLearning/releases).
 
 ### Registering a model in Azure ML
 
@@ -64,7 +64,7 @@ python InnerEye/ML/runner.py \
 
 ### Connected components
 
-It is possible to apply connected compoents as a post-processing step, altho by default this is disabled. To enable, update the property `largest_connected_component_foreground_classes` of the Hippocampus class in `InnerEye/ML/configs/segmentation/Hippocampus.py`
+It is possible to apply connected compoents as a post-processing step, although by default this is disabled. To enable, update the property `largest_connected_component_foreground_classes` of the Hippocampus class in `InnerEye/ML/configs/segmentation/Hippocampus.py`
 
 ### Deploy with InnerEye Gateway
 
@@ -82,7 +82,7 @@ To deploy this model, see the instructions in the [InnerEye README](https://gith
 - Model type: 3d UNET ensemble of 3d UNet. Training details are as described in [this paper](https://jamanetwork.com/journals/jamanetworkopen/fullarticle/2773292).
 - Training details: 5 fold ensemble model. Trained on a subsection of the ADNI dataset (described in detail below)
 - License: The model is released under MIT license as described [here](https://github.com/microsoft/InnerEye-DeepLearning/blob/main/LICENSE).
-- Contect: innereyedev@microsoft.com.
+- Contect: innereyeinfo@microsoft.com.
 
 ## Limitations
 
