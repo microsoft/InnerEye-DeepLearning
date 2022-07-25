@@ -105,10 +105,6 @@ repository_root = sphinx_root.parent.parent
 files_to_symlink = ["CHANGELOG.md"]
 for file_to_symlink in files_to_symlink:
     symlink_path = docs_path / file_to_symlink
-    target_path = repository_root / file_to_symlink
-    symlink_path.symlink_to(target_path)
-
-# replace links to files in repository with urls
-md_files = docs_path.rglob("*.md")
-for filepath in md_files:
-    replace_in_file(filepath, "docs/", "")
+    if not symlink_path.exists():
+        target_path = repository_root / file_to_symlink
+        symlink_path.symlink_to(target_path)

@@ -85,6 +85,7 @@ instance/
 
 # Sphinx documentation
 sphinx-docs/build/
+sphinx-docs/source/md/
 sphinx-docs/source/docs/CHANGELOG.md
 
 # PyBuilder
@@ -160,3 +161,6 @@ tensorboard_runs
 None
 cifar-10-batches-py
 cifar-10-python.tar.gz
+
+## IDE stuff
+.vscode/settings.json

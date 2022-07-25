@@ -9,7 +9,7 @@ InnerEye-DeepLearning Documentation
 .. toctree::
    :maxdepth: 1
 
-   docs/README.md
+   docs/innereye_deeplearning.md
    docs/WSL.md
    docs/environment.md
    docs/setting_up_aml.md
