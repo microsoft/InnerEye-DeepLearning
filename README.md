@@ -89,6 +89,7 @@ Further detailed instructions, including setup in Azure, are here:
 1. [Working with FastMRI models](docs/fastmri.md)
 1. [Active label cleaning and noise robust learning toolbox](https://github.com/microsoft/InnerEye-DeepLearning/blob/1606729c7a16e1bfeb269694314212b6e2737939/InnerEye-DataQuality/README.md)
 1. [Using InnerEye as a git submodule](docs/innereye_as_submodule.md)
+1. [Evaluating pre-trained models](docs/hippocampus_model.md)
 
 ## Deployment
 

@@ -189,6 +189,10 @@ python Inner/ML/runner.py --azureml --model=Prostate --cluster=my_cluster_name \
    --no-train --model_id=Prostate:1
 ```
 
+To evaluate the model on your own Azure ML Dataset, you can override the default dataset by adding the flag
+`--azure_dataset_id=<my dataset id>`. To specify more than one dataset, you can additionally add the flag `--extra_azure_dataset_ids` to specify the rest.
+
+
 ### From local checkpoints
 
 To evaluate a model using one or more local checkpoints, use the `local_weights_path` argument to specify the path(s) to the
