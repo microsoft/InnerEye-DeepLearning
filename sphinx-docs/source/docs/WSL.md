@@ -86,4 +86,4 @@ New-NetFirewallRule -DisplayName "WSL" -Direction Inbound  -LocalAddress $myIp -
 
 ## Configure VSCode
 
-- [Instructions for configuring WSL in VSCode](https://code.visualstudio.com/remote/wsl)
+- [Instructions for configuring WSL in VSCode](https://code.visualstudio.com/docs/remote/wsl)
