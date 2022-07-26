@@ -102,7 +102,7 @@ with the InnnEye-Gateway, to run inference on InnerEye-DeepLearning models.
 
 Details can be found [here](deploy_on_aml.md).
 
-![deployment.png](deployment.png)
+![deployment.png](./deployment.png)
 
 ## More information
 

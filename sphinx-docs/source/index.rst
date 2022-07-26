@@ -38,7 +38,7 @@ InnerEye-DeepLearning Documentation
    docs/CHANGELOG.md
 
 .. toctree::
-   :caption: API documentation
+   :caption: API documentation (🚧 Work In Progress 🚧)
 
    rst/api/index
 
