@@ -9,11 +9,11 @@ build:
       python: miniconda3-4.7
 
 sphinx:
-   configuration: sphinx-docs/source/conf.py
+   configuration: docs/source/conf.py
 
 python:
    install:
-   - requirements: sphinx-docs/requirements.txt
+   - requirements: docs/requirements.txt
 
 conda:
    environment: environment.yml
