@@ -5,9 +5,17 @@
 
 import logging
 import shutil
+import sys
 import tempfile
 from pathlib import Path
 from typing import Dict, List, Optional
+
+innereye_root = Path(__file__).resolve().parent.parent.parent
+if (innereye_root / "InnerEye").is_dir():
+    innereye_root_str = str(innereye_root)
+    if innereye_root_str not in sys.path:
+        logging.info("Adding InnerEye folder to sys.path: %s", innereye_root_str)
+        sys.path.insert(0, innereye_root_str)
 
 import param
 import requests
@@ -16,9 +24,11 @@ from health_azure import create_run_configuration, submit_run
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common.common_util import logging_to_stdout
-from InnerEye.Common.fixed_paths import DEFAULT_DATA_FOLDER, DEFAULT_RESULT_IMAGE_NAME, DEFAULT_RESULT_ZIP_DICOM_NAME, \
-    DEFAULT_TEST_IMAGE_NAME, DEFAULT_TEST_ZIP_NAME, PYTHON_ENVIRONMENT_NAME, \
+from InnerEye.Common.fixed_paths import (
+    DEFAULT_DATA_FOLDER, DEFAULT_RESULT_IMAGE_NAME, DEFAULT_RESULT_ZIP_DICOM_NAME,
+    DEFAULT_TEST_IMAGE_NAME, DEFAULT_TEST_ZIP_NAME, PYTHON_ENVIRONMENT_NAME,
     RUN_SCORING_SCRIPT, SCORE_SCRIPT, SETTINGS_YAML_FILE, repository_root_directory
+)
 from InnerEye.Common.generic_parsing import GenericConfig
 
 
