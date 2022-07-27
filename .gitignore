@@ -161,6 +161,3 @@ tensorboard_runs
 None
 cifar-10-batches-py
 cifar-10-python.tar.gz
-
-## IDE stuff
-.vscode/settings.json
