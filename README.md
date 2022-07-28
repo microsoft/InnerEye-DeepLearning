@@ -62,7 +62,7 @@ Details can be found [here](docs/deploy_on_aml.md).
 
 ## Licensing
 
-[MIT License](https://github.com/microsoft/InnerEye-DeepLearning/blob/main/LICENSE)
+[MIT License](/LICENSE)
 
 **You are responsible for the performance, the necessary testing, and if needed any regulatory clearance for
  any of the models produced by this toolbox.**

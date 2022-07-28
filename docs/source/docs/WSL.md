@@ -14,8 +14,8 @@ Subsystem for Linux (WSL2) or a plain Ubuntu Linux box.
 If you are running a Windows box with a GPU, please follow the documentation
 [here](https://docs.microsoft.com/en-us/windows/win32/direct3d12/gpu-cuda-in-wsl) to access the GPU from within WSL2.
 
-You can also find a video walkthrough of WSL2+CUDA installation
-[here](https://channel9.msdn.com/Shows/Tabs-vs-Spaces/GPU-Accelerated-Machine-Learning-with-WSL-2)
+There is also a video walkthrough of WSL2+CUDA installation:
+[GPU Accelerated Machine Learning with WSL 2](https://channel9.msdn.com/Shows/Tabs-vs-Spaces/GPU-Accelerated-Machine-Learning-with-WSL-2).
 
 ## Install WSL2
 

@@ -62,7 +62,7 @@ exclude_patterns = []  # type: ignore
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'sphinx_rtd_theme'
+html_theme = 'furo'
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -102,7 +102,7 @@ docs_path = Path(sphinx_root / "docs")
 repository_root = sphinx_root.parent.parent
 
 # Symlink to all files that are in the head of the repository
-files_to_symlink = ["CHANGELOG.md"]
+files_to_symlink = ["CHANGELOG.md", "InnerEye/"]
 for file_to_symlink in files_to_symlink:
     symlink_path = docs_path / file_to_symlink
     if not symlink_path.exists():
