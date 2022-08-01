@@ -21,31 +21,17 @@ here: https://channel9.msdn.com/Shows/Tabs-vs-Spaces/GPU-Accelerated-Machine-Lea
 
 Requirements: Windows 10 version 2004 or higher
 
-The instructions are [here](https://docs.microsoft.com/en-us/windows/wsl/install-win10), but summarized in
-copy/paste-able form below. When installing via the UI, pick Ubuntu version 20.04 LTS as your distribution.
-
 To use the commandline setup, please first install
 [winget via the appxbundle](https://github.com/microsoft/winget-cli/releases).
 
-Then, in PowerShell as Administrator:
+Optionally, restart your machine.
 
+In PowerShell as Administrator type:
 ```
-dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart
-dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
-```
-
-Restart your machine, then again in PowerShell:
-
-```
-wsl --set-default-version 2
-winget install ubuntu --version 20.04
-wsl --list --verbose
-wsl --set-version Ubuntu-20.04 2
-wsl --set-default-version 2
-winget install Microsoft.WindowsTerminal
+wsl --install
 ```
 
-Remember to restart your machine if you were doing a fresh installation of WSL 2 before trying further steps.
+Then, restart your machine one more time.
 
 Since it is possible to choose the version of WSL that a particular distribution is running, once you have WSL2
 installed, ensure that your distribution is running on top of WSL2 by executing
@@ -58,7 +44,11 @@ $> wsl --list -v
 * Ubuntu-20.04    Running         2
 ```
 
-Note the "2" in Version column.
+Note the "2" in the "Version" column.
+
+The instructions are [here](https://docs.microsoft.com/en-us/windows/wsl/install), but summarized in copy/paste-able form above. Optionally, you can install via the UI, pick Ubuntu version 20.04 LTS as your distribution.
+
+Then, you can start the Ubuntu either directly from the Start menu, or via the WindowsTerminal app.
 
 ## Install git and Anaconda
 
