@@ -102,7 +102,7 @@ docs_path = Path(sphinx_root / "docs")
 repository_root = sphinx_root.parent.parent
 
 # Symlink to all files that are in the head of the repository
-files_to_symlink = ["CHANGELOG.md", "InnerEye/"]
+files_to_symlink = ["CHANGELOG.md"]
 for file_to_symlink in files_to_symlink:
     symlink_path = docs_path / file_to_symlink
     if not symlink_path.exists():

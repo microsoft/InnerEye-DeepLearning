@@ -6,7 +6,7 @@ InnerEye-DeepLearning (IE-DL) is a toolbox for easily training deep learning mod
 
 - Segmentation models.
 - Classification and regression models.
-- Any PyTorch Lightning model, via a [bring-your-own-model setup](https://innereye-deeplearning.readthedocs.io/en/latest/docs/bring_your_own_model.html).
+- Any PyTorch Lightning model, via a [bring-your-own-model setup](https://innereye-deeplearning.readthedocs.io/docs/bring_your_own_model.html).
 
 In addition, this toolbox supports:
 
@@ -17,11 +17,11 @@ In addition, this toolbox supports:
 
 ## Documentation
 
-For all documentation, including setup guides and APIs, please refer to the [IE-DL Read the Docs site](https://innereye-deeplearning.readthedocs.io/en/latest/#).
+For all documentation, including setup guides and APIs, please refer to the [IE-DL Read the Docs site](https://innereye-deeplearning.readthedocs.io/#).
 
 ## Quick Setup
 
-This quick setup assumes you are using a machine running Ubuntu with Git, Git LFS, Conda and Python 3.7+ installed. Please refer to the [setup guide](https://innereye-deeplearning.readthedocs.io/en/latest/docs/environment.html) for more detailed instructions on getting InnerEye set up with other operating systems and installing the above prerequisites.
+This quick setup assumes you are using a machine running Ubuntu with Git, Git LFS, Conda and Python 3.7+ installed. Please refer to the [setup guide](https://innereye-deeplearning.readthedocs.io/docs/environment.html) for more detailed instructions on getting InnerEye set up with other operating systems and installing the above prerequisites.
 
 1. Clone the InnerEye-DeepLearning repo by running the following command:
 
