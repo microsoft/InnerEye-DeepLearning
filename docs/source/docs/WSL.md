@@ -27,7 +27,8 @@ To use the commandline setup, please first install
 Optionally, restart your machine.
 
 In PowerShell as Administrator type:
-```
+
+```shell
 wsl --install
 ```
 
