@@ -58,7 +58,7 @@ with the InnerEye-Gateway, to run inference on InnerEye-DeepLearning models.
 
 Details can be found [here](docs/deploy_on_aml.md).
 
-![docs/deployment.png](sphinx-docs/source/docs/images/deployment.png)
+![docs/deployment.png](docs/source/docs/images/deployment.png)
 
 ## Licensing
 
