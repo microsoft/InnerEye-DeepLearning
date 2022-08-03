@@ -5,7 +5,7 @@ folder allows you to train self-supervised models using
 [SimCLR](http://proceedings.mlr.press/v119/chen20j/chen20j.pdf) or
 [BYOL](https://proceedings.neurips.cc/paper/2020/file/f3ada80d5c4ee70142b17b8192b2958e-Paper.pdf). This code runs as a "
 bring-your-own-model" self-contained module (
-see the [bring-your-own-model instructions]](bring_your_own_model.md)
+see the [bring-your-own-model instructions](bring_your_own_model.md)
 .
 
 Here, we provide implementations for four datasets to get you kickstarted with self-supervised models:
