@@ -16,6 +16,7 @@
 # documentation root, make it absolute.
 #
 import sys
+import shutil
 from pathlib import Path
 repo_dir = Path(__file__).absolute().parents[2]
 sys.path.insert(0, str(repo_dir))
@@ -101,10 +102,11 @@ sphinx_root = Path(__file__).absolute().parent
 docs_path = Path(sphinx_root / "md")
 repository_root = sphinx_root.parent.parent
 
-# Symlink to all files that are in the head of the repository
-files_to_symlink = ["CHANGELOG.md"]
-for file_to_symlink in files_to_symlink:
-    symlink_path = docs_path / file_to_symlink
-    if not symlink_path.exists():
-        target_path = repository_root / file_to_symlink
-        symlink_path.symlink_to(target_path)
+# Copy files that are in the head of the repository
+files_to_copy = ["CHANGELOG.md", "README.md"]
+for file_to_copy in files_to_copy:
+    copy_path = docs_path / file_to_copy
+    if not copy_path.exists():
+        source_path = repository_root / file_to_copy
+        shutil.copy(source_path, copy_path)
+        replace_in_file(copy_path, "docs/source/md/", "")

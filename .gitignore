@@ -85,7 +85,7 @@ instance/
 
 # Sphinx documentation
 docs/build/
-docs/source/docs/CHANGELOG.md
+docs/source/md/CHANGELOG.md
 
 # PyBuilder
 target/
