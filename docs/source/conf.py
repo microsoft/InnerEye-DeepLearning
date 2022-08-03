@@ -98,7 +98,7 @@ def replace_in_file(filepath: Path, original_str: str, replace_str: str) -> None
 
 
 sphinx_root = Path(__file__).absolute().parent
-docs_path = Path(sphinx_root / "docs")
+docs_path = Path(sphinx_root / "md")
 repository_root = sphinx_root.parent.parent
 
 # Symlink to all files that are in the head of the repository

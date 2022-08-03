@@ -56,9 +56,9 @@ that can route anonymized DICOM images to an inference service.
 - The [InnerEye-Inference](https://github.com/microsoft/InnerEye-Inference) component offers a REST API that integrates
 with the InnerEye-Gateway, to run inference on InnerEye-DeepLearning models.
 
-Details can be found [here](docs/source/docs/deploy_on_aml.md).
+Details can be found [here](docs/source/md/deploy_on_aml.md).
 
-![docs/deployment.png](docs/source/docs/images/deployment.png)
+![docs/deployment.png](docs/source/images/deployment.png)
 
 ## Licensing
 

@@ -1,4 +1,3 @@
-
 # Trained model for hippocampal segmentation
 
 ## Purpose
@@ -112,7 +111,7 @@ Note that due to the ADNI Data Usage Agreement we are only able to share aggrega
 
 Dice Score for Left and Right hippocampus respectively on a held-out test set of :
 
-![hippocampus_metrics_boxplot.png](hippocampus_metrics_boxplot.png)
+![hippocampus_metrics_boxplot.png](../images/hippocampus_metrics_boxplot.png)
 | Structure     | count   | DiceNumeric_mean | DiceNumeric_std | DiceNumeric_min | DiceNumeric_max | HausdorffDistance_mm_mean | HausdorffDistance_mm_std | HausdorffDistance_mm_min | HausdorffDistance_mm_max | MeanDistance_mm_mean | MeanDistance_mm_std | MeanDistance_mm_min | MeanDistance_mm_max |
 |---------------|---------|------------------|-----------------|-----------------|-----------------|---------------------------|--------------------------|--------------------------|--------------------------|----------------------|---------------------|---------------------|---------------------|
 | hippocampus_L | 252     | 0.918            | 0.022           | 0.819           | 0.953           | 2.206                     | 0.812                    | 1.206                    | 6.964                    | 0.168                | 0.054               | 0.096               | 0.399               |

@@ -29,6 +29,7 @@ dependencies:
       - gputil==1.4.0
       - h5py==2.10.0
       - hi-ml==0.2.2
+      - hi-ml-azure==0.2.2
       - imageio==2.15.0
       - InnerEye-DICOM-RT==1.0.3
       - ipython==7.31.1
@@ -59,7 +60,6 @@ dependencies:
       - pytest-xdist==1.34.0
       - pytest==6.0.1
       - pytorch-lightning==1.5.5
-      - recommonmark==0.7.1
       - rich==10.13.0
       - rpdb==0.1.6
       - ruamel.yaml==0.16.12

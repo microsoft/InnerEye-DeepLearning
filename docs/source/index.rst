@@ -8,34 +8,35 @@ InnerEye-DeepLearning Documentation
 
 .. toctree::
    :maxdepth: 1
+   :caption: TESTING THIS CAPTION HERE
 
-   docs/innereye_deeplearning.md
-   docs/WSL.md
-   docs/environment.md
-   docs/setting_up_aml.md
-   docs/creating_dataset.md
-   docs/building_models.md
-   docs/sample_tasks.md
-   docs/debugging_and_monitoring.md
+   md/innereye_deeplearning.md
+   md/WSL.md
+   md/environment.md
+   md/setting_up_aml.md
+   md/creating_dataset.md
+   md/building_models.md
+   md/sample_tasks.md
+   md/debugging_and_monitoring.md
 
 .. toctree::
    :maxdepth: 1
    :caption: Further reading for contributors
 
-   docs/pull_requests.md
-   docs/testing.md
-   docs/contributing.md
+   md/pull_requests.md
+   md/testing.md
+   md/contributing.md
 
-   docs/hello_world_model.md
-   docs/deploy_on_aml.md
-   docs/bring_your_own_model.md
-   docs/fastmri.md
-   docs/innereye_as_submodule.md
-   docs/model_diagnostics.md
-   docs/move_model.md
-   docs/releases.md
-   docs/self_supervised_models.md
-   docs/CHANGELOG.md
+   md/hello_world_model.md
+   md/deploy_on_aml.md
+   md/bring_your_own_model.md
+   md/fastmri.md
+   md/innereye_as_submodule.md
+   md/model_diagnostics.md
+   md/move_model.md
+   md/releases.md
+   md/self_supervised_models.md
+   md/CHANGELOG.md
 
 .. toctree::
    :caption: API documentation (🚧 Work In Progress 🚧)

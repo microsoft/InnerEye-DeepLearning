@@ -22,4 +22,4 @@ scan. Dark red indicates voxels that are sampled very often, transparent red ind
 infrequently.
 
 Example thumbnail when viewed in the AzureML UI:
-![Azure ML patch sampling screenshot](images/screenshot_azureml_patch_sampling.png)
+![Azure ML patch sampling screenshot](../images/screenshot_azureml_patch_sampling.png)

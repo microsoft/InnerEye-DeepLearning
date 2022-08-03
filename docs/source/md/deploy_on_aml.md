@@ -1,6 +1,6 @@
 # Model Deployment
 
-![deployment.png](images/deployment.png)
+![deployment.png](../images/deployment.png)
 
 InnerEye segmentation models using a single DICOM series as input and producing DICOM-RT can be integrated with DICOM networks using:
 
