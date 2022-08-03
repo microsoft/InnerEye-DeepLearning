@@ -3,7 +3,7 @@
 This document contains two sample tasks for the classification and segmentation pipelines.
 
 The document will walk through the steps in [Training Steps](building_models.md), but with specific examples for each task.
-Before trying to train these models, you should have followed steps to set up an [environment](environment.md) and [AzureML](setting_up_aml.md)
+Before trying to train these models, you should have followed steps to set up an [environment](environment.md) and [AzureML](setting_up_aml.md).
 
 ## Sample classification task: Glaucoma Detection on OCT volumes
 

@@ -1,4 +1,4 @@
-# Debugging and Monitoring Jobs
+# Debugging and Monitoring
 
 ## Using TensorBoard to monitor AzureML jobs
 

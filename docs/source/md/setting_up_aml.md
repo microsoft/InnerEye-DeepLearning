@@ -1,4 +1,4 @@
-# How to setup Azure Machine Learning for InnerEye
+# AzureML Setup
 
 Our preferred way to use AzureML is using the [AzureTRE](https://microsoft.github.io/AzureTRE/)
 

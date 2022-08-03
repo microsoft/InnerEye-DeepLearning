@@ -106,7 +106,8 @@ repository_root = sphinx_root.parent.parent
 files_to_copy = ["CHANGELOG.md", "README.md"]
 for file_to_copy in files_to_copy:
     copy_path = docs_path / file_to_copy
-    if not copy_path.exists():
-        source_path = repository_root / file_to_copy
-        shutil.copy(source_path, copy_path)
-        replace_in_file(copy_path, "docs/source/md/", "")
+    source_path = repository_root / file_to_copy
+    shutil.copy(source_path, copy_path)
+    replace_in_file(copy_path, "docs/source/md/", "")
+    replace_in_file(copy_path, "/LICENSE", "https://github.com/microsoft/InnerEye-DeepLearning/blob/main/LICENSE")
+    replace_in_file(copy_path, "docs/source/images/", "../images/")

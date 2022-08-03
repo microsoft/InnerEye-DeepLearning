@@ -2,11 +2,11 @@
 
 [![Build Status](https://innereye.visualstudio.com/InnerEye/_apis/build/status/InnerEye-DeepLearning/InnerEye-DeepLearning-PR?branchName=main)](https://innereye.visualstudio.com/InnerEye/_build?definitionId=112&branchName=main)
 
-InnerEye-DeepLearning (IE-DL) is a toolbox for easily training deep learning models on 3D medical images. Simple to run both locally and in the cloud with AzureML, it allows users to train and run inference on the following:
+InnerEye-DeepLearning (IE-DL) is a toolbox for easily training deep learning models on 3D medical images. Simple to run both locally and in the cloud with [AzureML](https://docs.microsoft.com/en-gb/azure/machine-learning/), it allows users to train and run inference on the following:
 
 - Segmentation models.
 - Classification and regression models.
-- Any PyTorch Lightning model, via a [bring-your-own-model setup](https://innereye-deeplearning.readthedocs.io/docs/bring_your_own_model.html).
+- Any PyTorch Lightning model, via a [bring-your-own-model setup](docs/source/md/bring_your_own_model.md).
 
 In addition, this toolbox supports:
 
@@ -21,7 +21,7 @@ For all documentation, including setup guides and APIs, please refer to the [IE-
 
 ## Quick Setup
 
-This quick setup assumes you are using a machine running Ubuntu with Git, Git LFS, Conda and Python 3.7+ installed. Please refer to the [setup guide](https://innereye-deeplearning.readthedocs.io/docs/environment.html) for more detailed instructions on getting InnerEye set up with other operating systems and installing the above prerequisites.
+This quick setup assumes you are using a machine running Ubuntu with Git, Git LFS, Conda and Python 3.7+ installed. Please refer to the [setup guide](docs/source/md/environment.md) for more detailed instructions on getting InnerEye set up with other operating systems and installing the above prerequisites.
 
 1. Clone the InnerEye-DeepLearning repo by running the following command:
 
@@ -59,6 +59,18 @@ with the InnerEye-Gateway, to run inference on InnerEye-DeepLearning models.
 Details can be found [here](docs/source/md/deploy_on_aml.md).
 
 ![docs/deployment.png](docs/source/images/deployment.png)
+
+## Benefits of InnerEye-DeepLearning
+
+In combiniation with the power of AzureML, InnerEye provides the following benefits:
+
+- **Traceability**: AzureML keeps a full record of all experiments that were executed, including a snapshot of the code. Tags are added to the experiments automatically, that can later help filter and find old experiments.
+- **Transparency**: All team members have access to each other's experiments and results.
+- **Reproducibility**: Two model training runs using the same code and data will result in exactly the same metrics. All sources of randomness are controlled for.
+- **Cost reduction**: Using AzureML, all compute resources (virtual machines, VMs) are requested at the time of starting the training job and freed up at the end. Idle VMs will not incur costs. Azure low priority nodes can be used to further reduce costs (up to 80% cheaper).
+- **Scalability**: Large numbers of VMs can be requested easily to cope with a burst in jobs.
+
+Despite the cloud focus, InnerEye is designed to be able to run locally too, which is important for model prototyping, debugging, and in cases where the cloud can't be used. Therefore, if you already have GPU machines available, you will be able to utilize them with the InnerEye toolbox.
 
 ## Licensing
 

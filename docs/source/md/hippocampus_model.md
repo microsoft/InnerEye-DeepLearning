@@ -12,11 +12,11 @@ Please note that this model is intended for research purposes only. You are resp
 
 ## Usage
 
-The following instructions assume you have completed the preceding setup steps in the [InnerEye README](https://github.com/microsoft/InnerEye-DeepLearning/), in particular, [Setting up Azure Machine Learning](https://github.com/microsoft/InnerEye-DeepLearning/blob/main/docs/setting_up_aml.md).
+The following instructions assume you have completed the preceding setup steps in the [InnerEye README](https://github.com/microsoft/InnerEye-DeepLearning/), in particular, [Setting up Azure Machine Learning](setting_up_aml.md).
 
 ### Create an Azure ML Dataset
 
-To evaluate this model on your own data, you will first need to register an [Azure ML Dataset](https://docs.microsoft.com/en-us/azure/machine-learning/v1/how-to-create-register-datasets). You can follow the instructions in the InnerEye repo for [creating datasets](https://github.com/microsoft/InnerEye-DeepLearning/blob/main/docs/creating_dataset.md) in order to do this.
+To evaluate this model on your own data, you will first need to register an [Azure ML Dataset](https://docs.microsoft.com/en-us/azure/machine-learning/v1/how-to-create-register-datasets). You can follow the instructions in the for [creating datasets](creating_dataset.md) in order to do this.
 
 ## Downloading the model
 
@@ -24,7 +24,7 @@ The saved weights from the trained Hippocampus model can be downloaded along wit
 
 ### Registering a model in Azure ML
 
-To evaluate the model in Azure ML, you must first [register an Azure ML Model](https://docs.microsoft.com/en-us/python/api/azureml-core/azureml.core.model.model?view=azure-ml-py#remarks). To register the Hippocampus model in your AML Workspace, unpack the source code downloaded in the previous step and follow InnerEye's [instructions to upload models to Azure ML](https://github.com/microsoft/InnerEye-DeepLearning/blob/main/docs/move_model.md).
+To evaluate the model in Azure ML, you must first [register an Azure ML Model](https://docs.microsoft.com/en-us/python/api/azureml-core/azureml.core.model.model?view=azure-ml-py#remarks). To register the Hippocampus model in your AML Workspace, unpack the source code downloaded in the previous step and follow InnerEye's [instructions to upload models to Azure ML](move_model.md).
 
 Run the following from a folder that contains both the `ENVIRONMENT/` and `MODEL/` folders (these exist inside the downloaded model files):
 
@@ -44,7 +44,7 @@ python InnerEye/Scripts/move_model.py \
 
 ### Evaluating the model
 
-You can evaluate the model either in Azure ML or locally using the downloaded checkpoint files. These 2 scenarios are described in more detail, along with instructions in [testing an existing model](https://github.com/microsoft/InnerEye-DeepLearning/blob/main/docs/building_models.md#testing-an-existing-model).
+You can evaluate the model either in Azure ML or locally using the downloaded checkpoint files. These 2 scenarios are described in more detail, along with instructions in [testing an existing model](building_models.md#testing-an-existing-model).
 
 For example, to evaluate the model on your Dataset in Azure ML, run the following from within the directory `*/MODEL/final_ensemble_model/`
 
@@ -73,9 +73,9 @@ To deploy this model, see the instructions in the [InnerEye README](https://gith
 
 ---
 
-# Hippocampal Segmentation Model Card
+## Hippocampal Segmentation Model Card
 
-## Model details
+### Model details
 
 - Organisation: Biomedical Imaging Team at Microsoft Research, Cambridge UK.
 - Model date: 5th July 2022.
@@ -85,27 +85,27 @@ To deploy this model, see the instructions in the [InnerEye README](https://gith
 - License: The model is released under MIT license as described [here](https://github.com/microsoft/InnerEye-DeepLearning/blob/main/LICENSE).
 - Contact: innereyeinfo@microsoft.com.
 
-## Limitations
+### Limitations
 
 This model has been trained on a subset of the ADNI dataset. There have been various phases of ADNI spanning different time periods. In this Model Card we refer to the original, or ADNI 1, study. This dataset comprises scans and metadata from patients between the ages of 55-90 from 57 different sites across the US and Canada [source](https://adni.loni.usc.edu/study-design/#background-container). Therefore a major limitation of this model would be the ability to generalise to patients outside of this demographic. Another limitation is that  The MRI protocol for ADNI1 (which was collected between 2004-2009) focused on imaging on 1.5T scanners [source](https://adni.loni.usc.edu/methods/mri-tool/mri-analysis/). Modern scanners may have higher field strengths and therefore different levels of contrast which could lead to different performance from the results we report.
 
 The results of this model have not been validated by clinical experts. We expect the user to evaluate the result
 
-## Intended Uses
+### Intended Uses
 
 This model is for research purposes only. It is intended to be used for the task of segmenting hippocampi from brain MRI scans. Any other task is out of scope for this model.
 
-## About the data
+### About the data
 
 The model was trained on 998 pairs of MRI segmentation + segmentation. The model was further validated on 127 pairs of images and tested on 125 pairs. A further 317 pairs were retained as a held-out test set for the final evaluation of the model, which is what we report performance on.
 
 All of this data comes from the Alzheimer's Disease Neuroimaging Initiative study [link to website](https://adni.loni.usc.edu/). The data is publicly available, but requires signing a Data Use Agreement before access is granted.
 
-## About the ground-truth segmentations
+### About the ground-truth segmentations
 
  The segmentations were also downloaded from the ADNI dataset. They were created semi-automatically using software from [Medtronic Surgical Navigation Technologies](https://www.medtronic.com/us-en/healthcare-professionals/products/neurological/surgical-navigation-systems.html). Further information is available on the [ADNI website](https://adni.loni.usc.edu/).
 
-## Metrics
+### Metrics
 
 Note that due to the ADNI Data Usage Agreement we are only able to share aggregate-level metrics from our evaluation. Evaluation is performed on a held out test set of 252 pairs of MRI + segmentation pairs from the ADNI dataset.
 

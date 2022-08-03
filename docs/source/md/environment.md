@@ -1,4 +1,4 @@
-# Set up InnerEye-DeepLearning
+# Setup
 
 ## Operating System
 

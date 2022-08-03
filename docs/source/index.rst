@@ -8,16 +8,21 @@ InnerEye-DeepLearning Documentation
 
 .. toctree::
    :maxdepth: 1
-   :caption: TESTING THIS CAPTION HERE
+   :caption: Overview and user guides
 
-   md/innereye_deeplearning.md
-   md/WSL.md
+   md/README.md
    md/environment.md
+   md/WSL.md
+   md/hello_world_model.md
    md/setting_up_aml.md
    md/creating_dataset.md
    md/building_models.md
    md/sample_tasks.md
+   md/bring_your_own_model.md
    md/debugging_and_monitoring.md
+   md/model_diagnostics.md
+   md/move_model.md
+   md/hippocampus_model.md
 
 .. toctree::
    :maxdepth: 1
@@ -26,14 +31,9 @@ InnerEye-DeepLearning Documentation
    md/pull_requests.md
    md/testing.md
    md/contributing.md
-
-   md/hello_world_model.md
    md/deploy_on_aml.md
-   md/bring_your_own_model.md
    md/fastmri.md
    md/innereye_as_submodule.md
-   md/model_diagnostics.md
-   md/move_model.md
    md/releases.md
    md/self_supervised_models.md
    md/CHANGELOG.md

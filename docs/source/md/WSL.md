@@ -1,4 +1,4 @@
-# How to use the Windows Subsystem for Linux (WSL2) for development
+# Windows Subsystem for Linux (WSL2)
 
 We are aware of two issues with running our toolbox on Windows:
 
