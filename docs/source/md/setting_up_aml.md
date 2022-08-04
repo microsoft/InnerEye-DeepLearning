@@ -1,4 +1,4 @@
-# How to setup Azure Machine Learning for InnerEye
+# AzureML Setup
 
 Our preferred way to use AzureML is using the [AzureTRE](https://microsoft.github.io/AzureTRE/)
 
@@ -12,7 +12,7 @@ In short, you will need to:
 * Optional: Register your application to create a Service Principal Object.
 * Optional: Set up a storage account to store your datasets. You may already have such a storage account, or you may
 want to re-use the storage account that is created with the AzureML workspace - in both cases, you can skip this step.
-* Update your [settings.yml](/InnerEye/settings.yml) file and KeyVault with your own credentials.
+* Update your [settings.yml](https://github.com/microsoft/InnerEye-DeepLearning/tree/main/InnerEye/settings.yml) file and KeyVault with your own credentials.
 
 Once you're done with these steps, you will be ready for the next steps described in [Creating a dataset](https://github.com/microsoft/InnerEye-createdataset),
 [Building models in Azure ML](building_models.md) and
@@ -43,7 +43,7 @@ need to be kept inside of the UK)
 
 You can invoke the deployment also by going to [Azure](https://ms.portal.azure.com/#create/Microsoft.Template),
 selecting "Build your own template", and in the editor upload the
-[json template file](/azure-pipelines/azure_deployment_template.json) included in the repository.
+[json template file]([/azure-pipelines/azure_deployment_template.json](https://github.com/microsoft/InnerEye-DeepLearning/blob/main/azure-pipelines/azure_deployment_template.json) included in the repository.
 
 ### Step 1: Create an AzureML workspace
 
@@ -179,7 +179,7 @@ create a container called "datasets".
 
 ### Step 6: Update the variables in `settings.yml`
 
-The [settings.yml](../InnerEye/settings.yml) file is used to store your Azure setup. In order to be able to
+The [settings.yml](https://github.com/microsoft/InnerEye-DeepLearning/tree/main/InnerEye/settings.yml) file is used to store your Azure setup. In order to be able to
 train your model you will need to update this file using the settings for your Azure subscription.
 
 1. You will first need to retrieve your `tenant_id`. You can find your tenant id by navigating to
@@ -188,7 +188,7 @@ resource. Copy and paste the GUID to the `tenant_id` field of the `.yml` file. M
 [here](https://docs.microsoft.com/en-us/azure/active-directory/develop/quickstart-create-new-tenant).
 1. You then need to retrieve your subscription id. In the search bar look for `Subscriptions`. Then in the subscriptions list,
 look for the subscription you are using for your workspace. Copy the value of the `Subscription ID` in the corresponding
-field of [settings.yml](../InnerEye/settings.yml).
+field of [settings.yml](https://github.com/microsoft/InnerEye-DeepLearning/tree/main/InnerEye/settings.yml).
 1. Copy the application ID of your Service Principal that you retrieved earlier (cf. Step 3) to the `application_id` field.
 If you did not set up a Service Principal, fill that with an empty string or leave out altogether.
 1. Update the `resource_group:` field with your resource group name (created in Step 1).

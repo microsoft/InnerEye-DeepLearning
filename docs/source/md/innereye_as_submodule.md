@@ -3,6 +3,7 @@
 You can use InnerEye as a submodule in your own project.
 If you go down that route, here's the list of files you will need in your project (that's the same as those
 given in [this document](building_models.md))
+
 * `environment.yml`: Conda environment with python, pip, pytorch
 * `settings.yml`: A file similar to `InnerEye\settings.yml` containing all your Azure settings
 * A folder like `ML` that contains your additional code, and model configurations.
@@ -11,14 +12,17 @@ and Azure settings; see the [Building models](building_models.md) instructions f
 `myrunner.py` should look like.
 
 You then need to add the InnerEye code as a git submodule, in folder `innereye-deeplearning`:
+
 ```shell
 git submodule add https://github.com/microsoft/InnerEye-DeepLearning innereye-deeplearning
 ```
+
 Then configure your Python IDE to consume *both* your repository root *and* the `innereye-deeplearning` subfolder as inputs.
 In Pycharm, you would do that by going to Settings/Project Structure. Mark your repository root as "Source", and
 `innereye-deeplearning` as well.
 
 Example commandline runner that uses the InnerEye runner (called `myrunner.py` above):
+
 ```python
 import sys
 from pathlib import Path
@@ -73,9 +77,11 @@ if __name__ == '__main__':
 The example below creates a new flavour of the Glaucoma model in `InnerEye/ML/configs/classification/GlaucomaPublic`.
 All that needs to be done is change the dataset. We will do this by subclassing GlaucomaPublic in a new config
 stored in `InnerEyeLocal/configs`
+
 1. Create folder `InnerEyeLocal/configs`
 1. Create a config file `InnerEyeLocal/configs/GlaucomaPublicExt.py` which extends the `GlaucomaPublic` class
 like this:
+
 ```python
 from InnerEye.ML.configs.classification.GlaucomaPublic import GlaucomaPublic
 
@@ -84,12 +90,16 @@ class MyGlaucomaModel(GlaucomaPublic):
         super().__init__()
         self.azure_dataset_id="name_of_your_dataset_on_azure"
 ```
+
 1. In `settings.yml`, set `model_configs_namespace` to `InnerEyeLocal.configs` so this config
 is found by the runner. Set `extra_code_directory` to `InnerEyeLocal`.
 
-#### Start Training
+### Start Training
+
 Run the following to start a job on AzureML:
-```
+
+```shell
 python myrunner.py --azureml --model=MyGlaucomaModel
 ```
+
 See [Model Training](building_models.md) for details on training outputs, resuming training, testing models and model ensembles.

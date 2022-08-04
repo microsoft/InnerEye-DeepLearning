@@ -1,4 +1,4 @@
-## Suggested Workflow for Pull Requests
+# Suggested Workflow for Pull Requests
 
 * Pull Requests (PRs) should implement one change, and hence be small. If in doubt, err on the side of making the PR
 too small, rather than too big. It reduces the chance for you as the author to overlook issues. Small PRs are easier

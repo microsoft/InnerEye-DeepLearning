@@ -1,4 +1,4 @@
-## Pytest and testing on CPU and GPU machines
+# Pytest and testing on CPU and GPU machines
 
 All non-trivial proposed changes to the code base should be accompanied by tests.
 

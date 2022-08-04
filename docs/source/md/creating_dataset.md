@@ -202,7 +202,7 @@ The parameters `subject_column`, `channel_column`, `image_file_column` and `labe
 what columns in the csv contain the subject identifiers, channel names, image file paths and labels.
 
 NOTE: If any of the `*_column` parameters are not specified, InnerEye will look for these entries under the default column names
-if default names exist. See the CSV headers in [csv_util.py](/InnerEye/ML/utils/csv_util.py) for all the defaults.
+if default names exist. See the CSV headers in [csv_util.py](https://github.com/microsoft/InnerEye-DeepLearning/tree/main/InnerEye/ML/utils/csv_util.py) for all the defaults.
 
 ### Using channels in dataset.csv
 

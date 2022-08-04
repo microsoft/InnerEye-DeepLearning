@@ -1,8 +1,9 @@
 # Model Deployment
 
-![deployment.png](deployment.png)
+![deployment.png](../images/deployment.png)
 
 InnerEye segmentation models using a single DICOM series as input and producing DICOM-RT can be integrated with DICOM networks using:
+
 - [InnerEye-Gateway](https://github.com/microsoft/InnerEye-Gateway): a Windows service that provides DICOM AETs to run InnerEye-DeepLearning models
 - [InnerEye-Inference](https://github.com/microsoft/InnerEye-Inference): a REST API for the InnnEye-Gateway to run inference on InnerEye-DeepLearning models
 
@@ -26,7 +27,8 @@ you will see an entry for "Registered models", that will take you to the model t
 
 In AzureML, navigate to the "Models" section, then locate the model that has just been registered. In the "Artifacts"
 tab, you can inspect the files that have been registered. This will have a structure like this:
-```
+
+```text
 final_model/
 ├──score.py
 ├──environment.yml
@@ -55,8 +57,10 @@ have a second folder with code that you would like to deploy alongside the Inner
 the model comes out of an ensemble training run.
 
 ## Ensemble models
+
 Ensemble models built from different cross validation runs will be registered with the same file structure. The only
 differences are
+
 - The top-level folder is called `final_ensemble_model`.
 - There will be more checkpoints stored in the model itself, one checkpoint for each cross validation fold.
 
