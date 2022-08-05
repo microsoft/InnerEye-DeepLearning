@@ -5,6 +5,6 @@ Machine learning
 
    configs
    runner
-   augmentations
+   augmentations/index.rst
    photometric_normalization
    pipelines
