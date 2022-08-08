@@ -55,6 +55,7 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         Returns a configuration for AzureML Hyperdrive that should be used when running hyperparameter
         tuning.
         This is an abstract method that each specific model should override.
+
         :param run_config: The AzureML estimator object that runs model training.
         :return: A hyperdrive configuration object.
         """
@@ -66,6 +67,7 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         """
         Computes the training, validation and test splits for the model, from a dataframe that contains
         the full dataset.
+
         :param dataset_df: A dataframe that contains the full dataset that the model is using.
         :return: An instance of DatasetSplits with dataframes for training, validation and testing.
         """
@@ -83,6 +85,7 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         are False, the derived method *may* still create the corresponding datasets, but should not assume that
         the relevant splits (train/test/val) are non-empty. If either or both is True, they *must* create the
         corresponding datasets, and should be able to make the assumption.
+
         :param for_training: whether to create the datasets required for training.
         :param for_inference: whether to create the datasets required for inference.
         """
@@ -103,6 +106,8 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         """
         Returns a torch Dataset for running the model in inference mode, on the given split of the full dataset.
         The torch dataset must return data in the format required for running the model in inference mode.
+
+        :param mode: The mode of the model, either test, train or val.
         :return: A torch Dataset object.
         """
         if self._datasets_for_inference is None:

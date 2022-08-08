@@ -3,8 +3,8 @@ Machine learning
 
 .. toctree::
 
-   configs
+   configs/index
+   augmentations/index
    runner
-   augmentations/index.rst
    photometric_normalization
    pipelines

@@ -47,6 +47,7 @@ class HeadAndNeckBase(SegmentationModelBase):
                  **kwargs: Any) -> None:
         """
         Creates a new instance of the class.
+
         :param ground_truth_ids: List of ground truth ids.
         :param ground_truth_ids_display_names: Optional list of ground truth id display names. If
         present then must be of the same length as ground_truth_ids.
