@@ -246,6 +246,7 @@ class CovidModel(ScalarModelBase):
         :param report_dir: Directory report is to be written to
         :param model_proc: Whether this is a single or ensemble model (model_output.csv will be located in different
         paths for single vs ensemble runs.)
+
         """
 
         label_prefix = LoggingColumns.Label.value
