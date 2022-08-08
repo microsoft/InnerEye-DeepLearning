@@ -5,6 +5,7 @@ Machine learning
 
    configs/index
    augmentations/index
+   dataset/index
    runner
    photometric_normalization
    pipelines

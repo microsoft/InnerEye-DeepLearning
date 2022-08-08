@@ -33,7 +33,7 @@ def extract_label_classification(label_string: str, sample_id: str, num_classes:
     Converts a string from a dataset.csv file that contains a model's label to a scalar.
 
     For classification datasets:
-    If num_classes is 1 (binary classification tasks):
+    If num_classes is 1 (binary classification tasks)
         The function maps ["1", "true", "yes"] to [1], ["0", "false", "no"] to [0].
         If the entry in the CSV file was missing (no string given at all) or an empty string, it returns math.nan.
     If num_classes is greater than 1 (multilabel datasets):
@@ -42,17 +42,16 @@ def extract_label_classification(label_string: str, sample_id: str, num_classes:
         map "1|3|4" to [0, 1, 0, 1, 1, 0]).
         If the entry in the CSV file was missing (no string given at all) or an empty string,
         this function returns an all-zero tensor (none of the label classes were positive for this sample).
-
     For regression datasets:
-    The function casts a string label to float. Raises an exception if the conversion is
-    not possible.
-    If the entry in the CSV file was missing (no string given at all) or an empty string, it returns math.nan.
+        The function casts a string label to float. Raises an exception if the conversion is
+        not possible.
+        If the entry in the CSV file was missing (no string given at all) or an empty string, it returns math.nan.
 
     :param label_string: The value of the label as read from CSV via a DataFrame.
     :param sample_id: The sample ID where this label was read from. This is only used for creating error messages.
     :param num_classes: Number of classes. This should be equal the size of the model output.
-    For binary classification tasks, num_classes should be one. For multilabel classification tasks, num_classes should
-    correspond to the number of label classes in the problem.
+        For binary classification tasks, num_classes should be one. For multilabel classification tasks, num_classes
+        should correspond to the number of label classes in the problem.
     :param is_classification_dataset: If the model is a classification model
     :return: A list of floats with the same size as num_classes
     """
@@ -120,6 +119,7 @@ def _get_single_channel_row(subject_rows: pd.DataFrame,
     'channel' argument. Throws a ValueError if there is no or more than 1 such row.
     The result is returned as a dictionary, not a DataFrame!
     If the 'channel' argument is null, the input is expected to be already 1 row, which is returned as a dictionary.
+
     :param subject_rows: A set of rows all belonging to the same subject.
     :param channel: The value to look for in the `channel_column` column. This can be null. If it is null,
     the input `subject_rows` is expected to have exactly 1 row.
@@ -144,6 +144,7 @@ def _string_to_float(text: Union[str, float], error_message_prefix: str = None) 
     """
     Converts a string coming from a dataset.csv file to a floating point number, taking into account all the
     corner cases that can happen when the dataset file is malformed.
+
     :param text: The element coming from the dataset.csv file.
     :param error_message_prefix: A prefix string that will go into the error message if the conversion fails.
     :return: A floating point number, possibly np.nan.
@@ -181,27 +182,28 @@ def load_single_data_source(subject_rows: pd.DataFrame,
     """
     Converts a set of dataset rows for a single subject to a ScalarDataSource instance, which contains the
     labels, the non-image features, and the paths to the image files.
+
     :param num_classes: Number of classes, this is equivalent to model output tensor size
     :param channel_column: The name of the column that contains the row identifier ("channels")
     :param metadata_columns: A list of columns that well be added to the item metadata as key/value pairs.
     :param subject_rows: All dataset rows that belong to the same subject.
     :param subject_id: The identifier of the subject that is being processed.
     :param image_channels: The names of all channels (stored in the CSV_CHANNEL_HEADER column of the dataframe)
-    that are expected to be loaded from disk later because they are large images.
+        that are expected to be loaded from disk later because they are large images.
     :param image_file_column: The name of the column that contains the image file names.
     :param label_channels: The name of the channel where the label scalar or vector is read from.
     :param label_value_column: The column that contains the value for the label scalar or vector.
     :param non_image_feature_channels: non_image_feature_channels: A dictonary of the names of all channels where
-    additional scalar values should be read from. THe keys should map each feature to its channels.
+        additional scalar values should be read from. THe keys should map each feature to its channels.
     :param numerical_columns: The names of all columns where additional scalar values should be read from.
     :param categorical_data_encoder: Encoding scheme for categorical data.
     :param is_classification_dataset: If True, the dataset will be used in a classification model. If False,
-    assume that the dataset will be used in a regression model.
+        assume that the dataset will be used in a regression model.
     :param transform_labels: a label transformation or a list of label transformation to apply to the labels.
-    If a list is provided, the transformations are applied in order from left to right.
+        If a list is provided, the transformations are applied in order from left to right.
     :param sequence_position_numeric: Numeric position of the data source in a data sequence. Assumed to be
-    a non-sequential dataset item if None provided (default).
-    :return:
+        a non-sequential dataset item if None provided (default).
+    :return: A ScalarDataSource containing the specified data.
     """
 
     def _get_row_for_channel(channel: Optional[str]) -> Dict[str, str]:
@@ -234,6 +236,7 @@ def load_single_data_source(subject_rows: pd.DataFrame,
         """
         Return either the list of channels for a given column or if None was passed as
         numerical channels i.e. there are no channel to be specified return [None].
+
         :param non_image_channels: Dict mapping features name to their channels
         :param feature: feature name for which to return the channels
         :return: List of channels for the given feature.
@@ -359,7 +362,7 @@ class DataSourceReader():
         metadata.sequence_position. If this column name is not provided, the sequence_position will be 0.
         :param subject_column: The name of the column that contains the subject identifier
         :param channel_column: The name of the column that contains the row identifier ("channels")
-        that are expected to be loaded from disk later because they are large images.
+            that are expected to be loaded from disk later because they are large images.
         :param is_classification_dataset: If the current dataset is classification or not.
         :param categorical_data_encoder: Encoding scheme for categorical data.
         """
@@ -422,6 +425,7 @@ class DataSourceReader():
         """
         Loads dataset items from the given dataframe, where all column and channel configurations are taken from their
         respective model config elements.
+
         :param data_frame: The dataframe to read dataset items from.
         :param args: The model configuration object.
         :return: A list of all dataset items that could be read from the dataframe.
@@ -452,13 +456,13 @@ class DataSourceReader():
     def load_data_sources(self, num_dataset_reader_workers: int = 0) -> List[ScalarDataSource]:
         """
         Extracts information from a dataframe to create a list of ClassificationItem. This will create one entry per
-        unique
-        value of subject_id in the dataframe. The file is structured around "channels", indicated by specific values in
-        the CSV_CHANNEL_HEADER column. The result contains paths to image files, a label vector, and a matrix of
-        additional values that are specified by rows and columns given in non_image_feature_channels and
+        unique value of subject_id in the dataframe. The file is structured around "channels", indicated by specific
+        values in the CSV_CHANNEL_HEADER column. The result contains paths to image files, a label vector, and a matrix
+        of additional values that are specified by rows and columns given in non_image_feature_channels and
         numerical_columns.
+
         :param num_dataset_reader_workers: Number of worker processes to use, if 0 then single threaded execution,
-        otherwise if -1 then multiprocessing with all available cpus will be used.
+            otherwise if -1 then multiprocessing with all available cpus will be used.
         :return: A list of ScalarDataSource or SequenceDataSource instances
         """
         subject_ids = self.data_frame[self.subject_column].unique()
@@ -512,9 +516,9 @@ def files_by_stem(root_path: Path) -> Dict[str, Path]:
     """
     Lists all files under the given root directory recursively, and returns a mapping from file name stem to full path.
     The file name stem is computed more restrictively than what Path.stem returns: file.nii.gz will use "file" as the
-    stem, not "file.nii" as Path.stem would.
-    Only actual files are returned in the mapping, no directories.
-    If there are multiple files that map to the same stem, the function raises a ValueError.
+    stem, not "file.nii" as Path.stem would. Only actual files are returned in the mapping, no directories. If there are
+    multiple files that map to the same stem, the function raises a ValueError.
+
     :param root_path: The root directory from which the file search should start.
     :return: A dictionary mapping from file name stem to the full path to where the file is found.
     """
@@ -546,11 +550,12 @@ def is_valid_item_index(item: ScalarDataSource,
                         min_sequence_position_value: int = 0) -> bool:
     """
     Returns True if the item metadata in metadata.sequence_position is a valid sequence index.
+
     :param item: The item to check.
     :param min_sequence_position_value: Check if the item has a metadata.sequence_position that is at least
-    the value given here. Default is 0.
+        the value given here. Default is 0.
     :param max_sequence_position_value: If provided then this is the maximum sequence position the sequence can
-    end with. Longer sequences will be truncated. None is default.
+        end with. Longer sequences will be truncated. None is default.
     :return: True if the item has a valid index.
     """
     # If no max_sequence_position_value is given, we don't care about
@@ -572,9 +577,9 @@ def filter_valid_classification_data_sources_items(items: Iterable[ScalarDataSou
 
     :param items: The list of items to filter.
     :param min_sequence_position_value: Restrict the data to items with a metadata.sequence_position that is at least
-    the value given here. Default is 0.
+        the value given here. Default is 0.
     :param max_sequence_position_value: If provided then this is the maximum sequence position the sequence can
-    end with. Longer sequences will be truncated. None is default.
+        end with. Longer sequences will be truncated. None is default.
     :param file_to_path_mapping: A mapping from a file name stem (without extension) to its full path.
     :return: A list of items, all of which are valid now.
     """
@@ -671,7 +676,8 @@ class ScalarDatasetBase(GeneralDataset[ScalarModelBase], ScalarDataSource):
                  name: Optional[str] = None,
                  sample_transform: Callable[[ScalarItem], ScalarItem] = ScalarItemAugmentation()):
         """
-        High level class for the scalar dataset designed to be inherited for specific behaviour
+        High level class for the scalar dataset designed to be inherited for specific behaviour.
+
         :param args: The model configuration object.
         :param data_frame: The dataframe to read from.
         :param feature_statistics: If given, the normalization factor for the non-image features is taken
@@ -691,7 +697,8 @@ class ScalarDatasetBase(GeneralDataset[ScalarModelBase], ScalarDataSource):
     def load_all_data_sources(self) -> List[ScalarDataSource]:
         """
         Uses the dataframe to create data sources to be used by the dataset.
-        :return:
+
+        :return: List of data sources.
         """
         all_data_sources = DataSourceReader.load_data_sources_as_per_config(self.data_frame, self.args)  # type: ignore
         self.status += f"Loading: {self.create_status_string(all_data_sources)}"
@@ -722,6 +729,7 @@ class ScalarDatasetBase(GeneralDataset[ScalarModelBase], ScalarDataSource):
         """
         Loads the images and/or segmentations as given in the ClassificationDataSource item and
         applying the optional transformation specified by the class.
+
         :param item: The item to load.
         :return: A ClassificationItem instances with the loaded images, and the labels and non-image features copied
         from the argument.
@@ -738,6 +746,7 @@ class ScalarDatasetBase(GeneralDataset[ScalarModelBase], ScalarDataSource):
     def create_status_string(self, items: List[ScalarDataSource]) -> str:
         """
         Creates a human readable string that contains the number of items, and the distinct number of subjects.
+
         :param items: Use the items provided to create the string
         :return: A string like "12 items for 5 subjects"
         """
@@ -757,6 +766,7 @@ class ScalarDataset(ScalarDatasetBase):
                  sample_transform: Callable[[ScalarItem], ScalarItem] = ScalarItemAugmentation()):
         """
         Creates a new scalar dataset from a dataframe.
+
         :param args: The model configuration object.
         :param data_frame: The dataframe to read from.
         :param feature_statistics: If given, the normalization factor for the non-image features is taken
@@ -802,6 +812,7 @@ class ScalarDataset(ScalarDatasetBase):
         one class index. The value stored will be the number of samples that belong to the positive class.
         In the multilabel case, this returns a dictionary with class indices and samples per class as the key-value
         pairs.
+
         :return: Dictionary of {class_index: count}
         """
         all_labels = [torch.flatten(torch.nonzero(item.label).int()).tolist() for item in self.items]  # [N, 1]

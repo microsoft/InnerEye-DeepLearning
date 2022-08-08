@@ -31,6 +31,7 @@ def collate_with_metadata(batch: List[Dict[str, Any]]) -> Dict[str, Any]:
     The collate function that the dataloader workers should use. It does the same thing for all "normal" fields
     (all fields are put into tensors with outer dimension batch_size), except for the special "metadata" field.
     Those metadata objects are collated into a simple list.
+
     :param batch: A list of samples that should be collated.
     :return: collated result
     """
@@ -123,6 +124,7 @@ class RepeatDataLoader(DataLoader):
                  **kwargs: Any):
         """
         Creates a new data loader.
+
         :param dataset: The dataset that should be loaded.
         :param batch_size: The number of samples per minibatch.
         :param shuffle: If true, the dataset will be shuffled randomly.
@@ -204,11 +206,12 @@ class FullImageDataset(GeneralDataset):
     """
     Dataset class that loads and creates samples with full 3D images from a given pd.Dataframe. The following
     are the operations performed to generate a sample from this dataset:
-    -------------------------------------------------------------------------------------------------
+
     1) On initialization parses the provided pd.Dataframe with dataset information, to cache the set of file paths
        and patient mappings to load as PatientDatasetSource. The sources are then saved in a list: dataset_sources.
     2) dataset_sources is iterated in a batched fashion, where for each batch it loads the full 3D images, and applies
        pre-processing functions (e.g. normalization), returning a sample that can be used for full image operations.
+
     """
 
     def __init__(self, args: SegmentationModelBase, data_frame: pd.DataFrame,
@@ -313,6 +316,7 @@ def load_dataset_sources(dataframe: pd.DataFrame,
     The dataframe contains per-patient per-channel image information, relative to a root directory.
     This method converts that into a per-patient dictionary, that contains absolute file paths
     separated for for image channels, ground truth channels, and mask channels.
+
     :param dataframe: A dataframe read directly from a dataset CSV file.
     :param local_dataset_root_folder: The root folder that contains all images.
     :param image_channels: The names of the image channels that should be used in the result.
