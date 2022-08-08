@@ -8,4 +8,3 @@ Below is a list of models and various deep learning components that are availabl
     blocks/index
     layers/index
     losses/index
-    parallel/index
