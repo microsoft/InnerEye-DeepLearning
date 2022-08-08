@@ -48,6 +48,7 @@ def get_unit_image_header(spacing: Optional[TupleFloat3] = None) -> ImageHeader:
     """
     Creates an ImageHeader object with the origin at 0, and unit direction. The spacing is set to the argument,
     defaulting to (1, 1, 1) if not provided.
+
     :param spacing: The image spacing, as a (Z, Y, X) tuple.
     """
     if not spacing:
@@ -186,6 +187,7 @@ def _pad_images(images: np.ndarray,
     :param padding_vector: padding before and after in each dimension eg: ((2,2), (3,3), (2,0))
     will pad 4 pixels in Z (2 on each side), 6 pixels in Y (3 on each side)
     and 2 in X (2 on the left and 0 on the right).
+
     :param padding_mode: a valid numpy padding mode.
     :return: padded copy of the original image.
     """
@@ -241,9 +243,11 @@ def largest_connected_components(img: np.ndarray,
     Select the largest connected binary components (plural) in an image. If deletion_limit is set in which case a
     component is only deleted (i.e. its voxels are False in the output) if its voxel count as a proportion of all the
     True voxels in the input is less than deletion_limit.
+
     :param img: np.ndarray
     :param deletion_limit: if set, a component is deleted only if its voxel count as a proportion of all the
     True voxels in the input is less than deletion_limit.
+
     :param class_index: Optional. Can be used to provide a class index for logging purposes if the image contains
      only pixels from a specific class.
     """
@@ -281,6 +285,7 @@ def extract_largest_foreground_connected_component(
         restrictions: Optional[List[Tuple[int, Optional[float]]]] = None) -> np.ndarray:
     """
     Extracts the largest foreground connected component per class from a multi-label array.
+
     :param multi_label_array: An array of class assignments, i.e. value c at (z, y, x) is a class c.
     :param restrictions: restrict processing to a subset of the classes (if provided). Each element is a
     pair (class_index, threshold) where threshold may be None.
@@ -311,6 +316,7 @@ def merge_masks(masks: np.ndarray) -> np.ndarray:
     """
     Merges a one-hot encoded mask tensor (Classes x Z x Y x X) into a multi-label map with labels corresponding to their
     index in the original tensor of shape (Z x Y x X).
+
     :param masks: array of shape (Classes x Z x Y x X) containing the mask for each class
     :return: merged_mask of shape (Z x Y x X).
     """
@@ -399,6 +405,7 @@ def check_array_range(data: np.ndarray, expected_range: Optional[Range] = None,
     :param data: The array to check. It can have any size.
     :param expected_range: The interval that all array elements must fall into. The first entry is the lower
         bound, the second entry is the upper bound.
+
     :param error_prefix: A string to use as the prefix for the error message.
     """
     if expected_range is None:
@@ -514,6 +521,7 @@ def gaussian_smooth_posteriors(posteriors: np.ndarray, kernel_size_mm: TupleFloa
 
     :param posteriors: Normalized probability distribution in range [0, 1] for each class,
     in shape: Class x Z x Y x X
+
     :param kernel_size_mm: The size of the smoothing kernel in mm to be used in each dimension (Z, Y, X)
     :param voxel_spacing_mm: Voxel spacing to use to map from mm space to pixel space for the
     Gaussian sigma parameter for each dimension in (Z x Y x X) order.
@@ -558,6 +566,7 @@ def segmentation_to_one_hot(segmentation: torch.Tensor,
     :param segmentation: A segmentation as a multi-label map of shape [B, C, Z, Y, X]
     :param use_gpu: If true, and the input is not yet on the GPU, move the intermediate tensors to the GPU. The result
     will be on the same device as the argument `segmentation`
+
     :param result_dtype: The torch data type that the result tensor should have. This would be either float16 or float32
     :return: A torch tensor with one-hot encoding of the segmentation of shape
     [B, C*HDF5_NUM_SEGMENTATION_CLASSES, Z, Y, X]
@@ -702,6 +711,7 @@ def apply_summed_probability_rules(model_config: SegmentationModelBase,
     :param model_config: Model configuration information
     :param posteriors: Confidences per voxel per class, in format Batch x Classes x Z x Y x X if batched,
                        or Classes x Z x Y x X if not batched.
+
     :param segmentation: Class labels per voxel, in format Batch x Z x Y x X if batched, or Z x Y x X if not batched.
     :return: Modified segmentation, as Batch x Z x Y x X if batched, or Z x Y x X if not batched.
     """

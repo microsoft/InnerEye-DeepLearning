@@ -69,6 +69,7 @@ def get_most_recent_run_id(fallback_run_id_for_local_execution: str = FALLBACK_S
     file when running on the cloud. For execution on the local dev box, use a hardcoded run ID.
     Consequently, local execution of tests that use this run may fail, while executing in the cloud passes.
     In this case, modify the run here to something more recent.
+
     :param fallback_run_id_for_local_execution: A hardcoded AzureML run ID that is used when executing this code
     on a local box, outside of Azure build agents.
     :return:
@@ -89,6 +90,7 @@ def get_most_recent_run_id(fallback_run_id_for_local_execution: str = FALLBACK_S
 def get_most_recent_run(fallback_run_id_for_local_execution: str = FALLBACK_SINGLE_RUN) -> Run:
     """
     Gets the name of the most recently executed AzureML run, instantiates that Run object and returns it.
+
     :param fallback_run_id_for_local_execution: A hardcoded AzureML run ID that is used when executing this code
     on a local box, outside of Azure build agents.
     """
@@ -100,6 +102,7 @@ def get_most_recent_model_id(fallback_run_id_for_local_execution: str = FALLBACK
     """
     Gets the string name of the most recently executed AzureML run, extracts which model that run had registered,
     and return the model id.
+
     :param fallback_run_id_for_local_execution: A hardcoded AzureML run ID that is used when executing this code
     on a local box, outside of Azure build agents.
     """
@@ -118,6 +121,7 @@ def get_most_recent_model(fallback_run_id_for_local_execution: str = FALLBACK_SI
     """
     Gets the string name of the most recently executed AzureML run, extracts which model that run had registered,
     and return the instantiated model object.
+
     :param fallback_run_id_for_local_execution: A hardcoded AzureML run ID that is used when executing this code
     on a local box, outside of Azure build agents.
     """
@@ -255,6 +259,7 @@ def test_submit_for_inference(test_output_dirs: OutputFolderForTests) -> None:
     """
     Execute the submit_for_inference script on the model that was recently trained. This starts an AzureML job,
     and downloads the segmentation. Then check if the segmentation was actually produced.
+
     :param test_output_dirs: Test output directories.
     """
     model = get_most_recent_model(fallback_run_id_for_local_execution=FALLBACK_SINGLE_RUN)

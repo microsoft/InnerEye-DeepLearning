@@ -40,6 +40,7 @@ class HookBasedFeatureExtractor(Module):
     def _verify_layer_name(self, model: Module, layer_name: List[str]) -> None:
         """
         Recursively traverses the model and verifies if the layer name is valid
+
         :param model: the model
         :param layer_name: hierarchical list of layer names to index within model
         :return:
@@ -56,6 +57,7 @@ class HookBasedFeatureExtractor(Module):
     def forward_hook_fn(self, module: Module, input: Any, output: Any) -> None:
         """
         Registers a forward hook inside module
+
         :param module:
         :param input:
         :param output:

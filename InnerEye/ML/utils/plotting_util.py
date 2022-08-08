@@ -14,6 +14,7 @@ def get_view_dim_and_origin(plane: Plane) -> Tuple[int, str]:
     """
     Get the axis along which to slice, as well as the orientation of the origin, to ensure images
     are plotted as expected
+
     :param plane: the plane in which to plot (i.e. axial, sagittal or coronal)
     :return:
     """
@@ -33,6 +34,7 @@ def get_cropped_axes(image: np.ndarray, boundary_width: int = 5) -> Tuple[slice,
     """
     Return the min and max values on both x and y axes where the image is not empty
     Method: find the min and max of all non-zero pixels in the image, and add a border
+
     :param image: the image to be cropped
     :param boundary_width: number of pixels boundary to add around bounding box
     :return:

@@ -60,6 +60,7 @@ class ModelConfigLoader(GenericConfig):
             Given a module specification check to see if it has a class property with
             the <model_name> provided, and instantiate that config class with the
             provided <config_overrides>. Otherwise, return None.
+
             :param module_spec:
             :return: Instantiated model config if it was found.
             """

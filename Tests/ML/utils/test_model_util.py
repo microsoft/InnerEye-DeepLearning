@@ -33,6 +33,7 @@ def create_model_and_store_checkpoint(config: ModelConfigBase, checkpoint_path: 
     Creates a Lightning model for the given model configuration, and stores it as a checkpoint file.
     If a GPU is available, the model is moved to the GPU before storing.
     The trainer properties `current_epoch` and `global_step` are set to fixed non-default values.
+
     :param config: The model configuration.
     :param checkpoint_path: The path and filename of the checkpoint file.
     """

@@ -112,6 +112,7 @@ def download_and_compare_scores(outputs_folder: Path, azure_config: AzureConfig,
     :param azure_config: Azure configuration to use for downloading data
     :param comparison_blob_storage_paths: list of paths to directories containing metrics.csv and dataset.csv files,
     each of the form run_recovery_id/rest_of_path
+
     :param model_dataset_df: dataframe containing contents of dataset.csv for the current model
     :param model_metrics_df: dataframe containing contents of metrics.csv for the current model
     :return: a dataframe for all the data (current model and all baselines); whether any comparisons were
@@ -196,6 +197,7 @@ def compare_files(expected: Path, actual: Path, csv_relative_tolerance: float = 
 
     :param expected: A file that contains the expected contents. The type of comparison (text or binary) is chosen
     based on the extension of this file.
+
     :param actual: A file that contains the actual contents.
     :param csv_relative_tolerance: When comparing CSV files, use this as the maximum allowed relative discrepancy.
     If 0.0, do not allow any discrepancy.

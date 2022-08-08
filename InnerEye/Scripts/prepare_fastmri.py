@@ -81,6 +81,7 @@ def get_azure_auth(azure_config: AzureConfig) -> Union[DefaultAzureCredential, C
     Returns the authentication object for the azure.identity library,
     based on either the chosen Service Principal (if set, and if the password was found), or the
     interactive browser authentication if not all Service Principal information is available.
+
     :param azure_config: The object containing all Azure-related information.
     :return: An azure.identity authentication object.
     """
@@ -107,10 +108,12 @@ def create_datafactory_and_run(files_and_tokens: Dict[str, str],
                                is_unittest: bool = False) -> None:
     """
     Builds an Azure Data Factory to download the FastMRI dataset from AWS, and places them in Azure Blob Storage.
+
     :param location: The Azure location in which the Data Factory should be created (for example, "westeurope")
     :param files_and_tokens: A mapping from file name (like knee.tar.gz) to AWS access token.
     :param is_unittest: If True, download a small tar.gz file from github. If False, download the "real" fastMRI
     datafiles from AWS.
+
     :param connection_string: The connection string of the Azure storage where the downloaded data should be stored.
     """
 
@@ -167,9 +170,11 @@ def create_datafactory_and_run(files_and_tokens: Dict[str, str],
         From the compressed file in blob storage, it is then uncompressed, and written to a new folder in blob storage.
         For example, if 'target_folder' is 'foo', the uncompressed file will be written to folder 'foo', and the
         compressed raw data will be written to 'foo_compressed'.
+
         :param source_file_or_tuple: The name of the .tar.gz or .tar file to download, without any access tokens.
         If the name is a Tuple[str, str], the second tuple element is the "real" extension, for files where the
         extension is misleading.
+
         :param target_folder: The folder prefix in the target storage account.
         :return: A list of pipelines that this method created.
         """
@@ -329,6 +334,7 @@ def extract_access_tokens(text: str) -> Dict[str, str]:
     """
     Parses the given text for https URLs with an attached access token. Returns a dictionary mapping from
     file to file with access token, like `knee.tar.gz` -> `?AWSAccessKeyId=...`
+
     :param text: The text with https URLs
     :return:
     """

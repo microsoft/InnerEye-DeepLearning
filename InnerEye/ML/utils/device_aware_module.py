@@ -51,6 +51,7 @@ class DeviceAwareModule(torch.nn.Module, Generic[T, E]):
         """
         Extract the input tensors from a data sample as required
         by the forward pass of the module.
+
         :param item: a data sample
         :return: the correct input tensors for the forward pass
         """

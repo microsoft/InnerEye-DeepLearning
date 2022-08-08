@@ -88,6 +88,7 @@ MINIMUM_INSTANCE_COUNT = 10
 def compose_distribution_comparisons(file_contents: List[List[List[str]]]) -> List[str]:
     """
     Composes comparisons as detailed above.
+
     :param file_contents: two or more lists of rows, where each "rows" is returned by read_csv_file on
     (typically) a statistics.csv file
     :return a list of lines to print
@@ -121,6 +122,7 @@ def mann_whitney_on_key(key: str, lists: List[List[float]]) -> List[Tuple[Tuple[
     Applies Mann-Whitney test to all sets of values (in lists) for the given key,
     and return a line of results, paired with some values for ordering purposes.
     Member lists with fewer than MINIMUM_INSTANCE_COUNT items are discarded.
+
     :param key: statistic name; "Vol" statistics have mm^3 replaced by cm^3 for convenience.
     :param lists: list of lists of values
     """
@@ -256,6 +258,7 @@ def read_csv_file(input_file: str) -> List[List[str]]:
     """
     Reads and returns the contents of a csv file. Empty rows (which can
     result from end-of-line mismatches) are dropped.
+
     :param input_file: path to a file in csv format
     :return: list of rows from the file
     """

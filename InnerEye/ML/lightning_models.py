@@ -51,6 +51,7 @@ class SegmentationLightning(InnerEyeLightning):
         """
         Runs a set of 3D crops through the segmentation model, and returns the result. This method is used
         at inference time.
+
         :param patches: A tensor of size [batches, channels, Z, Y, X]
         """
         return self.logits_to_posterior(self.model(patches))
@@ -67,8 +68,10 @@ class SegmentationLightning(InnerEyeLightning):
                                     is_training: bool) -> torch.Tensor:
         """
         Runs training for a single minibatch of training or validation data, and computes all metrics.
+
         :param is_training: If true, the method is called from `training_step`, otherwise it is called from
         `validation_step`.
+
         :param sample: The batched sample on which the model should be trained.
         :param batch_index: The index of the present batch (supplied only for diagnostics).
         """
@@ -103,6 +106,7 @@ class SegmentationLightning(InnerEyeLightning):
                         is_training: bool) -> None:
         """
         Computes and stores all metrics coming out of a single training step.
+
         :param cropped_sample: The batched image crops used for training or validation.
         :param segmentation: The segmentation that was produced by the model.
         :param is_training: If true, the method is called from `training_step`, otherwise it is called from
@@ -167,6 +171,7 @@ class SegmentationLightning(InnerEyeLightning):
 def get_subject_output_file_per_rank(rank: int) -> str:
     """
     Gets the name of a file that will store the per-rank per-subject model outputs.
+
     :param rank: The rank of the current model in distributed training.
     :return: A string like "rank7_metrics.csv"
     """
@@ -228,8 +233,10 @@ class ScalarLightning(InnerEyeLightning):
                                     is_training: bool) -> torch.Tensor:
         """
         Runs training for a single minibatch of training or validation data, and computes all metrics.
+
         :param is_training: If true, the method is called from `training_step`, otherwise it is called from
         `validation_step`.
+
         :param sample: The batched sample on which the model should be trained.
         :param batch_index: The index of the present batch (supplied only for diagnostics).
         Runs a minibatch of training or validation data through the model.
@@ -283,6 +290,7 @@ class ScalarLightning(InnerEyeLightning):
         """
         For sequence models, transfer the nested lists of items to the given GPU device.
         For all other models, this relies on the superclass to move the batch of data to the GPU.
+
         :param batch: A batch of data coming from the dataloader.
         :param device: The target CUDA device.
         :return: A modified batch of data, where all tensor now live on the given CUDA device.
@@ -294,6 +302,7 @@ def transfer_batch_to_device(batch: Any, device: torch.device) -> Any:
     """
     For sequence models, transfer the nested lists of items to the given GPU device.
     For all other models, this relies on Lightning's default code to move the batch of data to the GPU.
+
     :param batch: A batch of data coming from the dataloader.
     :param device: The target CUDA device.
     :return: A modified batch of data, where all tensor now live on the given CUDA device.
@@ -314,8 +323,10 @@ def create_lightning_model(config: ModelConfigBase, set_optimizer_and_scheduler:
     """
     Creates a PyTorch Lightning model that matches the provided InnerEye model configuration object.
     The `optimizer` and `l_rate_scheduler` object of the Lightning model will also be populated.
+
     :param set_optimizer_and_scheduler: If True (default), initialize the optimizer and LR scheduler of the model.
     If False, skip that step (this is only meant to be used for unit tests.)
+
     :param config: An InnerEye model configuration object
     :return: A PyTorch Lightning model object.
     """

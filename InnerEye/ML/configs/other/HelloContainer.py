@@ -35,6 +35,7 @@ class HelloDataset(Dataset):
     def __init__(self, raw_data: List[List[float]]) -> None:
         """
         Creates the 1-dim regression dataset.
+
         :param raw_data: The raw data, e.g. from a cross validation split or loaded from file. This
         must be numeric data which can be converted into a tensor. See the static method
         from_path_and_indexes for an example call.
@@ -55,6 +56,7 @@ class HelloDataset(Dataset):
             end_index: int) -> 'HelloDataset':
         '''
         Static method to instantiate a HelloDataset from the root folder with the start and end indexes.
+
         :param root_folder: The folder in which the data file lives ("hellocontainer.csv")
         :param start_index: The first row to read.
         :param end_index: The last row to read (exclusive)
@@ -137,6 +139,7 @@ class HelloRegression(LightningModule):
         This method is part of the standard PyTorch Lightning interface. For an introduction, please see
         https://pytorch-lightning.readthedocs.io/en/stable/starter/converting.html
         It runs a forward pass of a tensor through the model.
+
         :param x: The input tensor(s)
         :return: The model output.
         """
@@ -148,6 +151,7 @@ class HelloRegression(LightningModule):
         https://pytorch-lightning.readthedocs.io/en/stable/starter/converting.html
         It consumes a minibatch of training data (coming out of the data loader), does forward propagation, and
         computes the loss.
+
         :param batch: The batch of training data
         :return: The loss value with a computation graph attached.
         """
@@ -162,6 +166,7 @@ class HelloRegression(LightningModule):
         https://pytorch-lightning.readthedocs.io/en/stable/starter/converting.html
         It consumes a minibatch of validation data (coming out of the data loader), does forward propagation, and
         computes the loss.
+
         :param batch: The batch of validation data
         :return: The loss value on the validation data.
         """
@@ -173,6 +178,7 @@ class HelloRegression(LightningModule):
         """
         This is a convenience method to reduce code duplication, because training, validation, and test step share
         large amounts of code.
+
         :param batch: The batch of data to process, with input data and targets.
         :return: The MSE loss that the model achieved on this batch.
         """
@@ -207,6 +213,7 @@ class HelloRegression(LightningModule):
         https://pytorch-lightning.readthedocs.io/en/stable/starter/converting.html
         It evaluates the model in "inference mode" on data coming from the test set. It could, for example,
         also write each model prediction to disk.
+
         :param batch: The batch of test data.
         :param batch_idx: The index (0, 1, ...) of the batch when the data loader is enumerated.
         :return: The loss on the test data.

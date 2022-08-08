@@ -43,6 +43,7 @@ def load_predictions(run_type: SurfaceDistanceRunType, azure_config: AzureConfig
                      ) -> List[Segmentation]:
     """
     For each run type (IOV or outliers), instantiate a list of predicted Segmentations and return
+
     :param run_type: either "iov" or "outliers:
     :param azure_config: AzureConfig
     :param model_config: GenericConfig

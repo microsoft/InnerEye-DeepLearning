@@ -97,6 +97,7 @@ class WilcoxonTestConfig(GenericConfig):
 def calculate_statistics(dist1: Dict[str, float], dist2: Dict[str, float], factor: float) -> Dict[str, float]:
     """
     Select common pairs and run the hypothesis test.
+
     :param dist1: mapping from keys to scores
     :param dist2: mapping from keys (some or all in common with dist1) to scores
     :param factor: factor to divide the Wilcoxon "z" value by to determine p-value
@@ -131,6 +132,7 @@ def difference_counts(values1: List[float], values2: List[float]) -> Tuple[int, 
     """
     Returns the number of corresponding pairs from vals1 and vals2
     in which val1 > val2 and val2 > val1 respectively.
+
     :param values1: list of values
     :param values2: list of values, same length as values1
     :return: number of pairs in which first value is greater than second, and number of pairs
@@ -159,6 +161,7 @@ def evaluate_data_pair(data1: Dict[str, Dict[str, float]], data2: Dict[str, Dict
         -> Dict[str, Dict[str, float]]:
     """
     Find and compare dice scores for each structure
+
     :param data1: dictionary from structure names, to dictionary from subjects to scores
     :param data2: another such dictionary, sharing some structure names
     :param is_raw_p_value: whether to use "raw" Wilcoxon z values when calculating p values (rather than reduce)
@@ -240,6 +243,7 @@ def wilcoxon_signed_rank_test(args: WilcoxonTestConfig,
     """
     Reads data from a csv file, and performs all pairwise comparisons, except if --against was specified,
     compare every other run against the "--against" run.
+
     :param args: parsed command line parameters
     :param name_shortener: optional function to shorten names to make graphs and tables more legible
     """
@@ -262,6 +266,7 @@ def run_wilcoxon_test_on_data(data: Dict[str, Dict[str, Dict[str, float]]],
     """
     Performs all pairwise comparisons on the provided data, except if "against" was specified,
     compare every other run against the "against" run.
+
     :param data: scores such that data[run][structure][subject] = dice score
     :param against: runs to compare against; or None to compare all against all
     :param raw: whether to interpret Wilcoxon Z values "raw" or apply a correction

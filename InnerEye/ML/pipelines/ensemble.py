@@ -49,9 +49,11 @@ class EnsemblePipeline(FullImageInferencePipelineBase):
                           aggregation_type: EnsembleAggregationType) -> InferencePipeline.Result:
         """
         Helper method to aggregate results from multiple inference pipelines, based on the aggregation type provided.
+
         :param results: inference pipeline results to aggregate. This may be a Generator to prevent multiple large
         posterior arrays being held at the same time. The first element of the sequence is modified in place to
         minimize memory use.
+
         :param aggregation_type: aggregation function to use to combine the results.
         :return: InferenceResult: contains a Segmentation for each of the classes and their posterior
         probabilities.
@@ -78,6 +80,7 @@ class EnsemblePipeline(FullImageInferencePipelineBase):
         """
         Performs a single inference pass for each model in the ensemble, and aggregates the results
         based on the provided aggregation type.
+
         :param image_channels: The input image channels to perform inference on in format: Channels x Z x Y x X.
         :param voxel_spacing_mm: Voxel spacing to use for each dimension in (Z x Y x X) order
         :param mask: A binary image used to ignore results outside it in format: Z x Y x X.

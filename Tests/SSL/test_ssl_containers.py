@@ -49,6 +49,7 @@ def create_cxr_test_dataset(path_to_test_dataset: Path,
     """
     Creates fake datasets dataframe and dicom images mimicking the expected structure of the datasets
     of NIHCXR and RSNAKaggleCXR
+
     :param path_to_test_dataset: folder to which we want to save the mock data.
     :param num_encoder_images: The number of unlabelled images that the dataset should contain (for encoder training)
     :param num_labelled_images: The number of labelled images that the dataset should contain (for the linear head).
@@ -87,6 +88,7 @@ def _compare_stored_metrics(runner: Runner, expected_metrics: Dict[str, float], 
     """
     Checks if the StoringLogger in the given runner holds all the expected metrics as results of training
     epoch 0, up to a given absolute precision.
+
     :param runner: The Innereye runner.
     :param expected_metrics: A dictionary with all metrics that are expected to be present.
     """

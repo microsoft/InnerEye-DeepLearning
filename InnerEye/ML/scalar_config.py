@@ -89,6 +89,7 @@ class LabelTransformation(Enum):
     def get_scaling_transform(max_value: int = 100, min_value: int = 0, last_in_pipeline: bool = True) -> Callable:
         """
         Defines the function to scale labels.
+
         :param max_value:
         :param min_value:
         :param last_in_pipeline: if the transformation is the last
@@ -340,6 +341,7 @@ class ScalarModelBase(ModelConfigBase):
     def filter_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Filter dataframes based on expected values on columns
+
         :param df: the input dataframe
         :return: the filtered dataframe
         """
@@ -592,6 +594,7 @@ def get_non_image_features_dict(default_channels: List[str],
 
     :param default_channels: the channels to use for all features except the features specified
     in specific_channels
+
     :param specific_channels: a dictionary mapping feature names to channels for all features that do
     not use the default channels
     """

@@ -198,6 +198,7 @@ class PlotCrossValidationConfig(GenericConfig):
         If the blobs_path contains folders, the same folder structure will be created inside the destination folder.
         For example, downloading "foo.txt" to "/c/temp" will create "/c/temp/foo.txt". Downloading "foo/bar.txt"
         to "/c/temp" will create "/c/temp/foo/bar.txt"
+
         :param blob_to_download: path of data to download within the run
         :param destination: directory to write to
         :param run: The AzureML run to download from.
@@ -280,6 +281,7 @@ def get_split_id(tags: Dict[str, Any], is_zero_index: bool = True) -> str:
     """
     Extracts the split index from the tags. If it's negative, this isn't a cross-validation run;
     gets it from the run_recovery_id instead.
+
     :param tags: Tags associated with a run to get the split id for
     :param is_zero_index: If True, start cross validation split indices from 0 otherwise 1
     :return:
@@ -294,6 +296,7 @@ def get_split_id(tags: Dict[str, Any], is_zero_index: bool = True) -> str:
 def run_recovery_id_suffix(tags: Dict[str, Any]) -> str:
     """
     Returns the part of run_recovery_id after the colon if any.
+
     :param tags: the tags of a run
     """
     run_rec_id = tags[RUN_RECOVERY_ID_KEY]
@@ -307,6 +310,7 @@ def download_metrics_file(config: PlotCrossValidationConfig,
     """
     Downloads a metrics.csv file from an Azure run (or local results), and stores it in a local folder.
     The metrics.csv file will be written into a subfolder named after the model execution mode.
+
     :param config: The cross validation configuration.
     :param run: The AzureML run to download from.
     :param destination: The folder to download into.
@@ -346,11 +350,13 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
     It will download the metrics.csv file for each dataset split (Train,Test, Val) and all of the run's children.
     When running in segmentation mode, it also downloads the dataset.csv and adds the institutionId and seriesId
     information for each subject found in the metrics files.
+
     :param config: PlotCrossValidationConfig
     :param run_recovery_id: run recovery ID, if different from the one in config
     :param download_to_folder: The root folder in which all downloaded files should be stored. Point to an existing
     folder with downloaded files for use in unit tests. If not provided, the files will be downloaded to a new folder
     inside the config.outputs_directory, with the name taken from the run ID.
+
     :param splits_to_evaluate: If supplied, use these values as the split indices to download. Use only for
     unit testing.
     :return: The dataframe with all of the downloaded results grouped by execution mode (Test or Val)
@@ -431,6 +437,7 @@ def crossval_config_from_model_config(train_config: DeepLearningConfig) -> PlotC
     """
     Creates a configuration for plotting cross validation results that populates some key fields from the given
     model training configuration.
+
     :param train_config:
     :return:
     """
@@ -450,6 +457,7 @@ def get_config_and_results_for_offline_runs(train_config: DeepLearningConfig) ->
     """
     Creates a configuration for cross validation analysis for the given model training configuration, and gets
     the input files required for cross validation analysis.
+
     :param train_config: The model configuration to work with.
     """
     plot_crossval_config = crossval_config_from_model_config(train_config)
@@ -544,6 +552,7 @@ def convert_rows_for_comparisons(split_column_value: Optional[str],
     """
     Given a dataframe resulting from a metrics.csv form, return (a subset of) the same information
     in the format required for a multi-split metrics file as required for statistical testing.
+
     :param split_column_value: name of this split, for putting in the "Split" column of the result
     :param dataset_df: dataframe read from a dataset.csv file
     :param df: dataframe read from a metrics.csv file
@@ -578,6 +587,7 @@ def shorten_split_names(config: PlotCrossValidationConfig, metrics: pd.DataFrame
     """
     Replaces values in metrics[COL_SPLIT] by shortened versions consisting of the first 3 and last
     3 characters, separated by "..", when that string is shorter.
+
     :param config: for finding short names
     :param metrics: data frame with a column named COL_SPLIT
     """
@@ -606,6 +616,7 @@ def plot_metrics(config: PlotCrossValidationConfig,
     """
     Given the dataframe for the downloaded metrics aggregate them
     into box plots corresponding to the results per split.
+
     :param config: PlotCrossValidationConfig
     :param dataset_split_metrics: Mapping between model execution mode and a dataframe containing all metrics for it
     :param root: Root directory to the results for Train/Test and Val datasets
@@ -660,6 +671,7 @@ def save_outliers(config: PlotCrossValidationConfig,
     """
     Given the dataframe for the downloaded metrics identifies outliers (score < mean - 3sd) across the splits
     and saves them in a file outlier.csv in the provided root.
+
     :param config: PlotCrossValidationConfig
     :param dataset_split_metrics: Mapping between model execution mode and a dataframe containing all metrics for it
     :param root: Root directory to the results for Train/Test and Val datasets
@@ -706,6 +718,7 @@ def create_results_breakdown(df: pd.DataFrame, root_folder: Path) -> Tuple[Path,
     Creates a breakdown of Dice per execution mode (train/test/val) and structure name, and one of
     Dice per execution mode. The summaries are saved to files in the root_folder, via dataframe's
     describe function.
+
     :param df: A data frame that contains columns COL_DICE, COL_MODE and COL_STRUCTURE
     :param root_folder: The folder into which the result files should be written.
     :return: The paths to the two files.
@@ -728,6 +741,7 @@ def create_results_breakdown(df: pd.DataFrame, root_folder: Path) -> Tuple[Path,
 def may_write_lines_to_file(lines: List[str], path: Path) -> None:
     """
     Prints lines to file path if there are any lines; reports what it's doing.
+
     :param lines: list of lines to write (without final newlines)
     :param path: csv file path to write to
     """
@@ -748,6 +762,7 @@ def run_statistical_tests_on_file(root_folder: Path, full_csv_file: Path, option
     same split. Empty results are not printed; this can happen for Wilcoxon when different splits do not
     intersect (e.g. when processing validation sets on a cross-val run) and for Mann-Whitney when only one
     institution occurs, or at most one institution has five or more subjects.
+
     :param root_folder: folder to write to
     :param full_csv_file: MetricsAcrossAllRuns.csv file to read
     :param options: config options.
@@ -771,6 +786,7 @@ def check_result_file_counts(config_and_files: OfflineCrossvalConfigAndFiles, is
     """
     Check that for every ModelExecutionMode appearing in config_and_files.files, the number of files of
     that mode is equal to the number of cross-validation splits. Throw a ValueError if not.
+
     :param is_ensemble_run: If True, assume that this run of cross validation analysis is for an ensemble model
     and assert that there are N+1 data files available. If false, this analysis only concerns the cross
     validation runs, and check that the number of files is N.
@@ -804,6 +820,7 @@ def check_result_file_counts(config_and_files: OfflineCrossvalConfigAndFiles, is
 def plot_cross_validation_from_files(config_and_files: OfflineCrossvalConfigAndFiles, root_folder: Path) -> None:
     """
     Runs various plots for the results of a cross validation run, and writes them to a given folder.
+
     :param config_and_files: The setup for plotting results and the set of data files to analyse.
     :param root_folder: The folder into which the results should be written.
     """
@@ -865,6 +882,7 @@ def get_metrics_columns(df: pd.DataFrame) -> Set[str]:
     """
     Get all columns of the data frame that appear to be metrics. A column is considered a metric if it appears
     as a dictionary value in INTERNAL_TO_LOGGING_COLUMN_NAMES.
+
     :param df: A dataframe to analyze.
     :return: The set of data frame columns that is also contained in INTERNAL_TO_LOGGING_COLUMN_NAMES.
     """
@@ -877,6 +895,7 @@ def unroll_aggregate_metrics(df: pd.DataFrame) -> List[EpochMetricValues]:
     Consumes a dataframe that is read from an aggregate metrics file for classification or segmentation,
     and converts all entries for execution mode "Val" to (metric_name, metric_value) pairs, sorted by
     epoch ascendingly.
+
     :param df:
     :return:
     """
@@ -902,6 +921,7 @@ def plot_cross_validation(config: PlotCrossValidationConfig) -> Path:
     Collects results from an AzureML cross validation run, and writes aggregate metrics files.
     and assert that there are N+1 data files available. If false, this analysis only concerns the cross
     validation runs, and check that the number of files is N.
+
     :param config: The settings for plotting cross validation results.
     :return: The path with all cross validation result files.
     """

@@ -14,15 +14,18 @@ class BasicLayer(torch.nn.Module):
     """
     A Basic Layer applies a 3D convolution and BatchNorm with the given channels, kernel_size, and dilation.
     The output of BatchNorm layer is passed through an activation function and its output is returned.
+
     :param channels: Number of input and output channels.
     :param kernel_size: Spatial support of convolution kernels
     :param stride: Kernel stride lenght for convolution op
     :param padding: Feature map padding after convolution op {"constant/zero", "no_padding"}. When it is set to
     "no_padding", no padding is applied. For "constant", feature-map tensor size is kept the same at the output by
     padding with zeros.
+
     :param dilation: Kernel dilation used in convolution layer
     :param use_bias: If set to True, a bias parameter will be added to the layer. Default is set to False as
     batch normalisation layer has an affine parameter which are used applied after the bias term is added.
+
     :param activation: Activation layer (e.g. nonlinearity) to be used after the convolution and batch norm operations.
     """
 

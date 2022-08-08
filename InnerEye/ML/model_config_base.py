@@ -166,6 +166,7 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
     def get_cross_validation_hyperdrive_config(self, run_config: ScriptRunConfig) -> HyperDriveConfig:
         """
         Returns a configuration for AzureML Hyperdrive that varies the cross validation split index.
+
         :param run_config: The AzureML run configuration object that training for an individual model.
         :return: A hyperdrive configuration object.
         """
@@ -181,6 +182,7 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         """
         When running cross validation, this method returns the dataset split that should be used for the
         currently executed cross validation split.
+
         :param dataset_split: The full dataset, split into training, validation and test section.
         :return: The dataset split with training and validation sections shuffled according to the current
         cross validation index.
@@ -192,6 +194,7 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         """
         Returns the HyperDrive config for either parameter search or cross validation
         (if number_of_cross_validation_splits > 1).
+
         :param run_config: AzureML estimator
         :return: HyperDriveConfigs
         """
@@ -244,6 +247,7 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         A hook to adjust the model configuration that is stored in the present object to match
         the torch model given in the argument. This hook is called after adjusting the model for
         mixed precision and parallel training.
+
         :param model: The torch model.
         """
         pass
@@ -273,6 +277,7 @@ class ModelTransformsPerExecutionMode:
 
         :param train: the transformation(s) to apply to the training set.
         Should be a function that takes a sample as input and outputs sample.
+
         :param val: the transformation(s) to apply to the validation set
         :param test: the transformation(s) to apply to the test set
         """

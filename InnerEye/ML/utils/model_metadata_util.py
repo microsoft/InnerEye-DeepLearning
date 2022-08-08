@@ -11,6 +11,7 @@ from InnerEye.Common.type_annotations import TupleInt3
 def random_colour(rng: random.Random) -> TupleInt3:
     """
     Generates a random colour in RGB given a random number generator
+
     :param rng: Random number generator
     :return: Tuple with random colour in RGB
     """
@@ -23,6 +24,7 @@ def random_colour(rng: random.Random) -> TupleInt3:
 def generate_random_colours_list(rng: random.Random, size: int) -> List[TupleInt3]:
     """
     Generates a list of random colours in RGB given a random number generator and the size of this list
+
     :param rng: random number generator
     :param size: size of the list
     :return: list of random colours in RGB

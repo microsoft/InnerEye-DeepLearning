@@ -54,6 +54,7 @@ class MetricsPerPatientWriter:
         """
         Writes the per-patient per-structure metrics to a CSV file.
         Sorting is done first by structure name, then by Dice score ascending.
+
         :param file_name: The name of the file to write to.
         """
         df = self.to_data_frame()
@@ -130,6 +131,7 @@ class MetricsPerPatientWriter:
 def get_number_of_voxels_per_class(labels: torch.Tensor) -> torch.Tensor:
     """
     Computes the number of voxels for each class in a one-hot label map.
+
     :param labels: one-hot label map in shape Batches x Classes x Z x Y x X or Classes x Z x Y x X
     :return: A tensor of shape [Batches x Classes] containing the number of non-zero voxels along Z, Y, X
     """
@@ -268,6 +270,7 @@ def is_missing_ground_truth(ground_truth: np.ndarray) -> bool:
     calculate_metrics_per_class in metrics.py and plot_contours_for_all_classes in plotting.py both
     check whether there is ground truth missing using this simple check for NaN value at 0, 0, 0.
     To avoid duplicate code we bring it here as a utility function.
+
     :param ground_truth: ground truth binary array with dimensions: [Z x Y x X].
     :param label_id: Integer index of the label to check.
     :returns: True if the label is missing (signified by NaN), False otherwise.

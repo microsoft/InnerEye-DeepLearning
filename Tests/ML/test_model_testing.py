@@ -37,6 +37,7 @@ def test_model_test(
         allow_partial_ground_truth: bool) -> None:
     """
     Check the CSVs (and image files) output by InnerEye.ML.model_testing.segmentation_model_test
+
     :param test_output_dirs: The fixture in conftest.py
     :param use_partial_ground_truth: Whether to remove some ground truth labels from some test users
     :param allow_partial_ground_truth: What to set the allow_incomplete_labels flag to

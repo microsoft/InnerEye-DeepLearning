@@ -275,6 +275,7 @@ class InnerEyeLightning(LightningModule):
     def validation_epoch_end(self, outputs: List[Any]) -> None:
         """
         Resets the random number generator state to what it was before the current validation epoch started.
+
         :param outputs: The list of outputs from the individual validation minibatches.
         """
         # reset the random state for training, so that we get continue from where we were before the validation step.
@@ -316,6 +317,7 @@ class InnerEyeLightning(LightningModule):
 
         :param sync_dist_override: If not None, use this value for the sync_dist argument to self.log. If None,
         set it automatically depending on the use of DDP.
+
         :param name: The name of the metric to log
         :param value: The value of the metric. This can be a tensor, floating point value, or a Metric class.
         :param is_training: If true, give the metric a "train/" prefix, otherwise a "val/" prefix.
@@ -334,6 +336,7 @@ class InnerEyeLightning(LightningModule):
         """
         Stores a set of metrics (key/value pairs) to a file logger. That file logger is either one that only holds
         training or only holds validation metrics.
+
         :param metrics: A dictionary with all the metrics to write, as key/value pairs.
         :param epoch: The epoch to which the metrics belong.
         :param is_training: If true, write the metrics to the logger for training metrics, if False, write to the logger
@@ -346,6 +349,7 @@ class InnerEyeLightning(LightningModule):
         """
         This hook is called when loading a model from a checkpoint. It just prints out diagnostics about which epoch
         created the present checkpoint.
+
         :param checkpoint: The checkpoint dictionary loaded from disk.
         """
         keys = ['epoch', 'global_step']
@@ -371,6 +375,7 @@ class InnerEyeLightning(LightningModule):
         """
         This is the shared method that handles the training (when `is_training==True`) and validation steps
         (when `is_training==False`)
+
         :param sample: The minibatch of data that should be processed.
         :param batch_index: The index of the current minibatch.
         :param is_training: If true, this has been called from `training_step`, otherwise it has been called from
@@ -382,6 +387,7 @@ class InnerEyeLightning(LightningModule):
         """
         Writes the given loss value to Lightning, labelled either "val/loss" or "train/loss".
         If this comes from a training step, then also log the learning rate.
+
         :param loss: The loss value that should be logged.
         :param is_training: If True, the logged metric will be called "train/Loss". If False, the metric will
         be called "val/Loss"

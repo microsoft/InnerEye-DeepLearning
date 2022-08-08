@@ -24,6 +24,7 @@ RANDOM_COLOUR_GENERATOR = random.Random(0)
 def generate_random_string(size: int) -> str:
     """
     Generate a random string (upper case or digits) of length size
+
     :param size: length of string to generate.
     """
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=size))
@@ -32,6 +33,7 @@ def generate_random_string(size: int) -> str:
 def generate_random_display_ids(size: int) -> List[str]:
     """
     Generate a list of random display ids of length size.
+
     :param size: length of list of random display ids to generate.
     """
     return [generate_random_string(6) for i in range(size)]
@@ -40,6 +42,7 @@ def generate_random_display_ids(size: int) -> List[str]:
 def generate_random_fill_holes(size: int) -> List[bool]:
     """
     Generate a list of random bools of length size.
+
     :param size: length of list of random booleans to generate.
     """
     return [bool(random.getrandbits(1)) for i in range(size)]

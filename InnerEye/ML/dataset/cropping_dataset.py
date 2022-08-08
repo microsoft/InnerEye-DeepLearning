@@ -95,6 +95,7 @@ class CroppingDataset(FullImageDataset):
         :param crop_size: the size of the crop to extract.
         :param center_size: the size of the center of the crop (this should be the same as the spatial dimensions
                             of the posteriors that the model produces)
+
         :param class_weights: the distribution to use for the crop center class.
         :return: CroppedSample
         """

@@ -161,8 +161,10 @@ class MultiSegmentationEncoder(DeviceAwareModule[ScalarItem, torch.Tensor]):
         """
         :param encode_channels_jointly: If False, create an encoder structure separately for each channel. If True,
         encode all channels jointly (convolution will run over all channels).
+
         :param num_image_channels: Number of channels of the input. Input is expected to be of size
         B x (num_image_channels * 10) x Z x Y x X, where B is the batch dimension.
+
         :param use_mixed_precision: If True, assume that training happens with mixed precision. Segmentations will
         be converted to float16 tensors right away. If False, segmentations will be converted to float32 tensors.
         """
@@ -194,6 +196,7 @@ class MultiSegmentationEncoder(DeviceAwareModule[ScalarItem, torch.Tensor]):
     def get_input_tensors(self, item: ScalarItem) -> List[torch.Tensor]:
         """
         Transforms a classification item into a torch.Tensor that the forward pass can consume
+
         :param item: ClassificationItem
         :return: Tensor
         """

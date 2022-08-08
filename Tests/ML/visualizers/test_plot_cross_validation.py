@@ -57,6 +57,7 @@ def download_metrics(config: PlotCrossValidationConfig) -> \
 def create_run_result_file_list(config: PlotCrossValidationConfig, folder: str) -> List[RunResultFiles]:
     """
     Creates a list of input files for cross validation analysis, from files stored inside of the test data folder.
+
     :param config: The overall cross validation config
     :param folder: The folder to read from, inside of test_data/plot_cross_validation.
     :return:
@@ -143,6 +144,7 @@ def test_metrics_preparation_for_segmentation(drop_column: Optional[str],
         def drop_csv_column(path: Path) -> None:
             """
             Load a csv file, drop a column, and save the csv file.
+
             :param path: Path to csv file.
             """
             df = pd.read_csv(path)

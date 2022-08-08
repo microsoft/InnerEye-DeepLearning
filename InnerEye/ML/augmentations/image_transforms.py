@@ -59,6 +59,7 @@ class AddGaussianNoise:
     def __init__(self, p_apply: float, std: float) -> None:
         """
         Transformation to add Gaussian noise N(0, std) to an image.
+
         :param: p_apply: probability of applying the transformation.
         :param: std: standard deviation of the gaussian noise to add to the image.
         """

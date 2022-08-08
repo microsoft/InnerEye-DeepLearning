@@ -56,6 +56,7 @@ class FullImageInferencePipelineBase(InferencePipelineBase):
         """
         Perform connected component analysis to update segmentation with largest
         connected component based on the configurations
+
         :param results: inference results to post-process
         :return: post-processed version of results
         """
@@ -199,8 +200,10 @@ class InferencePipeline(FullImageInferencePipelineBase):
         Creates an instance of the inference pipeline for a given epoch from a stored checkpoint.
         After loading, the model parameters are checked for NaN and Infinity values.
         If there is no checkpoint file for the given epoch, return None.
+
         :param path_to_checkpoint: The path to the checkpoint that we want to load
         model_config.checkpoint_folder
+
         :param model_config: Model related configurations.
         :param pipeline_id: Numeric identifier for the pipeline (useful for logging when ensembling)
         :return InferencePipeline: an instantiated inference pipeline instance, or None if there was no checkpoint

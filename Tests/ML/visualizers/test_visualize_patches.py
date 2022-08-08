@@ -29,6 +29,7 @@ def test_visualize_patch_sampling(test_output_dirs: OutputFolderForTests,
                                   labels_to_boundary: bool) -> None:
     """
     Tests if patch sampling and producing diagnostic images works as expected.
+
     :param test_output_dirs:
     :param labels_to_boundary: If true, the ground truth labels are placed close to the image boundary, so that
     crops have to be adjusted inwards. If false, ground truth labels are all far from the image boundaries.
@@ -96,6 +97,7 @@ def test_visualize_patch_sampling(test_output_dirs: OutputFolderForTests,
 def test_visualize_patch_sampling_2d(test_output_dirs: OutputFolderForTests) -> None:
     """
     Tests if patch sampling works for 2D images.
+
     :param test_output_dirs:
     """
     set_random_seed(0)

@@ -35,6 +35,7 @@ def average_metric_values(values: List[float], skip_nan_when_averaging: bool) ->
     """
     Returns the average (arithmetic mean) of the values provided. If skip_nan_when_averaging is True, the mean
     will be computed without any possible NaN values in the list.
+
     :param values: The individual values that should be averaged.
     :param skip_nan_when_averaging: If True, compute mean with any NaN values. If False, any NaN value present
     in the argument will make the function return NaN.
@@ -61,6 +62,7 @@ def get_column_name_for_logging(metric_name: Union[str, MetricType],
     """
     Computes the column name that should be used when logging a metric to disk.
     Raises a value error when no column name has yet been defined.
+
     :param metric_name: The name of the metric.
     :param hue_name: If provided will be used as a prefix hue_name/column_name
     """
@@ -104,9 +106,11 @@ class Hue:
                         labels: np.ndarray) -> None:
         """
         Adds predictions and labels for later computing the area under the ROC curve.
+
         :param subject_ids: Subject ids associated with the predictions and labels.
         :param predictions: A numpy array with model predictions, of size [N x C] for N samples in C classes, or size
         [N x 1] or size [N] for binary.
+
         :param labels: A numpy array with labels,  of size [N x C] for N samples in C classes, or size
         [N x 1] or size [N] for binary.
         """
@@ -155,6 +159,7 @@ class Hue:
     def _concat_if_needed(arrays: List[np.ndarray]) -> np.ndarray:
         """
         Joins a list of arrays into a single array, taking empty lists into account correctly.
+
         :param arrays: Array list to be concatenated.
         """
         if arrays:
@@ -193,6 +198,7 @@ class MetricsDict:
         """
         :param hues: Supported hues for this metrics dict, otherwise all records will belong to the
         default hue.
+
         :param is_classification_metrics: If this is a classification metrics dict
         """
 
@@ -210,6 +216,7 @@ class MetricsDict:
     def subject_ids(self, hue: str = DEFAULT_HUE_KEY) -> List[str]:
         """
         Return the subject ids that have metrics associated with them in this dictionary.
+
         :param hue: If provided then subject ids belonging to this hue only will be returned.
         Otherwise subject ids for the default hue will be returned.
         """
@@ -218,6 +225,7 @@ class MetricsDict:
     def get_hue_names(self, include_default: bool = True) -> List[str]:
         """
         Returns all of the hues supported by this metrics dict
+
         :param include_default: Include the default hue if True, otherwise exclude the default hue.
         """
         _hue_names = list(self.hues.keys())
@@ -228,6 +236,7 @@ class MetricsDict:
     def delete_hue(self, hue: str) -> None:
         """
         Removes all data stored for the given hue from the present object.
+
         :param hue: The hue to remove.
         """
         del self.hues[hue]
@@ -236,6 +245,7 @@ class MetricsDict:
         """
         Gets the value stored for the given metric. The method assumes that there is a single value stored for the
         metric, and raises a ValueError if that is not the case.
+
         :param metric_name: The name of the metric to retrieve.
         :param hue: The hue to retrieve the metric from.
         :return:
@@ -249,6 +259,7 @@ class MetricsDict:
     def has_prediction_entries(self, hue: str = DEFAULT_HUE_KEY) -> bool:
         """
         Returns True if the present object stores any entries for computing the Area Under Roc Curve metric.
+
         :param hue: will be used to check a particular hue otherwise default hue will be used.
         :return: True if entries exist. False otherwise.
         """
@@ -257,6 +268,7 @@ class MetricsDict:
     def values(self, hue: str = DEFAULT_HUE_KEY) -> Dict[str, Any]:
         """
         Returns values held currently in the dict
+
         :param hue: will be used to restrict values for the provided hue otherwise values in the default
         hue will be returned.
         :return: Dictionary of values for this object.
@@ -267,6 +279,7 @@ class MetricsDict:
         """
         Adds a diagnostic value to the present object. Multiple diagnostics can be stored per unique value of name,
         the values get concatenated.
+
         :param name: The name of the diagnostic value to store.
         :param value: The value to store.
         """
@@ -292,10 +305,12 @@ class MetricsDict:
                    hue: str = DEFAULT_HUE_KEY) -> None:
         """
         Adds values for a single metric to the present object, when the metric value is a scalar.
+
         :param metric_name: The name of the metric to add. This can be a string or a value in the MetricType enum.
         :param metric_value: The values of the metric, as a float or integer.
         :param skip_nan_when_averaging: If True, averaging this metric will skip any NaN (not a number) values.
         If False, NaN will propagate through the mean computation.
+
         :param hue: The hue for which this record belongs to, default hue will be used if None provided.
         """
         _metric_name = MetricsDict._metric_name(metric_name)
@@ -315,6 +330,7 @@ class MetricsDict:
                       hue: str = DEFAULT_HUE_KEY) -> None:
         """
         Deletes all values that are stored for a given metric from the present object.
+
         :param metric_name: The name of the metric to add. This can be a string or a value in the MetricType enum.
         :param hue: The hue for which this record belongs to, default hue will be used if None provided.
         """
@@ -327,11 +343,14 @@ class MetricsDict:
                         hue: str = DEFAULT_HUE_KEY) -> None:
         """
         Adds predictions and labels for later computing the area under the ROC curve.
+
         :param subject_ids: Subject ids associated with the predictions and labels.
         :param predictions: A numpy array with model predictions, of size [N x C] for N samples in C classes, or size
         [N x 1] or size [N] for binary.
+
         :param labels: A numpy array with labels,  of size [N x C] for N samples in C classes, or size
         [N x 1] or size [N] for binary.
+
         :param hue: The hue this prediction belongs to, default hue will be used if None provided.
         """
         self._get_hue(hue).add_predictions(subject_ids=subject_ids,
@@ -341,6 +360,7 @@ class MetricsDict:
     def num_entries(self, hue: str = DEFAULT_HUE_KEY) -> Dict[str, int]:
         """
         Gets the number of values that are stored for each individual metric.
+
         :param hue: The hue to count entries for, otherwise all entries will be counted.
         :return: A dictionary mapping from metric name to number of values stored.
         """
@@ -355,6 +375,7 @@ class MetricsDict:
         object.
         Computing the average will respect the skip_nan_when_averaging value that has been provided when adding
         the metric.
+
         :param add_metrics_from_entries: average existing metrics in the dict.
         :param across_hues: If True then same metric types will be averaged regardless of hues, otherwise
         separate averages for each metric type for each hue will be computed, Default is True.
@@ -434,6 +455,7 @@ class MetricsDict:
         difference between true positive rate and false positive rate is smallest. Then, computes
         the false positive rate, false negative rate and accuracy at this threshold (i.e. when the
         predicted probability is higher than the threshold the predicted label is 1 otherwise 0).
+
         :param hue: The hue to restrict the values used for computation, otherwise all values will be used.
         :returns: Tuple(optimal_threshold, false positive rate, false negative rate, accuracy)
         """
@@ -450,6 +472,7 @@ class MetricsDict:
     def get_roc_auc(self, hue: str = DEFAULT_HUE_KEY) -> float:
         """
         Computes the Area Under the ROC curve, from the entries that were supplied in the add_roc_entries method.
+
         :param hue: The hue to restrict the values used for computation, otherwise all values will be used.
         :return: The AUC score, or np.nan if no entries are available in the present object.
         """
@@ -469,6 +492,7 @@ class MetricsDict:
         """
         Computes the Area Under the Precision Recall Curve, from the entries that were supplied in the
         add_roc_entries method.
+
         :param hue: The hue to restrict the values used for computation, otherwise all values will be used.
         :return: The PR AUC score, or np.nan if no entries are available in the present object.
         """
@@ -488,6 +512,7 @@ class MetricsDict:
         """
         Computes the binary cross entropy from the entries that were supplied in the
         add_roc_entries method.
+
         :param hue: The hue to restrict the values used for computation, otherwise all values will be used.
         :return: The cross entropy score.
         """
@@ -498,6 +523,7 @@ class MetricsDict:
     def get_mean_absolute_error(self, hue: str = DEFAULT_HUE_KEY) -> float:
         """
         Get the mean absolute error.
+
         :param hue: The hue to restrict the values used for computation, otherwise all values will be used.
         :return: Mean absolute error.
         """
@@ -506,6 +532,7 @@ class MetricsDict:
     def get_mean_squared_error(self, hue: str = DEFAULT_HUE_KEY) -> float:
         """
         Get the mean squared error.
+
         :param hue: The hue to restrict the values used for computation, otherwise all values will be used.
         :return: Mean squared error
         """
@@ -514,6 +541,7 @@ class MetricsDict:
     def get_r2_score(self, hue: str = DEFAULT_HUE_KEY) -> float:
         """
         Get the R2 score.
+
         :param hue: The hue to restrict the values used for computation, otherwise all values will be used.
         :return: R2 score
         """
@@ -524,6 +552,7 @@ class MetricsDict:
         Returns an iterator that contains all (hue name, metric name, metric values) tuples that are stored in the
         present object. This method assumes that for each hue/metric combination there is exactly 1 value, and it
         throws an exception if that is more than 1 value.
+
         :param hue: The hue to restrict the values, otherwise all values will be used if set to None.
         :return: An iterator with (hue name, metric name, metric values) pairs.
         """
@@ -536,6 +565,7 @@ class MetricsDict:
         """
         Returns an iterator that contains all (hue name, metric name, metric values) tuples that are stored in the
         present object.
+
         :param hue: The hue to restrict the values, otherwise all values will be used if set to None.
         :param ensure_singleton_values_only: Ensure that each of the values return is a singleton.
         :return: An iterator with (hue name, metric name, metric values) pairs.
@@ -566,6 +596,7 @@ class MetricsDict:
     def get_predictions(self, hue: str = DEFAULT_HUE_KEY) -> np.ndarray:
         """
         Return a concatenated copy of the roc predictions stored internally.
+
         :param hue: The hue to restrict the values, otherwise all values will be used.
         :return: concatenated roc predictions as np array
         """
@@ -574,6 +605,7 @@ class MetricsDict:
     def get_labels(self, hue: str = DEFAULT_HUE_KEY) -> np.ndarray:
         """
         Return a concatenated copy of the roc labels stored internally.
+
         :param hue: The hue to restrict the values, otherwise all values will be used.
         :return: roc labels as np array
         """
@@ -583,6 +615,7 @@ class MetricsDict:
             -> List[PredictionEntry[float]]:
         """
         Gets the per-subject labels and predictions that are stored in the present object.
+
         :param hue: The hue to restrict the values, otherwise the default hue will be used.
         :return: List of per-subject labels and predictions
         """
@@ -591,6 +624,7 @@ class MetricsDict:
     def to_string(self, tabulate: bool = True) -> str:
         """
         Creates a multi-line human readable string from the given metrics.
+
         :param tabulate: If True then create a pretty printable table string.
         :return: Formatted metrics string
         """
@@ -623,6 +657,7 @@ class MetricsDict:
         """
         Get the hue record for the provided key.
         Raises a KeyError if the provided hue key does not exist.
+
         :param hue: The hue to retrieve record for
         """
         if hue not in self.hues:
@@ -654,6 +689,7 @@ class ScalarMetricsDict(MetricsDict):
                                   cross_validation_split_index: int = DEFAULT_CROSS_VALIDATION_SPLIT_INDEX) -> None:
         """
         Store metrics using the provided df_logger at subject level for classification models.
+
         :param df_logger: A data frame logger to use to write the metrics to disk.
         :param mode: Model execution mode these metrics belong to.
         :param cross_validation_split_index: cross validation split index for the epoch if performing cross val
@@ -720,6 +756,7 @@ class ScalarMetricsDict(MetricsDict):
         Given metrics dicts for execution modes and epochs, compute the aggregate metrics that are computed
         from the per-subject predictions. The metrics are written to the dataframe logger with the string labels
         (column names) taken from the `MetricType` enum.
+
         :param metrics: Mapping between epoch and subject level metrics
         :param data_frame_logger: DataFrame logger to write to and flush
         :param log_info: If True then log results as an INFO string to the default logger also.
@@ -781,6 +818,7 @@ class SequenceMetricsDict(ScalarMetricsDict):
         """
         Extracts a sequence target index from a metrics hue name. For example, from metrics hue "Seq_pos 07",
         it would return 7.
+
         :param hue_name: hue name containing sequence target index
         """
         if hue_name.startswith(SEQUENCE_POSITION_HUE_NAME_PREFIX):
@@ -807,6 +845,7 @@ class DataframeLogger:
     def flush(self, log_info: bool = False) -> None:
         """
         Save the internal records to a csv file.
+
         :param log_info: If true, write the final dataframe also to logging.info.
         """
         import pandas as pd

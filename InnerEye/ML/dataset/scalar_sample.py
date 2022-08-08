@@ -126,10 +126,12 @@ class ScalarDataSource(ScalarItemBase):
 
         :param root_path: The root path where all channel files for images are expected. This is ignored if
             file_mapping is given.
+
         :param file_mapping: A mapping from a file name stem (without extension) to its full path.
         :param load_segmentation: If True it loads segmentation if present on the same file as the image.
         :param center_crop_size: If supplied, all loaded images will be cropped to the size given here. The crop will
             be taken from the center of the image.
+
         :param image_size: If given, all loaded images will be reshaped to the size given here, prior to the
             center crop.
         :return: An instance of ClassificationItem, with the same label and numerical_non_image_features fields,
@@ -173,6 +175,7 @@ class ScalarDataSource(ScalarItemBase):
 
         :param root_path: The root path where all channel files for images are expected. This is ignored if
             file_mapping is given.
+
         :param file_mapping: A mapping from a file name stem (without extension) to its full path.
         """
         full_channel_files: List[Path] = []
@@ -194,6 +197,7 @@ class ScalarDataSource(ScalarItemBase):
         :param file: Image filepath relative to the dataset folder
         :param root_path: The root path where all channel files for images are expected. This is ignored if
             file_mapping is given.
+
         :param file_mapping: A mapping from a file name stem (without extension) to its full path.
         """
         if file is None:

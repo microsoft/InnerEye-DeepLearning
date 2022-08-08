@@ -110,10 +110,12 @@ class Runner:
     """
     This class contains the high-level logic to start a training run: choose a model configuration by name,
     submit to AzureML if needed, or otherwise start the actual training and test loop.
+
     :param project_root: The root folder that contains all of the source code that should be executed.
     :param yaml_config_file: The path to the YAML file that contains values to supply into sys.argv.
     :param post_cross_validation_hook: A function to call after waiting for completion of cross validation runs.
     The function is called with the model configuration and the path to the downloaded and merged metrics files.
+
     :param model_deployment_hook: an optional function for deploying a model in an application-specific way.
     If present, it should take a model config (SegmentationModelBase), an AzureConfig, and an AzureML
     Model as arguments, and return an optional Path and a further object of any type.
@@ -378,6 +380,7 @@ class Runner:
     def run_in_situ(self, azure_run_info: AzureRunInfo) -> None:
         """
         Actually run the AzureML job; this method will typically run on an Azure VM.
+
         :param azure_run_info: Contains all information about the present run in AzureML, in particular where the
         datasets are mounted.
         """
@@ -423,6 +426,7 @@ class Runner:
 def default_post_cross_validation_hook(config: ModelConfigBase, root_folder: Path) -> None:
     """
     A function to run after cross validation results have been aggregated, before they are uploaded to AzureML.
+
     :param config: The configuration of the model that should be trained.
     :param root_folder: The folder with all aggregated and per-split files.
     """

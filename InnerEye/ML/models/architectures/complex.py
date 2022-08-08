@@ -27,9 +27,11 @@ class ComplexModel(BaseSegmentationModel):
                  crop_size_constraints: Optional[CropSizeConstraints] = None):
         """
         Creates a new instance of the class.
+
         :param args: The full model configuration.
         :param full_channels_list: A vector of channel sizes. First entry is the number of image channels,
         then all feature channels, then the number of classes.
+
         :param network_definition:
         :param crop_size_constraints: The size constraints for the training crop size.
         """

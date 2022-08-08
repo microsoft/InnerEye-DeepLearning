@@ -72,6 +72,7 @@ def report_structure_extremes(dataset_dir: str, azure_config: AzureConfig) -> No
     Writes structure-extreme lines for the subjects in a directory.
     If there are any structures with missing slices, a ValueError is raised after writing all the lines.
     This allows a build failure to be triggered when such structures exist.
+
     :param azure_config: An object with all necessary information for accessing Azure.
     :param dataset_dir: directory containing subject subdirectories with integer names.
     """

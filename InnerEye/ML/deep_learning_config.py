@@ -117,12 +117,15 @@ class DeepLearningFileSystemConfig(Parameterized):
         Creates a new object that holds output folder configurations. When running inside of AzureML, the output
         folders will be directly under the project root. If not running inside AzureML, a folder with a timestamp
         will be created for all outputs and logs.
+
         :param project_root: The root folder that contains the code that submitted the present training run.
         When running inside the InnerEye repository, it is the git repo root. When consuming InnerEye as a package,
         this should be the root of the source code that calls the package.
+
         :param is_offline_run: If true, this is a run outside AzureML. If False, it is inside AzureML.
         :param model_name: The name of the model that is trained. This is used to generate a run-specific output
         folder.
+
         :param output_to: If provided, the output folders will be created as a subfolder of this argument. If not
         given, the output folders will be created inside of the project root.
         """
@@ -165,6 +168,7 @@ class DeepLearningFileSystemConfig(Parameterized):
         """
         Creates a new output folder configuration, where both outputs and logs go into the given subfolder inside
         the present outputs folder.
+
         :param subfolder: The subfolder that should be created.
         :return:
         """
@@ -281,6 +285,7 @@ class WorkflowParams(param.Parameterized):
                               data_split: ModelExecutionMode) -> bool:
         """
         Returns True if inference is required for this model_proc (single or ensemble) and data_split (Train/Val/Test).
+
         :param model_proc: Whether we are testing an ensemble or single model.
         :param data_split: Indicates which of the 3 sets (training, test, or validation) is being processed.
         :return: True if inference required.
@@ -442,6 +447,7 @@ class OutputParams(param.Parameterized):
     def set_output_to(self, output_to: PathOrString) -> None:
         """
         Adjusts the file system settings in the present object such that all outputs are written to the given folder.
+
         :param output_to: The absolute path to a folder that should contain the outputs.
         """
         if isinstance(output_to, Path):
@@ -453,6 +459,7 @@ class OutputParams(param.Parameterized):
         """
         Creates new file system settings (outputs folder, logs folder) based on the information stored in the
         present object. If any of the folders do not yet exist, they are created.
+
         :param project_root: The root folder for the codebase that triggers the training run.
         """
         self.file_system_config = DeepLearningFileSystemConfig.create(
@@ -783,6 +790,7 @@ class DeepLearningConfig(WorkflowParams,
     def dataset_data_frame(self, data_frame: Optional[DataFrame]) -> None:
         """
         Sets the pandas data frame that the model uses.
+
         :param data_frame: The data frame to set.
         """
         self._dataset_data_frame = data_frame
@@ -844,6 +852,7 @@ class DeepLearningConfig(WorkflowParams,
         See https://pytorch.org/tutorials/beginner/saving_loading_models.html#warmstarting-model-using-parameters
         -from-a-different-model
         for an explanation on why strict=False is useful when loading parameters from other models.
+
         :param path_to_checkpoint: Path to the checkpoint file.
         :return: Dictionary with model and optimizer state dicts. The dict should have at least the following keys:
         1. Key ModelAndInfo.MODEL_STATE_DICT_KEY and value set to the model state dict.

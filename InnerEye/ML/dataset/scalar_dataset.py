@@ -52,6 +52,7 @@ def extract_label_classification(label_string: str, sample_id: str, num_classes:
     :param num_classes: Number of classes. This should be equal the size of the model output.
         For binary classification tasks, num_classes should be one. For multilabel classification tasks, num_classes
         should correspond to the number of label classes in the problem.
+
     :param is_classification_dataset: If the model is a classification model
     :return: A list of floats with the same size as num_classes
     """
@@ -123,6 +124,7 @@ def _get_single_channel_row(subject_rows: pd.DataFrame,
     :param subject_rows: A set of rows all belonging to the same subject.
     :param channel: The value to look for in the `channel_column` column. This can be null. If it is null,
     the input `subject_rows` is expected to have exactly 1 row.
+
     :param subject_id: A string describing the presently processed subject. This is only used for error reporting.
     :return: A dictionary mapping from column names to values, created from the unique row that was found.
     """
@@ -190,17 +192,21 @@ def load_single_data_source(subject_rows: pd.DataFrame,
     :param subject_id: The identifier of the subject that is being processed.
     :param image_channels: The names of all channels (stored in the CSV_CHANNEL_HEADER column of the dataframe)
         that are expected to be loaded from disk later because they are large images.
+
     :param image_file_column: The name of the column that contains the image file names.
     :param label_channels: The name of the channel where the label scalar or vector is read from.
     :param label_value_column: The column that contains the value for the label scalar or vector.
     :param non_image_feature_channels: non_image_feature_channels: A dictonary of the names of all channels where
         additional scalar values should be read from. THe keys should map each feature to its channels.
+
     :param numerical_columns: The names of all columns where additional scalar values should be read from.
     :param categorical_data_encoder: Encoding scheme for categorical data.
     :param is_classification_dataset: If True, the dataset will be used in a classification model. If False,
         assume that the dataset will be used in a regression model.
+
     :param transform_labels: a label transformation or a list of label transformation to apply to the labels.
         If a list is provided, the transformations are applied in order from left to right.
+
     :param sequence_position_numeric: Numeric position of the data source in a data sequence. Assumed to be
         a non-sequential dataset item if None provided (default).
     :return: A ScalarDataSource containing the specified data.
@@ -355,14 +361,18 @@ class DataSourceReader():
         :param label_channels: The name of the channel where the label scalar or vector is read from.
         :param transform_labels: a label transformation or a list of label transformation to apply to the labels.
         If a list is provided, the transformations are applied in order from left to right.
+
         :param non_image_feature_channels: non_image_feature_channels: A dictionary of the names of all channels where
         additional scalar values should be read from. The keys should map each feature to its channels.
+
         :param numerical_columns: The names of all columns where additional scalar values should be read from.
         :param sequence_column: The name of the column that contains the sequence index, that will be stored in
         metadata.sequence_position. If this column name is not provided, the sequence_position will be 0.
+
         :param subject_column: The name of the column that contains the subject identifier
         :param channel_column: The name of the column that contains the row identifier ("channels")
             that are expected to be loaded from disk later because they are large images.
+
         :param is_classification_dataset: If the current dataset is classification or not.
         :param categorical_data_encoder: Encoding scheme for categorical data.
         """
@@ -554,6 +564,7 @@ def is_valid_item_index(item: ScalarDataSource,
     :param item: The item to check.
     :param min_sequence_position_value: Check if the item has a metadata.sequence_position that is at least
         the value given here. Default is 0.
+
     :param max_sequence_position_value: If provided then this is the maximum sequence position the sequence can
         end with. Longer sequences will be truncated. None is default.
     :return: True if the item has a valid index.
@@ -578,8 +589,10 @@ def filter_valid_classification_data_sources_items(items: Iterable[ScalarDataSou
     :param items: The list of items to filter.
     :param min_sequence_position_value: Restrict the data to items with a metadata.sequence_position that is at least
         the value given here. Default is 0.
+
     :param max_sequence_position_value: If provided then this is the maximum sequence position the sequence can
         end with. Longer sequences will be truncated. None is default.
+
     :param file_to_path_mapping: A mapping from a file name stem (without extension) to its full path.
     :return: A list of items, all of which are valid now.
     """
@@ -643,6 +656,7 @@ class ScalarItemAugmentation:
         """
         :param image_transform: transformation function to apply to images field. If None, images field is unchanged by
         call.
+
         :param segmentation_transform: transformation function to apply to segmentations field. If None segmentations
         field is unchanged by call.
         """
@@ -771,6 +785,7 @@ class ScalarDataset(ScalarDatasetBase):
         :param data_frame: The dataframe to read from.
         :param feature_statistics: If given, the normalization factor for the non-image features is taken
         from the values provided. If None, the normalization factor is computed from the data in the present dataset.
+
         :param sample_transform: Sample transforms that should be applied.
         :param name: Name of the dataset, used for diagnostics logging
         """

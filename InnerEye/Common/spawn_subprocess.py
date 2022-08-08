@@ -14,6 +14,7 @@ def spawn_and_monitor_subprocess(process: str,
     """
     Helper function to start a subprocess, passing in a given set of arguments, and monitor it.
     Returns the subprocess exit code and the list of lines written to stdout.
+
     :param process: The name and path of the executable to spawn.
     :param args: The args to the process.
     :param env: The environment variables that the new process will run with. If not provided, copy the

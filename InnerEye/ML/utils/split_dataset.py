@@ -255,6 +255,7 @@ class DatasetSplits:
         :param subject_column: Subject id column name
         :param group_column: grouping column name; if given, samples from each group will always be
             in the same subset (train, val, or test) and cross-validation fold.
+
         :param proportion_val: proportion for the validation set.
         :param shuffle: If True the subjects in the dataframe will be shuffle before performing splits.
         :param random_seed: Random seed to be used for shuffle 0 is default.
@@ -355,8 +356,10 @@ class DatasetSplits:
         :param random_seed: Random seed to be used for shuffle 0 is default.
         :param exclude_institutions: If given, all subjects where institutionId has the given value will be
             excluded from train, test, and validation set.
+
         :param institutions_for_test_only: If given, all subjects where institutionId has the given value will be
             placed only in the test set.
+
         :param subject_ids_for_test_only: If given, all images with the provided subject Ids will be placed in the
             test set.
         :return: Data splits with respected dataset split proportions per institution.

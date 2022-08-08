@@ -60,6 +60,7 @@ class SurfaceDistanceConfig(GenericConfig):
 def get_first_child_run(azure_config: AzureConfig) -> Run:
     """
     Download first child run in order to download data
+
     :param azure_config:
     :return: first child run
     """
@@ -74,6 +75,7 @@ def load_ground_truth_from_run(model_config: SegmentationModelBase, sd_config: S
                                structure: str) -> np.ndarray:
     """
     For outliers, load individual ground truth file for a given dataset, subject ID and structure name
+
     :param model_config:
     :param sd_config:
     :param subject_id: ID of the given subject
@@ -92,6 +94,7 @@ def get_run_output_dir(azure_config: AzureConfig, model_config: SegmentationMode
     """
     Get the directory where Azure run's output data will be stored. the total filepath will depend on which
     container we download data from.
+
     :param azure_config:
     :param model_config:
     :return output_dir: directory that all artifact paths use as a prefix
@@ -108,6 +111,7 @@ def dir_for_subject(azure_config: AzureConfig, model_config: SegmentationModelBa
     """
     Combine the local data dir and the Azure dir we are downloading images
     from to get the directory the images for a subject will be downlaoded to
+
     :param azure_config: AzureConfig
     :param model_config: Config
     :param prefix:
@@ -123,6 +127,7 @@ def dir_for_subject(azure_config: AzureConfig, model_config: SegmentationModelBa
 def get_metrics_path(azure_config: AzureConfig, model_config: SegmentationModelBase) -> Path:
     """
     Get path to metrics.csv file for a downlaoded run, for the purpose of determining outliers
+
     :param azure_config: AzureConfig
     :param model_config: Config
     :return:
@@ -141,6 +146,7 @@ def get_metrics_path(azure_config: AzureConfig, model_config: SegmentationModelB
 def get_subject_prefix(model_config: SegmentationModelBase, train_mode: ModelExecutionMode, subject_id: int) -> Path:
     """
     Returns the path to subject dir for a given model and train mode
+
     :param model_config: Config
     :param train_mode: Model execution mode -i.e. train, test or val
     :param subject_id: ID of the subject
@@ -156,6 +162,7 @@ def initialise_surface_distance_dictionary(annotators: List[str], arr_shape: Tup
     Given a list of annotators and the image size expected for all surface distance plots,
     return a dictionary where keys are annotators and values are zeros in shape of entire image,
     so that surface distances for each structure can be added to one plot.
+
     :param annotators: List of the annotator names as they appear in filepaths
     :param arr_shape: Shape of the array to be intialized
     :return:
@@ -166,6 +173,7 @@ def initialise_surface_distance_dictionary(annotators: List[str], arr_shape: Tup
 def get_majority_vote(arr_list: List[np.ndarray]) -> np.ndarray:
     """
     Given a list of label arrays, get the majority vote at each voxel
+
     :param arr_list:
     :return:
     """
@@ -179,6 +187,7 @@ def get_annotations_and_majority_vote(model_config: SegmentationModelBase, annot
                                       ) -> np.ndarray:
     """
     Load each annotation and calculate the 'gold standard' segmentation (with majority voting)
+
     :param model_config: Config
     :param annotators: List of the annotator names as they appear in filepaths
     :param structure_name: Name of the anatomical structure
@@ -199,6 +208,7 @@ def get_annotations_and_majority_vote(model_config: SegmentationModelBase, annot
 def extract_border(img: np.ndarray, connectivity: int = 1) -> np.ndarray:
     """
     Get contour by calculating eroded version of the image and subtracting from the original.
+
     :param img: Array containing structure from which to extract the border
     :param connectivity: integer determining which pixels are considered neighbours of the central element,
     ranging from 1 = no diagonal elements and rank = all elements
@@ -218,6 +228,7 @@ def calculate_surface_distances(ground_truth: np.ndarray, pred: np.ndarray, voxe
                                 ) -> np.ndarray:
     """
     Calculate the Euclidean surface distance between a given prediction and the 'ground truth'
+
     :param ground_truth: 3D binary array (X x Y x Z) of ground truth segmentation
     :param pred: 3D binary array (X x Y x Z) of predicted segmentation
     :param voxel_spacing: voxel spacing, taken from the image header (transposed if applicable)

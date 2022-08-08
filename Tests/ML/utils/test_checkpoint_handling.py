@@ -28,6 +28,7 @@ EXTERNAL_WEIGHTS_URL_EXAMPLE = "https://download.pytorch.org/models/resnet18-5c1
 def create_checkpoint_file(file: Path) -> None:
     """
     Creates a very simple torch checkpoint file. The only requirement is that it can safely pass torch.load.
+
     :param file: The path of the checkpoint file that should be written.
     """
     weights = {'state_dict': {'foo': torch.ones((2, 2))}}

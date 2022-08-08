@@ -237,10 +237,13 @@ class SSLContainer(LightningContainer):
                         is_ssl_encoder_module: bool) -> Tuple[Any, Any]:
         """
         Returns the transformation pipeline for training and validation.
+
         :param augmentation_config: optional yaml config defining strength of augmenentations. Ignored for CIFAR
         examples.
+
         :param dataset_name: name of the dataset, value has to be in SSLDatasetName, determines which transformation
         pipeline to return.
+
         :param is_ssl_encoder_module: if True the transformation pipeline will yield two versions of the image it is
         applied on and it applies the training transformations also at validation time. Note that if your
         transformation does not contain any randomness, the pipeline will return two identical copies. If False, it

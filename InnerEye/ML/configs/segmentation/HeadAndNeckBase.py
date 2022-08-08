@@ -51,14 +51,19 @@ class HeadAndNeckBase(SegmentationModelBase):
         :param ground_truth_ids: List of ground truth ids.
         :param ground_truth_ids_display_names: Optional list of ground truth id display names. If
         present then must be of the same length as ground_truth_ids.
+
         :param colours: Optional list of colours. If
         present then must be of the same length as ground_truth_ids.
+
         :param fill_holes: Optional list of fill hole flags. If
         present then must be of the same length as ground_truth_ids.
+
         :param roi_interpreted_types: Optional list of roi_interpreted_types. If
         present then must be of the same length as ground_truth_ids.
+
         :param class_weights: Optional list of class weights. If
         present then must be of the same length as ground_truth_ids + 1.
+
         :param slice_exclusion_rules: Optional list of SliceExclusionRules.
         :param summed_probability_rules: Optional list of SummedProbabilityRule.
         :param num_feature_channels: Optional number of feature channels.

@@ -77,8 +77,10 @@ class SubmitForInferenceConfig(GenericConfig):
 def copy_image_file(image: Path, destination_folder: Path, use_dicom: bool) -> Path:
     """
     Copy the source image file into the given folder destination_folder.
+
     :param image: image file, must be Gzipped Nifti format with name ending .nii.gz if use_dicom=False or .zip
     otherwise.
+
     :param destination_folder: top-level directory to copy image into (as test.nii.gz or test.zip)
     :param use_dicom: True to treat as a zip file.
     :return: The full path of the image in the destination_folder
@@ -94,8 +96,10 @@ def download_files_from_model(model_sas_urls: Dict[str, str], base_name: str, di
     """
     Identifies all the files in an AzureML model that have a given file name (ignoring path), and downloads them
     to a folder.
+
     :param model_sas_urls: The files making up the model, as a mapping from file name to a URL with
     an SAS token.
+
     :param base_name: The file name of the files to download.
     :param dir_path: The folder into which the files will be written. All downloaded files will keep the relative
     path that they also have in the model.
@@ -143,6 +147,7 @@ def choose_download_path(result_image_name: str, download_folder: Path) -> Path:
 def submit_for_inference(args: SubmitForInferenceConfig, azure_config: AzureConfig) -> Optional[Path]:
     """
     Create and submit an inference to AzureML, and optionally download the resulting segmentation.
+
     :param azure_config: An object with all necessary information for accessing Azure.
     :param args: configuration, see SubmitForInferenceConfig
     :return: path to downloaded segmentation on local disc, or None if none.

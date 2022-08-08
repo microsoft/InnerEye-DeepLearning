@@ -19,9 +19,11 @@ def plot_reliability_curve(
     Plots reliability curves for multiple models to observe model calibration errors.
     Inputs can be either 1-D or a list of 1-D arrays depending on the use case.
     List elements are intended to be used for different model types, e.g. y_predict: (num_samples, num_models)
+
     :param y_predict: Model predictions, either a 1D array (num_samples) or list of 1D arrays (num_samples, num_models)
     :param y_true: Target values {0, 1}  either a 1D array (num_samples) or list of 1D arrays (num_samples, num_models)
                    Assuming a binary classification case
+
     :param num_bins: Number of bins used for model prediction probabilities.
     :param normalise: If set to true, predictions are normalised to range [0, 1]
 
