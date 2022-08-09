@@ -307,16 +307,19 @@ def check_properties_are_not_none(obj: Any, ignore: Optional[List[str]] = None) 
 
 def initialize_instance_variables(func: Callable) -> Callable:
     """
-    Automatically assigns the input parameters.
+    Automatically assigns the input parameters. Example usage::
 
-    >>> class process:
-    ...     @initialize_instance_variables
-    ...     def __init__(self, cmd, reachable=False, user='root'):
-    ...         pass
-    >>> p = process('halt', True)
-    >>> # noinspection PyUnresolvedReferences
-    >>> p.cmd, p.reachable, p.user
-    ('halt', True, 'root')
+        class process:
+            @initialize_instance_variables
+            def __init__(self, cmd, reachable=False, user='root'):
+                pass
+        p = process('halt', True)
+        print(p.cmd, p.reachable, p.user)
+
+    Outputs::
+
+        ('halt', True, 'root')
+
     """
     names, varargs, keywords, defaults, _, _, _ = inspect.getfullargspec(func)
 

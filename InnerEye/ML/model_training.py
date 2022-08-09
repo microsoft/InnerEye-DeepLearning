@@ -326,7 +326,7 @@ def model_train(checkpoint_path: Optional[Path],
 def aggregate_and_create_subject_metrics_file(outputs_folder: Path) -> None:
     """
     This functions takes all the subject metrics file written by each GPU (one file per GPU) and aggregates them into
-    one single metrics file. Results is saved in config.outputs_folder / mode.value / SUBJECT_METRICS_FILE_NAME.
+    one single metrics file. Results is saved in ``config.outputs_folder / mode.value / SUBJECT_METRICS_FILE_NAME``.
     This is done for the metrics files for training and for validation data separately.
 
     :param config: model config

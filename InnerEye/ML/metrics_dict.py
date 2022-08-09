@@ -713,8 +713,9 @@ class ScalarMetricsDict(MetricsDict):
         """
         Helper function to create BinaryClassificationMetricsDict grouped by ModelExecutionMode and epoch
         from a given dataframe. The following columns must exist in the provided data frame:
-        >>> LoggingColumns.DataSplit
-        >>> LoggingColumns.Epoch
+
+        * LoggingColumns.DataSplit
+        * LoggingColumns.Epoch
 
         :param df: DataFrame to use for creating the metrics dict.
         :param is_classification_metrics: If the current metrics are for classification or not.

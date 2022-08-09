@@ -2,6 +2,7 @@ Lightning Components
 ================================
 
 .. automodule:: InnerEye.ML.lightning_base
+    :exclude-members: configure_optimizers
 
 .. automodule:: InnerEye.ML.lightning_container
 

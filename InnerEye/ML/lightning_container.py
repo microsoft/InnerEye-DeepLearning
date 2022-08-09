@@ -31,16 +31,18 @@ class InnerEyeInference(abc.ABC):
     form of inference is slightly different from what PyTorch Lightning does in its `Trainer.test` method. In
     particular, this inference can be executed on any of the training, validation, or test set.
 
-    The inference code calls the methods in this order:
+    The inference code calls the methods in this order::
 
-    model.on_inference_start()
-    for dataset_split in [Train, Val, Test]
-        model.on_inference_epoch_start(dataset_split, is_ensemble_model=False)
-        for batch_idx, item in enumerate(dataloader[dataset_split])):
-            model_outputs = model.forward(item)
-            model.inference_step(item, batch_idx, model_outputs)
-        model.on_inference_epoch_end()
-    model.on_inference_end()
+        model.on_inference_start()
+
+        for dataset_split in [Train, Val, Test]
+            model.on_inference_epoch_start(dataset_split, is_ensemble_model=False)
+            for batch_idx, item in enumerate(dataloader[dataset_split])):
+                model_outputs = model.forward(item)
+                model.inference_step(item, batch_idx, model_outputs)
+            model.on_inference_epoch_end()
+        model.on_inference_end()
+
     """
 
     def on_inference_start(self) -> None:

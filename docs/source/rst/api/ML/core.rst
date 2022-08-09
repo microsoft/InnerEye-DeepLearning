@@ -1,4 +1,4 @@
-InnerEye/ML Core
+ML Core
 ================
 
 .. toctree::
