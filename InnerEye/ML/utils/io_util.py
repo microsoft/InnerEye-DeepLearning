@@ -636,7 +636,7 @@ def store_binary_mask_as_nifti(image: np.ndarray, header: ImageHeader, file_name
     :param header: The image header
     :param file_name: The name of the file for this image.
     :return: the path to the saved image
-    :raises: when image is not binary
+    :raises Exception: when image is not binary
     """
     if not is_binary_array(image):
         raise Exception("Array values must be binary.")
