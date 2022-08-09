@@ -29,13 +29,13 @@ class UNet2D(UNet3D):
 
         :param input_image_channels: The number of image channels that the model should consume.
         :param initial_feature_channels: The number of feature maps used in the model in the first convolution layer.
-        Subsequent layers will contain number of feature maps that are multiples of `initial_channels`
+            Subsequent layers will contain number of feature maps that are multiples of `initial_channels`
         (2^(image_level) * initial_channels)
 
         :param num_classes: Number of output classes
         :param num_downsampling_paths: Number of image levels used in Unet (in encoding and decoding paths)
         :param downsampling_dilation: An additional dilation that is used in the second convolution layer in each
-        of the encoding blocks of the UNet. This can be used to increase the receptive field of the network. A good
+            of the encoding blocks of the UNet. This can be used to increase the receptive field of the network. A good
         choice is (1, 2, 2), to increase the receptive field only in X and Y.
 
         :param padding_mode: The type of padding that should be applied.

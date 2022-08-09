@@ -23,7 +23,7 @@ def create_checkpoints(model_config: SegmentationModelBase, is_ensemble: bool) -
 
     :param model_config: The model configuration, where a correct output folder must be set.
     :param is_ensemble: If true, 2 checkpoints (simulating an ensemble run) will be created. If false, only a
-    single checkpoint will be created.
+        single checkpoint will be created.
     :return: Tuple[absolute checkpoint paths, relative checkpoint paths]
     """
     # To simulate ensemble models, there are two checkpoints, one in the root dir and one in a folder

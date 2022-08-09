@@ -112,7 +112,7 @@ def create_datafactory_and_run(files_and_tokens: Dict[str, str],
     :param location: The Azure location in which the Data Factory should be created (for example, "westeurope")
     :param files_and_tokens: A mapping from file name (like knee.tar.gz) to AWS access token.
     :param is_unittest: If True, download a small tar.gz file from github. If False, download the "real" fastMRI
-    datafiles from AWS.
+        datafiles from AWS.
 
     :param connection_string: The connection string of the Azure storage where the downloaded data should be stored.
     """
@@ -172,7 +172,7 @@ def create_datafactory_and_run(files_and_tokens: Dict[str, str],
         compressed raw data will be written to 'foo_compressed'.
 
         :param source_file_or_tuple: The name of the .tar.gz or .tar file to download, without any access tokens.
-        If the name is a Tuple[str, str], the second tuple element is the "real" extension, for files where the
+            If the name is a Tuple[str, str], the second tuple element is the "real" extension, for files where the
         extension is misleading.
 
         :param target_folder: The folder prefix in the target storage account.

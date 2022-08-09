@@ -77,7 +77,7 @@ def get_best_epoch_results_path(mode: ModelExecutionMode,
 
     :param mode: model execution mode
     :param model_proc: whether this is for an ensemble or single model. If ensemble, we return a different path
-    to avoid colliding with the results from the single model that may have been created earlier in the same run.
+        to avoid colliding with the results from the single model that may have been created earlier in the same run.
     """
     subpath = Path(BEST_EPOCH_FOLDER_NAME) / mode.value
     if model_proc == ModelProcessing.ENSEMBLE_CREATION:
@@ -140,7 +140,7 @@ def logging_to_stdout(log_level: Union[int, str] = logging.INFO) -> None:
     Logging will use a timestamp as the prefix, using UTC.
 
     :param log_level: The logging level. All logging message with a level at or above this level will be written to
-    stdout. log_level can be numeric, or one of the pre-defined logging strings (INFO, DEBUG, ...).
+        stdout. log_level can be numeric, or one of the pre-defined logging strings (INFO, DEBUG, ...).
     """
     log_level = standardize_log_level(log_level)
     logger = logging.getLogger()

@@ -185,7 +185,7 @@ def _pad_images(images: np.ndarray,
 
     :param images: the image(s) to be padded, in shape: Z x Y x X or batched in shape: Batches x Z x Y x X.
     :param padding_vector: padding before and after in each dimension eg: ((2,2), (3,3), (2,0))
-    will pad 4 pixels in Z (2 on each side), 6 pixels in Y (3 on each side)
+        will pad 4 pixels in Z (2 on each side), 6 pixels in Y (3 on each side)
     and 2 in X (2 on the left and 0 on the right).
 
     :param padding_mode: a valid numpy padding mode.
@@ -210,7 +210,7 @@ def posteriors_to_segmentation(posteriors: NumpyOrTorch) -> NumpyOrTorch:
     Perform argmax on the class dimension.
 
     :param posteriors: Confidence maps [0,1] for each patch per class in format: Batches x Class x Z x Y x X
-    or Class x Z x Y x X for non-batched input
+        or Class x Z x Y x X for non-batched input
     :returns segmentation: argmaxed posteriors with each voxel belonging to a single class: Batches x Z x Y x X
     or Z x Y x X for non-batched input
     """
@@ -246,7 +246,7 @@ def largest_connected_components(img: np.ndarray,
 
     :param img: np.ndarray
     :param deletion_limit: if set, a component is deleted only if its voxel count as a proportion of all the
-    True voxels in the input is less than deletion_limit.
+        True voxels in the input is less than deletion_limit.
 
     :param class_index: Optional. Can be used to provide a class index for logging purposes if the image contains
      only pixels from a specific class.
@@ -288,7 +288,7 @@ def extract_largest_foreground_connected_component(
 
     :param multi_label_array: An array of class assignments, i.e. value c at (z, y, x) is a class c.
     :param restrictions: restrict processing to a subset of the classes (if provided). Each element is a
-    pair (class_index, threshold) where threshold may be None.
+        pair (class_index, threshold) where threshold may be None.
     :return: An array of class assignments
     """
     if restrictions is None:
@@ -352,7 +352,7 @@ def multi_label_array_to_binary(array: np.ndarray, num_classes_including_backgro
 
     :param array: An array of class assignments.
     :param num_classes_including_background: The number of class assignments to search for. If 3 classes,
-    the class assignments to search for will be 0, 1, and 2.
+        the class assignments to search for will be 0, 1, and 2.
     :return: an array of size (num_classes_including_background, array.shape)
     """
     return np.stack(list(binaries_from_multi_label_array(array, num_classes_including_background)))
@@ -505,7 +505,7 @@ def compute_uncertainty_map_from_posteriors(posteriors: np.ndarray) -> np.ndarra
     Normalized Shannon Entropy:  https://en.wiktionary.org/wiki/Shannon_entropy
 
     :param posteriors: Normalized probability distribution in range [0, 1] for each class,
-    in shape: Class x Z x Y x X
+        in shape: Class x Z x Y x X
     :return: Shannon Entropy for each voxel, shape: Z x Y x X expected range is [0,1] where 1 represents
     low confidence or uniform posterior distribution across classes.
     """
@@ -520,11 +520,11 @@ def gaussian_smooth_posteriors(posteriors: np.ndarray, kernel_size_mm: TupleFloa
     Performs Gaussian smoothing on posteriors
 
     :param posteriors: Normalized probability distribution in range [0, 1] for each class,
-    in shape: Class x Z x Y x X
+        in shape: Class x Z x Y x X
 
     :param kernel_size_mm: The size of the smoothing kernel in mm to be used in each dimension (Z, Y, X)
     :param voxel_spacing_mm: Voxel spacing to use to map from mm space to pixel space for the
-    Gaussian sigma parameter for each dimension in (Z x Y x X) order.
+        Gaussian sigma parameter for each dimension in (Z x Y x X) order.
     :return:
     """
     check_if_posterior_array(posteriors)
@@ -565,7 +565,7 @@ def segmentation_to_one_hot(segmentation: torch.Tensor,
 
     :param segmentation: A segmentation as a multi-label map of shape [B, C, Z, Y, X]
     :param use_gpu: If true, and the input is not yet on the GPU, move the intermediate tensors to the GPU. The result
-    will be on the same device as the argument `segmentation`
+        will be on the same device as the argument `segmentation`
 
     :param result_dtype: The torch data type that the result tensor should have. This would be either float16 or float32
     :return: A torch tensor with one-hot encoding of the segmentation of shape

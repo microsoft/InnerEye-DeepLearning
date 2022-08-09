@@ -123,7 +123,7 @@ def _get_single_channel_row(subject_rows: pd.DataFrame,
 
     :param subject_rows: A set of rows all belonging to the same subject.
     :param channel: The value to look for in the `channel_column` column. This can be null. If it is null,
-    the input `subject_rows` is expected to have exactly 1 row.
+        the input `subject_rows` is expected to have exactly 1 row.
 
     :param subject_id: A string describing the presently processed subject. This is only used for error reporting.
     :return: A dictionary mapping from column names to values, created from the unique row that was found.
@@ -360,14 +360,14 @@ class DataSourceReader():
         :param image_channels: The names of all channels (stored in the CSV_CHANNEL_HEADER column of the dataframe)
         :param label_channels: The name of the channel where the label scalar or vector is read from.
         :param transform_labels: a label transformation or a list of label transformation to apply to the labels.
-        If a list is provided, the transformations are applied in order from left to right.
+            If a list is provided, the transformations are applied in order from left to right.
 
         :param non_image_feature_channels: non_image_feature_channels: A dictionary of the names of all channels where
-        additional scalar values should be read from. The keys should map each feature to its channels.
+            additional scalar values should be read from. The keys should map each feature to its channels.
 
         :param numerical_columns: The names of all columns where additional scalar values should be read from.
         :param sequence_column: The name of the column that contains the sequence index, that will be stored in
-        metadata.sequence_position. If this column name is not provided, the sequence_position will be 0.
+            metadata.sequence_position. If this column name is not provided, the sequence_position will be 0.
 
         :param subject_column: The name of the column that contains the subject identifier
         :param channel_column: The name of the column that contains the row identifier ("channels")
@@ -655,10 +655,10 @@ class ScalarItemAugmentation:
                  segmentation_transform: Optional[Callable] = None) -> None:
         """
         :param image_transform: transformation function to apply to images field. If None, images field is unchanged by
-        call.
+            call.
 
         :param segmentation_transform: transformation function to apply to segmentations field. If None segmentations
-        field is unchanged by call.
+            field is unchanged by call.
         """
         self.image_transform = image_transform
         self.segmentation_transform = segmentation_transform
@@ -784,7 +784,7 @@ class ScalarDataset(ScalarDatasetBase):
         :param args: The model configuration object.
         :param data_frame: The dataframe to read from.
         :param feature_statistics: If given, the normalization factor for the non-image features is taken
-        from the values provided. If None, the normalization factor is computed from the data in the present dataset.
+            from the values provided. If None, the normalization factor is computed from the data in the present dataset.
 
         :param sample_transform: Sample transforms that should be applied.
         :param name: Name of the dataset, used for diagnostics logging

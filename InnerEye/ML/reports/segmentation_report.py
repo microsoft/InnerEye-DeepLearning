@@ -59,7 +59,7 @@ def display_metric(df: pd.DataFrame,
     :param metric_name: The metric to sort by.
     :param outlier_range: The standard deviation range data points must fall outside of to be considered an outlier
     :param high_values_are_good: If true, high values of the metric indicate good performance. If false, low
-    values indicate good performance.
+        values indicate good performance.
     """
     print_header(metric_name, level=2)
     # Display with best structures first.
@@ -87,7 +87,7 @@ def worst_patients_and_outliers(df: pd.DataFrame,
     :param outlier_range: The multiplier for standard deviation when constructing the interval for outliers.
     :param metric_name: The metric for which the "worst" patients should be computed.
     :param high_values_are_good: If True, high values for the metric are considered good, and hence low values
-    are marked as outliers. If False, low values are considered good, and high values are marked as outliers.
+        are marked as outliers. If False, low values are considered good, and high values are marked as outliers.
 
     :param max_row_count: The maximum number of rows to print.
     :return:

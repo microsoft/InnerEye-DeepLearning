@@ -47,7 +47,7 @@ class UNet3D(BaseSegmentationModel):
             elements.
 
         :param upsampling_stride: Upsamling factor used in deconvolutional layer. Similar to the `upsample_kernel_size`
-        parameter, if an integer is passed, the same upsampling factor will be used for all three dimensions.
+            parameter, if an integer is passed, the same upsampling factor will be used for all three dimensions.
 
         :param activation: Linear/Non-linear activation function that is used after linear deconv/conv mappings.
         :param depth: The depth inside the UNet at which the layer operates. This is only for diagnostic purposes.
@@ -128,10 +128,10 @@ class UNet3D(BaseSegmentationModel):
 
         :param channels: A list containing two elements representing the number of input and output channels
         :param kernel_size: Spatial support of convolution kernels. If an integer is provided, the same value will
-        be repeated for all three dimensions. For non-cubic kernels please pass a tuple with three elements.
+            be repeated for all three dimensions. For non-cubic kernels please pass a tuple with three elements.
 
         :param downsampling_stride: Downsampling factor used in the first convolutional layer. If an integer is
-        passed, the same downsampling factor will be used for all three dimensions.
+            passed, the same downsampling factor will be used for all three dimensions.
 
         :param dilation: Dilation of convolution kernels - If set to > 1, kernels capture content from wider range.
         :param activation: Linear/Non-linear activation function that is used after linear convolution mappings.
@@ -193,17 +193,17 @@ class UNet3D(BaseSegmentationModel):
 
         :param input_image_channels: Number of image channels (scans) that are fed into the model.
         :param initial_feature_channels: Number of feature-maps used in the model - Subsequent layers will contain
-        number
+            number
         of featuremaps that is multiples of `initial_feature_channels` (e.g. 2^(image_level) * initial_feature_channels)
 
         :param num_classes: Number of output classes
         :param kernel_size: Spatial support of conv kernels in each spatial axis.
         :param num_downsampling_paths: Number of image levels used in Unet (in encoding and decoding paths)
         :param downsampling_factor: Spatial downsampling factor for each tensor axis (depth, width, height). This will
-        be used as the stride for the first convolution layer in each encoder block.
+            be used as the stride for the first convolution layer in each encoder block.
 
         :param downsampling_dilation: An additional dilation that is used in the second convolution layer in each
-        of the encoding blocks of the UNet. This can be used to increase the receptive field of the network. A good
+            of the encoding blocks of the UNet. This can be used to increase the receptive field of the network. A good
         choice is (1, 2, 2), to increase the receptive field only in X and Y.
 
         :param crop_size: The size of the crop that should be used for training.

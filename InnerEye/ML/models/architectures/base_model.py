@@ -23,7 +23,7 @@ class CropSizeConstraints:
         """
         :param multiple_of: Stores minimum size and other conditions that a training crop size must satisfy.
         :param minimum_size: Training crops must have a size that is a multiple of this value, along each dimension.
-        For example, if set to (1, 16, 16), the crop size has to be a multiple of 16 along X and Y, and a
+            For example, if set to (1, 16, 16), the crop size has to be a multiple of 16 along X and Y, and a
         multiple of 1 (i.e., any number) along the Z dimension.
 
         :param num_dimensions: Training crops must have a size that is at least this value.
@@ -128,7 +128,7 @@ class BaseSegmentationModel(DeviceAwareModule, ABC):
         :param name: A human readable name of the model.
         :param input_channels: The number of image input channels.
         :param crop_size_constraints: The size constraints for the training crop size. If not provided,
-        a minimum crop size of 1 is assumed.
+            a minimum crop size of 1 is assumed.
         """
         super().__init__()
         self.num_dimensions = 3

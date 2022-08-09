@@ -119,15 +119,15 @@ class DeepLearningFileSystemConfig(Parameterized):
         will be created for all outputs and logs.
 
         :param project_root: The root folder that contains the code that submitted the present training run.
-        When running inside the InnerEye repository, it is the git repo root. When consuming InnerEye as a package,
+            When running inside the InnerEye repository, it is the git repo root. When consuming InnerEye as a package,
         this should be the root of the source code that calls the package.
 
         :param is_offline_run: If true, this is a run outside AzureML. If False, it is inside AzureML.
         :param model_name: The name of the model that is trained. This is used to generate a run-specific output
-        folder.
+            folder.
 
         :param output_to: If provided, the output folders will be created as a subfolder of this argument. If not
-        given, the output folders will be created inside of the project root.
+            given, the output folders will be created inside of the project root.
         """
         if not project_root.is_absolute():
             raise ValueError(f"The project root is required to be an absolute path, but got {project_root}")

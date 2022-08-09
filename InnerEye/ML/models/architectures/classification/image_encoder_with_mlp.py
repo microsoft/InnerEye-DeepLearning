@@ -66,27 +66,27 @@ class ImageEncoder(DeviceAwareModule[ScalarItem, torch.Tensor]):
         is fed through average pooling and an MLP.
 
         :param encode_channels_jointly: If False, create a UNet encoder structure separately for each channel. If True,
-        encode all channels jointly (convolution will run over all channels).
+            encode all channels jointly (convolution will run over all channels).
 
         :param num_encoder_blocks: Number of UNet encoder blocks.
         :param initial_feature_channels: Number of feature channels in the first UNet encoder.
         :param num_image_channels: Number of channels of the input. Input is expected to be of size
-        B x num_image_channels x Z x Y x X, where B is the batch dimension.
+            B x num_image_channels x Z x Y x X, where B is the batch dimension.
 
         :param num_non_image_features: Number of non imaging features will be used in the model.
         :param kernel_size_per_encoding_block: The size of the kernels per encoding block, assumed to be the same
-        if a single tuple is provided. Otherwise the list of tuples must match num_encoder_blocks. Default
+            if a single tuple is provided. Otherwise the list of tuples must match num_encoder_blocks. Default
         performs convolutions only in X and Y.
 
         :param stride_size_per_encoding_block: The stride size for the encoding block, assumed to be the same
-        if a single tuple is provided. Otherwise the list of tuples must match num_encoder_blocks. Default
+            if a single tuple is provided. Otherwise the list of tuples must match num_encoder_blocks. Default
         reduces spatial dimensions only in X and Y.
 
         :param encoder_dimensionality_reduction_factor: how to reduce the dimensionality of the image features in the
-        combined model to balance with non imaging features.
+            combined model to balance with non imaging features.
 
         :param scan_size: should be a tuple representing 3D tensor shape and if specified it's usedd in initializing
-        gated pooling or z-adaptive. The first element should be representing the z-direction for classification images
+            gated pooling or z-adaptive. The first element should be representing the z-direction for classification images
         """
         super().__init__()
         self.num_non_image_features = num_non_image_features
@@ -300,29 +300,29 @@ class ImageEncoderWithMlp(ImageEncoder):
         layer.
 
         :param encode_channels_jointly: If False, create a UNet encoder structure separately for each channel. If True,
-        encode all channels jointly (convolution will run over all channels).
+            encode all channels jointly (convolution will run over all channels).
 
         :param num_encoder_blocks: Number of UNet encoder blocks.
         :param initial_feature_channels: Number of feature channels in the first UNet encoder.
         :param num_image_channels: Number of channels of the input. Input is expected to be of size
-        B x num_image_channels x Z x Y x X, where B is the batch dimension.
+            B x num_image_channels x Z x Y x X, where B is the batch dimension.
 
         :param mlp_dropout: The amount of dropout that should be applied between the two layers of the classifier MLP.
         :param final_activation: Activation function to normalize the logits default is Identity.
         :param num_non_image_features: Number of non imaging features will be used in the model.
         :param kernel_size_per_encoding_block: The size of the kernels per encoding block, assumed to be the same
-        if a single tuple is provided. Otherwise the list of tuples must match num_encoder_blocks. Default
+            if a single tuple is provided. Otherwise the list of tuples must match num_encoder_blocks. Default
         performs convolutions only in X and Y.
 
         :param stride_size_per_encoding_block: The stride size for the encoding block, assumed to be the same
-        if a single tuple is provided. Otherwise the list of tuples must match num_encoder_blocks. Default
+            if a single tuple is provided. Otherwise the list of tuples must match num_encoder_blocks. Default
         reduces spatial dimensions only in X and Y.
 
         :param encoder_dimensionality_reduction_factor: how to reduce the dimensionality of the image features in the
-        combined model to balance with non imaging features.
+            combined model to balance with non imaging features.
 
         :param scan_size: should be a tuple representing 3D tensor shape and if specified it's usedd in initializing
-        gated pooling or z-adaptive. The first element should be representing the z-direction for classification images
+            gated pooling or z-adaptive. The first element should be representing the z-direction for classification images
         """
         super().__init__(imaging_feature_type=imaging_feature_type,
                          encode_channels_jointly=encode_channels_jointly,
@@ -389,7 +389,7 @@ def create_mlp(input_num_feature_channels: int,
     :param final_output_channels: if provided, the final number of output channels.
     :param final_layer: if provided, the final (activation) layer to apply
     :param hidden_layer_num_feature_channels: if provided, will be used to create hidden layers, If None then
-    input_num_feature_channels // 2 will be used to create the hidden layer.
+        input_num_feature_channels // 2 will be used to create the hidden layer.
     :return:
     """
     layers: List[torch.nn.Module] = []

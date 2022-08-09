@@ -176,7 +176,7 @@ def parse_args_and_add_yaml_variables(parser: ArgumentParser,
     :param parser: The parser to use.
     :param yaml_config_file: The path to the YAML file that contains values to supply into sys.argv.
     :param fail_on_unknown_args: If True, raise an exception if the parser encounters an argument that it does not
-    recognize. If False, unrecognized arguments will be ignored, and added to the "unknown" field of the parser result.
+        recognize. If False, unrecognized arguments will be ignored, and added to the "unknown" field of the parser result.
     :return: The parsed arguments, and overrides
     """
     settings_from_yaml = read_all_settings(yaml_config_file, project_root=project_root)
@@ -217,7 +217,7 @@ def parse_arguments(parser: ArgumentParser,
     :param parser: The parser to use
     :param settings_from_yaml: A dictionary of settings read from a YAML config file.
     :param fail_on_unknown_args: If True, raise an exception if the parser encounters an argument that it does not
-    recognize. If False, unrecognized arguments will be ignored, and added to the "unknown" field of the parser result.
+        recognize. If False, unrecognized arguments will be ignored, and added to the "unknown" field of the parser result.
 
     :param args: Arguments to parse. If not given, use those in sys.argv
     :return: The parsed arguments, and overrides

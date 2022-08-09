@@ -279,7 +279,7 @@ def get_scalar_model_inputs_and_labels(model: torch.nn.Module,
 
     :param model: The instantiated PyTorch model.
     :param target_indices: If this list is non-empty, assume that the model is a sequence model, and build the
-    model inputs and labels for a model that predicts those specific positions in the sequence. If the list is empty,
+        model inputs and labels for a model that predicts those specific positions in the sequence. If the list is empty,
     assume that the model is a normal (non-sequence) model.
 
     :param sample: A training sample, as returned by a PyTorch data loader (dictionary mapping from field name to value)

@@ -76,7 +76,7 @@ class CheckpointHandler:
         This is called at the start of training.
 
         :param: only_return_path: if True, return a RunRecovery object with the path to the checkpoint without actually
-        downloading the checkpoints. This is useful to avoid duplicating checkpoint download when running on multiple
+            downloading the checkpoints. This is useful to avoid duplicating checkpoint download when running on multiple
         nodes. If False, return the RunRecovery object and download the checkpoint to disk.
         """
         if self.azure_config.run_recovery_id:
@@ -403,10 +403,10 @@ def download_all_checkpoints_from_run(config: OutputParams, run: Run,
     :param config: Model related configs.
     :param run: Run whose checkpoints should be recovered
     :param subfolder: optional subfolder name, if provided the checkpoints will be downloaded to
-    CHECKPOINT_FOLDER / subfolder. If None, the checkpoint are downloaded to CHECKPOINT_FOLDER of the current run.
+        CHECKPOINT_FOLDER / subfolder. If None, the checkpoint are downloaded to CHECKPOINT_FOLDER of the current run.
 
     :param: only_return_path: if True, return a RunRecovery object with the path to the checkpoint without actually
-    downloading the checkpoints. This is useful to avoid duplicating checkpoint download when running on multiple
+        downloading the checkpoints. This is useful to avoid duplicating checkpoint download when running on multiple
     nodes. If False, return the RunRecovery object and download the checkpoint to disk.
     :return: run recovery information
     """

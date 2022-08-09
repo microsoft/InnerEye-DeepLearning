@@ -114,10 +114,10 @@ class Runner:
     :param project_root: The root folder that contains all of the source code that should be executed.
     :param yaml_config_file: The path to the YAML file that contains values to supply into sys.argv.
     :param post_cross_validation_hook: A function to call after waiting for completion of cross validation runs.
-    The function is called with the model configuration and the path to the downloaded and merged metrics files.
+        The function is called with the model configuration and the path to the downloaded and merged metrics files.
 
     :param model_deployment_hook: an optional function for deploying a model in an application-specific way.
-    If present, it should take a model config (SegmentationModelBase), an AzureConfig, and an AzureML
+        If present, it should take a model config (SegmentationModelBase), an AzureConfig, and an AzureML
     Model as arguments, and return an optional Path and a further object of any type.
     """
 
@@ -382,7 +382,7 @@ class Runner:
         Actually run the AzureML job; this method will typically run on an Azure VM.
 
         :param azure_run_info: Contains all information about the present run in AzureML, in particular where the
-        datasets are mounted.
+            datasets are mounted.
         """
         # Only set the logging level now. Usually, when we set logging to DEBUG, we want diagnostics about the model
         # build itself, but not the tons of debug information that AzureML submissions create.

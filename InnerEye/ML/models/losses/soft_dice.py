@@ -24,10 +24,10 @@ class SoftDiceLoss(SupervisedLearningCriterion):
         """
         :param eps: A small constant to smooth Sorensen-Dice Loss function. Additionally, it avoids division by zero.
         :param apply_softmax: If true, the input to the loss function will be first fed through a Softmax operation.
-        If false, the input to the loss function will be used as is.
+            If false, the input to the loss function will be used as is.
 
         :param class_weight_power: power to raise 1/C to, where C is the number of voxels in each class. Should be
-        non-negative to help increase accuracy on small structures.
+            non-negative to help increase accuracy on small structures.
         """
         super().__init__()
         #: Small value to avoid division by zero errors.

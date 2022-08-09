@@ -78,7 +78,7 @@ def fetch_run(workspace: Workspace, run_recovery_id: str) -> Run:
 
     :param workspace: the configured AzureML workspace to search for the experiment.
     :param run_recovery_id: The Run to find. Either in the full recovery ID format, experiment_name:run_id
-    or just the run_id
+        or just the run_id
     :return: The AzureML run.
     """
     return get_aml_run_from_run_id(aml_workspace=workspace, run_id=run_recovery_id)
@@ -114,7 +114,7 @@ def fetch_child_runs(
     :param run: parent run to fetch child run from
     :param status: if provided, returns only child runs with this status
     :param expected_number_cross_validation_splits: when recovering child runs from AML hyperdrive
-    sometimes the get_children function fails to retrieve all children. If the number of child runs
+        sometimes the get_children function fails to retrieve all children. If the number of child runs
     retrieved by AML is lower than the expected number of splits, we try to retrieve them manually.
     """
     if is_ensemble_run(run):

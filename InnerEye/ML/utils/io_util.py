@@ -209,7 +209,7 @@ def load_nifti_image(path: PathOrString, image_type: Optional[Type] = float) -> 
     :return: A numpy array of the image and header data if applicable.
 
     :param image_type: The type to load the image in, set to None to not cast, default is float
-    :raises ValueError: If the path is invalid or the image is not 3D.
+        :raises ValueError: If the path is invalid or the image is not 3D.
     """
 
     def _is_valid_image_path(_path: Path) -> bool:
@@ -300,7 +300,7 @@ def load_hdf5_file(path_str: Union[str, Path], load_segmentation: bool = False) 
 
     :param path_str: The path of the HDF5 file that should be loaded.
     :param load_segmentation: If True, the `segmentation` field of the result object will be populated. If
-    False, the field will be set to None.
+        False, the field will be set to None.
     :return: HDF5Object
     """
 
@@ -338,10 +338,10 @@ def load_images_and_stack(files: Iterable[Path],
 
     :param files: The paths of the files to load.
     :param load_segmentation: If True it loads segmentation if present on the same file as the image. This is only
-    supported for loading from HDF5 files.
+        supported for loading from HDF5 files.
 
     :param center_crop_size: If supplied, all loaded images will be cropped to the size given here. The crop will be
-    taken from the center of the image.
+        taken from the center of the image.
 
     :param image_size: If supplied, all loaded images will be resized immediately after loading.
     :return: A wrapper class that contains the loaded images, and if load_segmentation is True, also the segmentations

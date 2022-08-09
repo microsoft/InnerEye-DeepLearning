@@ -140,11 +140,9 @@ def print_metrics_for_thresholded_output_for_all_prediction_targets(csv_to_set_o
     prediction targets that exist in the dataset (i.e. for every subset of classes that occur in the dataset).
 
     :param csv_to_set_optimal_threshold: Csv written during inference time for the val set. This is used to determine
-    the optimal threshold for classification.
-
+        the optimal threshold for classification.
     :param csv_to_compute_metrics: Csv written during inference time for the test set. Metrics are calculated for
-    this csv.
-
+        this csv.
     :param config: Model config
     """
 

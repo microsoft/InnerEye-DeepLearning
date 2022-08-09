@@ -211,7 +211,7 @@ def extract_border(img: np.ndarray, connectivity: int = 1) -> np.ndarray:
 
     :param img: Array containing structure from which to extract the border
     :param connectivity: integer determining which pixels are considered neighbours of the central element,
-    ranging from 1 = no diagonal elements and rank = all elements
+        ranging from 1 = no diagonal elements and rank = all elements
     :return:
     """
     if not np.unique(img.astype(int)).tolist() == [0, 1]:

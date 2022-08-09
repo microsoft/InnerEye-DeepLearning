@@ -85,7 +85,7 @@ class ImbalancedSampler(Sampler):
         """
 
         :param dataset: a dataset
-        :num_samples: number of samples to draw. If None the number of samples
+            :num_samples: number of samples to draw. If None the number of samples
         corresponds to the length of the dataset.
         """
         self.dataset = dataset

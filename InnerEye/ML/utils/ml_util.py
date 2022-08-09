@@ -83,7 +83,7 @@ def validate_dataset_paths(
 
     :param dataset_path: The base path
     :param custom_dataset_csv : The name of the dataset csv file
-    :raise ValueError if the dataset does not exist.
+        :raise ValueError if the dataset does not exist.
     """
     if not dataset_path.is_dir():
         raise ValueError("The dataset_path argument should be the path to the base directory of the data "
@@ -107,17 +107,17 @@ def check_size_matches(arg1: Union[np.ndarray, torch.Tensor],
     :param arg1: The first array to check.
     :param arg2: The second array to check.
     :param dim1: The expected number of dimensions of arg1. If zero, no check for number of dimensions will be
-    conducted.
+        conducted.
 
     :param dim2: The expected number of dimensions of arg2. If zero, no check for number of dimensions will be
-    conducted.
+        conducted.
 
     :param matching_dimensions: The dimensions along which the two arguments have to match. For example, if
-    arg1.ndim==4 and arg2.ndim==5, matching_dimensions==[3] checks if arg1.shape[3] == arg2.shape[3].
+        arg1.ndim==4 and arg2.ndim==5, matching_dimensions==[3] checks if arg1.shape[3] == arg2.shape[3].
 
     :param arg1_name: If provided, all error messages will use that string to instead of "arg1"
     :param arg2_name: If provided, all error messages will use that string to instead of "arg2"
-    :raise ValueError if shapes don't match
+        :raise ValueError if shapes don't match
     """
     if arg1 is None or arg2 is None:
         raise Exception("arg1 and arg2 cannot be None.")
@@ -132,7 +132,7 @@ def check_size_matches(arg1: Union[np.ndarray, torch.Tensor],
         :param expected: expected shape
         :param actual_shape:
         :param name: variable name
-        :raise ValueError if not the same shape
+            :raise ValueError if not the same shape
         """
         if len(actual_shape) != expected:
             raise ValueError("'{}' was expected to have ndim == {}, but is {}. Shape is {}"

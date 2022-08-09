@@ -107,7 +107,7 @@ class GpuUtilization:
         Tensorboard.
 
         :param prefix: If provided, this string as used as an additional prefix for the metric name itself. If prefix
-        is "max", the metric would look like "maxLoad_Percent"
+            is "max", the metric would look like "maxLoad_Percent"
         :return: A list of (name, value) tuples.
         """
         return [
@@ -153,7 +153,7 @@ class ResourceMonitor(Process):
         :param interval_seconds: The interval in seconds at which usage statistics should be written.
         :param tensorboard_folder: The path in which to create a tensorboard logfile.
         :param csv_results_folder: The path in which the CSV file with aggregate metrics will be created.
-        When running in AzureML, this should NOT reside inside the /logs folder.
+            When running in AzureML, this should NOT reside inside the /logs folder.
         """
         super().__init__(name="Resource Monitor", daemon=True)
         self._interval_seconds = interval_seconds

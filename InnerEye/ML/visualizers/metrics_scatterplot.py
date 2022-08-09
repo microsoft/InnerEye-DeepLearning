@@ -34,7 +34,7 @@ def create_scatterplots(data: Dict[str, Dict[str, Dict[str, float]]], against: O
     :param data: dictionary such that data[run][structure][seriesId] = dice_score
     :param against: run names to plot against (as y axis); if None or empty, do all against all
     :param max_dice: maximum Dice score to expect; if None, either 1.0 or 100.0 will be inferred from the data
-    in code called from here.
+        in code called from here.
     """
     runs = sorted(data.keys())
     result = {}

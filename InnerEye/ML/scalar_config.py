@@ -93,7 +93,7 @@ class LabelTransformation(Enum):
         :param max_value:
         :param min_value:
         :param last_in_pipeline: if the transformation is the last
-        in the pipeline it should expect a single label as an argument.
+            in the pipeline it should expect a single label as an argument.
         Else if returns a list of scaled labels for further transforms.
         :return: The scaling function
         """
@@ -593,10 +593,10 @@ def get_non_image_features_dict(default_channels: List[str],
     Returns the channels dictionary for non-imaging features.
 
     :param default_channels: the channels to use for all features except the features specified
-    in specific_channels
+        in specific_channels
 
     :param specific_channels: a dictionary mapping feature names to channels for all features that do
-    not use the default channels
+        not use the default channels
     """
     non_imaging_features_dict = {DEFAULT_KEY: default_channels}
     if specific_channels is not None:

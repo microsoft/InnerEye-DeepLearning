@@ -316,13 +316,13 @@ class InnerEyeLightning(LightningModule):
         floating point, it is converted to a Tensor on the current device to enable synchronization.
 
         :param sync_dist_override: If not None, use this value for the sync_dist argument to self.log. If None,
-        set it automatically depending on the use of DDP.
+            set it automatically depending on the use of DDP.
 
         :param name: The name of the metric to log
         :param value: The value of the metric. This can be a tensor, floating point value, or a Metric class.
         :param is_training: If true, give the metric a "train/" prefix, otherwise a "val/" prefix.
         :param reduce_fx: The reduce function to use when synchronizing the tensors across GPUs. This must be
-        a value recognized by sync_ddp: "sum", "mean"
+            a value recognized by sync_ddp: "sum", "mean"
         """
         metric_name = name if isinstance(name, str) else name.value
         prefix = TRAIN_PREFIX if is_training else VALIDATION_PREFIX
@@ -340,7 +340,7 @@ class InnerEyeLightning(LightningModule):
         :param metrics: A dictionary with all the metrics to write, as key/value pairs.
         :param epoch: The epoch to which the metrics belong.
         :param is_training: If true, write the metrics to the logger for training metrics, if False, write to the logger
-        for validation metrics.
+            for validation metrics.
         """
         file_logger = self.train_epoch_metrics_logger if is_training else self.val_epoch_metrics_logger
         store_epoch_metrics(metrics, epoch, file_logger=file_logger)
@@ -379,7 +379,7 @@ class InnerEyeLightning(LightningModule):
         :param sample: The minibatch of data that should be processed.
         :param batch_index: The index of the current minibatch.
         :param is_training: If true, this has been called from `training_step`, otherwise it has been called from
-        `validation_step`.
+            `validation_step`.
         """
         raise NotImplementedError("This method must be overwritten in a derived class.")
 
@@ -390,7 +390,7 @@ class InnerEyeLightning(LightningModule):
 
         :param loss: The loss value that should be logged.
         :param is_training: If True, the logged metric will be called "train/Loss". If False, the metric will
-        be called "val/Loss"
+            be called "val/Loss"
         """
         assert isinstance(self.trainer, Trainer)
         self.log_on_epoch(MetricType.LOSS, loss, is_training)

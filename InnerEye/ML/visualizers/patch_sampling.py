@@ -115,7 +115,7 @@ def visualize_random_crops_for_dataset(config: SegmentationModelBase, output_fol
 
     :param config: The model configuration.
     :param output_folder: The folder in which the visualizations should be written. If not provided, use a subfolder
-    "patch_sampling" in the model's default output folder
+        "patch_sampling" in the model's default output folder
     """
     dataset_splits = config.get_dataset_splits()
     # Load a sample using the full image data loader

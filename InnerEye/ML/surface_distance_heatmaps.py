@@ -50,7 +50,7 @@ def load_predictions(run_type: SurfaceDistanceRunType, azure_config: AzureConfig
     :param execution_mode: ModelExecutionMode: Either Test, Train or Val
     :param extended_annotators: List of annotators plus model_name to load segmentations for
     :param outlier_range: The standard deviation from the mean which the points have to be below
-    to be considered an outlier.
+        to be considered an outlier.
     :return: list of [(subject_id, structure name and dice_scores)]
     """
     predictions = []

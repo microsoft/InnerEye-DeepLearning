@@ -39,7 +39,7 @@ class SecretsHandling:
         in the project root directory.
 
         :param secrets_to_read: The list of secret names to read from the YAML file. These will be converted to
-        uppercase.
+            uppercase.
         :return: A dictionary with secrets, or None if the file does not exist.
         """
         secrets_file = self.project_root / fixed_paths.PROJECT_SECRETS_FILE
@@ -61,7 +61,7 @@ class SecretsHandling:
         secret is not found, its value will be None.
 
         :param secrets_to_read: The list of secret names to read from the YAML file. These will be converted to
-        uppercase.
+            uppercase.
         """
         # Read all secrets from a local file if present, and sets the matching environment variables.
         # If no secrets file is present, no environment variable is modified or created.
@@ -75,7 +75,7 @@ class SecretsHandling:
 
         :param name: The name of the environment variable to read. It will be converted to uppercase.
         :param allow_missing: If true, the function returns None if there is no entry of the given name in
-        any of the places searched. If false, missing entries will raise a ValueError.
+            any of the places searched. If false, missing entries will raise a ValueError.
         :return: Value of the secret. None, if there is no value and allow_missing is True.
         """
 

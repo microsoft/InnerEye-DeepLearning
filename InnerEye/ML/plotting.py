@@ -122,13 +122,13 @@ def plot_image_and_label_contour(image: np.ndarray,
 
     :param image: A 2D image
     :param labels: A binary 2D image, or a list of binary 2D images. A contour will be plotted for each of those
-    binary images.
+        binary images.
 
     :param contour_arguments: A dictionary of keyword arguments that will be passed directly into matplotlib's
-    contour function. Can also be a list of dictionaries, with one dict per entry in the 'labels' argument.
+        contour function. Can also be a list of dictionaries, with one dict per entry in the 'labels' argument.
 
     :param image_range: If provided, the image will be plotted using the given range for the color limits.
-    If None, the minimum and maximum image values will be mapped to the endpoints of the color map.
+        If None, the minimum and maximum image values will be mapped to the endpoints of the color map.
 
     :param plot_file_name: The file name that should be used to save the plot.
     """
@@ -250,10 +250,10 @@ def plot_normalization_result(loaded_images: Sample,
     at the slice where the foreground has most pixels.
 
     :param loaded_images: An instance of Sample with the image and the labels. The first channel of the image will
-    be plotted.
+        be plotted.
 
     :param image_range: The image value range that will be mapped to the color map. If None, the full image range
-    will be mapped to the colormap.
+        will be mapped to the colormap.
 
     :param normalizer: The photometric normalization that should be applied.
     :param result_folder: The folder into which the resulting PNG files should be written.
@@ -304,7 +304,7 @@ def plot_contours_for_all_classes(sample: Sample,
     :param result_folder: The folder into which the resulting plot PNG files should be written.
     :param result_prefix: A string prefix that will be used for all plots.
     :param image_range: The minimum and maximum image values that will be mapped to the color map ranges.
-    If None, use the actual min and max values.
+        If None, use the actual min and max values.
 
     :param channel_index: The index of the image channel that should be plotted.
     :return: The paths to all generated PNG files.
@@ -493,7 +493,7 @@ def scan_with_transparent_overlay(scan: np.ndarray,
     :param scan: A 3-dimensional image in (Z, Y, X) ordering
     :param overlay: A 3-dimensional image in (Z, Y, X) ordering, with values between 0 and 1.
     :param dimension: The array dimension along with the plot should be created. dimension=0 will generate
-    an axial slice.
+        an axial slice.
 
     :param position: The index in the chosen dimension where the plot should be created.
     :param spacing: The tuple of voxel spacings, in (Z, Y, X) order.

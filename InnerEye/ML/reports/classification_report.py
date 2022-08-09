@@ -179,7 +179,7 @@ def plot_pr_and_roc_curves(labels_and_model_outputs: LabelsAndPredictions, axs: 
 
     :param labels_and_model_outputs:
     :param axs: Pair of axes objects onto which to plot the ROC and PR curves, respectively. New axes are created by
-    default.
+        default.
 
     :param plot_kwargs: Plotting options to be passed to both `ax.plot(...)` calls.
     """
@@ -211,11 +211,11 @@ def plot_scores_and_summary(all_labels_and_model_outputs: Sequence[LabelsAndPred
     at each horizontal location.
 
     :param all_labels_and_model_outputs: Collection of ground-truth labels and model predictions (e.g. for various
-    cross-validation runs).
+        cross-validation runs).
 
     :param scoring_fn: A scoring function mapping a `LabelsAndPredictions` object to X and Y coordinates for plotting.
     :param interval_width: A value in [0, 1] representing what fraction of the data should be contained in
-    the shaded area. The edges of the interval are `median +/- interval_width/2`.
+        the shaded area. The edges of the interval are `median +/- interval_width/2`.
 
     :param ax: Axes object onto which to plot (default: use current axes).
     :return: A tuple of `(line_handles, summary_handle)` to use in setting a legend for the plot: `line_handles` is a
@@ -248,10 +248,10 @@ def plot_pr_and_roc_curves_crossval(all_labels_and_model_outputs: Sequence[Label
     shaded 80% confidence interval (computed over TPRs and precisions for each fixed FPR and recall value).
 
     :param all_labels_and_model_outputs: Collection of ground-truth labels and model predictions (e.g. for various
-    cross-validation runs).
+        cross-validation runs).
 
     :param axs: Pair of axes objects onto which to plot the ROC and PR curves, respectively. New axes are created by
-    default.
+        default.
     """
     if axs is None:
         _, axs = plt.subplots(1, 2)
@@ -293,7 +293,7 @@ def plot_pr_and_roc_curves_from_csv(metrics_csv: Path, config: ScalarModelBase,
     :param config: Model config.
     :param data_split: Whether to filter the CSV file for Train, Val, or Test results (default: no filtering).
     :param is_crossval_report: If True, assumes CSV contains results for multiple cross-validation runs and plots the
-    curves with median and confidence intervals. Otherwise, plots curves for a single run.
+        curves with median and confidence intervals. Otherwise, plots curves for a single run.
     """
     for prediction_target in config.target_names:
         print_header(f"Class: {prediction_target}", level=3)
@@ -315,7 +315,7 @@ def get_metric(predictions_to_set_optimal_threshold: LabelsAndPredictions,
     Given LabelsAndPredictions objects for the validation and test sets, return the specified metric.
 
     :param predictions_to_set_optimal_threshold: This set of ground truth labels and model predictions is used to
-    determine the optimal threshold for classification.
+        determine the optimal threshold for classification.
 
     :param predictions_to_compute_metrics: The set of labels and model outputs to calculate metrics for.
     :param metric: The name of the metric to calculate.

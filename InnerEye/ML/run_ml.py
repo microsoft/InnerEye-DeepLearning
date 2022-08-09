@@ -115,24 +115,24 @@ class MLRunner:
         as a package!
 
         :param model_config: If None, run the training as per the `container` argument (bring-your-own-model). If not
-        None, this is the model configuration for a built-in InnerEye model.
+            None, this is the model configuration for a built-in InnerEye model.
 
         :param container: The LightningContainer object to use for training. If None, assume that the training is
-        for a built-in InnerEye model.
+            for a built-in InnerEye model.
 
         :param azure_config: Azure related configurations
         :param project_root: Project root. This should only be omitted if calling run_ml from the test suite. Supplying
-        it is crucial when using InnerEye as a package or submodule!
+            it is crucial when using InnerEye as a package or submodule!
 
         :param post_cross_validation_hook: A function to call after waiting for completion of cross validation runs.
-        The function is called with the model configuration and the path to the downloaded and merged metrics files.
+            The function is called with the model configuration and the path to the downloaded and merged metrics files.
 
         :param model_deployment_hook: an optional function for deploying a model in an application-specific way.
-        If present, it should take a LightningContainer, an AzureConfig, an AzureML Model and a ModelProcessing object
+            If present, it should take a LightningContainer, an AzureConfig, an AzureML Model and a ModelProcessing object
         as arguments, and return an object of any type.
 
         :param output_subfolder: If provided, the output folder structure will have an additional subfolder,
-        when running outside AzureML.
+            when running outside AzureML.
         """
         self.model_config = model_config
         if container is None:
@@ -155,7 +155,7 @@ class MLRunner:
         and call the setup method. It sets the random seeds, and then creates the actual Lightning modules.
 
         :param azure_run_info: When running in AzureML or on a local VM, this contains the paths to the datasets.
-        This can be missing when running in unit tests, where the local dataset paths are already populated.
+            This can be missing when running in unit tests, where the local dataset paths are already populated.
         """
         if self._has_setup_run:
             return
@@ -474,7 +474,7 @@ class MLRunner:
 
         :param checkpoint_paths: Checkpoint paths to initialize model
         :param model_proc: whether we are running an ensemble model from within a child run with index 0. If we are,
-        then outputs will be written to OTHER_RUNS/ENSEMBLE under the main outputs directory.
+            then outputs will be written to OTHER_RUNS/ENSEMBLE under the main outputs directory.
         """
 
         # run full image inference on existing or newly trained model on the training, and testing set
@@ -616,7 +616,7 @@ class MLRunner:
 
         :param model_folder: The folder into which all files should be copied.
         :param checkpoint_paths: A list with absolute paths to checkpoint files. They are expected to be
-        inside of the model's checkpoint folder.
+            inside of the model's checkpoint folder.
 
         :param python_environment: The Python environment that is used in the present AzureML run.
         """

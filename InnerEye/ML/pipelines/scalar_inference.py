@@ -182,7 +182,7 @@ class ScalarEnsemblePipeline(ScalarInferencePipelineBase):
         Aggregates the forward pass results from the individual models in the ensemble.
 
         :param model_outputs: List of model outputs for every model in the ensemble.
-        (Number of ensembles) x (batch_size) x 1
+            (Number of ensembles) x (batch_size) x 1
         """
         # aggregate model outputs
         if self.aggregation_type == EnsembleAggregationType.Average:

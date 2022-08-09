@@ -293,7 +293,7 @@ def model_train_unittest(config: Optional[DeepLearningConfig],
     :param output_folder: The test fixture that provides an output folder for the test.
     :param lightning_container: An optional LightningContainer object that will be pass through to the training routine.
     :param checkpoint_handler: The checkpoint handler that should be used for training. If not provided, it will be
-    created via get_default_checkpoint_handler.
+        created via get_default_checkpoint_handler.
     :return: Tuple[StoringLogger, CheckpointHandler]
     """
     runner = MLRunner(model_config=config, container=lightning_container)

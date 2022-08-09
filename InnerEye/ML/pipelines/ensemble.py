@@ -51,7 +51,7 @@ class EnsemblePipeline(FullImageInferencePipelineBase):
         Helper method to aggregate results from multiple inference pipelines, based on the aggregation type provided.
 
         :param results: inference pipeline results to aggregate. This may be a Generator to prevent multiple large
-        posterior arrays being held at the same time. The first element of the sequence is modified in place to
+            posterior arrays being held at the same time. The first element of the sequence is modified in place to
         minimize memory use.
 
         :param aggregation_type: aggregation function to use to combine the results.

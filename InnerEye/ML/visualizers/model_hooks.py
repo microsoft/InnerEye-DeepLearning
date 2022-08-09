@@ -16,7 +16,7 @@ class HookBasedFeatureExtractor(Module):
         """
         :param model: pytorch model
         :param layer_name: name of direct submodule of modle, or nested module names structure as a list
-        layer_name = [_2D_encoder] , layer_name = [_2D_encoder, conv_layers, 0]
+            layer_name = [_2D_encoder] , layer_name = [_2D_encoder, conv_layers, 0]
         """
         super().__init__()
 

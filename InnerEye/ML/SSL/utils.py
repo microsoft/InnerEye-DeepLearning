@@ -41,7 +41,7 @@ def create_ssl_encoder(encoder_name: str, use_7x7_first_conv_in_resnet: bool = T
 
     :param encoder_name: available choices: resnet18, resnet50, resnet101 and densenet121.
     :param use_7x7_first_conv_in_resnet: If True, use a 7x7 kernel (default) in the first layer of resnet.
-    If False, replace first layer by a 3x3 kernel. This is required for small CIFAR 32x32 images to not shrink them.
+        If False, replace first layer by a 3x3 kernel. This is required for small CIFAR 32x32 images to not shrink them.
     """
     from pl_bolts.models.self_supervised.resnets import resnet18, resnet50, resnet101
     from InnerEye.ML.SSL.encoders import DenseNet121Encoder

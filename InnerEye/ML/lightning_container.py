@@ -58,7 +58,7 @@ class InnerEyeInference(abc.ABC):
 
         :param dataset_split: Indicates whether the item comes from the training, validation or test set.
         :param is_ensemble_model: If False, the model_outputs come from an individual model. If True, the model
-        outputs come from multiple models.
+            outputs come from multiple models.
         """
         pass
 

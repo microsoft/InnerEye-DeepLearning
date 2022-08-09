@@ -39,7 +39,7 @@ class InnerEyeVisionDataModule(VisionDataModule):
          BEWARE VisionDataModule expects the first positional argument of your class to be the data directory.
 
         :param return_index: whether the return the index in __get_item__, the dataset_cls is expected to implement
-        this logic.
+            this logic.
 
         :param train_transforms: transforms to use at training time
         :param val_transforms: transforms to use at validation time
@@ -115,7 +115,7 @@ class CombinedDataModule(LightningDataModule):
 
         :param encoder_module: datamodule to use for training of SSL.
         :param linear_head_module: datamodule to use for training of linear head on top of frozen encoder. Can use a
-        different batch size than the encoder module. CombinedDataModule logic will take care of aggregation.
+            different batch size than the encoder module. CombinedDataModule logic will take care of aggregation.
         """
         super().__init__(*args, **kwargs)
         self.encoder_module = encoder_module

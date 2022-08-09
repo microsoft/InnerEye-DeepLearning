@@ -130,7 +130,7 @@ def report_structure_extremes_for_subject(subj_dir: str, series_id: str) -> Iter
     """
     :param subj_dir: subject directory, containing <structure>.nii.gz files
     :param series_id: series identifier for the subject
-    Yields a line for every <structure>.nii.gz file in the directory.
+        Yields a line for every <structure>.nii.gz file in the directory.
     """
     subject = os.path.basename(subj_dir)
     series_prefix = "" if series_id is None else series_id[:8]

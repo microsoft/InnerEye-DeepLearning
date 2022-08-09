@@ -276,7 +276,7 @@ def mri_window(image_in: np.ndarray,
 
     :param image_in: The image to normalize.
     :param mask: Consider only pixel values of the input image for which the mask is non-zero. If None the whole
-    image is considered.
+        image is considered.
 
     :param output_range: The desired value range of the result image.
     :param sharpen: number of standard deviation either side of mean to include in the window

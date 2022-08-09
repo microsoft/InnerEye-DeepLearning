@@ -291,11 +291,11 @@ class MetricForMultipleStructures(torch.nn.Module):
 
         :param ground_truth_ids: The list of anatomical structures that should be stored.
         :param metric_name: The name of the metric that should be stored. This is used in the names of the individual
-        metrics.
+            metrics.
 
         :param is_training: If true, use "train/" as the prefix for all metric names, otherwise "val/"
         :param use_average_across_structures: If True, keep track of the average metric value across structures,
-        while skipping NaNs. If false, only store the per-structure metric values.
+            while skipping NaNs. If false, only store the per-structure metric values.
         """
         super().__init__()
         prefix = (TRAIN_PREFIX if is_training else VALIDATION_PREFIX) + metric_name + "/"

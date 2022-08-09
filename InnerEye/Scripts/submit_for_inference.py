@@ -79,7 +79,7 @@ def copy_image_file(image: Path, destination_folder: Path, use_dicom: bool) -> P
     Copy the source image file into the given folder destination_folder.
 
     :param image: image file, must be Gzipped Nifti format with name ending .nii.gz if use_dicom=False or .zip
-    otherwise.
+        otherwise.
 
     :param destination_folder: top-level directory to copy image into (as test.nii.gz or test.zip)
     :param use_dicom: True to treat as a zip file.
@@ -98,11 +98,11 @@ def download_files_from_model(model_sas_urls: Dict[str, str], base_name: str, di
     to a folder.
 
     :param model_sas_urls: The files making up the model, as a mapping from file name to a URL with
-    an SAS token.
+        an SAS token.
 
     :param base_name: The file name of the files to download.
     :param dir_path: The folder into which the files will be written. All downloaded files will keep the relative
-    path that they also have in the model.
+        path that they also have in the model.
     :return: a list of the files that were downloaded.
     """
     downloaded: List[Path] = []

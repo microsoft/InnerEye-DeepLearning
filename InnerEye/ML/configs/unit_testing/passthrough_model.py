@@ -91,7 +91,7 @@ class PyTorchPassthroughModel(BaseSegmentationModel):
         Ignore the actual patches and return a fixed segmentation, explained in make_nesting_rectangles.
 
         :param patches: Set of patches, of shape (#patches, #image_channels, Z, Y, X). Only the shape
-        is used.
+            is used.
         :return: Fixed tensor of shape (#patches, number_of_classes, Z, Y, Z).
         """
         output_size: TupleInt3 = (patches.shape[2], patches.shape[3], patches.shape[4])

@@ -97,7 +97,7 @@ def main(settings_yaml_file: Optional[Path] = None,
 
     :param settings_yaml_file: The YAML file that contains all information for accessing Azure.
     :param project_root: The root folder that contains all code for the present run. This is only used to locate
-    a private settings file InnerEyePrivateSettings.yml.
+        a private settings file InnerEyePrivateSettings.yml.
     """
     monitor_config = AMLTensorBoardMonitorConfig.parse_args()
     settings_yaml_file = settings_yaml_file or monitor_config.settings

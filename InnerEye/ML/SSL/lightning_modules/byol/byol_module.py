@@ -49,7 +49,7 @@ class BYOLInnerEye(pl.LightningModule):
 
             :param warmup_epochs: Number of epochs for scheduler warm up (linear increase from 0 to base_lr).
             :param use_7x7_first_conv_in_resnet: If True, use a 7x7 kernel (default) in the first layer of resnet.
-            If False, replace first layer by a 3x3 kernel. This is required for small CIFAR 32x32 images to not
+                If False, replace first layer by a 3x3 kernel. This is required for small CIFAR 32x32 images to not
             shrink them.
 
             :param weight_decay: L2-norm weight decay.
@@ -83,7 +83,7 @@ class BYOLInnerEye(pl.LightningModule):
         and training step.
 
         :param batch: assumed to be a batch a Tuple(List[tensor, tensor, tensor], tensor) to match lightning-bolts
-        SimCLRTrainDataTransform API; the first tuple element contains a list of three tensor where the two first
+            SimCLRTrainDataTransform API; the first tuple element contains a list of three tensor where the two first
         elements contain two are two strong augmented versions  of the original images in the batch and the last
         is a milder augmentation (ignored here).
 

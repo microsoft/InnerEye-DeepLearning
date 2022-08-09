@@ -276,7 +276,7 @@ class ModelTransformsPerExecutionMode:
         """
 
         :param train: the transformation(s) to apply to the training set.
-        Should be a function that takes a sample as input and outputs sample.
+            Should be a function that takes a sample as input and outputs sample.
 
         :param val: the transformation(s) to apply to the validation set
         :param test: the transformation(s) to apply to the test set

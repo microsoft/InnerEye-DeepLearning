@@ -34,11 +34,11 @@ class ImageTransformationPipeline:
                  use_different_transformation_per_channel: bool = False):
         """
         :param transforms: List of transformations to apply to images. Supports out of the boxes torchvision transforms
-        as they accept data of arbitrary dimension. You can also define your own transform class but be aware that you
+            as they accept data of arbitrary dimension. You can also define your own transform class but be aware that you
         function should expect input of shape [C, Z, H, W] and apply the same transformation to each Z slice.
 
         :param use_different_transformation_per_channel: if True, apply a different version of the augmentation pipeline
-        for each channel. If False, applies the same transformation to each channel, separately.
+            for each channel. If False, applies the same transformation to each channel, separately.
         """
         self.use_different_transformation_per_channel = use_different_transformation_per_channel
         self.pipeline = Compose(transforms) if isinstance(transforms, List) else transforms
@@ -97,10 +97,10 @@ def create_transforms_from_config(config: CfgNode,
 
     :param config: config yaml file fixing strength and type of augmentation to apply
     :param apply_augmentations: if True return transformation pipeline with augmentations. Else,
-    disable augmentations i.e. only resize and center crop the image.
+        disable augmentations i.e. only resize and center crop the image.
 
     :param expand_channels: if True the expand channel transformation from InnerEye.ML.augmentations.image_transforms
-    will be added to the transformation passed through the config. This is needed for single channel images as CXR.
+        will be added to the transformation passed through the config. This is needed for single channel images as CXR.
     """
     transforms: List[Any] = []
     if expand_channels:

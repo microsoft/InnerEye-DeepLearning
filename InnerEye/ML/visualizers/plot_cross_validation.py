@@ -203,7 +203,7 @@ class PlotCrossValidationConfig(GenericConfig):
         :param destination: directory to write to
         :param run: The AzureML run to download from.
         :param local_src_subdir: if not None, then if we copy from a local results folder, that folder is
-        self.outputs_directory/local_src_subdir/blob_to_download instead of self.outputs_directory/blob_to_download
+            self.outputs_directory/local_src_subdir/blob_to_download instead of self.outputs_directory/blob_to_download
         :return: The path to the downloaded file, or None if the file was not found.
         """
         blob_path = Path(blob_to_download)
@@ -354,11 +354,11 @@ def download_crossval_result_files(config: PlotCrossValidationConfig,
     :param config: PlotCrossValidationConfig
     :param run_recovery_id: run recovery ID, if different from the one in config
     :param download_to_folder: The root folder in which all downloaded files should be stored. Point to an existing
-    folder with downloaded files for use in unit tests. If not provided, the files will be downloaded to a new folder
+        folder with downloaded files for use in unit tests. If not provided, the files will be downloaded to a new folder
     inside the config.outputs_directory, with the name taken from the run ID.
 
     :param splits_to_evaluate: If supplied, use these values as the split indices to download. Use only for
-    unit testing.
+        unit testing.
     :return: The dataframe with all of the downloaded results grouped by execution mode (Test or Val)
      and directory where the epoch results were downloaded to.
     """
@@ -788,7 +788,7 @@ def check_result_file_counts(config_and_files: OfflineCrossvalConfigAndFiles, is
     that mode is equal to the number of cross-validation splits. Throw a ValueError if not.
 
     :param is_ensemble_run: If True, assume that this run of cross validation analysis is for an ensemble model
-    and assert that there are N+1 data files available. If false, this analysis only concerns the cross
+        and assert that there are N+1 data files available. If false, this analysis only concerns the cross
     validation runs, and check that the number of files is N.
     """
     result_files_by_mode = defaultdict(list)

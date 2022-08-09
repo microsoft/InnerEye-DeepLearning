@@ -129,7 +129,7 @@ def segmentation_model_test_epoch(config: SegmentationModelBase,
     :param execution_mode: Is the model evaluated on train, test, or validation set?
     :param results_folder: The folder where to store the results.
     :param epoch_and_split: A string that should uniquely identify the epoch and the data split (train/val/test).
-    :raises TypeError: If the arguments are of the wrong type.
+        :raises TypeError: If the arguments are of the wrong type.
     :raises ValueError: When there are issues loading the model.
     :return A list with the mean dice score (across all structures apart from background) for each image.
     """
@@ -241,7 +241,7 @@ def populate_metrics_writer(
     Populate a MetricsPerPatientWriter with the metrics for each patient
 
     :param model_prediction_evaluations: The list of PatientMetadata/MetricsDict tuples obtained
-    from evaluate_model_predictions
+        from evaluate_model_predictions
 
     :param config: The SegmentationModelBase config from which we read the ground_truth_ids
     :returns: A new MetricsPerPatientWriter and a list of foreground DICE score averages
@@ -285,7 +285,7 @@ def store_inference_results(inference_result: InferencePipeline.Result,
     Store the segmentation, posteriors, and binary predictions into Nifti files.
 
     :param inference_result: The inference result for a given patient_id and epoch. Posteriors must be in
-    (Classes x Z x Y x X) shape, segmentation in (Z, Y, X)
+        (Classes x Z x Y x X) shape, segmentation in (Z, Y, X)
 
     :param config: The test configurations.
     :param results_folder: The folder where the prediction should be stored.

@@ -225,7 +225,7 @@ def compute_dice_across_patches(segmentation: torch.Tensor,
     :param segmentation: Tensor containing class ids predicted by a model.
     :param ground_truth: One-hot encoded torch tensor containing ground-truth label ids.
     :param allow_multiple_classes_for_each_pixel: If set to False, ground-truth tensor has
-    to contain only one foreground label for each pixel.
+        to contain only one foreground label for each pixel.
     :return A torch tensor of size (Patches, Classes) with the Dice scores. Dice scores are computed for
     all classes including the background class at index 0.
     """
@@ -303,7 +303,7 @@ def compute_scalar_metrics(metrics_dict: ScalarMetricsDict,
     :param model_output: A tensor containing model outputs.
     :param labels: A tensor containing class labels.
     :param loss_type: The type of loss that the model uses. This is required to optionally convert 2-dim model output
-    to probabilities.
+        to probabilities.
     """
     _model_output_channels = model_output.shape[1]
     model_output_hues = metrics_dict.get_hue_names(include_default=len(metrics_dict.hues_without_default) == 0)

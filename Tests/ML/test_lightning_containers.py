@@ -327,7 +327,7 @@ def test_innereyecontainer_setup_passes_on_allow_incomplete_labels(
 
     :param test_output_dirs: Test fixture.
     :param allow_partial_ground_truth: The value to set allow_incomplete_labels to and check it is
-    passed through.
+        passed through.
     """
     config = DummyModel()
     config.set_output_to(test_output_dirs.root_dir)

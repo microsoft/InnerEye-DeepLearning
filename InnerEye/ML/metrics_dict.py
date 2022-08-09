@@ -38,7 +38,7 @@ def average_metric_values(values: List[float], skip_nan_when_averaging: bool) ->
 
     :param values: The individual values that should be averaged.
     :param skip_nan_when_averaging: If True, compute mean with any NaN values. If False, any NaN value present
-    in the argument will make the function return NaN.
+        in the argument will make the function return NaN.
     :return: The average of the provided values. If the argument is an empty list, NaN will be returned.
     """
     if skip_nan_when_averaging:
@@ -109,10 +109,10 @@ class Hue:
 
         :param subject_ids: Subject ids associated with the predictions and labels.
         :param predictions: A numpy array with model predictions, of size [N x C] for N samples in C classes, or size
-        [N x 1] or size [N] for binary.
+            [N x 1] or size [N] for binary.
 
         :param labels: A numpy array with labels,  of size [N x C] for N samples in C classes, or size
-        [N x 1] or size [N] for binary.
+            [N x 1] or size [N] for binary.
         """
         if predictions.ndim == 1:
             predictions = np.expand_dims(predictions, axis=1)
@@ -197,7 +197,7 @@ class MetricsDict:
     def __init__(self, hues: Optional[List[str]] = None, is_classification_metrics: bool = True) -> None:
         """
         :param hues: Supported hues for this metrics dict, otherwise all records will belong to the
-        default hue.
+            default hue.
 
         :param is_classification_metrics: If this is a classification metrics dict
         """
@@ -218,7 +218,7 @@ class MetricsDict:
         Return the subject ids that have metrics associated with them in this dictionary.
 
         :param hue: If provided then subject ids belonging to this hue only will be returned.
-        Otherwise subject ids for the default hue will be returned.
+            Otherwise subject ids for the default hue will be returned.
         """
         return self._get_hue(hue=hue).subject_ids
 
@@ -270,7 +270,7 @@ class MetricsDict:
         Returns values held currently in the dict
 
         :param hue: will be used to restrict values for the provided hue otherwise values in the default
-        hue will be returned.
+            hue will be returned.
         :return: Dictionary of values for this object.
         """
         return self._get_hue(hue).values
@@ -309,7 +309,7 @@ class MetricsDict:
         :param metric_name: The name of the metric to add. This can be a string or a value in the MetricType enum.
         :param metric_value: The values of the metric, as a float or integer.
         :param skip_nan_when_averaging: If True, averaging this metric will skip any NaN (not a number) values.
-        If False, NaN will propagate through the mean computation.
+            If False, NaN will propagate through the mean computation.
 
         :param hue: The hue for which this record belongs to, default hue will be used if None provided.
         """
@@ -346,10 +346,10 @@ class MetricsDict:
 
         :param subject_ids: Subject ids associated with the predictions and labels.
         :param predictions: A numpy array with model predictions, of size [N x C] for N samples in C classes, or size
-        [N x 1] or size [N] for binary.
+            [N x 1] or size [N] for binary.
 
         :param labels: A numpy array with labels,  of size [N x C] for N samples in C classes, or size
-        [N x 1] or size [N] for binary.
+            [N x 1] or size [N] for binary.
 
         :param hue: The hue this prediction belongs to, default hue will be used if None provided.
         """
@@ -378,7 +378,7 @@ class MetricsDict:
 
         :param add_metrics_from_entries: average existing metrics in the dict.
         :param across_hues: If True then same metric types will be averaged regardless of hues, otherwise
-        separate averages for each metric type for each hue will be computed, Default is True.
+            separate averages for each metric type for each hue will be computed, Default is True.
         :return: A MetricsDict object with a single-item list for each of the metrics.
         """
 

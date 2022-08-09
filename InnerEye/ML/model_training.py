@@ -210,7 +210,7 @@ def model_train(checkpoint_path: Optional[Path],
     :param checkpoint_path: Checkpoint path for model initialization
     :param num_nodes: The number of nodes to use in distributed training.
     :param container: A container object that holds the training data in PyTorch Lightning format
-    and the model to train.
+        and the model to train.
     :return: A tuple of [Trainer, StoringLogger]. Trainer is the Lightning Trainer object that was used for fitting
     the model. The StoringLogger object is returned when training an InnerEye built-in model, this is None when
     fitting other models.

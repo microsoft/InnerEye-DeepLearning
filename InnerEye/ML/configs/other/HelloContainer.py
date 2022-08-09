@@ -37,7 +37,7 @@ class HelloDataset(Dataset):
         Creates the 1-dim regression dataset.
 
         :param raw_data: The raw data, e.g. from a cross validation split or loaded from file. This
-        must be numeric data which can be converted into a tensor. See the static method
+            must be numeric data which can be converted into a tensor. See the static method
         from_path_and_indexes for an example call.
         """
         super().__init__()

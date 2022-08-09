@@ -71,7 +71,7 @@ class MetricsPerPatientWriter:
 
         :param file_path: The name of the file to write to.
         :param allow_incomplete_labels: boolean flag. If false, all ground truth files must be provided.
-        If true, ground truth files are optional and we add a total_patients count column for easy
+            If true, ground truth files are optional and we add a total_patients count column for easy
         comparison. (Defaults to False.)
         """
 
@@ -210,7 +210,7 @@ def binary_classification_accuracy(model_output: Union[torch.Tensor, np.ndarray]
     :param model_output: A tensor containing model outputs.
     :param label: A tensor containing class labels.
     :param threshold: the cut-off probability threshold for predictions. If model_ouput is > threshold, the predicted
-    class is 1 else 0.
+        class is 1 else 0.
     :return: 1.0 if all predicted classes match the expected classes given in 'labels'. 0.0 if no predicted classes
     match their labels.
     """

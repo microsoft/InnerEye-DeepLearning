@@ -66,7 +66,7 @@ class ModelSummary:
         doing forward propagation through the model, with tensors of a given size or a given list of tensors.
 
         :param input_sizes: The list of sizes of the input tensors to the model. These sizes must be specifies
-        without the leading batch dimension.
+            without the leading batch dimension.
 
         :param input_tensors: The tensors to use in model forward propagation.
         :param log_summaries_to_files: if True, write the summary to a new file under logs/models instead of stdout

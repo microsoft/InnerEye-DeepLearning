@@ -70,7 +70,7 @@ class SegmentationLightning(InnerEyeLightning):
         Runs training for a single minibatch of training or validation data, and computes all metrics.
 
         :param is_training: If true, the method is called from `training_step`, otherwise it is called from
-        `validation_step`.
+            `validation_step`.
 
         :param sample: The batched sample on which the model should be trained.
         :param batch_index: The index of the present batch (supplied only for diagnostics).
@@ -110,7 +110,7 @@ class SegmentationLightning(InnerEyeLightning):
         :param cropped_sample: The batched image crops used for training or validation.
         :param segmentation: The segmentation that was produced by the model.
         :param is_training: If true, the method is called from `training_step`, otherwise it is called from
-        `validation_step`.
+            `validation_step`.
         """
         # dice_per_crop_and_class has one row per crop, with background class removed
         # Dice NaN means that both ground truth and prediction are empty.
@@ -235,11 +235,11 @@ class ScalarLightning(InnerEyeLightning):
         Runs training for a single minibatch of training or validation data, and computes all metrics.
 
         :param is_training: If true, the method is called from `training_step`, otherwise it is called from
-        `validation_step`.
+            `validation_step`.
 
         :param sample: The batched sample on which the model should be trained.
         :param batch_index: The index of the present batch (supplied only for diagnostics).
-        Runs a minibatch of training or validation data through the model.
+            Runs a minibatch of training or validation data through the model.
         """
         model_inputs_and_labels = get_scalar_model_inputs_and_labels(self.model, sample)
         labels = model_inputs_and_labels.labels
@@ -325,7 +325,7 @@ def create_lightning_model(config: ModelConfigBase, set_optimizer_and_scheduler:
     The `optimizer` and `l_rate_scheduler` object of the Lightning model will also be populated.
 
     :param set_optimizer_and_scheduler: If True (default), initialize the optimizer and LR scheduler of the model.
-    If False, skip that step (this is only meant to be used for unit tests.)
+        If False, skip that step (this is only meant to be used for unit tests.)
 
     :param config: An InnerEye model configuration object
     :return: A PyTorch Lightning model object.
