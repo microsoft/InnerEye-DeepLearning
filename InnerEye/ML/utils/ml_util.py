@@ -175,7 +175,7 @@ def is_test_from_execution_mode(execution_mode: ModelExecutionMode) -> bool:
     """
     Returns a boolean by checking the execution type. The output is used to determine the properties
     of the forward pass, e.g. model gradient updates or metric computation.
-    :return True if execution mode is VAL or TEST, False if TRAIN
+    :return: True if execution mode is VAL or TEST, False if TRAIN
         :raise ValueError if the execution mode is invalid
     """
     if execution_mode == ModelExecutionMode.TRAIN:

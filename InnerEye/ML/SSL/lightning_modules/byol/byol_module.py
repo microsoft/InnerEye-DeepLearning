@@ -120,7 +120,10 @@ class BYOLInnerEye(pl.LightningModule):
         self.train_iters_per_epoch = self.hparams.num_samples // global_batch_size  # type: ignore
 
     def configure_optimizers(self) -> Any:
-        # exclude certain parameters
+        """Testing this out
+
+        :return: _description_
+        """
         parameters = self.exclude_from_wt_decay(self.online_network.named_parameters(),
                                                 weight_decay=self.hparams.weight_decay)  # type: ignore
         optimizer = Adam(parameters,

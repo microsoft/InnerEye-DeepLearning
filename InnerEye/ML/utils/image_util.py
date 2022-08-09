@@ -76,7 +76,7 @@ def apply_mask_to_posteriors(posteriors: NumpyOrTorch, mask: NumpyOrTorch) -> Nu
 
     :param posteriors: image tensors in shape: Batches (optional) x Classes x Z x Y x X
     :param mask: image tensor in shape: Batches (optional) x Z x Y x X
-    :return posteriors with mask applied
+    :return: posteriors with mask applied
     """
     ml_util.check_size_matches(posteriors, mask, matching_dimensions=[-1, -2, -3])
 
@@ -211,7 +211,7 @@ def posteriors_to_segmentation(posteriors: NumpyOrTorch) -> NumpyOrTorch:
 
     :param posteriors: Confidence maps [0,1] for each patch per class in format: Batches x Class x Z x Y x X
         or Class x Z x Y x X for non-batched input
-    :returns segmentation: argmaxed posteriors with each voxel belonging to a single class: Batches x Z x Y x X
+    :return: segmentation: argmaxed posteriors with each voxel belonging to a single class: Batches x Z x Y x X
         or Z x Y x X for non-batched input
     """
 
@@ -374,7 +374,7 @@ def get_center_crop(image: NumpyOrTorch, crop_shape: TupleInt3) -> NumpyOrTorch:
 
     :param image: The original image to extract crop from
     :param crop_shape: The shape of the center crop to extract
-    :return the center region as specified by the crop_shape argument.
+    :return: the center region as specified by the crop_shape argument.
     """
     if image is None or crop_shape is None:
         raise Exception("image and crop_shape must not be None")

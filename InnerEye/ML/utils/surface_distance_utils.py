@@ -97,7 +97,7 @@ def get_run_output_dir(azure_config: AzureConfig, model_config: SegmentationMode
 
     :param azure_config:
     :param model_config:
-    :return output_dir: directory that all artifact paths use as a prefix
+    :return: output_dir: directory that all artifact paths use as a prefix
     """
     if not azure_config.run_recovery_id:
         raise ValueError("azure_config.run_recovery_id is not provided")
@@ -150,7 +150,7 @@ def get_subject_prefix(model_config: SegmentationModelBase, train_mode: ModelExe
     :param model_config: Config
     :param train_mode: Model execution mode -i.e. train, test or val
     :param subject_id: ID of the subject
-    :return prefix: the filepath prefix within the container from which to download all artifacts
+    :return: prefix: the filepath prefix within the container from which to download all artifacts
     """
     prefix = model_config.outputs_folder / BEST_EPOCH_FOLDER_NAME / train_mode.value / "{0:03d}".format(subject_id)
     return prefix

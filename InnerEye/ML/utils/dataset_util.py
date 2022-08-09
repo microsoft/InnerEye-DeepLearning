@@ -75,7 +75,7 @@ class CategoricalToOneHotEncoder(OneHotEncoderBase):
 
     def get_supported_dataset_column_names(self) -> List[str]:
         """
-        :returns list of categorical columns that are supported by this encoder
+        :return: list of categorical columns that are supported by this encoder
         """
         return list(self._columns_and_possible_categories.keys())
 
@@ -87,7 +87,7 @@ class CategoricalToOneHotEncoder(OneHotEncoderBase):
 
         :param feature_name: the name of the column for which to compute the feature
             length.
-        :returns the feature length i.e. number of possible values for this feature.
+        :return: the feature length i.e. number of possible values for this feature.
         """
         return self._feature_length[feature_name]
 

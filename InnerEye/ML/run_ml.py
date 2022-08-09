@@ -529,7 +529,7 @@ class MLRunner:
 
         :param checkpoint_paths: Checkpoint paths to register.
         :param model_proc: whether it's a single or ensemble model.
-        :returns Tuple element 1: AML model object, or None if no model could be registered.
+        :return: Tuple element 1: AML model object, or None if no model could be registered.
             Tuple element 2: The result of running the model_deployment_hook, or None if no hook was supplied.
         """
         if self.is_offline_run:

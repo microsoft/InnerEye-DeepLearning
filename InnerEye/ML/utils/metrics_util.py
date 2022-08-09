@@ -256,7 +256,7 @@ def convert_input_and_label(model_output: Union[torch.Tensor, np.ndarray],
                             label: Union[torch.Tensor, np.ndarray]) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Ensures that both model_output and label are tensors of dtype float32.
-    :return a Tuple with model_output, label as float tensors.
+    :return: a Tuple with model_output, label as float tensors.
     """
     if not torch.is_tensor(model_output):
         model_output = torch.tensor(model_output)
@@ -273,6 +273,6 @@ def is_missing_ground_truth(ground_truth: np.ndarray) -> bool:
 
     :param ground_truth: ground truth binary array with dimensions: [Z x Y x X].
     :param label_id: Integer index of the label to check.
-    :returns: True if the label is missing (signified by NaN), False otherwise.
+    :return: True if the label is missing (signified by NaN), False otherwise.
     """
     return np.isnan(ground_truth[0, 0, 0])

@@ -222,7 +222,7 @@ def csv_column_contains_value(
     :param column_name: The name of the column in which we look for the value
     :param value: The value to look for
     :param contains_only_value: Check that this is the only value in the column (default True)
-    :returns: Boolean, whether the CSV column contains the value (and perhaps only the value)
+    :return: Boolean, whether the CSV column contains the value (and perhaps only the value)
     """
     result = True
     if not csv_file_path.exists:

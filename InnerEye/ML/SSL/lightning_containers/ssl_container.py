@@ -203,7 +203,7 @@ class SSLContainer(LightningContainer):
         Returns torch lightning data module for encoder or linear head
 
         :param is_ssl_encoder_module: whether to return the data module for SSL training or for linear head. If true,
-        :return transforms with two views per sample (batch like (img_v1, img_v2, label)). If False, return only one
+        :return: transforms with two views per sample (batch like (img_v1, img_v2, label)). If False, return only one
             view per sample but also return the index of the sample in the dataset (to make sure we don't use twice the same
             batch in one training epoch (batch like (index, img_v1, label), as classifier dataloader expected to be shorter
             than SSL training, hence CombinedDataloader might loop over data several times per epoch).

@@ -219,7 +219,7 @@ def forward_preserve_state(module: DeviceAwareModule, inputs: List[torch.Tensor]
 
     :param module: Callable torch module
     :param inputs: List of input torch tensors
-    :return output: Output torch tensors
+    :return: output: Output torch tensors
     """
     if not isinstance(inputs, list):
         raise RuntimeError("Inputs object has to be a list of torch tensors")

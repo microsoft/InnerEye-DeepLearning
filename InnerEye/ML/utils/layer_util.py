@@ -48,7 +48,7 @@ def get_padding_from_kernel_size(padding: PaddingMode,
 
     :param num_dimensions: The number of dimensions that the returned padding tuple should have, if both
         kernel_size and dilation are scalars.
-    :return padding value required for convolution layers based on input kernel size and dilation.
+    :return: padding value required for convolution layers based on input kernel size and dilation.
     """
     if isinstance(kernel_size, Sized):
         num_dimensions = len(kernel_size)

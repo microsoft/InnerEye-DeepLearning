@@ -206,7 +206,7 @@ class InferencePipeline(FullImageInferencePipelineBase):
         :param model_config: Model related configurations.
         :param pipeline_id: Numeric identifier for the pipeline (useful for logging when ensembling)
 
-        :returns InferencePipeline: an instantiated inference pipeline instance, or None if there was no checkpoint
+        :return: InferencePipeline: an instantiated inference pipeline instance, or None if there was no checkpoint
             file for this epoch.
         """
         if not path_to_checkpoint.is_file():
@@ -247,7 +247,7 @@ class InferencePipeline(FullImageInferencePipelineBase):
         :param voxel_spacing_mm: Voxel spacing to use for each dimension in (Z x Y x X) order
         :param mask: A binary image used to ignore results outside it in format: Z x Y x X.
         :param patient_id: The identifier of the patient this image belongs to (defaults to 0 if None provided).
-        :return InferenceResult: that contains Segmentation for each of the classes and their posterior probabilities.
+        :return: InferenceResult: that contains Segmentation for each of the classes and their posterior probabilities.
         """
         torch.cuda.empty_cache()
         if image_channels is None:

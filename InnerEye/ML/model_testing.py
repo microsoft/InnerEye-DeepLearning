@@ -131,7 +131,7 @@ def segmentation_model_test_epoch(config: SegmentationModelBase,
     :param epoch_and_split: A string that should uniquely identify the epoch and the data split (train/val/test).
         :raises TypeError: If the arguments are of the wrong type.
     :raises ValueError: When there are issues loading the model.
-    :return A list with the mean dice score (across all structures apart from background) for each image.
+    :return: A list with the mean dice score (across all structures apart from background) for each image.
     """
     ml_util.set_random_seed(config.get_effective_random_seed(), "Model testing")
     results_folder.mkdir(exist_ok=True)
@@ -212,7 +212,7 @@ def evaluate_model_predictions(process_id: int,
     :param config: Segmentation model config object
     :param dataset: Dataset object, it is used to load intensity image, labels, and patient metadata.
     :param results_folder: Path to results folder
-    :returns [PatientMetadata, list[list]]: Patient metadata and list of computed metrics for each image.
+    :return: [PatientMetadata, list[list]]: Patient metadata and list of computed metrics for each image.
     """
     sample = dataset.get_samples_at_index(index=process_id)[0]
     logging.info(f"Evaluating predictions for patient {sample.patient_id}")
@@ -244,7 +244,7 @@ def populate_metrics_writer(
         from evaluate_model_predictions
 
     :param config: The SegmentationModelBase config from which we read the ground_truth_ids
-    :returns: A new MetricsPerPatientWriter and a list of foreground DICE score averages
+    :return: A new MetricsPerPatientWriter and a list of foreground DICE score averages
     """
     average_dice: List[FloatOrInt] = []
     metrics_writer = MetricsPerPatientWriter()

@@ -91,7 +91,7 @@ def compose_distribution_comparisons(file_contents: List[List[List[str]]]) -> Li
 
     :param file_contents: two or more lists of rows, where each "rows" is returned by read_csv_file on
         (typically) a statistics.csv file
-    :return a list of lines to print
+    :return: a list of lines to print
     """
     value_lists: List[Dict[str, List[float]]] = [parse_values(rows) for rows in file_contents]
     return compose_distribution_comparisons_on_lists(value_lists)

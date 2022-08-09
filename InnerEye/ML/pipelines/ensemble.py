@@ -85,7 +85,7 @@ class EnsemblePipeline(FullImageInferencePipelineBase):
         :param voxel_spacing_mm: Voxel spacing to use for each dimension in (Z x Y x X) order
         :param mask: A binary image used to ignore results outside it in format: Z x Y x X.
         :param patient_id: The identifier of the patient this image belongs to.
-        :return InferenceResult: that contains Segmentation for each of the classes and their posterior
+        :return: InferenceResult: that contains Segmentation for each of the classes and their posterior
             probabilities.
         """
         logging.info(f"Ensembling inference pipelines ({self._get_pipeline_ids()}) "

@@ -165,7 +165,7 @@ class ScalarMetricsBase(Metric):
         difference between true positive rate and false positive rate is smallest. Then, computes
         the false positive rate, false negative rate and accuracy at this threshold (i.e. when the
         predicted probability is higher than the threshold the predicted label is 1 otherwise 0).
-        :returns: Tuple(optimal_threshold, false positive rate, false negative rate, accuracy)
+        :return: Tuple(optimal_threshold, false positive rate, false negative rate, accuracy)
         """
         preds, targets = self._get_preds_and_targets()
         if torch.unique(targets).numel() == 1:

@@ -88,7 +88,7 @@ class FeatureStatistics:
         All features that have zero standard deviation (constant features) are left untouched.
 
         :param sources: list of datasources.
-        :return list of data sources where all non-imaging features are standardized.
+        :return: list of data sources where all non-imaging features are standardized.
         """
 
         def apply_source(source: ScalarDataSource) -> ScalarDataSource:

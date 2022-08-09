@@ -457,7 +457,7 @@ class MetricsDict:
         predicted probability is higher than the threshold the predicted label is 1 otherwise 0).
 
         :param hue: The hue to restrict the values used for computation, otherwise all values will be used.
-        :returns: Tuple(optimal_threshold, false positive rate, false negative rate, accuracy)
+        :return: Tuple(optimal_threshold, false positive rate, false negative rate, accuracy)
         """
         fpr, tpr, thresholds = roc_curve(self.get_labels(hue=hue), self.get_predictions(hue=hue))
         optimal_idx = MetricsDict.get_optimal_idx(fpr=fpr, tpr=tpr)
