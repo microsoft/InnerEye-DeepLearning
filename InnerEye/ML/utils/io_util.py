@@ -209,7 +209,7 @@ def load_nifti_image(path: PathOrString, image_type: Optional[Type] = float) -> 
     :return: A numpy array of the image and header data if applicable.
 
     :param image_type: The type to load the image in, set to None to not cast, default is float
-        :raises ValueError: If the path is invalid or the image is not 3D.
+    :raises ValueError: If the path is invalid or the image is not 3D.
     """
 
     def _is_valid_image_path(_path: Path) -> bool:

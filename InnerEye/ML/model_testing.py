@@ -129,7 +129,7 @@ def segmentation_model_test_epoch(config: SegmentationModelBase,
     :param execution_mode: Is the model evaluated on train, test, or validation set?
     :param results_folder: The folder where to store the results.
     :param epoch_and_split: A string that should uniquely identify the epoch and the data split (train/val/test).
-        :raises TypeError: If the arguments are of the wrong type.
+    :raises TypeError: If the arguments are of the wrong type.
     :raises ValueError: When there are issues loading the model.
     :return: A list with the mean dice score (across all structures apart from background) for each image.
     """
