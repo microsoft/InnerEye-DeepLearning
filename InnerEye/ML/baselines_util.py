@@ -112,7 +112,6 @@ def download_and_compare_scores(outputs_folder: Path, azure_config: AzureConfig,
     :param azure_config: Azure configuration to use for downloading data
     :param comparison_blob_storage_paths: list of paths to directories containing metrics.csv and dataset.csv files,
         each of the form run_recovery_id/rest_of_path
-
     :param model_dataset_df: dataframe containing contents of dataset.csv for the current model
     :param model_metrics_df: dataframe containing contents of metrics.csv for the current model
     :return: a dataframe for all the data (current model and all baselines); whether any comparisons were

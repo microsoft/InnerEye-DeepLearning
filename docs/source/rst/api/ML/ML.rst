@@ -2,13 +2,14 @@ Machine learning
 ================
 
 .. toctree::
+   :caption: Docuemntation for InnerEye/ML
 
-   configs
+   core
    models
    dataset
    augmentations
-   pipelines
    SSL
+   configs
    utils
-   runner
-   photometric_normalization
+   pipelines
+   visualizers
