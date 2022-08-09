@@ -5,8 +5,8 @@ The following is a list of the pre-defined configurations that can be used or in
 
 .. toctree::
 
-   classification/index
-   regression/index
-   segmentation/index
-   ssl/index
-   other/index
+   configs/classification
+   configs/regression
+   configs/segmentation
+   configs/ssl
+   configs/other

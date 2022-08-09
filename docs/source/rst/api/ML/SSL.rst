@@ -10,7 +10,7 @@ All Other SSL Components
 ------------------------
 
 .. toctree::
-    lightning_containers/index
-    lightning_modules/index
-    datamodules_and_datasets/index
-    utils/index
+    SSL/lightning_containers
+    SSL/lightning_modules
+    SSL/datamodules_and_datasets
+    SSL/utils
