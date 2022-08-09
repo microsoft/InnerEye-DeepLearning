@@ -530,7 +530,7 @@ class MLRunner:
         :param checkpoint_paths: Checkpoint paths to register.
         :param model_proc: whether it's a single or ensemble model.
         :returns Tuple element 1: AML model object, or None if no model could be registered.
-        Tuple element 2: The result of running the model_deployment_hook, or None if no hook was supplied.
+            Tuple element 2: The result of running the model_deployment_hook, or None if no hook was supplied.
         """
         if self.is_offline_run:
             raise ValueError("Cannot register models when InnerEye is running outside of AzureML.")
@@ -731,7 +731,7 @@ class MLRunner:
         or cancelled.
 
         :return: True if all sibling runs of the current run have finished (they either completed successfully,
-        or failed). False if any of them is still pending (running or queued).
+            or failed). False if any of them is still pending (running or queued).
         """
         if (not self.is_offline_run) \
                 and (azure_util.is_cross_validation_child_run(RUN_CONTEXT)):

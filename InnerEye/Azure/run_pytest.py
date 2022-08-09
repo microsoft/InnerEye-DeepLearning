@@ -23,7 +23,7 @@ def run_pytest(pytest_mark: str, outputs_folder: Path) -> Tuple[bool, Path]:
     :param pytest_mark: The PyTest mark to use for filtering out the tests to run.
     :param outputs_folder: The folder into which the test result XML file should be written.
     :return: True if PyTest found tests to execute and completed successfully, False otherwise.
-    Also returns the path to the generated PyTest results file.
+        Also returns the path to the generated PyTest results file.
     """
     from _pytest.main import ExitCode
     _outputs_file = outputs_folder / PYTEST_RESULTS_FILE

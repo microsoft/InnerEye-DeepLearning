@@ -205,7 +205,7 @@ class Runner:
         The main entry point for training and testing models from the commandline. This chooses a model to train
         via a commandline argument, runs training or testing, and writes all required info to disk and logs.
         :return: If submitting to AzureML, returns the model configuration that was used for training,
-        including commandline overrides applied (if any).
+            including commandline overrides applied (if any).
         """
         # Usually, when we set logging to DEBUG, we want diagnostics about the model
         # build itself, but not the tons of debug information that AzureML submissions create.
@@ -450,7 +450,7 @@ def run(project_root: Path,
     The main entry point for training and testing models from the commandline. This chooses a model to train
     via a commandline argument, runs training or testing, and writes all required info to disk and logs.
     :return: If submitting to AzureML, returns the model configuration that was used for training,
-    including commandline overrides applied (if any). For details on the arguments, see the constructor of Runner.
+        including commandline overrides applied (if any). For details on the arguments, see the constructor of Runner.
     """
     runner = Runner(project_root, yaml_config_file, post_cross_validation_hook, model_deployment_hook)
     return runner.run()

@@ -175,7 +175,7 @@ def extent_list(presence: np.array, max_value: int) -> Tuple[List[int], List[str
     :param presence: a 1-D array of distinct integers in increasing order.
     :param max_value: any integer, not necessarily related to presence
     :return: two tuples: (1) a list of the minimum and maximum values of presence, and max_value;
-    (2) a list of strings, each denoting a missing range of values within "presence".
+        (2) a list of strings, each denoting a missing range of values within "presence".
     """
     if len(presence) == 0:
         return [-1, -1, max_value], []

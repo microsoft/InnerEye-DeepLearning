@@ -70,7 +70,7 @@ def plot_val_dice_per_epoch(metrics: Dict[str, Any]) -> int:
 
     :param metrics:
     :return: The number of series that were plotted in the graph. Can return 0 if the metrics dictionary
-    does not contain any validation Dice score.
+        does not contain any validation Dice score.
     """
     plt.clf()
     series_count = 0

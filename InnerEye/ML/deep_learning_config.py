@@ -855,10 +855,10 @@ class DeepLearningConfig(WorkflowParams,
 
         :param path_to_checkpoint: Path to the checkpoint file.
         :return: Dictionary with model and optimizer state dicts. The dict should have at least the following keys:
-        1. Key ModelAndInfo.MODEL_STATE_DICT_KEY and value set to the model state dict.
-        2. Key ModelAndInfo.EPOCH_KEY and value set to the checkpoint epoch.
-        Other (optional) entries corresponding to keys ModelAndInfo.OPTIMIZER_STATE_DICT_KEY and
-        ModelAndInfo.MEAN_TEACHER_STATE_DICT_KEY are also supported.
+            1. Key ModelAndInfo.MODEL_STATE_DICT_KEY and value set to the model state dict.
+            2. Key ModelAndInfo.EPOCH_KEY and value set to the checkpoint epoch.
+            Other (optional) entries corresponding to keys ModelAndInfo.OPTIMIZER_STATE_DICT_KEY and
+            ModelAndInfo.MEAN_TEACHER_STATE_DICT_KEY are also supported.
         """
         return load_checkpoint(path_to_checkpoint=path_to_checkpoint, use_gpu=self.use_gpu)
 

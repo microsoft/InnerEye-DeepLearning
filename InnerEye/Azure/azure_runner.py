@@ -107,7 +107,7 @@ def create_dataset_configs(azure_config: AzureConfig,
     :param all_dataset_mountpoints: When using the datasets in AzureML, these are the per-dataset mount points.
     :param all_local_datasets: The paths for all local versions of the datasets.
     :return: A list of DatasetConfig objects, in the same order as datasets were provided in all_azure_dataset_ids,
-    omitting datasets with an empty name.
+        omitting datasets with an empty name.
     """
     datasets: List[DatasetConfig] = []
     num_local = len(all_local_datasets)

@@ -135,7 +135,7 @@ class ScalarDataSource(ScalarItemBase):
         :param image_size: If given, all loaded images will be reshaped to the size given here, prior to the
             center crop.
         :return: An instance of ClassificationItem, with the same label and numerical_non_image_features fields,
-        and all images loaded.
+            and all images loaded.
         """
         full_channel_files = self.get_all_image_filepaths(root_path=root_path,
                                                           file_mapping=file_mapping)
@@ -160,7 +160,7 @@ class ScalarDataSource(ScalarItemBase):
         be not None, and none of the non imaging features may be NaN or infinity.
 
         :return: True if channel files is a list with not-None entries, and all non imaging features are finite
-        floating point numbers.
+            floating point numbers.
         """
         return self.files_valid() and super().is_valid()
 

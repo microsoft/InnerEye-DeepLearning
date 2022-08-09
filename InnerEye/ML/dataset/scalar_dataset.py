@@ -746,7 +746,7 @@ class ScalarDatasetBase(GeneralDataset[ScalarModelBase], ScalarDataSource):
 
         :param item: The item to load.
         :return: A ClassificationItem instances with the loaded images, and the labels and non-image features copied
-        from the argument.
+            from the argument.
         """
         sample = item.load_images(
             root_path=self.args.local_dataset,

@@ -116,8 +116,8 @@ def download_and_compare_scores(outputs_folder: Path, azure_config: AzureConfig,
     :param model_dataset_df: dataframe containing contents of dataset.csv for the current model
     :param model_metrics_df: dataframe containing contents of metrics.csv for the current model
     :return: a dataframe for all the data (current model and all baselines); whether any comparisons were
-    done, i.e. whether a valid baseline was found; and the text lines to be written to the Wilcoxon results
-    file.
+        done, i.e. whether a valid baseline was found; and the text lines to be written to the Wilcoxon results
+        file.
     """
     comparison_baselines = get_comparison_baselines(outputs_folder, azure_config, comparison_blob_storage_paths)
     result = perform_score_comparisons(model_dataset_df, model_metrics_df, comparison_baselines)
@@ -261,7 +261,7 @@ def compare_folder_contents(expected_folder: Path,
     :param csv_relative_tolerance: When comparing CSV files, use this as the maximum allowed relative discrepancy.
         If 0.0, do not allow any discrepancy.
     :return: A list of human readable error messages, with message and file path. If no errors are found, the list is
-    empty.
+        empty.
     """
     messages = []
     if run and is_offline_run_context(run):

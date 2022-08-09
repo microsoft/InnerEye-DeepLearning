@@ -204,9 +204,9 @@ class SSLContainer(LightningContainer):
 
         :param is_ssl_encoder_module: whether to return the data module for SSL training or for linear head. If true,
         :return transforms with two views per sample (batch like (img_v1, img_v2, label)). If False, return only one
-        view per sample but also return the index of the sample in the dataset (to make sure we don't use twice the same
-        batch in one training epoch (batch like (index, img_v1, label), as classifier dataloader expected to be shorter
-        than SSL training, hence CombinedDataloader might loop over data several times per epoch).
+            view per sample but also return the index of the sample in the dataset (to make sure we don't use twice the same
+            batch in one training epoch (batch like (index, img_v1, label), as classifier dataloader expected to be shorter
+            than SSL training, hence CombinedDataloader might loop over data several times per epoch).
         """
         datamodule_args = self.datamodule_args[SSLDataModuleType.ENCODER] if is_ssl_encoder_module else \
             self.datamodule_args[SSLDataModuleType.LINEAR_HEAD]

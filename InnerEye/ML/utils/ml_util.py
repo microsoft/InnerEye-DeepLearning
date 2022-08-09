@@ -176,7 +176,7 @@ def is_test_from_execution_mode(execution_mode: ModelExecutionMode) -> bool:
     Returns a boolean by checking the execution type. The output is used to determine the properties
     of the forward pass, e.g. model gradient updates or metric computation.
     :return True if execution mode is VAL or TEST, False if TRAIN
-    :raise ValueError if the execution mode is invalid
+        :raise ValueError if the execution mode is invalid
     """
     if execution_mode == ModelExecutionMode.TRAIN:
         return False
@@ -212,6 +212,6 @@ def is_tensor_nan(tensor: torch.Tensor) -> bool:
 
     :param tensor: The tensor to check.
     :return: True if any of the tensor elements is Not a Number, False if all entries are valid numbers.
-    If the tensor is empty, the function returns False.
+        If the tensor is empty, the function returns False.
     """
     return bool(torch.isnan(tensor).any().item())

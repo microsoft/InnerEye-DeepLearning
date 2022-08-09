@@ -487,8 +487,8 @@ def load_dataframes(result_files: List[RunResultFiles], config: PlotCrossValidat
     :param result_files: The list of files to read.
     :param config: The overall configuration for the cross validation analysis.
     :return: A dictionary that maps from model execution mode (TEST, VAL) to concatenated metrics.
-    For segmentation models, the dataset dataframe is joined to the metrics, and the portal series
-    ID and institution ID are added.
+        For segmentation models, the dataset dataframe is joined to the metrics, and the portal series
+        ID and institution ID are added.
     """
     dataset_split_metrics: Dict[ModelExecutionMode, List[pd.DataFrame]] = \
         {mode: [] for mode in config.execution_modes_to_download()}
@@ -940,8 +940,8 @@ def add_comparison_data(config: PlotCrossValidationConfig, metrics: pd.DataFrame
     :param config: configuration of this plotting run
     :param metrics: on entry, metrics for just the focus (target) run
     :return: if there are comparison runs, an extended version of metrics including statistics for those runs,
-    and a list of focus (target) split names to compare them against; otherwise, "metrics" is returned, with
-    focus_splits as None, so we will get an all-against-all statistical comparison.
+        and a list of focus (target) split names to compare them against; otherwise, "metrics" is returned, with
+        focus_splits as None, so we will get an all-against-all statistical comparison.
     """
     if config.comparison_run_recovery_ids is None:
         return metrics, None

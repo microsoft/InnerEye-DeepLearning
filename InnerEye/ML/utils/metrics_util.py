@@ -212,7 +212,7 @@ def binary_classification_accuracy(model_output: Union[torch.Tensor, np.ndarray]
     :param threshold: the cut-off probability threshold for predictions. If model_ouput is > threshold, the predicted
         class is 1 else 0.
     :return: 1.0 if all predicted classes match the expected classes given in 'labels'. 0.0 if no predicted classes
-    match their labels.
+        match their labels.
     """
     model_output, label = convert_input_and_label(model_output, label)
     predicted_class = model_output > threshold

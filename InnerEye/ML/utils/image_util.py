@@ -212,7 +212,7 @@ def posteriors_to_segmentation(posteriors: NumpyOrTorch) -> NumpyOrTorch:
     :param posteriors: Confidence maps [0,1] for each patch per class in format: Batches x Class x Z x Y x X
         or Class x Z x Y x X for non-batched input
     :returns segmentation: argmaxed posteriors with each voxel belonging to a single class: Batches x Z x Y x X
-    or Z x Y x X for non-batched input
+        or Z x Y x X for non-batched input
     """
 
     if posteriors is None:
@@ -507,7 +507,7 @@ def compute_uncertainty_map_from_posteriors(posteriors: np.ndarray) -> np.ndarra
     :param posteriors: Normalized probability distribution in range [0, 1] for each class,
         in shape: Class x Z x Y x X
     :return: Shannon Entropy for each voxel, shape: Z x Y x X expected range is [0,1] where 1 represents
-    low confidence or uniform posterior distribution across classes.
+        low confidence or uniform posterior distribution across classes.
     """
     check_if_posterior_array(posteriors)
 
@@ -569,7 +569,7 @@ def segmentation_to_one_hot(segmentation: torch.Tensor,
 
     :param result_dtype: The torch data type that the result tensor should have. This would be either float16 or float32
     :return: A torch tensor with one-hot encoding of the segmentation of shape
-    [B, C*HDF5_NUM_SEGMENTATION_CLASSES, Z, Y, X]
+        [B, C*HDF5_NUM_SEGMENTATION_CLASSES, Z, Y, X]
     """
 
     def to_cuda(x: torch.Tensor) -> torch.Tensor:

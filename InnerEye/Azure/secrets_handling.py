@@ -107,7 +107,7 @@ def read_all_settings(project_settings_file: Optional[Path] = None,
     :param project_settings_file: The first YAML settings file to read.
     :param project_root: The folder that can contain a 'InnerEyePrivateSettings.yml' file.
     :return: A dictionary mapping from string to variable value. The dictionary key is the union of variable names
-    found in the two settings files.
+        found in the two settings files.
     """
     private_settings_file = None
     if project_root and project_root.is_dir():
@@ -126,7 +126,7 @@ def read_settings_and_merge(project_settings_file: Optional[Path] = None,
     :param project_settings_file: The first YAML settings file to read.
     :param private_settings_file: The second YAML settings file to read. Settings in this file has higher priority.
     :return: A dictionary mapping from string to variable value. The dictionary key is the union of variable names
-    found in the two settings files.
+        found in the two settings files.
     """
     result = dict()
     if project_settings_file:

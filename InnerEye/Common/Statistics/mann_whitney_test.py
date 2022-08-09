@@ -187,7 +187,7 @@ def roc_value(lst1: List[float], lst2: List[float]) -> float:
     :param lst1: a list of numbers
     :param lst2: another list of numbers
     :return: the proportion of pairs (x, y), where x is from lst1 and y is from lst2, for which
-    x < y, with x == y counting as half an instance.
+        x < y, with x == y counting as half an instance.
     """
     if len(lst1) == 0 or len(lst2) == 0:
         return 0.5
@@ -273,7 +273,7 @@ def compare_scores_across_institutions(metrics_file: str, splits_to_use: str = "
     :param splits_to_use: a comma-separated list of split names
     :param mode_to_use: test, validation etc
     :return: a list of comparison lines between pairs of splits. If splits_to_use is non empty,
-    only pairs involving at least one split from that set are compared.
+        only pairs involving at least one split from that set are compared.
     """
     valid_splits = set(splits_to_use.split(",")) if splits_to_use else None
     metrics = pd.read_csv(metrics_file)
@@ -330,7 +330,7 @@ def get_arguments(arglist: List[str] = None) -> Tuple[Optional[argparse.Namespac
         The value of the "-a" switch is one or more split names; pairs of splits not including these
         will not be compared.
     :return: parsed arguments and identifier for pattern (1, 2, 3 as above), or None, None if none of the
-    patterns are followed
+        patterns are followed
     """
     # Use argparse because we want to have mandatory non-switch arguments, which GenericConfig doesn't support.
     parser = argparse.ArgumentParser("Run Mann-Whitney tests")

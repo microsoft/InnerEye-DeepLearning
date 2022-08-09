@@ -32,7 +32,7 @@ class FeatureStatistics:
 
         :param sources: list of data sources
         :return: a Feature Statistics object storing mean and standard deviation for each non-imaging feature of
-        the dataset.
+            the dataset.
         """
         if len(sources) == 0:
             raise ValueError("sources must have a length greater than 0")

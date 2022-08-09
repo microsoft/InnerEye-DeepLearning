@@ -136,7 +136,7 @@ def difference_counts(values1: List[float], values2: List[float]) -> Tuple[int, 
     :param values1: list of values
     :param values2: list of values, same length as values1
     :return: number of pairs in which first value is greater than second, and number of pairs
-    in which second is greater than first
+        in which second is greater than first
     """
     n1 = 0
     n2 = 0

@@ -25,7 +25,7 @@ class DeviceAwareModule(torch.nn.Module, Generic[T, E]):
     def get_devices(self) -> List[torch.device]:
         """
         :return a list of device ids on which this module
-        is deployed.
+            is deployed.
         """
         return list({x.device for x in self.parameters()})
 

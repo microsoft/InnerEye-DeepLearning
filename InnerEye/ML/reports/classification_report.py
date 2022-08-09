@@ -219,8 +219,8 @@ def plot_scores_and_summary(all_labels_and_model_outputs: Sequence[LabelsAndPred
 
     :param ax: Axes object onto which to plot (default: use current axes).
     :return: A tuple of `(line_handles, summary_handle)` to use in setting a legend for the plot: `line_handles` is a
-    list corresponding to the curves for each `LabelsAndPredictions`, and `summary_handle` references the median line
-    and shaded CI area.
+        list corresponding to the curves for each `LabelsAndPredictions`, and `summary_handle` references the median line
+        and shaded CI area.
     """
     if ax is None:
         ax = plt.gca()

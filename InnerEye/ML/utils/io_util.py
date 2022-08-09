@@ -345,7 +345,7 @@ def load_images_and_stack(files: Iterable[Path],
 
     :param image_size: If supplied, all loaded images will be resized immediately after loading.
     :return: A wrapper class that contains the loaded images, and if load_segmentation is True, also the segmentations
-    that were present in the files.
+        that were present in the files.
     """
     images = []
     segmentations = []

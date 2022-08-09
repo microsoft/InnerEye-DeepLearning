@@ -119,7 +119,7 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         """
         Creates the torch DataLoaders that supply the training and the validation set during training only.
         :return: A dictionary, with keys ModelExecutionMode.TRAIN and ModelExecutionMode.VAL, and their respective
-        data loaders.
+            data loaders.
         """
         logging.info("Starting to read and parse the datasets.")
         if self._datasets_for_training is None:
@@ -185,7 +185,7 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
 
         :param dataset_split: The full dataset, split into training, validation and test section.
         :return: The dataset split with training and validation sections shuffled according to the current
-        cross validation index.
+            cross validation index.
         """
         splits = dataset_split.get_k_fold_cross_validation_splits(self.number_of_cross_validation_splits)
         return splits[self.cross_validation_split_index]

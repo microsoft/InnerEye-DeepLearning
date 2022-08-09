@@ -75,7 +75,7 @@ class HDF5Object:
 
         :param date: string representing a date
         :return: converted date, None if the string is invalid for
-        date conversion.
+            date conversion.
         """
         try:
             return datetime.strptime(date, DATE_FORMAT)

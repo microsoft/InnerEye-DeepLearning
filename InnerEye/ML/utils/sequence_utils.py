@@ -54,7 +54,7 @@ def sequences_to_padded_tensor(sequences: List[torch.Tensor],
     :param sequences: List of Tensors to pad
     :param padding_value: Padding value to use, default is 0.0
     :return: Output tensor with shape B x * where * is the max dimensions from the list of provided tensors.
-    And B is the number of tensors in the list of sequences provided.
+        And B is the number of tensors in the list of sequences provided.
     """
     return pad_sequence(sequences, batch_first=True, padding_value=padding_value)
 

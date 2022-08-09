@@ -56,7 +56,7 @@ class EnsemblePipeline(FullImageInferencePipelineBase):
 
         :param aggregation_type: aggregation function to use to combine the results.
         :return: InferenceResult: contains a Segmentation for each of the classes and their posterior
-        probabilities.
+            probabilities.
         """
         if aggregation_type != EnsembleAggregationType.Average:
             raise NotImplementedError(f"Ensembling is not implemented for aggregation type: {aggregation_type}")
@@ -86,7 +86,7 @@ class EnsemblePipeline(FullImageInferencePipelineBase):
         :param mask: A binary image used to ignore results outside it in format: Z x Y x X.
         :param patient_id: The identifier of the patient this image belongs to.
         :return InferenceResult: that contains Segmentation for each of the classes and their posterior
-        probabilities.
+            probabilities.
         """
         logging.info(f"Ensembling inference pipelines ({self._get_pipeline_ids()}) "
                      f"predictions for patient: {patient_id}, "

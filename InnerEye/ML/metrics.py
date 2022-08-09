@@ -227,7 +227,7 @@ def compute_dice_across_patches(segmentation: torch.Tensor,
     :param allow_multiple_classes_for_each_pixel: If set to False, ground-truth tensor has
         to contain only one foreground label for each pixel.
     :return A torch tensor of size (Patches, Classes) with the Dice scores. Dice scores are computed for
-    all classes including the background class at index 0.
+        all classes including the background class at index 0.
     """
     check_size_matches(segmentation, ground_truth, 4, 5, [0, -3, -2, -1],
                        arg1_name="segmentation", arg2_name="ground_truth")
