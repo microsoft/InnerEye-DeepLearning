@@ -43,7 +43,8 @@ class UNet3D(BaseSegmentationModel):
 
         :param channels: A tuple containing the number of input and output channels
         :param upsample_kernel_size: Spatial support of upsampling kernels. If an integer is provided, the same value
-        will be repeated for all three dimensions. For non-cubic kernels please pass a list or tuple with three elements
+            will be repeated for all three dimensions. For non-cubic kernels please pass a list or tuple with three
+            elements.
 
         :param upsampling_stride: Upsamling factor used in deconvolutional layer. Similar to the `upsample_kernel_size`
         parameter, if an integer is passed, the same upsampling factor will be used for all three dimensions.

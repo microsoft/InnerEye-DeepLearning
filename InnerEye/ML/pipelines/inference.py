@@ -202,12 +202,12 @@ class InferencePipeline(FullImageInferencePipelineBase):
         If there is no checkpoint file for the given epoch, return None.
 
         :param path_to_checkpoint: The path to the checkpoint that we want to load
-        model_config.checkpoint_folder
-
+            model_config.checkpoint_folder
         :param model_config: Model related configurations.
         :param pipeline_id: Numeric identifier for the pipeline (useful for logging when ensembling)
-        :return InferencePipeline: an instantiated inference pipeline instance, or None if there was no checkpoint
-        file for this epoch.
+
+        :returns InferencePipeline: an instantiated inference pipeline instance, or None if there was no checkpoint
+            file for this epoch.
         """
         if not path_to_checkpoint.is_file():
             # not raising a value error here: This is used to create individual pipelines for ensembles,

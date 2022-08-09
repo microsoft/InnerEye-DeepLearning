@@ -33,11 +33,11 @@ def get_ssl_transforms_from_config(config: CfgNode,
     are called on. If False, simply return one transformed version of the sample centered and cropped.
 
     :param use_training_augmentations_for_validation: If True, use augmentation at validation time too.
-    This is required for SSL validation loss to be meaningful. If False, only apply basic processing step
-    (no augmentations)
+        This is required for SSL validation loss to be meaningful. If False, only apply basic processing step
+        (no augmentations)
 
     :param expand_channels: if True the expand channel transformation from InnerEye.ML.augmentations.image_transforms
-    will be added to the transformation passed through the config. This is needed for single channel images as CXR.
+        will be added to the transformation passed through the config. This is needed for single channel images as CXR.
     """
     train_transforms = create_transforms_from_config(config, apply_augmentations=True,
                                                      expand_channels=expand_channels)

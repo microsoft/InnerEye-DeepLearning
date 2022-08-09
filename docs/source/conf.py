@@ -61,7 +61,7 @@ exclude_patterns = []  # type: ignore
 
 # -- Options for HTML output -------------------------------------------------
 
-# The theme to use for HTML and HTML Help pages.  See the documentation for
+# The theme to use for HTML and HTML Help pages.  See the documentation fora
 # a list of builtin themes.
 #
 html_theme = 'furo'

@@ -186,8 +186,7 @@ class BaseSegmentationModel(DeviceAwareModule, ABC):
         When called again with the same crop_size, the summary is not created again.
 
         :param crop_size: The crop size for which the summary should be created. If not provided,
-        the minimum allowed crop size is used.
-
+            the minimum allowed crop size is used.
         :param log_summaries_to_files: whether to write the summary to a file
         """
         if crop_size is None:
