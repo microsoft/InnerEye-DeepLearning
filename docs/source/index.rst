@@ -40,6 +40,7 @@ InnerEye-DeepLearning Documentation
 
 .. toctree::
    :caption: API documentation (🚧 Work In Progress 🚧)
+   :maxdepth: 2
 
    rst/api/index
 
