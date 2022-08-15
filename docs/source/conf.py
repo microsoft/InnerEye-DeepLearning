@@ -24,9 +24,6 @@ from InnerEye.Common import fixed_paths
 fixed_paths.add_submodules_to_path()
 
 
-# -- Imports -----------------------------------------------------------------
-from recommonmark.parser import CommonMarkParser
-
 # -- Project information -----------------------------------------------------
 
 project = 'InnerEye-DeepLearning'
@@ -46,7 +43,7 @@ extensions = [
     'sphinx.ext.autodoc',
     "sphinx.ext.autosummary",
     'sphinx_rtd_theme',
-    'recommonmark',
+    'myst_parser',
     'sphinx.ext.viewcode',
 ]
 
@@ -70,10 +67,6 @@ html_theme = 'furo'
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 # html_static_path = ['_static']
-
-source_parsers = {
-    '.md': CommonMarkParser,
-}
 
 source_suffix = {
     '.rst': 'restructuredtext',

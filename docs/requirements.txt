@@ -1,2 +1,2 @@
-- recommonmark
+- myst-parser
 - readthedocs-sphinx-ext
