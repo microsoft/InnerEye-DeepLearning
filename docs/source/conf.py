@@ -31,7 +31,7 @@ copyright = 'Microsoft Corporation'
 author = 'Microsoft'
 
 # The full version, including alpha/beta/rc tags
-release = 'v0.4'
+release = '0.4'
 
 
 # -- General configuration ---------------------------------------------------
@@ -41,7 +41,7 @@ release = 'v0.4'
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
-    "sphinx.ext.autosummary",
+    'sphinx.ext.autosummary',
     'sphinx_rtd_theme',
     'myst_parser',
     'sphinx.ext.viewcode',
