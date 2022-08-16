@@ -1,3 +1,3 @@
 .. toctree::
 
-   ML/index
+   ML/ML

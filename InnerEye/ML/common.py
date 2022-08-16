@@ -86,6 +86,7 @@ def create_unique_timestamp_id() -> str:
 def get_best_checkpoint_path(path: Path) -> Path:
     """
     Given a path and checkpoint, formats a path based on the checkpoint file name format.
+
     :param path to checkpoint folder
     """
     return path / LAST_CHECKPOINT_FILE_NAME_WITH_SUFFIX

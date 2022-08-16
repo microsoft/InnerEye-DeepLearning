@@ -43,6 +43,7 @@ def visualize_random_crops(sample: Sample,
     Simulate the effect of sampling random crops (as is done for trainig segmentation models), and store the results
     as a Nifti heatmap and as 3 axial/sagittal/coronal slices. The heatmap and the slices are stored in the given
     output folder, with filenames that contain the patient ID as the prefix.
+
     :param sample: The patient information from the dataset, with scans and ground truth labels.
     :param config: The model configuration.
     :param output_folder: The folder into which the heatmap and thumbnails should be written.
@@ -111,9 +112,10 @@ def visualize_random_crops_for_dataset(config: SegmentationModelBase, output_fol
     """
     For segmentation models only: This function generates visualizations of the effect of sampling random patches
     for training. Visualizations are stored in both Nifti format, and as 3 PNG thumbnail files, in the output folder.
+
     :param config: The model configuration.
     :param output_folder: The folder in which the visualizations should be written. If not provided, use a subfolder
-    "patch_sampling" in the model's default output folder
+        "patch_sampling" in the model's default output folder
     """
     dataset_splits = config.get_dataset_splits()
     # Load a sample using the full image data loader

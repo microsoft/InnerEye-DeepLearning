@@ -48,6 +48,7 @@ def get_unit_image_header(spacing: Optional[TupleFloat3] = None) -> ImageHeader:
     """
     Creates an ImageHeader object with the origin at 0, and unit direction. The spacing is set to the argument,
     defaulting to (1, 1, 1) if not provided.
+
     :param spacing: The image spacing, as a (Z, Y, X) tuple.
     """
     if not spacing:
@@ -75,7 +76,7 @@ def apply_mask_to_posteriors(posteriors: NumpyOrTorch, mask: NumpyOrTorch) -> Nu
 
     :param posteriors: image tensors in shape: Batches (optional) x Classes x Z x Y x X
     :param mask: image tensor in shape: Batches (optional) x Z x Y x X
-    :return posteriors with mask applied
+    :return: posteriors with mask applied
     """
     ml_util.check_size_matches(posteriors, mask, matching_dimensions=[-1, -2, -3])
 
@@ -184,8 +185,9 @@ def _pad_images(images: np.ndarray,
 
     :param images: the image(s) to be padded, in shape: Z x Y x X or batched in shape: Batches x Z x Y x X.
     :param padding_vector: padding before and after in each dimension eg: ((2,2), (3,3), (2,0))
-    will pad 4 pixels in Z (2 on each side), 6 pixels in Y (3 on each side)
+        will pad 4 pixels in Z (2 on each side), 6 pixels in Y (3 on each side)
     and 2 in X (2 on the left and 0 on the right).
+
     :param padding_mode: a valid numpy padding mode.
     :return: padded copy of the original image.
     """
@@ -208,9 +210,9 @@ def posteriors_to_segmentation(posteriors: NumpyOrTorch) -> NumpyOrTorch:
     Perform argmax on the class dimension.
 
     :param posteriors: Confidence maps [0,1] for each patch per class in format: Batches x Class x Z x Y x X
-    or Class x Z x Y x X for non-batched input
-    :returns segmentation: argmaxed posteriors with each voxel belonging to a single class: Batches x Z x Y x X
-    or Z x Y x X for non-batched input
+        or Class x Z x Y x X for non-batched input
+    :return: segmentation: argmaxed posteriors with each voxel belonging to a single class: Batches x Z x Y x X
+        or Z x Y x X for non-batched input
     """
 
     if posteriors is None:
@@ -241,9 +243,11 @@ def largest_connected_components(img: np.ndarray,
     Select the largest connected binary components (plural) in an image. If deletion_limit is set in which case a
     component is only deleted (i.e. its voxels are False in the output) if its voxel count as a proportion of all the
     True voxels in the input is less than deletion_limit.
+
     :param img: np.ndarray
     :param deletion_limit: if set, a component is deleted only if its voxel count as a proportion of all the
-    True voxels in the input is less than deletion_limit.
+        True voxels in the input is less than deletion_limit.
+
     :param class_index: Optional. Can be used to provide a class index for logging purposes if the image contains
      only pixels from a specific class.
     """
@@ -281,9 +285,10 @@ def extract_largest_foreground_connected_component(
         restrictions: Optional[List[Tuple[int, Optional[float]]]] = None) -> np.ndarray:
     """
     Extracts the largest foreground connected component per class from a multi-label array.
+
     :param multi_label_array: An array of class assignments, i.e. value c at (z, y, x) is a class c.
     :param restrictions: restrict processing to a subset of the classes (if provided). Each element is a
-    pair (class_index, threshold) where threshold may be None.
+        pair (class_index, threshold) where threshold may be None.
     :return: An array of class assignments
     """
     if restrictions is None:
@@ -311,6 +316,7 @@ def merge_masks(masks: np.ndarray) -> np.ndarray:
     """
     Merges a one-hot encoded mask tensor (Classes x Z x Y x X) into a multi-label map with labels corresponding to their
     index in the original tensor of shape (Z x Y x X).
+
     :param masks: array of shape (Classes x Z x Y x X) containing the mask for each class
     :return: merged_mask of shape (Z x Y x X).
     """
@@ -346,7 +352,7 @@ def multi_label_array_to_binary(array: np.ndarray, num_classes_including_backgro
 
     :param array: An array of class assignments.
     :param num_classes_including_background: The number of class assignments to search for. If 3 classes,
-    the class assignments to search for will be 0, 1, and 2.
+        the class assignments to search for will be 0, 1, and 2.
     :return: an array of size (num_classes_including_background, array.shape)
     """
     return np.stack(list(binaries_from_multi_label_array(array, num_classes_including_background)))
@@ -368,7 +374,7 @@ def get_center_crop(image: NumpyOrTorch, crop_shape: TupleInt3) -> NumpyOrTorch:
 
     :param image: The original image to extract crop from
     :param crop_shape: The shape of the center crop to extract
-    :return the center region as specified by the crop_shape argument.
+    :return: the center region as specified by the crop_shape argument.
     """
     if image is None or crop_shape is None:
         raise Exception("image and crop_shape must not be None")
@@ -399,6 +405,7 @@ def check_array_range(data: np.ndarray, expected_range: Optional[Range] = None,
     :param data: The array to check. It can have any size.
     :param expected_range: The interval that all array elements must fall into. The first entry is the lower
         bound, the second entry is the upper bound.
+
     :param error_prefix: A string to use as the prefix for the error message.
     """
     if expected_range is None:
@@ -498,9 +505,9 @@ def compute_uncertainty_map_from_posteriors(posteriors: np.ndarray) -> np.ndarra
     Normalized Shannon Entropy:  https://en.wiktionary.org/wiki/Shannon_entropy
 
     :param posteriors: Normalized probability distribution in range [0, 1] for each class,
-    in shape: Class x Z x Y x X
+        in shape: Class x Z x Y x X
     :return: Shannon Entropy for each voxel, shape: Z x Y x X expected range is [0,1] where 1 represents
-    low confidence or uniform posterior distribution across classes.
+        low confidence or uniform posterior distribution across classes.
     """
     check_if_posterior_array(posteriors)
 
@@ -513,10 +520,11 @@ def gaussian_smooth_posteriors(posteriors: np.ndarray, kernel_size_mm: TupleFloa
     Performs Gaussian smoothing on posteriors
 
     :param posteriors: Normalized probability distribution in range [0, 1] for each class,
-    in shape: Class x Z x Y x X
+        in shape: Class x Z x Y x X
+
     :param kernel_size_mm: The size of the smoothing kernel in mm to be used in each dimension (Z, Y, X)
     :param voxel_spacing_mm: Voxel spacing to use to map from mm space to pixel space for the
-    Gaussian sigma parameter for each dimension in (Z x Y x X) order.
+        Gaussian sigma parameter for each dimension in (Z x Y x X) order.
     :return:
     """
     check_if_posterior_array(posteriors)
@@ -557,10 +565,11 @@ def segmentation_to_one_hot(segmentation: torch.Tensor,
 
     :param segmentation: A segmentation as a multi-label map of shape [B, C, Z, Y, X]
     :param use_gpu: If true, and the input is not yet on the GPU, move the intermediate tensors to the GPU. The result
-    will be on the same device as the argument `segmentation`
+        will be on the same device as the argument `segmentation`
+
     :param result_dtype: The torch data type that the result tensor should have. This would be either float16 or float32
     :return: A torch tensor with one-hot encoding of the segmentation of shape
-    [B, C*HDF5_NUM_SEGMENTATION_CLASSES, Z, Y, X]
+        [B, C*HDF5_NUM_SEGMENTATION_CLASSES, Z, Y, X]
     """
 
     def to_cuda(x: torch.Tensor) -> torch.Tensor:
@@ -702,6 +711,7 @@ def apply_summed_probability_rules(model_config: SegmentationModelBase,
     :param model_config: Model configuration information
     :param posteriors: Confidences per voxel per class, in format Batch x Classes x Z x Y x X if batched,
                        or Classes x Z x Y x X if not batched.
+
     :param segmentation: Class labels per voxel, in format Batch x Z x Y x X if batched, or Z x Y x X if not batched.
     :return: Modified segmentation, as Batch x Z x Y x X if batched, or Z x Y x X if not batched.
     """

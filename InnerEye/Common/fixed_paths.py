@@ -14,6 +14,7 @@ from InnerEye.Common.type_annotations import PathOrString
 def repository_root_directory(path: Optional[PathOrString] = None) -> Path:
     """
     Gets the full path to the root directory that holds the present repository.
+
     :param path: if provided, a relative path to append to the absolute path to the repository root.
     :return: The full path to the repository's root directory, with symlinks resolved if any.
     """
@@ -28,6 +29,7 @@ def repository_root_directory(path: Optional[PathOrString] = None) -> Path:
 def repository_parent_directory(path: Optional[PathOrString] = None) -> Path:
     """
     Gets the full path to the parent directory that holds the present repository.
+
     :param path: if provided, a relative path to append to the absolute path to the repository root.
     :return: The full path to the repository's root directory, with symlinks resolved if any.
     """

@@ -23,8 +23,9 @@ class CropSizeConstraints:
         """
         :param multiple_of: Stores minimum size and other conditions that a training crop size must satisfy.
         :param minimum_size: Training crops must have a size that is a multiple of this value, along each dimension.
-        For example, if set to (1, 16, 16), the crop size has to be a multiple of 16 along X and Y, and a
+            For example, if set to (1, 16, 16), the crop size has to be a multiple of 16 along X and Y, and a
         multiple of 1 (i.e., any number) along the Z dimension.
+
         :param num_dimensions: Training crops must have a size that is at least this value.
         """
         self.multiple_of = multiple_of
@@ -56,6 +57,7 @@ class CropSizeConstraints:
         """
         Checks if the given crop size is a valid crop size for the present model.
         If it is not valid, throw a ValueError.
+
         :param crop_size: The crop size that should be checked.
         :param message_prefix: A string prefix for the error message if the crop size is found to be invalid.
         :return:
@@ -83,6 +85,7 @@ class CropSizeConstraints:
         (at test time). The new crop size will be the largest multiple of self.multiple_of that fits into the
         image_shape.
         The stride size will attempt to maintain the stride-to-crop ratio before adjustment.
+
         :param image_shape: The shape of the image to process.
         :param crop_size: The present test crop size.
         :param stride_size: The present inference stride size.
@@ -121,10 +124,11 @@ class BaseSegmentationModel(DeviceAwareModule, ABC):
                  ):
         """
         Creates a new instance of the base model class.
+
         :param name: A human readable name of the model.
         :param input_channels: The number of image input channels.
         :param crop_size_constraints: The size constraints for the training crop size. If not provided,
-        a minimum crop size of 1 is assumed.
+            a minimum crop size of 1 is assumed.
         """
         super().__init__()
         self.num_dimensions = 3
@@ -144,6 +148,7 @@ class BaseSegmentationModel(DeviceAwareModule, ABC):
         The argument is expected to be either a 2-tuple or a 3-tuple. A batch dimension (1)
         and the number of channels are added as the first dimensions. The result tuple has batch and channel dimension
         stripped off.
+
         :param input_shape: A tuple (2D or 3D) representing incoming tensor shape.
         """
         # Create a sample tensor for inference
@@ -166,6 +171,7 @@ class BaseSegmentationModel(DeviceAwareModule, ABC):
         """
         Checks if the given crop size is a valid crop size for the present model.
         If it is not valid, throw a ValueError.
+
         :param crop_size: The crop size that should be checked.
         :param message_prefix: A string prefix for the error message if the crop size is found to be invalid.
         """
@@ -178,8 +184,9 @@ class BaseSegmentationModel(DeviceAwareModule, ABC):
         Stores a model summary, containing information about layers, memory consumption and runtime
         in the model.summary field.
         When called again with the same crop_size, the summary is not created again.
+
         :param crop_size: The crop size for which the summary should be created. If not provided,
-        the minimum allowed crop size is used.
+            the minimum allowed crop size is used.
         :param log_summaries_to_files: whether to write the summary to a file
         """
         if crop_size is None:

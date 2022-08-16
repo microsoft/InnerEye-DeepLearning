@@ -45,6 +45,7 @@ class AMLTensorBoardMonitorConfig(GenericConfig):
 def monitor(monitor_config: AMLTensorBoardMonitorConfig, azure_config: AzureConfig) -> None:
     """
     Starts TensorBoard monitoring as per the provided arguments.
+
     :param monitor_config: The config containing information on which runs that need be monitored.
     :param azure_config: An AzureConfig object with secrets/keys to access the workspace.
     """
@@ -93,9 +94,10 @@ def main(settings_yaml_file: Optional[Path] = None,
     """
     Parses the commandline arguments, and based on those, starts the Tensorboard monitoring for the AzureML runs
     supplied on the commandline.
+
     :param settings_yaml_file: The YAML file that contains all information for accessing Azure.
     :param project_root: The root folder that contains all code for the present run. This is only used to locate
-    a private settings file InnerEyePrivateSettings.yml.
+        a private settings file InnerEyePrivateSettings.yml.
     """
     monitor_config = AMLTensorBoardMonitorConfig.parse_args()
     settings_yaml_file = settings_yaml_file or monitor_config.settings

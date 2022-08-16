@@ -23,7 +23,7 @@ class RandomGamma:
     def __init__(self, scale: Tuple[float, float]) -> None:
         """
         :param scale: a tuple (min_gamma, max_gamma) that specifies the range of possible values to sample the gamma
-        value from when the transformation is called.
+            value from when the transformation is called.
         """
         self.scale = scale
 
@@ -59,6 +59,7 @@ class AddGaussianNoise:
     def __init__(self, p_apply: float, std: float) -> None:
         """
         Transformation to add Gaussian noise N(0, std) to an image.
+
         :param: p_apply: probability of applying the transformation.
         :param: std: standard deviation of the gaussian noise to add to the image.
         """

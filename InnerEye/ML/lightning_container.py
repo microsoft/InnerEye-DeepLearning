@@ -31,16 +31,18 @@ class InnerEyeInference(abc.ABC):
     form of inference is slightly different from what PyTorch Lightning does in its `Trainer.test` method. In
     particular, this inference can be executed on any of the training, validation, or test set.
 
-    The inference code calls the methods in this order:
+    The inference code calls the methods in this order::
 
-    model.on_inference_start()
-    for dataset_split in [Train, Val, Test]
-        model.on_inference_epoch_start(dataset_split, is_ensemble_model=False)
-        for batch_idx, item in enumerate(dataloader[dataset_split])):
-            model_outputs = model.forward(item)
-            model.inference_step(item, batch_idx, model_outputs)
-        model.on_inference_epoch_end()
-    model.on_inference_end()
+        model.on_inference_start()
+
+        for dataset_split in [Train, Val, Test]
+            model.on_inference_epoch_start(dataset_split, is_ensemble_model=False)
+            for batch_idx, item in enumerate(dataloader[dataset_split])):
+                model_outputs = model.forward(item)
+                model.inference_step(item, batch_idx, model_outputs)
+            model.on_inference_epoch_end()
+        model.on_inference_end()
+
     """
 
     def on_inference_start(self) -> None:
@@ -55,9 +57,10 @@ class InnerEyeInference(abc.ABC):
         Runs initialization for inference, when starting inference on a new dataset split (train/val/test).
         Depending on the settings, this can be called anywhere between 0 (no inference at all) to 3 times (inference
         on all of train/val/test split).
+
         :param dataset_split: Indicates whether the item comes from the training, validation or test set.
         :param is_ensemble_model: If False, the model_outputs come from an individual model. If True, the model
-        outputs come from multiple models.
+            outputs come from multiple models.
         """
         pass
 
@@ -65,6 +68,7 @@ class InnerEyeInference(abc.ABC):
         """
         This hook is called when the model has finished making a prediction. It can write the results to a file,
         or compute metrics and store them.
+
         :param batch: The batch of data for which the model made a prediction.
         :param model_output: The model outputs. This would usually be a torch.Tensor, but can be any datatype.
         """
@@ -91,6 +95,7 @@ class InnerEyeInference(abc.ABC):
         """
         Aggregates the outputs of multiple models when using an ensemble model. In the default implementation,
         this averages the tensors coming from all the models.
+
         :param model_outputs: An iterator over the model outputs for all ensemble members.
         :return: The aggregate model outputs.
         """
@@ -183,6 +188,7 @@ class LightningContainer(GenericConfig,
         Because the method deals with data loaders, not loaded data, we cannot check automatically that cross validation
         is handled correctly within the base class, i.e. if the cross validation split is not handled in the method then
         nothing will fail, but each child run will be identical since they will each be given the full dataset.
+
         :return: A LightningDataModule
         """
         return None  # type: ignore
@@ -229,6 +235,7 @@ class LightningContainer(GenericConfig,
         This can be avoided by always using unique parameter names.
         Also note that saving a reference to `azure_config` and updating its attributes at any other
         point may lead to unexpected behaviour.
+
         :param azure_config: The initialised AzureConfig whose parameters to override in-place.
         """
         pass
@@ -297,6 +304,7 @@ class LightningContainer(GenericConfig,
         Because this adds a val/Loss metric it is important that when subclassing LightningContainer
         your implementation of LightningModule logs val/Loss. There is an example of this in
         HelloRegression's validation_step method.
+
         :param run_config: The AzureML run configuration object that training for an individual model.
         :return: A hyperdrive configuration object.
         """
@@ -315,6 +323,7 @@ class LightningContainer(GenericConfig,
         """
         Returns the HyperDrive config for either parameter search or cross validation
         (if number_of_cross_validation_splits > 1).
+
         :param run_config: AzureML estimator
         :return: HyperDriveConfigs
         """

@@ -203,6 +203,7 @@ def generate_and_print_model_summary(config: ModelConfigBase, model: DeviceAware
     """
     Writes a human readable summary of the present model to logging.info, and logs the number of trainable
     parameters to AzureML.
+
     :param config: The configuration for the model.
     :param model: The instantiated Pytorch model.
     """
@@ -264,6 +265,7 @@ class ScalarModelInputsAndLabels():
     def move_to_device(self, device: Union[str, torch.device]) -> None:
         """
         Moves the model_inputs and labels field of the present object to the given device. This is done in-place.
+
         :param device: The target device.
         """
         self.model_inputs = [t.to(device=device) for t in self.model_inputs]
@@ -274,13 +276,15 @@ def get_scalar_model_inputs_and_labels(model: torch.nn.Module,
                                        sample: Dict[str, Any]) -> ScalarModelInputsAndLabels:
     """
     For a model that predicts scalars, gets the model input tensors from a sample returned by the data loader.
+
     :param model: The instantiated PyTorch model.
     :param target_indices: If this list is non-empty, assume that the model is a sequence model, and build the
-    model inputs and labels for a model that predicts those specific positions in the sequence. If the list is empty,
+        model inputs and labels for a model that predicts those specific positions in the sequence. If the list is empty,
     assume that the model is a normal (non-sequence) model.
+
     :param sample: A training sample, as returned by a PyTorch data loader (dictionary mapping from field name to value)
     :return: An instance of ScalarModelInputsAndLabels, containing the list of model input tensors,
-    label tensor, subject IDs, and the data item reconstructed from the data loader output
+        label tensor, subject IDs, and the data item reconstructed from the data loader output
     """
     scalar_model: DeviceAwareModule[ScalarItem, torch.Tensor] = model  # type: ignore
     scalar_item = ScalarItem.from_dict(sample)

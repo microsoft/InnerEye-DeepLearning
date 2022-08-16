@@ -18,6 +18,7 @@ def run_mypy(files: List[str], mypy_executable_path: str) -> int:
     stderr. We intercept these, and assume that any files mentioned in them have been processed.
     We run mypy repeatedly on the files that were not mentioned until there are none remaining, or until
     no further files are mentioned in the logs.
+
     :param files: list of .py files to check
     :param mypy_executable_path: path to mypy executable
     :return: maximum return code from any of the mypy runs

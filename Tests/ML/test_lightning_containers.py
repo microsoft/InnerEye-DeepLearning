@@ -324,9 +324,10 @@ def test_innereyecontainer_setup_passes_on_allow_incomplete_labels(
     """
     Test that InnerEyeContainer.setup passes on the correct value of allow_incomplete_labels to
     full_image_dataset.convert_channels_to_file_paths
+
     :param test_output_dirs: Test fixture.
     :param allow_partial_ground_truth: The value to set allow_incomplete_labels to and check it is
-    passed through.
+        passed through.
     """
     config = DummyModel()
     config.set_output_to(test_output_dirs.root_dir)

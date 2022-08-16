@@ -29,6 +29,7 @@ class HeadAndNeckPaper(HeadAndNeckBase):
     def __init__(self, num_structures: Optional[int] = None, **kwargs: Any) -> None:
         """
         Creates a new instance of the class.
+
         :param num_structures: number of structures from STRUCTURE_LIST to predict (default: all structures)
         :param kwargs: Additional arguments that will be passed through to the SegmentationModelBase constructor.
         """

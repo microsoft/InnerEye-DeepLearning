@@ -168,6 +168,7 @@ class AzureConfig(GenericConfig):
         """
         Creates an AzureConfig object with default values, with the keys/secrets populated from values in the
          given YAML file. If a `project_root` folder is provided, a private settings file is read from there as well.
+
         :param yaml_file_path: Path to the YAML file that contains values to create the AzureConfig
         :param project_root: A folder in which to search for a private settings file.
         :return: AzureConfig with values populated from the yaml files.
@@ -231,6 +232,7 @@ class AzureConfig(GenericConfig):
     def fetch_run(self, run_recovery_id: str) -> Run:
         """
         Gets an instantiated Run object for a given run recovery ID (format experiment_name:run_id).
+
         :param run_recovery_id: A run recovery ID (format experiment_name:run_id)
         """
         return fetch_run(workspace=self.get_workspace(), run_recovery_id=run_recovery_id)

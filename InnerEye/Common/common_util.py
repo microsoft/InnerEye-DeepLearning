@@ -74,9 +74,10 @@ def get_best_epoch_results_path(mode: ModelExecutionMode,
     """
     For a given model execution mode, creates the relative results path
     in the form BEST_EPOCH_FOLDER_NAME/(Train, Test or Val)
+
     :param mode: model execution mode
     :param model_proc: whether this is for an ensemble or single model. If ensemble, we return a different path
-    to avoid colliding with the results from the single model that may have been created earlier in the same run.
+        to avoid colliding with the results from the single model that may have been created earlier in the same run.
     """
     subpath = Path(BEST_EPOCH_FOLDER_NAME) / mode.value
     if model_proc == ModelProcessing.ENSEMBLE_CREATION:
@@ -108,6 +109,7 @@ def any_pairwise_larger(items1: Any, items2: Any) -> bool:
 def check_is_any_of(message: str, actual: Optional[str], valid: Iterable[Optional[str]]) -> None:
     """
     Raises an exception if 'actual' is not any of the given valid values.
+
     :param message: The prefix for the error message.
     :param actual: The actual value.
     :param valid: The set of valid strings that 'actual' is allowed to take on.
@@ -136,8 +138,9 @@ def logging_to_stdout(log_level: Union[int, str] = logging.INFO) -> None:
     """
     Instructs the Python logging libraries to start writing logs to stdout up to the given logging level.
     Logging will use a timestamp as the prefix, using UTC.
+
     :param log_level: The logging level. All logging message with a level at or above this level will be written to
-    stdout. log_level can be numeric, or one of the pre-defined logging strings (INFO, DEBUG, ...).
+        stdout. log_level can be numeric, or one of the pre-defined logging strings (INFO, DEBUG, ...).
     """
     log_level = standardize_log_level(log_level)
     logger = logging.getLogger()
@@ -186,6 +189,7 @@ def logging_to_file(file_path: Path) -> None:
     Instructs the Python logging libraries to start writing logs to the given file.
     Logging will use a timestamp as the prefix, using UTC. The logging level will be the same as defined for
     logging to stdout.
+
     :param file_path: The path and name of the file to write to.
     """
     # This function can be called multiple times, and should only add a handler during the first call.
@@ -219,6 +223,7 @@ def logging_only_to_file(file_path: Path, stdout_log_level: Union[int, str] = lo
     Redirects logging to the specified file, undoing that on exit. If logging is currently going
     to stdout, messages at level stdout_log_level or higher (typically ERROR) are also sent to stdout.
     Usage: with logging_only_to_file(my_log_path): do_stuff()
+
     :param file_path: file to log to
     :param stdout_log_level: mininum level for messages to also go to stdout
     """
@@ -253,6 +258,7 @@ def logging_section(gerund: str) -> Generator:
     to help people locate particular sections. Usage:
     with logging_section("doing this and that"):
        do_this_and_that()
+
     :param gerund: string expressing what happens in this section of the log.
     """
     from time import time
@@ -301,16 +307,19 @@ def check_properties_are_not_none(obj: Any, ignore: Optional[List[str]] = None) 
 
 def initialize_instance_variables(func: Callable) -> Callable:
     """
-    Automatically assigns the input parameters.
+    Automatically assigns the input parameters. Example usage::
 
-    >>> class process:
-    ...     @initialize_instance_variables
-    ...     def __init__(self, cmd, reachable=False, user='root'):
-    ...         pass
-    >>> p = process('halt', True)
-    >>> # noinspection PyUnresolvedReferences
-    >>> p.cmd, p.reachable, p.user
-    ('halt', True, 'root')
+        class process:
+            @initialize_instance_variables
+            def __init__(self, cmd, reachable=False, user='root'):
+                pass
+        p = process('halt', True)
+        print(p.cmd, p.reachable, p.user)
+
+    Outputs::
+
+        ('halt', True, 'root')
+
     """
     names, varargs, keywords, defaults, _, _, _ = inspect.getfullargspec(func)
 
@@ -354,6 +363,7 @@ def is_gpu_tensor(data: Any) -> bool:
 def print_exception(ex: Exception, message: str, logger_fn: Callable = logging.error) -> None:
     """
     Prints information about an exception, and the full traceback info.
+
     :param ex: The exception that was caught.
     :param message: An additional prefix that is printed before the exception itself.
     :param logger_fn: The logging function to use for logging this exception
@@ -366,6 +376,7 @@ def print_exception(ex: Exception, message: str, logger_fn: Callable = logging.e
 def namespace_to_path(namespace: str, root: PathOrString = repository_root_directory()) -> Path:
     """
     Given a namespace (in form A.B.C) and an optional root directory R, create a path R/A/B/C
+
     :param namespace: Namespace to convert to path
     :param root: Path to prefix (default is project root)
     :return:
@@ -377,6 +388,7 @@ def path_to_namespace(path: Path, root: PathOrString = repository_root_directory
     """
     Given a path (in form R/A/B/C) and an optional root directory R, create a namespace A.B.C.
     If root is provided, then path must be a relative child to it.
+
     :param path: Path to convert to namespace
     :param root: Path prefix to remove from namespace (default is project root)
     :return:

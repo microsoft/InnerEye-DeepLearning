@@ -140,6 +140,7 @@ class ScalarEnsemblePipeline(ScalarInferencePipelineBase):
                                config: ScalarModelBase) -> ScalarEnsemblePipeline:
         """
         Creates an ensemble pipeline from a list of checkpoints.
+
         :param paths_to_checkpoint: List of paths to the checkpoints to be recovered.
         :param config: Model configuration information.
         :return:
@@ -179,8 +180,9 @@ class ScalarEnsemblePipeline(ScalarInferencePipelineBase):
     def aggregate_model_outputs(self, model_outputs: torch.Tensor) -> torch.Tensor:
         """
         Aggregates the forward pass results from the individual models in the ensemble.
+
         :param model_outputs: List of model outputs for every model in the ensemble.
-        (Number of ensembles) x (batch_size) x 1
+            (Number of ensembles) x (batch_size) x 1
         """
         # aggregate model outputs
         if self.aggregation_type == EnsembleAggregationType.Average:

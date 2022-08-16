@@ -28,6 +28,7 @@ class SecretsHandling:
     def __init__(self, project_root: Path) -> None:
         """
         Creates a new instance of the class.
+
         :param project_root: The root folder of the project that starts the InnerEye run.
         """
         self.project_root = project_root
@@ -36,8 +37,9 @@ class SecretsHandling:
         """
         Reads the secrets from file in YAML format, and returns the contents as a dictionary. The YAML file is expected
         in the project root directory.
+
         :param secrets_to_read: The list of secret names to read from the YAML file. These will be converted to
-        uppercase.
+            uppercase.
         :return: A dictionary with secrets, or None if the file does not exist.
         """
         secrets_file = self.project_root / fixed_paths.PROJECT_SECRETS_FILE
@@ -57,8 +59,9 @@ class SecretsHandling:
         Attempts to read secrets from the project secret file. If there is no secrets file, it returns all secrets
         in secrets_to_read read from environment variables. When reading from environment, if an expected
         secret is not found, its value will be None.
+
         :param secrets_to_read: The list of secret names to read from the YAML file. These will be converted to
-        uppercase.
+            uppercase.
         """
         # Read all secrets from a local file if present, and sets the matching environment variables.
         # If no secrets file is present, no environment variable is modified or created.
@@ -69,9 +72,10 @@ class SecretsHandling:
     def get_secret_from_environment(self, name: str, allow_missing: bool = False) -> Optional[str]:
         """
         Gets a password or key from the secrets file or environment variables.
+
         :param name: The name of the environment variable to read. It will be converted to uppercase.
         :param allow_missing: If true, the function returns None if there is no entry of the given name in
-        any of the places searched. If false, missing entries will raise a ValueError.
+            any of the places searched. If false, missing entries will raise a ValueError.
         :return: Value of the secret. None, if there is no value and allow_missing is True.
         """
 
@@ -99,10 +103,11 @@ def read_all_settings(project_settings_file: Optional[Path] = None,
      the `project_root` folder. Settings in the private settings file
     override those in the project settings. Both settings files are expected in YAML format, with an entry called
     'variables'.
+
     :param project_settings_file: The first YAML settings file to read.
     :param project_root: The folder that can contain a 'InnerEyePrivateSettings.yml' file.
     :return: A dictionary mapping from string to variable value. The dictionary key is the union of variable names
-    found in the two settings files.
+        found in the two settings files.
     """
     private_settings_file = None
     if project_root and project_root.is_dir():
@@ -117,10 +122,11 @@ def read_settings_and_merge(project_settings_file: Optional[Path] = None,
     file is read into a dictionary, then the private settings file is read. Settings in the private settings file
     override those in the project settings. Both settings files are expected in YAML format, with an entry called
     'variables'.
+
     :param project_settings_file: The first YAML settings file to read.
     :param private_settings_file: The second YAML settings file to read. Settings in this file has higher priority.
     :return: A dictionary mapping from string to variable value. The dictionary key is the union of variable names
-    found in the two settings files.
+        found in the two settings files.
     """
     result = dict()
     if project_settings_file:
@@ -138,6 +144,7 @@ def read_settings_yaml_file(yaml_file: Path) -> Dict[str, Any]:
     """
     Reads a YAML file, that is expected to contain an entry 'variables'. Returns the dictionary for the 'variables'
     section of the file.
+
     :param yaml_file: The yaml file to read.
     :return: A dictionary with the variables from the yaml file.
     """

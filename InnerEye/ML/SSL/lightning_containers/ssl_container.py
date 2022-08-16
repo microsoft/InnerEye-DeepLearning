@@ -203,10 +203,10 @@ class SSLContainer(LightningContainer):
         Returns torch lightning data module for encoder or linear head
 
         :param is_ssl_encoder_module: whether to return the data module for SSL training or for linear head. If true,
-        :return transforms with two views per sample (batch like (img_v1, img_v2, label)). If False, return only one
-        view per sample but also return the index of the sample in the dataset (to make sure we don't use twice the same
-        batch in one training epoch (batch like (index, img_v1, label), as classifier dataloader expected to be shorter
-        than SSL training, hence CombinedDataloader might loop over data several times per epoch).
+        :return: transforms with two views per sample (batch like (img_v1, img_v2, label)). If False, return only one
+            view per sample but also return the index of the sample in the dataset (to make sure we don't use twice the same
+            batch in one training epoch (batch like (index, img_v1, label), as classifier dataloader expected to be shorter
+            than SSL training, hence CombinedDataloader might loop over data several times per epoch).
         """
         datamodule_args = self.datamodule_args[SSLDataModuleType.ENCODER] if is_ssl_encoder_module else \
             self.datamodule_args[SSLDataModuleType.LINEAR_HEAD]
@@ -237,12 +237,15 @@ class SSLContainer(LightningContainer):
                         is_ssl_encoder_module: bool) -> Tuple[Any, Any]:
         """
         Returns the transformation pipeline for training and validation.
+
         :param augmentation_config: optional yaml config defining strength of augmenentations. Ignored for CIFAR
-        examples.
+            examples.
+
         :param dataset_name: name of the dataset, value has to be in SSLDatasetName, determines which transformation
-        pipeline to return.
+            pipeline to return.
+
         :param is_ssl_encoder_module: if True the transformation pipeline will yield two versions of the image it is
-        applied on and it applies the training transformations also at validation time. Note that if your
+            applied on and it applies the training transformations also at validation time. Note that if your
         transformation does not contain any randomness, the pipeline will return two identical copies. If False, it
         will return only one transformation.
         :return: training transformation pipeline and validation transformation pipeline.

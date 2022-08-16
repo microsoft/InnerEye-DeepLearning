@@ -38,6 +38,7 @@ def upload_output_file_as_temp(file_path: Path, outputs_folder: Path) -> None:
     """
     Uploads a file to the AzureML run. It will get a name that is composed of a "temp/" prefix, plus the path
     of the file relative to the outputs folder that is used for training.
+
     :param file_path: The path of the file to upload.
     :param outputs_folder: The root folder that contains all training outputs.
     """
@@ -65,6 +66,7 @@ def create_lightning_trainer(container: LightningContainer,
     Creates a Pytorch Lightning Trainer object for the given model configuration. It creates checkpoint handlers
     and loggers. That includes a diagnostic logger for use in unit tests, that is also returned as the second
     return value.
+
     :param container: The container with model and data.
     :param resume_from_checkpoint: If provided, training resumes from this checkpoint point.
     :param num_nodes: The number of nodes to use in distributed training.
@@ -204,13 +206,14 @@ def model_train(checkpoint_path: Optional[Path],
     The main training loop. It creates the Pytorch model based on the configuration options passed in,
     creates a Pytorch Lightning trainer, and trains the model.
     If a checkpoint was specified, then it loads the checkpoint before resuming training.
+
     :param checkpoint_path: Checkpoint path for model initialization
     :param num_nodes: The number of nodes to use in distributed training.
     :param container: A container object that holds the training data in PyTorch Lightning format
-    and the model to train.
+        and the model to train.
     :return: A tuple of [Trainer, StoringLogger]. Trainer is the Lightning Trainer object that was used for fitting
-    the model. The StoringLogger object is returned when training an InnerEye built-in model, this is None when
-    fitting other models.
+        the model. The StoringLogger object is returned when training an InnerEye built-in model, this is None when
+        fitting other models.
     """
     lightning_model = container.model
 
@@ -323,8 +326,9 @@ def model_train(checkpoint_path: Optional[Path],
 def aggregate_and_create_subject_metrics_file(outputs_folder: Path) -> None:
     """
     This functions takes all the subject metrics file written by each GPU (one file per GPU) and aggregates them into
-    one single metrics file. Results is saved in config.outputs_folder / mode.value / SUBJECT_METRICS_FILE_NAME.
+    one single metrics file. Results is saved in ``config.outputs_folder / mode.value / SUBJECT_METRICS_FILE_NAME``.
     This is done for the metrics files for training and for validation data separately.
+
     :param config: model config
     """
     for mode in [ModelExecutionMode.TRAIN, ModelExecutionMode.VAL]:

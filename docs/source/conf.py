@@ -34,7 +34,7 @@ copyright = 'Microsoft Corporation'
 author = 'Microsoft'
 
 # The full version, including alpha/beta/rc tags
-release = '1.0.0'
+release = '0.4'
 
 
 # -- General configuration ---------------------------------------------------
@@ -44,9 +44,10 @@ release = '1.0.0'
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
+    'sphinx.ext.autosummary',
     'sphinx_rtd_theme',
     'recommonmark',
-    'sphinx.ext.viewcode'
+    'sphinx.ext.viewcode',
 ]
 
 # Add any paths that contain templates here, relative to this directory.

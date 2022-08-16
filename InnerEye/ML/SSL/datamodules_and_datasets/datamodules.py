@@ -37,8 +37,10 @@ class InnerEyeVisionDataModule(VisionDataModule):
         :param dataset_cls: class to load the dataset. Expected to inherit from InnerEyeDataClassBaseWithReturnIndex and
          VisionDataset. See InnerEyeCIFAR10 for an example.
          BEWARE VisionDataModule expects the first positional argument of your class to be the data directory.
+
         :param return_index: whether the return the index in __get_item__, the dataset_cls is expected to implement
-        this logic.
+            this logic.
+
         :param train_transforms: transforms to use at training time
         :param val_transforms: transforms to use at validation time
         :param data_dir: data directory where to find the data
@@ -113,7 +115,7 @@ class CombinedDataModule(LightningDataModule):
 
         :param encoder_module: datamodule to use for training of SSL.
         :param linear_head_module: datamodule to use for training of linear head on top of frozen encoder. Can use a
-        different batch size than the encoder module. CombinedDataModule logic will take care of aggregation.
+            different batch size than the encoder module. CombinedDataModule logic will take care of aggregation.
         """
         super().__init__(*args, **kwargs)
         self.encoder_module = encoder_module
@@ -151,6 +153,7 @@ class CombinedDataModule(LightningDataModule):
         """
         Creates a CombinedLoader from the data loaders for the encoder and the linear head.
         The cycle mode is chosen such that in all cases the encoder dataset is only cycled through once.
+
         :param encoder_loader: The dataloader to use for the SSL encoder.
         :param linear_head_loader: The dataloader to use for the linear head.
         """

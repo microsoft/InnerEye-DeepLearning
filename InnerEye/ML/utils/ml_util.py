@@ -82,8 +82,8 @@ def validate_dataset_paths(
     Validates that the required dataset csv file exists in the given path.
 
     :param dataset_path: The base path
-    :param custom_dataset_csv : The name of the dataset csv file
-    :raise ValueError if the dataset does not exist.
+    :param custom_dataset_csv: The name of the dataset csv file
+    :raises: ValueError if the dataset does not exist.
     """
     if not dataset_path.is_dir():
         raise ValueError("The dataset_path argument should be the path to the base directory of the data "
@@ -107,14 +107,17 @@ def check_size_matches(arg1: Union[np.ndarray, torch.Tensor],
     :param arg1: The first array to check.
     :param arg2: The second array to check.
     :param dim1: The expected number of dimensions of arg1. If zero, no check for number of dimensions will be
-    conducted.
+        conducted.
+
     :param dim2: The expected number of dimensions of arg2. If zero, no check for number of dimensions will be
-    conducted.
+        conducted.
+
     :param matching_dimensions: The dimensions along which the two arguments have to match. For example, if
-    arg1.ndim==4 and arg2.ndim==5, matching_dimensions==[3] checks if arg1.shape[3] == arg2.shape[3].
+        arg1.ndim==4 and arg2.ndim==5, matching_dimensions==[3] checks if arg1.shape[3] == arg2.shape[3].
+
     :param arg1_name: If provided, all error messages will use that string to instead of "arg1"
     :param arg2_name: If provided, all error messages will use that string to instead of "arg2"
-    :raise ValueError if shapes don't match
+    :raises: ValueError if shapes don't match
     """
     if arg1 is None or arg2 is None:
         raise Exception("arg1 and arg2 cannot be None.")
@@ -125,10 +128,11 @@ def check_size_matches(arg1: Union[np.ndarray, torch.Tensor],
     def check_dim(expected: int, actual_shape: Any, name: str) -> None:
         """
         Check if actual_shape is equal to the expected shape
+
         :param expected: expected shape
         :param actual_shape:
         :param name: variable name
-        :raise ValueError if not the same shape
+        :raises: ValueError if not the same shape
         """
         if len(actual_shape) != expected:
             raise ValueError("'{}' was expected to have ndim == {}, but is {}. Shape is {}"
@@ -151,6 +155,7 @@ def check_size_matches(arg1: Union[np.ndarray, torch.Tensor],
 def set_random_seed(random_seed: int, caller_name: Optional[str] = None) -> None:
     """
     Set the seed for the random number generators of python, numpy, torch.random, and torch.cuda for all gpus.
+
     :param random_seed: random seed value to set.
     :param caller_name: name of the caller for logging purposes.
     """
@@ -170,8 +175,9 @@ def is_test_from_execution_mode(execution_mode: ModelExecutionMode) -> bool:
     """
     Returns a boolean by checking the execution type. The output is used to determine the properties
     of the forward pass, e.g. model gradient updates or metric computation.
-    :return True if execution mode is VAL or TEST, False if TRAIN
-    :raise ValueError if the execution mode is invalid
+
+    :return: True if execution mode is VAL or TEST, False if TRAIN
+    :raises ValueError: if the execution mode is invalid
     """
     if execution_mode == ModelExecutionMode.TRAIN:
         return False
@@ -207,6 +213,6 @@ def is_tensor_nan(tensor: torch.Tensor) -> bool:
 
     :param tensor: The tensor to check.
     :return: True if any of the tensor elements is Not a Number, False if all entries are valid numbers.
-    If the tensor is empty, the function returns False.
+        If the tensor is empty, the function returns False.
     """
     return bool(torch.isnan(tensor).any().item())

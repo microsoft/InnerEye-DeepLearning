@@ -202,6 +202,7 @@ class CovidDataset(InnerEyeCXRDatasetWithReturnIndex):
     def _split_dataset(self, val_split: float, seed: int) -> Tuple[Subset, Subset]:
         """
         Implements val - train split.
+
         :param val_split: proportion to use for validation
         :param seed: random seed for splitting
         :return: dataset_train, dataset_val

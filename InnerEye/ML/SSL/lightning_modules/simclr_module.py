@@ -41,6 +41,7 @@ class SimCLRInnerEye(SimCLR):
                  **kwargs: Any) -> None:
         """
         Returns SimCLR pytorch-lightning module, based on lightning-bolts implementation.
+
         :param encoder_name: Image encoder name (predefined models)
         :param dataset_name: Dataset name (e.g. cifar10, kaggle, etc.)
         :param use_7x7_first_conv_in_resnet: If True, use a 7x7 kernel (default) in the first layer of resnet.

@@ -58,11 +58,12 @@ class ModelWithTemperature(DeviceAwareModule):
                         use_gpu: bool) -> float:
         """
         Tune the temperature of the model using the provided logits and labels.
+
         :param logits: Logits to use to learn the temperature parameter
         :param labels: Labels to use to learn the temperature parameter
         :param criterion_fn: A criterion function s.t: (logits, labels) => (loss, ECE)
         :param use_gpu: If True then GPU will be used otherwise CPU will be used.
-        :return Optimal temperature value
+        :return: Optimal temperature value
         """
         if use_gpu:
             logits = logits.cuda()

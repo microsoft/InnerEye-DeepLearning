@@ -59,6 +59,7 @@ class MLP(DeviceAwareModule[ScalarItem, torch.Tensor]):
     def get_input_tensors(self, item: ScalarItem) -> List[torch.Tensor]:
         """
         Transforms a classification item into a torch.Tensor that the forward pass can consume
+
         :param item: ClassificationItem
         :return: Tensor
         """

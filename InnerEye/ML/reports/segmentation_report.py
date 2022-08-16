@@ -40,6 +40,7 @@ def plot_scores_for_csv(path_csv: str, outlier_range: float, max_row_count: int)
 def display_without_index(df: pd.DataFrame) -> None:
     """
     Prints the given dataframe as HTML via the `display` function, but without the index column.
+
     :param df: The dataframe to print.
     """
     display(HTML(df.to_html(index=False)))
@@ -52,12 +53,13 @@ def display_metric(df: pd.DataFrame,
                    high_values_are_good: bool) -> None:
     """
     Displays a dataframe with a metric per structure, first showing the
+
     :param max_row_count: The number of rows to print when showing the lowest score patients
     :param df: The dataframe with metrics per structure
     :param metric_name: The metric to sort by.
     :param outlier_range: The standard deviation range data points must fall outside of to be considered an outlier
     :param high_values_are_good: If true, high values of the metric indicate good performance. If false, low
-    values indicate good performance.
+        values indicate good performance.
     """
     print_header(metric_name, level=2)
     # Display with best structures first.
@@ -80,11 +82,13 @@ def worst_patients_and_outliers(df: pd.DataFrame,
     Prints a dataframe that contains the worst patients by the given metric, and a column indicating whether the
     performance is so poor that it is considered an outlier: metric value which is outside of
     outlier_range * standard deviation from the mean.
+
     :param df: The dataframe with metrics.
     :param outlier_range: The multiplier for standard deviation when constructing the interval for outliers.
     :param metric_name: The metric for which the "worst" patients should be computed.
     :param high_values_are_good: If True, high values for the metric are considered good, and hence low values
-    are marked as outliers. If False, low values are considered good, and high values are marked as outliers.
+        are marked as outliers. If False, low values are considered good, and high values are marked as outliers.
+
     :param max_row_count: The maximum number of rows to print.
     :return:
     """

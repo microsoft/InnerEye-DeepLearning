@@ -99,9 +99,11 @@ class GenericConfig(param.Parameterized):
     def __init__(self, should_validate: bool = True, throw_if_unknown_param: bool = False, **params: Any):
         """
         Instantiates the config class, ignoring parameters that are not overridable.
+
         :param should_validate: If True, the validate() method is called directly after init.
         :param throw_if_unknown_param: If True, raise an error if the provided "params" contains any key that does not
                                 correspond to an attribute of the class.
+
         :param params: Parameters to set.
         """
         # check if illegal arguments are passed in
@@ -157,6 +159,7 @@ class GenericConfig(param.Parameterized):
         """
         Adds all overridable fields of the current class to the given argparser.
         Fields that are marked as readonly, constant or private are ignored.
+
         :param parser: Parser to add properties to.
         """
 
@@ -165,6 +168,7 @@ class GenericConfig(param.Parameterized):
             Parse a string as a bool. Supported values are case insensitive and one of:
             'on', 't', 'true', 'y', 'yes', '1' for True
             'off', 'f', 'false', 'n', 'no', '0' for False.
+
             :param x: string to test.
             :return: Bool value if string valid, otherwise a ValueError is raised.
             """
@@ -179,6 +183,7 @@ class GenericConfig(param.Parameterized):
             """
             Given a parameter, get its basic Python type, e.g.: param.Boolean -> bool.
             Throw exception if it is not supported.
+
             :param _p: parameter to get type and nargs for.
             :return: Type
             """
@@ -222,6 +227,7 @@ class GenericConfig(param.Parameterized):
             Add a boolean argument.
             If the parameter default is False then allow --flag (to set it True) and --flag=Bool as usual.
             If the parameter default is True then allow --no-flag (to set it to False) and --flag=Bool as usual.
+
             :param parser: parser to add a boolean argument to.
             :param k: argument name.
             :param p: boolean parameter.
@@ -318,6 +324,7 @@ class GenericConfig(param.Parameterized):
         """
         Logs a warning for every parameter whose value is not as given in "values", other than those
         in keys_to_ignore.
+
         :param values: override dictionary, parameter names to values
         :param keys_to_ignore: set of dictionary keys not to report on
         :return: None
@@ -347,6 +354,7 @@ def create_from_matching_params(from_object: param.Parameterized, cls_: Type[T])
     Creates an object of the given target class, and then copies all attributes from the `from_object` to
     the newly created object, if there is a matching attribute. The target class must be a subclass of
     param.Parameterized.
+
     :param from_object: The object to read attributes from.
     :param cls_: The name of the class for the newly created object.
     :return: An instance of cls_
