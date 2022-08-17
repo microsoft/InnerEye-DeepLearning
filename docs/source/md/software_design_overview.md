@@ -4,8 +4,6 @@ This document provides a high-level overview of the software development process
 repositories (most importantly [InnerEye-DeepLearning](https://github.com/microsoft/InnerEye-DeepLearning) and
 [InnerEye-Gateway](https://github.com/microsoft/InnerEye-Gateway)).
 
-For detailed guidance for developers, please refer to the [coding guidelines](coding_guidelines.md).
-
 ## Version Control
 
 Software code versioning is done via GitHub. The code with the highest level of quality control is in the "main" branch.
