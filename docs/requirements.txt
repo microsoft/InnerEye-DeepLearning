@@ -1,2 +1,0 @@
-- recommonmark
-- readthedocs-sphinx-ext
