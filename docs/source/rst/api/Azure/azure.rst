@@ -1,4 +1,4 @@
-InnerEye Azure
+Azure
 =================
 
 Below you will find the docstrings of all resources found in `InnerEye/Azure <https://github.com/microsoft/InnerEye-DeepLearning/tree/main/InnerEye/Azure>`_.
