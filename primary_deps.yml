@@ -28,8 +28,8 @@ dependencies:
       - gitpython==3.1.7
       - gputil==1.4.0
       - h5py==2.10.0
-      - hi-ml==0.2.3
-      - hi-ml-azure==0.2.2
+      - hi-ml==0.2.4
+      - hi-ml-azure==0.2.4
       - imageio==2.15.0
       - InnerEye-DICOM-RT==1.0.3
       - ipython==7.31.1
@@ -40,7 +40,9 @@ dependencies:
       - matplotlib==3.3.0
       - mlflow==1.23.1
       - monai==0.6.0
+      - mypy==0.910
       - mypy-extensions==0.4.3
+      - myst-parser==0.18.0
       - numba==0.51.2
       - numba==0.51.2
       - numpy==1.19.1
