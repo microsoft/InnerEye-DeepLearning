@@ -264,11 +264,10 @@ def model_train(checkpoint_path: Optional[Path],
         lightning_model.storing_logger = storing_logger
 
     logging.info("Starting training")
-    # When training models that are not built-in InnerEye models, we have no guarantee that they write
-    # files to the right folder. Best guess is to change the current working directory to where files should go.
-    with change_working_directory(container.outputs_folder):
-        trainer.fit(lightning_model, datamodule=data_module)
-        trainer.logger.close()  # type: ignore
+
+    trainer.fit(lightning_model, datamodule=data_module)
+    trainer.logger.close()  # type: ignore
+
     world_size = getattr(trainer, "world_size", 0)
     is_azureml_run = not is_offline_run_context(RUN_CONTEXT)
     # Per-subject model outputs for regression models are written per rank, and need to be aggregated here.

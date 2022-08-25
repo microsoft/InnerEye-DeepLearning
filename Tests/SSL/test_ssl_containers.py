@@ -134,12 +134,12 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
     # Check the metrics that were recorded during training
     # Note: It is possible that after the PyTorch 1.10 upgrade, we can't get parity between local runs and runs on
     # the hosted build agents. If that suspicion is confirmed, we need to add branching for local and cloud results.
-    expected_metrics = {'simclr/val/loss': 2.8736934661865234,
-                        'ssl_online_evaluator/val/loss': 2.2684895992279053,
+    expected_metrics = {'simclr/val/loss': 2.859630584716797,
+                        'ssl_online_evaluator/val/loss': 2.26649808883667,
                         'ssl_online_evaluator/val/AccuracyAtThreshold05': 0.20000000298023224,
-                        'simclr/train/loss': 3.6261773109436035,
+                        'simclr/train/loss': 3.6261844635009766,
                         'simclr/learning_rate': 0.0,
-                        'ssl_online_evaluator/train/loss': 3.1140334606170654,
+                        'ssl_online_evaluator/train/loss': 3.212641477584839,
                         'ssl_online_evaluator/train/online_AccuracyAtThreshold05': 0.0}
 
     _compare_stored_metrics(runner, expected_metrics, abs=5e-5)
