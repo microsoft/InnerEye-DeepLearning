@@ -419,7 +419,6 @@ def test_training_2nodes(test_output_dirs: OutputFolderForTests) -> None:
     # There are two nodes, so there should be one log file per node.
     log0_txt = get_job_log_file(run, index=0)
     log1_txt = get_job_log_file(run, index=1)
-    print(f"Log files: {log0_txt=}, {log1_txt=}")
     # Only the node at rank 0 should be done certain startup activities, like visualizing crops.
     # Running inference similarly should only run on one node.
     for in_log0_only in ["Visualizing the effect of sampling random crops for training",
@@ -432,8 +431,8 @@ def test_training_2nodes(test_output_dirs: OutputFolderForTests) -> None:
     assert training_indicator in log1_txt
     # Check diagnostic messages that show if DDP was set up correctly. This could fail if Lightning
     # changes its diagnostic outputs.
-    assert "initializing distributed: GLOBAL_RANK: 0, MEMBER: 1/4" in log0_txt
-    assert "initializing distributed: GLOBAL_RANK: 2, MEMBER: 3/4" in log1_txt
+    assert "Initializing distributed: GLOBAL_RANK: 0, MEMBER: 1/4" in log0_txt
+    assert "Initializing distributed: GLOBAL_RANK: 2, MEMBER: 3/4" in log1_txt
 
 
 @pytest.mark.skip("The recovery job hangs after completing on AML")
