@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 from argparse import ArgumentParser
+import argparse
 from pathlib import Path
 from typing import Tuple
 
@@ -99,7 +100,7 @@ def get_workspace(config: MoveModelConfig) -> Workspace:
                          resource_group=config.resource_group)
 
 
-def main() -> None:
+def get_move_model_parser() -> argparse.ArgumentParser:
     parser = ArgumentParser()
     parser.add_argument("-a", "--action", type=str, required=True,
                         help="Action (download or upload)")
@@ -114,6 +115,11 @@ def main() -> None:
     parser.add_argument("-m", "--model_id", type=str, required=True,
                         help="The AzureML model ID")
 
+    return parser
+
+def main() -> None:
+
+    parser = get_move_model_parser()
     args = parser.parse_args()
     config = MoveModelConfig(workspace_name=args.workspace_name, subscription_id=args.subscription_id,
                              resource_group=args.resource_group,
