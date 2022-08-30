@@ -3,6 +3,7 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
+import argparse
 import logging
 import shutil
 import sys
@@ -211,6 +212,16 @@ def submit_for_inference(args: SubmitForInferenceConfig, azure_config: AzureConf
     else:
         logging.warning("Segmentation NOT downloaded")
     return download_path
+
+
+def get_submit_for_inference_parser() -> argparse.ArgumentParser:
+    """This function is need to allow sphinx to access the arguments for documenation
+
+    :return: An example parser used for inference submission
+    """
+
+    inference_config = SubmitForInferenceConfig(should_validate=False)
+    return inference_config.create_argparser()
 
 
 def main(args: Optional[List[str]] = None, project_root: Optional[Path] = None) -> None:
