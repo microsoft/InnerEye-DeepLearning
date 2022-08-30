@@ -16,7 +16,6 @@
 # documentation root, make it absolute.
 #
 import sys
-import os
 import shutil
 from pathlib import Path
 repo_dir = Path(__file__).absolute().parents[2]
