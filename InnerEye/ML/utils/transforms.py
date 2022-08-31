@@ -59,6 +59,7 @@ class Compose3D(Generic[T]):
     def apply(compose: Optional[Compose3D[T]], sample: T) -> T:
         """
         Apply a composition of transfer functions to the provided sample
+
         :param compose: A composition of transfer functions
         :param sample: The sample to apply the composition on
         :return:

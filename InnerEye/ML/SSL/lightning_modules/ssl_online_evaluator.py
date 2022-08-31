@@ -3,7 +3,9 @@
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
 
-from typing import Any, Dict, List, Optional, OrderedDict, Set, Tuple, Union
+from typing import Any, Dict, List, Optional, Set, Tuple, Union, TYPE_CHECKING
+if TYPE_CHECKING:
+    from typing import OrderedDict
 
 import pytorch_lightning as pl
 import torch
@@ -36,6 +38,7 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
 
         :param class_weights: The class weights to use when computing the cross entropy loss. If set to None,
                               no weighting will be done.
+
         :param length_linear_head_loader: The maximum number of batches in the dataloader for the linear head.
         """
 
@@ -121,6 +124,7 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
     def to_device(batch: Any, device: Union[str, torch.device]) -> Tuple[T, T]:
         """
         Moves batch to device.
+
         :param device: device to move the batch to.
         """
         _, x, y = batch

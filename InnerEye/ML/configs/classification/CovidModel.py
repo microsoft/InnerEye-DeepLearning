@@ -47,12 +47,12 @@ class CovidModel(ScalarModelBase):
     """
     Model to train a CovidDataset model from scratch or finetune from SSL-pretrained model.
 
-    For AML you need to provide the run_id of your SSL training job as a command line argument
-    --pretraining_run_recovery_id=id_of_your_ssl_model, this will download the checkpoints of the run to your
+    For AML you need to provide the run_id of your SSL training job as a command line argument:
+    ``--pretraining_run_recovery_id=<id_of_your_ssl_model>``. This will download the checkpoints of the run to your
     machine and load the corresponding pretrained model.
 
-    To recover from a particular checkpoint from your SSL run e.g. "recovery_epoch=499.ckpt" please use the
-    --name_of_checkpoint argument.
+    To recover from a particular checkpoint from your SSL run e.g. ``"recovery_epoch=499.ckpt"`` please use the
+    ``--name_of_checkpoint`` argument.
     """
     use_pretrained_model = param.Boolean(default=False, doc="If True, start training from a model pretrained with SSL."
                                                             "If False, start training a DenseNet model from scratch"
@@ -242,9 +242,11 @@ class CovidModel(ScalarModelBase):
         Generate a custom report for the Covid model. This report will read the file model_output.csv generated for
         the training, validation or test sets and compute both the multiclass accuracy and the accuracy for each of the
         hierarchical tasks.
+
         :param report_dir: Directory report is to be written to
         :param model_proc: Whether this is a single or ensemble model (model_output.csv will be located in different
-        paths for single vs ensemble runs.)
+            paths for single vs ensemble runs.)
+
         """
 
         label_prefix = LoggingColumns.Label.value
@@ -364,6 +366,11 @@ class CovidModel(ScalarModelBase):
 
 class DicomPreparation:
     def __call__(self, item: torch.Tensor) -> PIL.Image:
+        """Call class as a function. This will act as a transformation function for the dataset.
+
+        :param item: tensor to transform.
+        :return: transformed data.
+        """
         # Item will be of dimension [C, Z, X, Y]
         images = item.numpy()
         assert images.shape[0] == 1 and images.shape[1] == 1

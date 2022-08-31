@@ -24,21 +24,21 @@ class DeviceAwareModule(torch.nn.Module, Generic[T, E]):
 
     def get_devices(self) -> List[torch.device]:
         """
-        :return a list of device ids on which this module
-        is deployed.
+        :return: a list of device ids on which this module
+            is deployed.
         """
         return list({x.device for x in self.parameters()})
 
     def get_number_trainable_parameters(self) -> int:
         """
-        :return the number of trainable parameters in the module.
+        :return: the number of trainable parameters in the module.
         """
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
 
     def is_model_on_gpu(self) -> bool:
         """
         Checks if the model is cuda activated or not
-        :return True if the model is running on the GPU.
+        :return: True if the model is running on the GPU.
         """
         try:
             cuda_activated = next(self.parameters()).is_cuda
@@ -51,6 +51,7 @@ class DeviceAwareModule(torch.nn.Module, Generic[T, E]):
         """
         Extract the input tensors from a data sample as required
         by the forward pass of the module.
+
         :param item: a data sample
         :return: the correct input tensors for the forward pass
         """

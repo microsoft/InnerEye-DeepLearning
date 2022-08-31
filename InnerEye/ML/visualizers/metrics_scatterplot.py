@@ -34,7 +34,7 @@ def create_scatterplots(data: Dict[str, Dict[str, Dict[str, float]]], against: O
     :param data: dictionary such that data[run][structure][seriesId] = dice_score
     :param against: run names to plot against (as y axis); if None or empty, do all against all
     :param max_dice: maximum Dice score to expect; if None, either 1.0 or 100.0 will be inferred from the data
-    in code called from here.
+        in code called from here.
     """
     runs = sorted(data.keys())
     result = {}
@@ -207,6 +207,7 @@ def to_dict(data: pd.DataFrame) -> Dict[str, Dict[str, float]]:
 def write_to_scatterplot_directory(root_folder: Path, plots: Dict[str, plt.Figure]) -> None:
     """
     Writes a file root_folder/scatterplots/basename.png for every plot in plots with key "basename".
+
     :param root_folder: path to a folder
     :param plots: dictionary from plot basenames to plots (plt.Figure objects)
     """

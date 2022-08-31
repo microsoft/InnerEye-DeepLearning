@@ -55,6 +55,7 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         Returns a configuration for AzureML Hyperdrive that should be used when running hyperparameter
         tuning.
         This is an abstract method that each specific model should override.
+
         :param run_config: The AzureML estimator object that runs model training.
         :return: A hyperdrive configuration object.
         """
@@ -66,6 +67,7 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         """
         Computes the training, validation and test splits for the model, from a dataframe that contains
         the full dataset.
+
         :param dataset_df: A dataframe that contains the full dataset that the model is using.
         :return: An instance of DatasetSplits with dataframes for training, validation and testing.
         """
@@ -83,6 +85,7 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         are False, the derived method *may* still create the corresponding datasets, but should not assume that
         the relevant splits (train/test/val) are non-empty. If either or both is True, they *must* create the
         corresponding datasets, and should be able to make the assumption.
+
         :param for_training: whether to create the datasets required for training.
         :param for_inference: whether to create the datasets required for inference.
         """
@@ -103,6 +106,8 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         """
         Returns a torch Dataset for running the model in inference mode, on the given split of the full dataset.
         The torch dataset must return data in the format required for running the model in inference mode.
+
+        :param mode: The mode of the model, either test, train or val.
         :return: A torch Dataset object.
         """
         if self._datasets_for_inference is None:
@@ -114,7 +119,7 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         """
         Creates the torch DataLoaders that supply the training and the validation set during training only.
         :return: A dictionary, with keys ModelExecutionMode.TRAIN and ModelExecutionMode.VAL, and their respective
-        data loaders.
+            data loaders.
         """
         logging.info("Starting to read and parse the datasets.")
         if self._datasets_for_training is None:
@@ -161,6 +166,7 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
     def get_cross_validation_hyperdrive_config(self, run_config: ScriptRunConfig) -> HyperDriveConfig:
         """
         Returns a configuration for AzureML Hyperdrive that varies the cross validation split index.
+
         :param run_config: The AzureML run configuration object that training for an individual model.
         :return: A hyperdrive configuration object.
         """
@@ -176,9 +182,10 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         """
         When running cross validation, this method returns the dataset split that should be used for the
         currently executed cross validation split.
+
         :param dataset_split: The full dataset, split into training, validation and test section.
         :return: The dataset split with training and validation sections shuffled according to the current
-        cross validation index.
+            cross validation index.
         """
         splits = dataset_split.get_k_fold_cross_validation_splits(self.number_of_cross_validation_splits)
         return splits[self.cross_validation_split_index]
@@ -187,6 +194,7 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         """
         Returns the HyperDrive config for either parameter search or cross validation
         (if number_of_cross_validation_splits > 1).
+
         :param run_config: AzureML estimator
         :return: HyperDriveConfigs
         """
@@ -239,6 +247,7 @@ class ModelConfigBase(DeepLearningConfig, abc.ABC, metaclass=ModelConfigBaseMeta
         A hook to adjust the model configuration that is stored in the present object to match
         the torch model given in the argument. This hook is called after adjusting the model for
         mixed precision and parallel training.
+
         :param model: The torch model.
         """
         pass
@@ -267,7 +276,8 @@ class ModelTransformsPerExecutionMode:
         """
 
         :param train: the transformation(s) to apply to the training set.
-        Should be a function that takes a sample as input and outputs sample.
+            Should be a function that takes a sample as input and outputs sample.
+
         :param val: the transformation(s) to apply to the validation set
         :param test: the transformation(s) to apply to the test set
         """

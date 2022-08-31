@@ -3,7 +3,7 @@
 === METRIC: Dice ===
 
                          count  mean  min  max
-Patient Structure                             
+Patient Structure
 341     rectum           1.0    1.1   1.1  1.1
 366     rectum           1.0    0.9   0.9  0.9
 411     rectum           1.0    0.9   0.9  0.9

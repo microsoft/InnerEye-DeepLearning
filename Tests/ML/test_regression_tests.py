@@ -50,6 +50,7 @@ def test_regression_test(test_output_dirs: OutputFolderForTests) -> None:
 def test_compare_files_text(test_output_dirs: OutputFolderForTests, file_extension: str) -> None:
     """
     Checks the basic code to compare the contents of two text files.
+
     :param test_output_dirs:
     :param file_extension: The extension of the file to create.
     """
@@ -102,6 +103,7 @@ def test_compare_files_empty_csv(test_output_dirs: OutputFolderForTests) -> None
 def test_compare_files_binary(test_output_dirs: OutputFolderForTests, file_extension: str) -> None:
     """
     Checks the comparison of files that are not recognized as text files, for example images.
+
     :param test_output_dirs:
     :param file_extension: The extension of the file to create.
     """

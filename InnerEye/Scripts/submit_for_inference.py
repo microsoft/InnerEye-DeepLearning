@@ -5,9 +5,17 @@
 
 import logging
 import shutil
+import sys
 import tempfile
 from pathlib import Path
 from typing import Dict, List, Optional
+
+innereye_root = Path(__file__).resolve().parent.parent.parent
+if (innereye_root / "InnerEye").is_dir():
+    innereye_root_str = str(innereye_root)
+    if innereye_root_str not in sys.path:
+        logging.info("Adding InnerEye folder to sys.path: %s", innereye_root_str)
+        sys.path.insert(0, innereye_root_str)
 
 import param
 import requests
@@ -16,9 +24,11 @@ from health_azure import create_run_configuration, submit_run
 
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Common.common_util import logging_to_stdout
-from InnerEye.Common.fixed_paths import DEFAULT_DATA_FOLDER, DEFAULT_RESULT_IMAGE_NAME, DEFAULT_RESULT_ZIP_DICOM_NAME, \
-    DEFAULT_TEST_IMAGE_NAME, DEFAULT_TEST_ZIP_NAME, PYTHON_ENVIRONMENT_NAME, \
+from InnerEye.Common.fixed_paths import (
+    DEFAULT_DATA_FOLDER, DEFAULT_RESULT_IMAGE_NAME, DEFAULT_RESULT_ZIP_DICOM_NAME,
+    DEFAULT_TEST_IMAGE_NAME, DEFAULT_TEST_ZIP_NAME, PYTHON_ENVIRONMENT_NAME,
     RUN_SCORING_SCRIPT, SCORE_SCRIPT, SETTINGS_YAML_FILE, repository_root_directory
+)
 from InnerEye.Common.generic_parsing import GenericConfig
 
 
@@ -67,8 +77,10 @@ class SubmitForInferenceConfig(GenericConfig):
 def copy_image_file(image: Path, destination_folder: Path, use_dicom: bool) -> Path:
     """
     Copy the source image file into the given folder destination_folder.
+
     :param image: image file, must be Gzipped Nifti format with name ending .nii.gz if use_dicom=False or .zip
-    otherwise.
+        otherwise.
+
     :param destination_folder: top-level directory to copy image into (as test.nii.gz or test.zip)
     :param use_dicom: True to treat as a zip file.
     :return: The full path of the image in the destination_folder
@@ -84,11 +96,13 @@ def download_files_from_model(model_sas_urls: Dict[str, str], base_name: str, di
     """
     Identifies all the files in an AzureML model that have a given file name (ignoring path), and downloads them
     to a folder.
+
     :param model_sas_urls: The files making up the model, as a mapping from file name to a URL with
-    an SAS token.
+        an SAS token.
+
     :param base_name: The file name of the files to download.
     :param dir_path: The folder into which the files will be written. All downloaded files will keep the relative
-    path that they also have in the model.
+        path that they also have in the model.
     :return: a list of the files that were downloaded.
     """
     downloaded: List[Path] = []
@@ -133,6 +147,7 @@ def choose_download_path(result_image_name: str, download_folder: Path) -> Path:
 def submit_for_inference(args: SubmitForInferenceConfig, azure_config: AzureConfig) -> Optional[Path]:
     """
     Create and submit an inference to AzureML, and optionally download the resulting segmentation.
+
     :param azure_config: An object with all necessary information for accessing Azure.
     :param args: configuration, see SubmitForInferenceConfig
     :return: path to downloaded segmentation on local disc, or None if none.

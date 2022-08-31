@@ -75,6 +75,7 @@ class ScalarInferencePipeline(ScalarInferencePipelineBase):
                                pipeline_id: int = 0) -> Optional[ScalarInferencePipeline]:
         """
         Creates an inference pipeline from a single checkpoint.
+
         :param path_to_checkpoint: Path to the checkpoint to recover.
         :param config: Model configuration information.
         :param pipeline_id: ID for the pipeline to be created.
@@ -95,11 +96,12 @@ class ScalarInferencePipeline(ScalarInferencePipelineBase):
     def predict(self, sample: Dict[str, Any]) -> ScalarInferencePipelineBase.Result:
         """
         Runs the forward pass on a single batch.
+
         :param sample: Single batch of input data.
-                        In the form of a dict containing at least the fields:
-                        metadata, label, images, numerical_non_image_features,
-                        categorical_non_image_features and segmentations.
-        :return: Returns ScalarInferencePipelineBase.Result with  the subject ids, ground truth labels and predictions.
+            In the form of a dictionary containing at least the fields:
+            metadata, label, images, numerical_non_image_features,
+            categorical_non_image_features and segmentations.
+        :return: ScalarInferencePipelineBase.Result with the subject ids, ground truth labels and predictions.
         """
         assert isinstance(self.model_config, ScalarModelBase)
         model_inputs_and_labels = get_scalar_model_inputs_and_labels(self.model.model,
@@ -138,6 +140,7 @@ class ScalarEnsemblePipeline(ScalarInferencePipelineBase):
                                config: ScalarModelBase) -> ScalarEnsemblePipeline:
         """
         Creates an ensemble pipeline from a list of checkpoints.
+
         :param paths_to_checkpoint: List of paths to the checkpoints to be recovered.
         :param config: Model configuration information.
         :return:
@@ -158,10 +161,11 @@ class ScalarEnsemblePipeline(ScalarInferencePipelineBase):
         """
         Performs inference on a single batch. First does the forward pass on all of the single inference pipelines,
         and then aggregates the results.
+
         :param sample: single batch of input data.
-                        In the form of a dict containing at least the fields:
-                        metadata, label, images, numerical_non_image_features,
-                        categorical_non_image_features and segmentations.
+            In the form of a dictionary containing at least the fields:
+            metadata, label, images, numerical_non_image_features,
+            categorical_non_image_features and segmentations.
         :return: Returns ScalarInferencePipelineBase.Result with the subject ids, ground truth labels and predictions.
         """
         results = [pipeline.predict(sample) for pipeline in self.pipelines]
@@ -176,8 +180,9 @@ class ScalarEnsemblePipeline(ScalarInferencePipelineBase):
     def aggregate_model_outputs(self, model_outputs: torch.Tensor) -> torch.Tensor:
         """
         Aggregates the forward pass results from the individual models in the ensemble.
+
         :param model_outputs: List of model outputs for every model in the ensemble.
-        (Number of ensembles) x (batch_size) x 1
+            (Number of ensembles) x (batch_size) x 1
         """
         # aggregate model outputs
         if self.aggregation_type == EnsembleAggregationType.Average:

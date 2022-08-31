@@ -84,7 +84,10 @@ instance/
 .scrapy
 
 # Sphinx documentation
-docs/_build/
+docs/build/
+docs/source/md/CHANGELOG.md
+docs/source/md/README.md
+docs/source/md/LICENSE
 
 # PyBuilder
 target/
@@ -128,10 +131,6 @@ venv.bak/
 .mypy_cache/
 .dmypy.json
 dmypy.json
-
-# other
-.vscode/
-.devcontainer/
 
 /InnerEye/ML/src/aml_config
 *.exe

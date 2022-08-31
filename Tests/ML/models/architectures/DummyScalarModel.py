@@ -38,6 +38,7 @@ class DummyScalarModel(DeviceAwareModule[ScalarItem, torch.Tensor]):
     def get_input_tensors(self, item: ScalarItem) -> List[torch.Tensor]:
         """
         Transforms a classification item into images
+
         :param item: ClassificationItem
         :return: Tensor
         """

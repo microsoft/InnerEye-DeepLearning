@@ -47,6 +47,7 @@ def split_recovery_id(id: str) -> Tuple[str, str]:
     The argument can be in the format 'experiment_name:run_id',
     or just a run ID like user_branch_abcde12_123. In the latter case, everything before the last
     two alphanumeric parts is assumed to be the experiment name.
+
     :param id:
     :return: experiment name and run name
     """
@@ -74,9 +75,10 @@ def fetch_run(workspace: Workspace, run_recovery_id: str) -> Run:
     Finds an existing run in an experiment, based on a recovery ID that contains the experiment ID
     and the actual RunId. The run can be specified either in the experiment_name:run_id format,
     or just the run_id.
+
     :param workspace: the configured AzureML workspace to search for the experiment.
     :param run_recovery_id: The Run to find. Either in the full recovery ID format, experiment_name:run_id
-    or just the run_id
+        or just the run_id
     :return: The AzureML run.
     """
     return get_aml_run_from_run_id(aml_workspace=workspace, run_id=run_recovery_id)
@@ -85,6 +87,7 @@ def fetch_run(workspace: Workspace, run_recovery_id: str) -> Run:
 def fetch_runs(experiment: Experiment, filters: List[str]) -> List[Run]:
     """
     Fetch the runs in an experiment.
+
     :param experiment: the experiment to fetch runs from
     :param filters: a list of run status to include. Must be subset of [Running, Completed, Failed, Canceled].
     :return: the list of runs in the experiment
@@ -107,10 +110,11 @@ def fetch_child_runs(
     """
     Fetch child runs for the provided runs that have the provided AML status (or fetch all by default)
     and have a run_recovery_id tag value set (this is to ignore superfluous AML infrastructure platform runs).
+
     :param run: parent run to fetch child run from
     :param status: if provided, returns only child runs with this status
     :param expected_number_cross_validation_splits: when recovering child runs from AML hyperdrive
-    sometimes the get_children function fails to retrieve all children. If the number of child runs
+        sometimes the get_children function fails to retrieve all children. If the number of child runs
     retrieved by AML is lower than the expected number of splits, we try to retrieve them manually.
     """
     if is_ensemble_run(run):
@@ -159,6 +163,7 @@ def to_azure_friendly_string(x: Optional[str]) -> Optional[str]:
 def to_azure_friendly_container_path(path: Path) -> str:
     """
     Converts a path an Azure friendly container path by replacing "\\", "//" with "/" so it can be in the form: a/b/c.
+
     :param path: Original path
     :return: Converted path
     """
@@ -168,6 +173,7 @@ def to_azure_friendly_container_path(path: Path) -> str:
 def is_offline_run_context(run_context: Run) -> bool:
     """
     Tells if a run_context is offline by checking if it has an experiment associated with it.
+
     :param run_context: Context of the run to check
     :return:
     """
@@ -177,6 +183,7 @@ def is_offline_run_context(run_context: Run) -> bool:
 def get_run_context_or_default(run: Optional[Run] = None) -> Run:
     """
     Returns the context of the run, if run is not None. If run is None, returns the context of the current run.
+
     :param run: Run to retrieve context for. If None, retrieve ocntext of current run.
     :return: Run context
     """
@@ -186,6 +193,7 @@ def get_run_context_or_default(run: Optional[Run] = None) -> Run:
 def get_cross_validation_split_index(run: Run) -> int:
     """
     Gets the cross validation index from the run's tags or returns the default
+
     :param run: Run context from which to get index
     :return: The cross validation split index
     """
@@ -204,6 +212,7 @@ def is_cross_validation_child_run(run: Run) -> bool:
     """
     Checks the provided run's tags to determine if it is a cross validation child run
     (which is the case if the split index >=0)
+
     :param run: Run to check.
     :return: True if cross validation run. False otherwise.
     """
@@ -213,6 +222,7 @@ def is_cross_validation_child_run(run: Run) -> bool:
 def strip_prefix(string: str, prefix: str) -> str:
     """
     Returns the string without the prefix if it has the prefix, otherwise the string unchanged.
+
     :param string: Input string.
     :param prefix: Prefix to remove from input string.
     :return: Input string with prefix removed.
@@ -226,6 +236,7 @@ def get_all_environment_files(project_root: Path) -> List[Path]:
     """
     Returns a list of all Conda environment files that should be used. This is firstly the InnerEye conda file,
     and possibly a second environment.yml file that lives at the project root folder.
+
     :param project_root: The root folder of the code that starts the present training run.
     :return: A list with 1 or 2 entries that are conda environment files.
     """
@@ -234,6 +245,7 @@ def get_all_environment_files(project_root: Path) -> List[Path]:
     files = [innereye_yaml]
     if innereye_yaml != project_yaml:
         files.append(project_yaml)
+
     return files
 
 
@@ -259,6 +271,7 @@ def download_run_output_file(blob_path: Path, destination: Path, run: Run) -> Pa
     Downloads a single file from the run's default output directory: DEFAULT_AML_UPLOAD_DIR ("outputs").
     For example, if blobs_path = "foo/bar.csv", then the run result file "outputs/foo/bar.csv" will be downloaded
     to <destination>/bar.csv (the directory will be stripped off).
+
     :param blob_path: The name of the file to download.
     :param run: The AzureML run to download the files from
     :param destination: Local path to save the downloaded blob to.
@@ -286,6 +299,7 @@ def download_run_outputs_by_prefix(
     have a given prefix (folder structure). When saving, the prefix string will be stripped off. For example,
     if blobs_prefix = "foo", and the run has a file "outputs/foo/bar.csv", it will be downloaded to destination/bar.csv.
     If there is in addition a file "foo.txt", that file will be skipped.
+
     :param blobs_prefix: The prefix for all files in "outputs" that should be downloaded.
     :param run: The AzureML run to download the files from.
     :param destination: Local path to save the downloaded blobs to.

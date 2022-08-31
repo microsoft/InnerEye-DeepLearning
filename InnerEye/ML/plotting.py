@@ -28,6 +28,7 @@ def is_val_dice(name: str) -> bool:
     """
     Returns true if the given metric name is a Dice score on the validation set,
     for a class that is not the background class.
+
     :param name:
     :return:
     """
@@ -37,6 +38,7 @@ def is_val_dice(name: str) -> bool:
 def get_val_dice_names(metric_names: Iterable[str]) -> List[str]:
     """
     Returns a list of those metric names from the argument that fulfill the is_val_dice predicate.
+
     :param metric_names:
     :return:
     """
@@ -47,6 +49,7 @@ def plot_loss_per_epoch(metrics: Dict[str, Any], metric_name: str, label: Option
     """
     Adds a plot of loss (y-axis) versus epoch (x-axis) to the current plot, if the metric
     is present in the metrics dictionary.
+
     :param metrics: A dictionary of metrics.
     :param metric_name: The name of the single metric to plot.
     :param label: The label for the series that will be plotted.
@@ -64,9 +67,10 @@ def plot_loss_per_epoch(metrics: Dict[str, Any], metric_name: str, label: Option
 def plot_val_dice_per_epoch(metrics: Dict[str, Any]) -> int:
     """
     Creates a plot of all validation Dice scores per epoch, for all classes apart from background.
+
     :param metrics:
     :return: The number of series that were plotted in the graph. Can return 0 if the metrics dictionary
-    does not contain any validation Dice score.
+        does not contain any validation Dice score.
     """
     plt.clf()
     series_count = 0
@@ -83,6 +87,7 @@ def plot_val_dice_per_epoch(metrics: Dict[str, Any]) -> int:
 def add_legend(series_count: int) -> None:
     """
     Adds a legend to the present plot, with the column layout depending on the number of series.
+
     :param series_count:
     :return:
     """
@@ -93,6 +98,7 @@ def add_legend(series_count: int) -> None:
 def resize_and_save(width_inch: int, height_inch: int, filename: PathOrString, dpi: int = 150) -> None:
     """
     Resizes the present figure to the given (width, height) in inches, and saves it to the given filename.
+
     :param width_inch: The width of the figure in inches.
     :param height_inch: The height of the figure in inches.
     :param filename: The filename to save to.
@@ -113,13 +119,17 @@ def plot_image_and_label_contour(image: np.ndarray,
     """
     Creates a plot that shows the given 2D image in greyscale, and overlays a contour that shows
     where the 'labels' array has value 1.
+
     :param image: A 2D image
     :param labels: A binary 2D image, or a list of binary 2D images. A contour will be plotted for each of those
-    binary images.
+        binary images.
+
     :param contour_arguments: A dictionary of keyword arguments that will be passed directly into matplotlib's
-    contour function. Can also be a list of dictionaries, with one dict per entry in the 'labels' argument.
+        contour function. Can also be a list of dictionaries, with one dict per entry in the 'labels' argument.
+
     :param image_range: If provided, the image will be plotted using the given range for the color limits.
-    If None, the minimum and maximum image values will be mapped to the endpoints of the color map.
+        If None, the minimum and maximum image values will be mapped to the endpoints of the color map.
+
     :param plot_file_name: The file name that should be used to save the plot.
     """
     if image.ndim != 2:
@@ -183,6 +193,7 @@ def plot_before_after_statistics(image_before: np.ndarray,
     that were obtained before and after a transformation of pixel values.
     The plot contains histograms, box plots, and visualizations of a single XY slice at z_slice.
     If a mask argument is provided, only the image pixel values inside of the mask will be plotted.
+
     :param image_before: The first image for which to plot statistics.
     :param image_after: The second image for which to plot statistics.
     :param mask: Indicators with 1 for foreground, 0 for background. If None, plot statistics for all image pixels.
@@ -237,10 +248,13 @@ def plot_normalization_result(loaded_images: Sample,
     The first plot contains pixel value histograms before and after photometric normalization.
     The second plot contains the normalized image, overlayed with contours for the foreground pixels,
     at the slice where the foreground has most pixels.
+
     :param loaded_images: An instance of Sample with the image and the labels. The first channel of the image will
-    be plotted.
+        be plotted.
+
     :param image_range: The image value range that will be mapped to the color map. If None, the full image range
-    will be mapped to the colormap.
+        will be mapped to the colormap.
+
     :param normalizer: The photometric normalization that should be applied.
     :param result_folder: The folder into which the resulting PNG files should be written.
     :param result_prefix: The prefix for all output filenames.
@@ -283,13 +297,15 @@ def plot_contours_for_all_classes(sample: Sample,
     """
     Creates a plot with the image, the ground truth, and the predicted segmentation overlaid. One plot is created
     for each class, each plotting the Z slice where the ground truth has most pixels.
+
     :param sample: The image sample, with the photonormalized image and the ground truth labels.
     :param segmentation: The predicted segmentation: multi-value, size Z x Y x X.
     :param foreground_class_names: The names of all classes, excluding the background class.
     :param result_folder: The folder into which the resulting plot PNG files should be written.
     :param result_prefix: A string prefix that will be used for all plots.
     :param image_range: The minimum and maximum image values that will be mapped to the color map ranges.
-    If None, use the actual min and max values.
+        If None, use the actual min and max values.
+
     :param channel_index: The index of the image channel that should be plotted.
     :return: The paths to all generated PNG files.
     """
@@ -337,6 +353,7 @@ def segmentation_and_groundtruth_plot(prediction: np.ndarray, ground_truth: np.n
     """
     Plot predicted and the ground truth segmentations. Always plots the middle slice (to match surface distance
     plots), which can sometimes lead to an empty plot.
+
     :param prediction: 3D volume (X x Y x Z) of predicted segmentation
     :param ground_truth: 3D volume (X x Y x Z) of ground truth segmentation
     :param subject_id: ID of subject for annotating plot
@@ -389,6 +406,7 @@ def surface_distance_ground_truth_plot(ct: np.ndarray, ground_truth: np.ndarray,
                                        annotator: str = None) -> None:
     """
     Plot surface distances where prediction > 0, with ground truth contour
+
     :param ct: CT scan
     :param ground_truth: Ground truth segmentation
     :param sds_full: Surface distances (full= where prediction > 0)
@@ -471,10 +489,12 @@ def scan_with_transparent_overlay(scan: np.ndarray,
     information in the range [0, 1]. High values of the `overlay` are shown as opaque red, low values as transparent
     red.
     Plots are created in the current axis.
+
     :param scan: A 3-dimensional image in (Z, Y, X) ordering
     :param overlay: A 3-dimensional image in (Z, Y, X) ordering, with values between 0 and 1.
     :param dimension: The array dimension along with the plot should be created. dimension=0 will generate
-    an axial slice.
+        an axial slice.
+
     :param position: The index in the chosen dimension where the plot should be created.
     :param spacing: The tuple of voxel spacings, in (Z, Y, X) order.
     """

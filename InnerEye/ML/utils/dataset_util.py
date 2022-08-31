@@ -31,7 +31,7 @@ class CategoricalToOneHotEncoder(OneHotEncoderBase):
     def __init__(self, columns_and_possible_categories: OrderedDict[str, List[str]]):
         """
         :param columns_and_possible_categories: Mapping between dataset column names
-        to their possible values. eg: {'Inject': ['True', 'False']}. This is required
+            to their possible values. eg: {'Inject': ['True', 'False']}. This is required
         to establish the one-hot encoding each of the possible values.
         """
         super().__init__()
@@ -75,7 +75,7 @@ class CategoricalToOneHotEncoder(OneHotEncoderBase):
 
     def get_supported_dataset_column_names(self) -> List[str]:
         """
-        :returns list of categorical columns that are supported by this encoder
+        :return: list of categorical columns that are supported by this encoder
         """
         return list(self._columns_and_possible_categories.keys())
 
@@ -86,8 +86,8 @@ class CategoricalToOneHotEncoder(OneHotEncoderBase):
         of length 3.
 
         :param feature_name: the name of the column for which to compute the feature
-        length.
-        :returns the feature length i.e. number of possible values for this feature.
+            length.
+        :return: the feature length i.e. number of possible values for this feature.
         """
         return self._feature_length[feature_name]
 

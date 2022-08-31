@@ -54,6 +54,7 @@ class MetricsPerPatientWriter:
         """
         Writes the per-patient per-structure metrics to a CSV file.
         Sorting is done first by structure name, then by Dice score ascending.
+
         :param file_name: The name of the file to write to.
         """
         df = self.to_data_frame()
@@ -70,7 +71,7 @@ class MetricsPerPatientWriter:
 
         :param file_path: The name of the file to write to.
         :param allow_incomplete_labels: boolean flag. If false, all ground truth files must be provided.
-        If true, ground truth files are optional and we add a total_patients count column for easy
+            If true, ground truth files are optional and we add a total_patients count column for easy
         comparison. (Defaults to False.)
         """
 
@@ -130,6 +131,7 @@ class MetricsPerPatientWriter:
 def get_number_of_voxels_per_class(labels: torch.Tensor) -> torch.Tensor:
     """
     Computes the number of voxels for each class in a one-hot label map.
+
     :param labels: one-hot label map in shape Batches x Classes x Z x Y x X or Classes x Z x Y x X
     :return: A tensor of shape [Batches x Classes] containing the number of non-zero voxels along Z, Y, X
     """
@@ -208,9 +210,9 @@ def binary_classification_accuracy(model_output: Union[torch.Tensor, np.ndarray]
     :param model_output: A tensor containing model outputs.
     :param label: A tensor containing class labels.
     :param threshold: the cut-off probability threshold for predictions. If model_ouput is > threshold, the predicted
-    class is 1 else 0.
+        class is 1 else 0.
     :return: 1.0 if all predicted classes match the expected classes given in 'labels'. 0.0 if no predicted classes
-    match their labels.
+        match their labels.
     """
     model_output, label = convert_input_and_label(model_output, label)
     predicted_class = model_output > threshold
@@ -254,7 +256,7 @@ def convert_input_and_label(model_output: Union[torch.Tensor, np.ndarray],
                             label: Union[torch.Tensor, np.ndarray]) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Ensures that both model_output and label are tensors of dtype float32.
-    :return a Tuple with model_output, label as float tensors.
+    :return: a Tuple with model_output, label as float tensors.
     """
     if not torch.is_tensor(model_output):
         model_output = torch.tensor(model_output)
@@ -268,8 +270,9 @@ def is_missing_ground_truth(ground_truth: np.ndarray) -> bool:
     calculate_metrics_per_class in metrics.py and plot_contours_for_all_classes in plotting.py both
     check whether there is ground truth missing using this simple check for NaN value at 0, 0, 0.
     To avoid duplicate code we bring it here as a utility function.
+
     :param ground_truth: ground truth binary array with dimensions: [Z x Y x X].
     :param label_id: Integer index of the label to check.
-    :returns: True if the label is missing (signified by NaN), False otherwise.
+    :return: True if the label is missing (signified by NaN), False otherwise.
     """
     return np.isnan(ground_truth[0, 0, 0])

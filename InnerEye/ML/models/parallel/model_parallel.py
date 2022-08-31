@@ -14,6 +14,7 @@ def move_to_device(input_tensors: List[torch.Tensor],
                    non_blocking: bool = False) -> Iterable[torch.Tensor]:
     """
     Updates the memory location of tensors stored in a list.
+
     :param input_tensors: List of torch tensors
     :param target_device: Target device (e.g. cuda:0, cuda:1, etc). If the device is None, the tensors are not moved.
     :param non_blocking: bool
@@ -40,6 +41,7 @@ def group_layers_with_balanced_memory(inputs: List[torch.nn.Module],
                                       summary: Optional[OrderedDict]) -> Generator:
     """
     Groups layers in the model in a balanced way as such each group has similar size of memory requirement
+
     :param inputs: List of input torch modules.
     :param num_groups: Number of groups to be produced.
     :param summary: Model summary of the input layers which is used to retrieve memory requirements.
@@ -121,6 +123,7 @@ def partition_layers(layers: List[torch.nn.Module],
                      target_devices: List[torch.device]) -> None:
     """
     Splits the models into multiple chunks and assigns each sub-model to a particular GPU
+
     :param layers: The layers to partition
     :param summary: Model architecture summary to use for partitioning
     :param target_devices: The devices to partition layers into

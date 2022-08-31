@@ -32,7 +32,7 @@ class FeatureStatistics:
 
         :param sources: list of data sources
         :return: a Feature Statistics object storing mean and standard deviation for each non-imaging feature of
-        the dataset.
+            the dataset.
         """
         if len(sources) == 0:
             raise ValueError("sources must have a length greater than 0")
@@ -88,7 +88,7 @@ class FeatureStatistics:
         All features that have zero standard deviation (constant features) are left untouched.
 
         :param sources: list of datasources.
-        :return list of data sources where all non-imaging features are standardized.
+        :return: list of data sources where all non-imaging features are standardized.
         """
 
         def apply_source(source: ScalarDataSource) -> ScalarDataSource:

@@ -51,6 +51,7 @@ def model_test(config: ModelConfigBase,
     Runs model inference on segmentation or classification models, using a given dataset (that could be training,
     test or validation set). The inference results and metrics will be stored and logged in a way that may
     differ for model categories (classification, segmentation).
+
     :param config: The configuration of the model
     :param data_split: Indicates which of the 3 sets (training, test, or validation) is being processed.
     :param checkpoint_paths: Checkpoint paths to initialize model.
@@ -82,6 +83,7 @@ def segmentation_model_test(config: SegmentationModelBase,
     """
     The main testing loop for segmentation models.
     It loads the model and datasets, then proceeds to test the model for all requested checkpoints.
+
     :param config: The arguments object which has a valid random seed attribute.
     :param execution_mode: Indicates which of the 3 sets (training, test, or validation) is being processed.
     :param checkpoint_handler: Checkpoint handler object to find checkpoint paths for model initialization.
@@ -121,6 +123,7 @@ def segmentation_model_test_epoch(config: SegmentationModelBase,
     The main testing loop for a given epoch. It loads the model and datasets, then proceeds to test the model.
     Returns a list with an entry for each image in the dataset. The entry is the average Dice score,
     where the average is taken across all non-background structures in the image.
+
     :param checkpoint_paths: Checkpoint paths to run inference on.
     :param config: The arguments which specify all required information.
     :param execution_mode: Is the model evaluated on train, test, or validation set?
@@ -128,7 +131,7 @@ def segmentation_model_test_epoch(config: SegmentationModelBase,
     :param epoch_and_split: A string that should uniquely identify the epoch and the data split (train/val/test).
     :raises TypeError: If the arguments are of the wrong type.
     :raises ValueError: When there are issues loading the model.
-    :return A list with the mean dice score (across all structures apart from background) for each image.
+    :return: A list with the mean dice score (across all structures apart from background) for each image.
     """
     ml_util.set_random_seed(config.get_effective_random_seed(), "Model testing")
     results_folder.mkdir(exist_ok=True)
@@ -204,11 +207,12 @@ def evaluate_model_predictions(process_id: int,
     Evaluates model segmentation predictions, dice scores and surface distances are computed.
     Generated contours are plotted and saved in results folder.
     The function is intended to be used in parallel for loop to process each image in parallel.
+
     :param process_id: Identifier for the process calling the function
     :param config: Segmentation model config object
     :param dataset: Dataset object, it is used to load intensity image, labels, and patient metadata.
     :param results_folder: Path to results folder
-    :returns [PatientMetadata, list[list]]: Patient metadata and list of computed metrics for each image.
+    :return: [PatientMetadata, list[list]]: Patient metadata and list of computed metrics for each image.
     """
     sample = dataset.get_samples_at_index(index=process_id)[0]
     logging.info(f"Evaluating predictions for patient {sample.patient_id}")
@@ -235,10 +239,12 @@ def populate_metrics_writer(
         config: SegmentationModelBase) -> Tuple[MetricsPerPatientWriter, List[FloatOrInt]]:
     """
     Populate a MetricsPerPatientWriter with the metrics for each patient
+
     :param model_prediction_evaluations: The list of PatientMetadata/MetricsDict tuples obtained
-    from evaluate_model_predictions
+        from evaluate_model_predictions
+
     :param config: The SegmentationModelBase config from which we read the ground_truth_ids
-    :returns: A new MetricsPerPatientWriter and a list of foreground DICE score averages
+    :return: A new MetricsPerPatientWriter and a list of foreground DICE score averages
     """
     average_dice: List[FloatOrInt] = []
     metrics_writer = MetricsPerPatientWriter()
@@ -263,6 +269,7 @@ def get_patient_results_folder(results_folder: Path, patient_id: int) -> Path:
     """
     Gets a folder name that will contain all results for a given patient, like root/017 for patient 17.
     The folder name is constructed such that string sorting gives numeric sorting.
+
     :param results_folder: The root folder in which the per-patient results should sit.
     :param patient_id: The numeric ID of the patient.
     :return: A path like "root/017"
@@ -276,8 +283,10 @@ def store_inference_results(inference_result: InferencePipeline.Result,
                             image_header: ImageHeader) -> List[Path]:
     """
     Store the segmentation, posteriors, and binary predictions into Nifti files.
+
     :param inference_result: The inference result for a given patient_id and epoch. Posteriors must be in
-    (Classes x Z x Y x X) shape, segmentation in (Z, Y, X)
+        (Classes x Z x Y x X) shape, segmentation in (Z, Y, X)
+
     :param config: The test configurations.
     :param results_folder: The folder where the prediction should be stored.
     :param image_header: The image header that was used in the input image.
@@ -286,6 +295,7 @@ def store_inference_results(inference_result: InferencePipeline.Result,
     def create_file_path(_results_folder: Path, _file_name: str) -> Path:
         """
         Create filename with Nifti extension
+
         :param _results_folder: The results folder
         :param _file_name: The name of the file
         :return: A full path to the results folder for the file
@@ -339,6 +349,7 @@ def store_run_information(results_folder: Path,
                           image_channels: List[str]) -> None:
     """
     Store dataset id and ground truth ids into files in the results folder.
+
     :param image_channels: The names of the image channels that the model consumes.
     :param results_folder: The folder where the files should be stored.
     :param dataset_id: The dataset id
@@ -359,6 +370,7 @@ def create_inference_pipeline(config: ModelConfigBase,
     """
     If multiple checkpoints are found in run_recovery then create EnsemblePipeline otherwise InferencePipeline.
     If no checkpoint files exist in the run recovery or current run checkpoint folder, None will be returned.
+
     :param config: Model related configs.
     :param epoch: The epoch for which to create pipeline for.
     :param run_recovery: RunRecovery data if applicable
@@ -408,9 +420,11 @@ def classification_model_test(config: ScalarModelBase,
     """
     The main testing loop for classification models. It runs a loop over all epochs for which testing should be done.
     It loads the model and datasets, then proceeds to test the model for all requested checkpoints.
+
     :param config: The model configuration.
     :param data_split: The name of the folder to store the results inside each epoch folder in the outputs_dir,
                        used mainly in model evaluation using different dataset splits.
+
     :param checkpoint_paths: Checkpoint paths to initialize model
     :param model_proc: whether we are testing an ensemble or single model
     :return: InferenceMetricsForClassification object that contains metrics related for all of the checkpoint epochs.

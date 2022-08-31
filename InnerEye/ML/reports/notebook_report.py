@@ -26,6 +26,7 @@ reports_folder = "reports"
 def get_ipynb_report_name(report_type: str) -> str:
     """
     Constructs the name of the report (as an ipython notebook).
+
     :param report_type: suffix describing the report, added to the filename
     :return:
     """
@@ -35,6 +36,7 @@ def get_ipynb_report_name(report_type: str) -> str:
 def get_html_report_name(report_type: str) -> str:
     """
     Constructs the name of the report (as an html file).
+
     :param report_type: suffix describing the report, added to the filename
     :return:
     """
@@ -49,6 +51,7 @@ def print_header(message: str, level: int = 2) -> None:
     """
     Displays a message, and afterwards repeat it as Markdown with the given indentation level (level=1 is the
     outermost, `# Foo`.
+
     :param message: The header string to display.
     :param level: The Markdown indentation level. level=1 for top level, level=3 for `### Foo`
     """
@@ -59,6 +62,7 @@ def print_header(message: str, level: int = 2) -> None:
 def print_table(rows: Sequence[Sequence[str]], header: Optional[Sequence[str]] = None) -> None:
     """
     Displays the provided content in a formatted HTML table, with optional column headers.
+
     :param rows: List of rows, where each row is a list of string-valued cell contents.
     :param header: List of column headers. If given, this special first row is rendered with emphasis.
     """
@@ -74,6 +78,7 @@ def print_table(rows: Sequence[Sequence[str]], header: Optional[Sequence[str]] =
 def generate_notebook(template_notebook: Path, notebook_params: Dict, result_notebook: Path) -> Path:
     """
     Generates a notebook report as jupyter notebook and html page
+
     :param template_notebook: path to template notebook
     :param notebook_params: parameters for the notebook
     :param result_notebook: the path for the executed notebook

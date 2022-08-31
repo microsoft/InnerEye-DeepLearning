@@ -20,9 +20,10 @@ def create_checkpoints(model_config: SegmentationModelBase, is_ensemble: bool) -
     """
     Creates 1 or 2 empty checkpoint files in the model's checkpoint folder, and returns
     the paths of those files, both absolute paths and paths relative to the checkpoint folder.
+
     :param model_config: The model configuration, where a correct output folder must be set.
     :param is_ensemble: If true, 2 checkpoints (simulating an ensemble run) will be created. If false, only a
-    single checkpoint will be created.
+        single checkpoint will be created.
     :return: Tuple[absolute checkpoint paths, relative checkpoint paths]
     """
     # To simulate ensemble models, there are two checkpoints, one in the root dir and one in a folder
@@ -52,8 +53,6 @@ def test_copy_child_paths_to_folder(is_ensemble: bool,
     project_root = Path(__file__).parent.parent
     ml_runner = MLRunner(model_config=fake_model, azure_config=azure_config, project_root=project_root)
     model_folder = test_output_dirs.root_dir / "final"
-    hi_ml_submodules = [p for p, _ in fixed_paths.get_hi_ml_submodule_relative_paths()]
-    has_submodule = any(folder.is_dir() for folder in hi_ml_submodules)
     ml_runner.copy_child_paths_to_folder(model_folder=model_folder, checkpoint_paths=checkpoints_absolute)
     expected_files = [
         fixed_paths.ENVIRONMENT_YAML_FILE_NAME,
@@ -63,9 +62,7 @@ def test_copy_child_paths_to_folder(is_ensemble: bool,
         "InnerEye/Common/fixed_paths.py",
         "InnerEye/Common/common_util.py",
     ]
-    if has_submodule:
-        expected_files.extend(["hi-ml/hi-ml/src/health_ml/__init__.py",
-                               "hi-ml/hi-ml-azure/src/health_azure/__init__.py"])
+
     for r in checkpoints_relative:
         expected_files.append(f"{CHECKPOINT_FOLDER}/{r}")
     for expected_file in expected_files:

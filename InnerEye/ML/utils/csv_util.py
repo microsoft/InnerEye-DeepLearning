@@ -39,7 +39,7 @@ def load_csv(csv_path: Path, expected_cols: List[str], col_type_converters: Opti
     :param csv_path: Path to file
     :param expected_cols: A list of the columns which must, as a minimum, be present.
     :param col_type_converters: Dictionary of column: type, which ensures certain DataFrame columns are parsed with
-    specific types
+        specific types
     :return: Loaded pandas DataFrame
     """
     if not expected_cols:
@@ -61,6 +61,7 @@ def drop_rows_missing_important_values(df: pd.DataFrame, important_cols: List[st
     """
     Remove rows from the DataFrame in which the columns that have been specified by the user as "important" contain
     null values or only whitespace.
+
     :param df: DataFrame
     :param important_cols: Columns which must not contain null values
     :return: df: DataFrame without the dropped rows.
@@ -83,9 +84,10 @@ def extract_outliers(df: pd.DataFrame, outlier_range: float, outlier_col: str = 
 
     :param df: DataFrame from which to extract the outliers
     :param outlier_range: The number of standard deviation from the mean which the points have to be apart
-    to be considered an outlier i.e. a point is considered an outlier if its outlier_col value is above
+        to be considered an outlier i.e. a point is considered an outlier if its outlier_col value is above
     mean + outlier_range * std (if outlier_type is HIGH) or below mean - outlier_range * std (if outlier_type is
     LOW).
+
     :param outlier_col: The column from which to calculate outliers, e.g. Dice
     :param outlier_type: Either LOW (i.e. below accepted range) or HIGH (above accepted range) outliers.
     :return: DataFrame containing only the outliers
@@ -108,14 +110,16 @@ def mark_outliers(df: pd.DataFrame,
     Rows that are not considered outliers have an empty string in the new column.
     Outliers are taken from the column `outlier_col`, that have a value that falls outside of
     mean +- outlier_range * std.
+
     :param df: DataFrame from which to extract the outliers
     :param outlier_range: The number of standard deviation from the mean which the points have to be apart
-    to be considered an outlier i.e. a point is considered an outlier if its outlier_col value is above
+        to be considered an outlier i.e. a point is considered an outlier if its outlier_col value is above
     mean + outlier_range * std (if outlier_type is HIGH) or below mean - outlier_range * std (if outlier_type is
     LOW).
+
     :param outlier_col: The column from which to calculate outliers, e.g. Dice
     :param high_values_are_good: If True, high values for the metric are considered good, and hence low values
-    are marked as outliers. If False, low values are considered good, and high values are marked as outliers.
+        are marked as outliers. If False, low values are considered good, and high values are marked as outliers.
     :return: DataFrame with an additional column `is_outlier`
     """
     if outlier_range < 0:
@@ -137,10 +141,12 @@ def get_worst_performing_outliers(df: pd.DataFrame,
     """
     Returns a sorted list (worst to best) of all the worst performing outliers in the metrics table
     according to metric provided by outlier_col_name
+
     :param df: Metrics DataFrame
     :param outlier_col_name: The column by which to determine outliers
     :param outlier_range: The standard deviation from the mean which the points have to be below
-    to be considered an outlier.
+        to be considered an outlier.
+
     :param max_n_outliers: the number of (worst performing) outlier IDs to return.
     :return: a sorted list (worst to best) of all the worst performing outliers
     """

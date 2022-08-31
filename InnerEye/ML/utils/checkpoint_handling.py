@@ -74,8 +74,9 @@ class CheckpointHandler:
         Download checkpoints from a run recovery object or from a weights url. Set the checkpoints path based on the
         run_recovery_object, weights_url or local_weights_path.
         This is called at the start of training.
+
         :param: only_return_path: if True, return a RunRecovery object with the path to the checkpoint without actually
-        downloading the checkpoints. This is useful to avoid duplicating checkpoint download when running on multiple
+            downloading the checkpoints. This is useful to avoid duplicating checkpoint download when running on multiple
         nodes. If False, return the RunRecovery object and download the checkpoint to disk.
         """
         if self.azure_config.run_recovery_id:
@@ -246,6 +247,7 @@ def download_folder_from_run_to_temp_folder(folder: str,
 
     :param run: If provided, download the files from that run. If omitted, download the files from the current run
         (taken from RUN_CONTEXT)
+
     :param workspace: The AML workspace where the run is located. If omitted, the hi-ml defaults of finding a workspace
         are used (current workspace when running in AzureML, otherwise expecting a config.json file)
     :return: The path to which the files were downloaded. The files are located in that folder, without any further
@@ -276,6 +278,7 @@ def find_recovery_checkpoint_on_disk_or_cloud(path: Path) -> Optional[Path]:
     """
     Looks at all the checkpoint files and returns the path to the one that should be used for recovery.
     If no checkpoint files are found on disk, the function attempts to download from the current AzureML run.
+
     :param path: The folder to start searching in.
     :return: None if there is no suitable recovery checkpoints, or else a full path to the checkpoint file.
     """
@@ -294,6 +297,7 @@ def get_recovery_checkpoint_path(path: Path) -> Path:
     """
     Returns the path to the last recovery checkpoint in the given folder or the provided filename. Raises a
     FileNotFoundError if no recovery checkpoint file is present.
+
     :param path: Path to checkpoint folder
     """
     recovery_checkpoint = find_recovery_checkpoint(path)
@@ -308,6 +312,7 @@ def find_recovery_checkpoint(path: Path) -> Optional[Path]:
     Finds the checkpoint file in the given path that can be used for re-starting the present job.
     This can be an autosave checkpoint, or the last checkpoint. All existing checkpoints are loaded, and the one
     for the highest epoch is used for recovery.
+
     :param path: The folder to search in.
     :return: Returns the checkpoint file to use for re-starting, or None if no such file was found.
     """
@@ -337,6 +342,7 @@ def find_recovery_checkpoint(path: Path) -> Optional[Path]:
 def cleanup_checkpoints(path: Path) -> None:
     """
     Remove autosave checkpoints from the given checkpoint folder, and check if a "last.ckpt" checkpoint is present.
+
     :param path: The folder that contains all checkpoint files.
     """
     logging.info(f"Files in checkpoint folder: {' '.join(p.name for p in path.glob('*'))}")
@@ -359,6 +365,7 @@ def download_best_checkpoints_from_child_runs(config: OutputParams, run: Run) ->
     The checkpoints for the sibling runs will go into folder 'OTHER_RUNS/<cross_validation_split>'
     in the checkpoint folder. There is special treatment for the child run that is equal to the present AzureML
     run, its checkpoints will be read off the checkpoint folder as-is.
+
     :param config: Model related configs.
     :param run: The Hyperdrive parent run to download from.
     :return: run recovery information
@@ -392,12 +399,14 @@ def download_all_checkpoints_from_run(config: OutputParams, run: Run,
                                       only_return_path: bool = False) -> RunRecovery:
     """
     Downloads all checkpoints of the provided run inside the checkpoints folder.
+
     :param config: Model related configs.
     :param run: Run whose checkpoints should be recovered
     :param subfolder: optional subfolder name, if provided the checkpoints will be downloaded to
-    CHECKPOINT_FOLDER / subfolder. If None, the checkpoint are downloaded to CHECKPOINT_FOLDER of the current run.
+        CHECKPOINT_FOLDER / subfolder. If None, the checkpoint are downloaded to CHECKPOINT_FOLDER of the current run.
+
     :param: only_return_path: if True, return a RunRecovery object with the path to the checkpoint without actually
-    downloading the checkpoints. This is useful to avoid duplicating checkpoint download when running on multiple
+        downloading the checkpoints. This is useful to avoid duplicating checkpoint download when running on multiple
     nodes. If False, return the RunRecovery object and download the checkpoint to disk.
     :return: run recovery information
     """

@@ -21,13 +21,16 @@ class CrossEntropyLoss(SupervisedLearningCriterion):
         super().__init__(smoothing_eps)
         """
         Multi-class cross entropy loss.
+
         :param class_weight_power: if 1.0, weights the cross-entropy term for each class equally.
                                    Class weights are inversely proportional to the number
                                    of pixels belonging to each class, raised to class_weight_power
+
         :param focal_loss_gamma: Gamma term used in focal loss to weight negative log-likelihood term:
                                  https://arxiv.org/pdf/1708.02002.pdf equation(4-5).
                                  When gamma equals to zero, it is equivalent to standard
                                  CE with no class balancing. (Gamma >= 0.0)
+
         :param ignore_index: Specifies a target value that is ignored and does not contribute
                              to the input gradient
         """
@@ -60,6 +63,7 @@ class CrossEntropyLoss(SupervisedLearningCriterion):
     def get_focal_loss_pixel_weights(self, logits: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
         Computes weights for each pixel/sample inversely proportional to the posterior likelihood.
+
         :param logits: Logits tensor.
         :param target: Target label tensor in one-hot encoding.
         """
@@ -103,6 +107,7 @@ class CrossEntropyLoss(SupervisedLearningCriterion):
         Wrapper for multi-class cross entropy function implemented in PyTorch.
         The implementation supports tensors with arbitrary spatial dimension.
         Input logits are normalised internally in `F.cross_entropy` function.
+
         :param output: Class logits (unnormalised), e.g. in 3D : BxCxWxHxD  or in 1D BxC
         :param target: Target labels encoded in one-hot representation, e.g. in 3D BxCxWxHxD or in 1D BxC
         """

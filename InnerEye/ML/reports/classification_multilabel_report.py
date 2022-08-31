@@ -73,6 +73,7 @@ def get_dataframe_with_exact_label_matches(metrics_df: pd.DataFrame,
                        The dataframe must have at least the following columns (defined in the LoggingColumns enum):
                        LoggingColumns.Hue, LoggingColumns.Patient, LoggingColumns.Label, LoggingColumns.ModelOutput.
                        Any other columns will be ignored.
+
     :param prediction_target_set_to_match: The set of prediction targets to which each sample is compared
     :param all_prediction_targets: The entire set of prediction targets on which the model is trained
     :param thresholds_per_prediction_target: Thresholds per prediction target to decide if model has predicted True or
@@ -134,15 +135,14 @@ def get_labels_and_predictions_for_prediction_target_set(csv: Path,
 def print_metrics_for_thresholded_output_for_all_prediction_targets(csv_to_set_optimal_threshold: Path,
                                                                     csv_to_compute_metrics: Path,
                                                                     config: ScalarModelBase) -> None:
-
     """
     Given csvs written during inference for the validation and test sets, print out metrics for every combination of
     prediction targets that exist in the dataset (i.e. for every subset of classes that occur in the dataset).
 
     :param csv_to_set_optimal_threshold: Csv written during inference time for the val set. This is used to determine
-    the optimal threshold for classification.
+        the optimal threshold for classification.
     :param csv_to_compute_metrics: Csv written during inference time for the test set. Metrics are calculated for
-    this csv.
+        this csv.
     :param config: Model config
     """
 

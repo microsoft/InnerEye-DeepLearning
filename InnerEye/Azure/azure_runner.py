@@ -39,6 +39,7 @@ def get_git_tags(azure_config: AzureConfig) -> Dict[str, str]:
     Creates a dictionary with git-related information, like branch and commit ID. The dictionary key is a string
     that can be used as a tag on an AzureML run, the dictionary value is the git information. If git information
     is passed in via commandline arguments, those take precedence over information read out from the repository.
+
     :param azure_config: An AzureConfig object specifying git-related commandline args.
     :return: A dictionary mapping from tag name to git info.
     """
@@ -56,6 +57,7 @@ def get_git_tags(azure_config: AzureConfig) -> Dict[str, str]:
 def additional_run_tags(azure_config: AzureConfig, commandline_args: str) -> Dict[str, str]:
     """
     Gets the set of tags that will be added to the AzureML run as metadata, like git status and user name.
+
     :param azure_config: The configurations for the present AzureML job
     :param commandline_args: A string that holds all commandline arguments that were used for the present run.
     """
@@ -77,6 +79,7 @@ def additional_run_tags(azure_config: AzureConfig, commandline_args: str) -> Dic
 def create_experiment_name(azure_config: AzureConfig) -> str:
     """
     Gets the name of the AzureML experiment. This is taken from the commandline, or from the git branch.
+
     :param azure_config: The object containing all Azure-related settings.
     :return: The name to use for the AzureML experiment.
     """
@@ -104,7 +107,7 @@ def create_dataset_configs(azure_config: AzureConfig,
     :param all_dataset_mountpoints: When using the datasets in AzureML, these are the per-dataset mount points.
     :param all_local_datasets: The paths for all local versions of the datasets.
     :return: A list of DatasetConfig objects, in the same order as datasets were provided in all_azure_dataset_ids,
-    omitting datasets with an empty name.
+        omitting datasets with an empty name.
     """
     datasets: List[DatasetConfig] = []
     num_local = len(all_local_datasets)
@@ -147,6 +150,7 @@ def create_runner_parser(model_config_class: type = None) -> argparse.ArgumentPa
     """
     Creates a commandline parser, that understands all necessary arguments for running a script in Azure,
     plus all arguments for the given class. The class must be a subclass of GenericConfig.
+
     :param model_config_class: A class that contains the model-specific parameters.
     :return: An instance of ArgumentParser.
     """
@@ -167,11 +171,12 @@ def parse_args_and_add_yaml_variables(parser: ArgumentParser,
     """
     Reads arguments from sys.argv, modifies them with secrets from local YAML files,
     and parses them using the given argument parser.
+
     :param project_root: The root folder for the whole project. Only used to access a private settings file.
     :param parser: The parser to use.
     :param yaml_config_file: The path to the YAML file that contains values to supply into sys.argv.
     :param fail_on_unknown_args: If True, raise an exception if the parser encounters an argument that it does not
-    recognize. If False, unrecognized arguments will be ignored, and added to the "unknown" field of the parser result.
+        recognize. If False, unrecognized arguments will be ignored, and added to the "unknown" field of the parser result.
     :return: The parsed arguments, and overrides
     """
     settings_from_yaml = read_all_settings(yaml_config_file, project_root=project_root)
@@ -183,6 +188,7 @@ def parse_args_and_add_yaml_variables(parser: ArgumentParser,
 def _create_default_namespace(parser: ArgumentParser) -> Namespace:
     """
     Creates an argparse Namespace with all parser-specific default values set.
+
     :param parser: The parser to work with.
     :return:
     """
@@ -207,10 +213,12 @@ def parse_arguments(parser: ArgumentParser,
     Parses a list of commandline arguments with a given parser, and adds additional information read
     from YAML files. Returns results broken down into a full arguments dictionary, a dictionary of arguments
     that were set to non-default values, and unknown arguments.
+
     :param parser: The parser to use
     :param settings_from_yaml: A dictionary of settings read from a YAML config file.
     :param fail_on_unknown_args: If True, raise an exception if the parser encounters an argument that it does not
-    recognize. If False, unrecognized arguments will be ignored, and added to the "unknown" field of the parser result.
+        recognize. If False, unrecognized arguments will be ignored, and added to the "unknown" field of the parser result.
+
     :param args: Arguments to parse. If not given, use those in sys.argv
     :return: The parsed arguments, and overrides
     """
@@ -261,6 +269,7 @@ def run_duration_string_to_seconds(s: str) -> Optional[int]:
     Parse a string that represents a timespan, and returns it converted into seconds. The string is expected to be
     floating point number with a single character suffix s, m, h, d for seconds, minutes, hours, day.
     Examples: '3.5h', '2d'. If the argument is an empty string, None is returned.
+
     :param s: The string to parse.
     :return: The timespan represented in the string converted to seconds.
     """

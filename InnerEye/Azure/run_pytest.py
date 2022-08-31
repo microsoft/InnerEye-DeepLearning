@@ -19,10 +19,11 @@ PYTEST_RESULTS_FILE = Path("test-results-on-azure-ml.xml")
 def run_pytest(pytest_mark: str, outputs_folder: Path) -> Tuple[bool, Path]:
     """
     Runs pytest on the whole test suite, restricting to the tests that have the given PyTest mark.
+
     :param pytest_mark: The PyTest mark to use for filtering out the tests to run.
     :param outputs_folder: The folder into which the test result XML file should be written.
     :return: True if PyTest found tests to execute and completed successfully, False otherwise.
-    Also returns the path to the generated PyTest results file.
+        Also returns the path to the generated PyTest results file.
     """
     from _pytest.main import ExitCode
     _outputs_file = outputs_folder / PYTEST_RESULTS_FILE
@@ -43,6 +44,7 @@ def download_pytest_result(run: Run, destination_folder: Path = Path.cwd()) -> P
     """
     Downloads the pytest result file that is stored in the output folder of the given AzureML run.
     If there is no pytest result file, throw an Exception.
+
     :param run: The run from which the files should be read.
     :param destination_folder: The folder into which the PyTest result file is downloaded.
     :return: The path (folder and filename) of the downloaded file.

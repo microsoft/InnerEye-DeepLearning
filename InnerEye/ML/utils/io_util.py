@@ -207,6 +207,7 @@ def load_nifti_image(path: PathOrString, image_type: Optional[Type] = float) -> 
 
     :param path: The path to the image to load.
     :return: A numpy array of the image and header data if applicable.
+
     :param image_type: The type to load the image in, set to None to not cast, default is float
     :raises ValueError: If the path is invalid or the image is not 3D.
     """
@@ -214,6 +215,7 @@ def load_nifti_image(path: PathOrString, image_type: Optional[Type] = float) -> 
     def _is_valid_image_path(_path: Path) -> bool:
         """
         Validates a path for an image. Image must be .nii, or .nii.gz.
+
         :param _path: The path to the file.
         :return: True if it is valid, False otherwise
         """
@@ -241,6 +243,7 @@ def load_nifti_image(path: PathOrString, image_type: Optional[Type] = float) -> 
 def load_numpy_image(path: PathOrString, image_type: Optional[Type] = None) -> np.ndarray:
     """
     Loads an array from a numpy file (npz or npy). The array is converted to image_type or untouched if None
+
     :param path: The path to the numpy file.
     :param image_type: The dtype to cast the array
     :return: ndarray
@@ -258,6 +261,7 @@ def load_numpy_image(path: PathOrString, image_type: Optional[Type] = None) -> n
 def load_dicom_image(path: PathOrString) -> np.ndarray:
     """
     Loads an array from a single dicom file.
+
     :param path: The path to the dicom file.
     """
     ds = dicom.dcmread(path)
@@ -278,6 +282,7 @@ def load_dicom_image(path: PathOrString) -> np.ndarray:
 def load_hdf5_dataset_from_file(path_str: Path, dataset_name: str) -> np.ndarray:
     """
     Loads a hdf5 dataset from a file as an ndarray
+
     :param path_str: The path to the HDF5 file
     :param dataset_name: The dataset name in the HDF5 file that we want to load
     :return: ndarray
@@ -292,15 +297,17 @@ def load_hdf5_dataset_from_file(path_str: Path, dataset_name: str) -> np.ndarray
 def load_hdf5_file(path_str: Union[str, Path], load_segmentation: bool = False) -> HDF5Object:
     """
     Loads a single HDF5 file.
+
     :param path_str: The path of the HDF5 file that should be loaded.
     :param load_segmentation: If True, the `segmentation` field of the result object will be populated. If
-    False, the field will be set to None.
+        False, the field will be set to None.
     :return: HDF5Object
     """
 
     def _is_valid_hdf5_path(_path: Path) -> bool:
         """
         Validates a path for an image
+
         :param _path:
         :return:
         """
@@ -331,12 +338,14 @@ def load_images_and_stack(files: Iterable[Path],
 
     :param files: The paths of the files to load.
     :param load_segmentation: If True it loads segmentation if present on the same file as the image. This is only
-    supported for loading from HDF5 files.
+        supported for loading from HDF5 files.
+
     :param center_crop_size: If supplied, all loaded images will be cropped to the size given here. The crop will be
-    taken from the center of the image.
+        taken from the center of the image.
+
     :param image_size: If supplied, all loaded images will be resized immediately after loading.
     :return: A wrapper class that contains the loaded images, and if load_segmentation is True, also the segmentations
-    that were present in the files.
+        that were present in the files.
     """
     images = []
     segmentations = []
@@ -420,6 +429,7 @@ def load_labels_from_dataset_source(dataset_source: PatientDatasetSource, check_
     In the future, this function will be used to load global class and non-imaging information as well.
 
     :type image_size: Image size, tuple of integers.
+
     :param dataset_source: The dataset source for which channels are to be loaded into memory.
     :param check_exclusive: Check that the labels are mutually exclusive (defaults to True).
     :return: A label sample object containing ground-truth information.
@@ -467,6 +477,7 @@ def load_image(path: PathOrString, image_type: Optional[Type] = float) -> ImageW
         For segmentation binary |<dataset_name>|<channel index>
         For segmentation multimap |<dataset_name>|<channel index>|<multimap value>
         The expected dimensions to be (channel, Z, Y, X)
+
     :param path: The path to the file
     :param image_type: The type of the image
     """
@@ -625,7 +636,7 @@ def store_binary_mask_as_nifti(image: np.ndarray, header: ImageHeader, file_name
     :param header: The image header
     :param file_name: The name of the file for this image.
     :return: the path to the saved image
-    :raises: when image is not binary
+    :raises Exception: when image is not binary
     """
     if not is_binary_array(image):
         raise Exception("Array values must be binary.")

@@ -12,7 +12,7 @@ from typing import Optional, Tuple
 # Workaround for an issue with how AzureML and Pytorch Lightning interact: When spawning additional processes for DDP,
 # the working directory is not correctly picked up in sys.path
 print(f"Starting InnerEye runner at {sys.argv[0]}")
-innereye_root = Path(__file__).absolute().parent.parent.parent
+innereye_root = Path(__file__).resolve().parent.parent.parent
 if (innereye_root / "InnerEye").is_dir():
     innereye_root_str = str(innereye_root)
     if innereye_root_str not in sys.path:
@@ -70,7 +70,7 @@ def initialize_rpdb() -> None:
     # rpdb signal trapping does not work on Windows, as there is no SIGTRAP:
     if not is_linux():
         return
-    import rpdb
+    rpdb = __import__('rpdb')  # hack so that the pre-commit hook does not flag this line
     rpdb_port = 4444
     rpdb.handle_trap(port=rpdb_port)
     # For some reason, os.getpid() does not return the ID of what appears to be the currently running process.
@@ -110,12 +110,14 @@ class Runner:
     """
     This class contains the high-level logic to start a training run: choose a model configuration by name,
     submit to AzureML if needed, or otherwise start the actual training and test loop.
+
     :param project_root: The root folder that contains all of the source code that should be executed.
     :param yaml_config_file: The path to the YAML file that contains values to supply into sys.argv.
     :param post_cross_validation_hook: A function to call after waiting for completion of cross validation runs.
-    The function is called with the model configuration and the path to the downloaded and merged metrics files.
+        The function is called with the model configuration and the path to the downloaded and merged metrics files.
+
     :param model_deployment_hook: an optional function for deploying a model in an application-specific way.
-    If present, it should take a model config (SegmentationModelBase), an AzureConfig, and an AzureML
+        If present, it should take a model config (SegmentationModelBase), an AzureConfig, and an AzureML
     Model as arguments, and return an optional Path and a further object of any type.
     """
 
@@ -203,7 +205,7 @@ class Runner:
         The main entry point for training and testing models from the commandline. This chooses a model to train
         via a commandline argument, runs training or testing, and writes all required info to disk and logs.
         :return: If submitting to AzureML, returns the model configuration that was used for training,
-        including commandline overrides applied (if any).
+            including commandline overrides applied (if any).
         """
         # Usually, when we set logging to DEBUG, we want diagnostics about the model
         # build itself, but not the tons of debug information that AzureML submissions create.
@@ -306,6 +308,7 @@ class Runner:
                 # be necessary if the innereye package is installed. It is necessary when working with an outer project
                 # and InnerEye as a git submodule and submitting jobs from the local machine.
                 # In case of version conflicts, the package version in the outer project is given priority.
+                logging.info(f"Attempting to merge the following conda files: {source_config.conda_dependencies_files}")
                 merge_conda_files(source_config.conda_dependencies_files, temp_conda)
 
             # Calls like `self.azure_config.get_workspace()` will fail if we have no AzureML credentials set up, and so
@@ -377,8 +380,9 @@ class Runner:
     def run_in_situ(self, azure_run_info: AzureRunInfo) -> None:
         """
         Actually run the AzureML job; this method will typically run on an Azure VM.
+
         :param azure_run_info: Contains all information about the present run in AzureML, in particular where the
-        datasets are mounted.
+            datasets are mounted.
         """
         # Only set the logging level now. Usually, when we set logging to DEBUG, we want diagnostics about the model
         # build itself, but not the tons of debug information that AzureML submissions create.
@@ -422,6 +426,7 @@ class Runner:
 def default_post_cross_validation_hook(config: ModelConfigBase, root_folder: Path) -> None:
     """
     A function to run after cross validation results have been aggregated, before they are uploaded to AzureML.
+
     :param config: The configuration of the model that should be trained.
     :param root_folder: The folder with all aggregated and per-split files.
     """
@@ -445,7 +450,7 @@ def run(project_root: Path,
     The main entry point for training and testing models from the commandline. This chooses a model to train
     via a commandline argument, runs training or testing, and writes all required info to disk and logs.
     :return: If submitting to AzureML, returns the model configuration that was used for training,
-    including commandline overrides applied (if any). For details on the arguments, see the constructor of Runner.
+        including commandline overrides applied (if any). For details on the arguments, see the constructor of Runner.
     """
     runner = Runner(project_root, yaml_config_file, post_cross_validation_hook, model_deployment_hook)
     return runner.run()

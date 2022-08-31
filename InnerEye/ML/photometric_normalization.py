@@ -22,6 +22,7 @@ class WindowNormalizationForScalarItem(Transform3D[ScalarItem]):
     Transform3D to apply window normalization to "images" of a ScalarItem.
     """
     # noinspection PyMissingConstructor
+
     def __init__(self,
                  output_range: Tuple[float, float] = (0, 1),
                  sharpen: float = 1.9,
@@ -83,6 +84,10 @@ class PhotometricNormalization(Transform3D[Sample]):
             else:
                 mask = np.ones_like(image)
 
+        is3d = image.ndim == 3
+        if is3d:
+            image = image[np.newaxis]
+
         self.status_of_most_recent_call = None
         if self.norm_method == PhotometricNormalizationMethod.Unchanged:
             image_out = image
@@ -115,7 +120,10 @@ class PhotometricNormalization(Transform3D[Sample]):
             raise ValueError("Unknown normalization method {}".format(self.norm_method))
         if patient_id is not None and self.status_of_most_recent_call is not None:
             logging.debug(f"Photonorm patient {patient_id}: {self.status_of_most_recent_call}")
-        check_array_range(image_out, error_prefix="Normalized image")
+        check_array_range(np.asarray(image_out), error_prefix="Normalized image")
+
+        if is3d:
+            image_out = image_out[0]
 
         return image_out
 
@@ -234,6 +242,7 @@ def robust_mean_std(data: np.ndarray) -> Tuple[float, float, float, float]:
     Computes robust estimates of mean and standard deviation in the given array.
     The median is the robust estimate for the mean, the standard deviation is computed from the
     inter-quartile ranges.
+
     :param data: The data for which mean and std should be computed.
     :return: A 4-tuple with values (median, robust_std, minimum data value, maximum data value)
     """
@@ -264,9 +273,11 @@ def mri_window(image_in: np.ndarray,
     around the mean of the remaining values and with a range controlled by the standard deviation and the sharpen
     input parameter. The larger sharpen is, the wider the range. The resulting values are the normalised to the given
     output_range, with values below and above the range being set the the boundary values.
+
     :param image_in: The image to normalize.
     :param mask: Consider only pixel values of the input image for which the mask is non-zero. If None the whole
-    image is considered.
+        image is considered.
+
     :param output_range: The desired value range of the result image.
     :param sharpen: number of standard deviation either side of mean to include in the window
     :param tail: Default 1, allow window range to include more of tail of distribution.

@@ -17,6 +17,7 @@ def load_from_lightning_checkpoint(config: ModelConfigBase, checkpoint_path: Pat
     """
     Reads a PyTorch model from a checkpoint. First, a PyTorch Lightning model is created matching the InnerEye
     model configuration, its parameter tensors are then populated from the given checkpoint.
+
     :param config: An InnerEye model configuration object
     :param checkpoint_path: The location of the checkpoint file.
     :return: A PyTorch Lightning model object.
@@ -37,6 +38,7 @@ def adjust_model_for_inference(config: ModelConfigBase, lightning_model: InnerEy
     Makes all necessary adjustments to use a given model for inference, possibly on multiple GPUs via
     model parallelization. The method also computes parameters like output patch size for segmentation model,
     and stores them in the model configuration.
+
     :param config: The model configuration object. It may be modified in place.
     :param lightning_model: The trained model that should be adjusted.
     """
@@ -65,6 +67,7 @@ def load_from_checkpoint_and_adjust_for_inference(config: ModelConfigBase, check
     """
     Reads a PyTorch model from a checkpoint, and makes all necessary adjustments to use the model for inference,
     possibly on multiple GPUs.
+
     :param config: An InnerEye model configuration object
     :param checkpoint_path: The location of the checkpoint file.
     :return: A PyTorch Lightning model object.

@@ -50,10 +50,11 @@ def sequences_to_padded_tensor(sequences: List[torch.Tensor],
                                padding_value: float = 0.0) -> torch.Tensor:
     """
     Method to convert possibly unequal length sequences to a padded tensor.
+
     :param sequences: List of Tensors to pad
     :param padding_value: Padding value to use, default is 0.0
     :return: Output tensor with shape B x * where * is the max dimensions from the list of provided tensors.
-    And B is the number of tensors in the list of sequences provided.
+        And B is the number of tensors in the list of sequences provided.
     """
     return pad_sequence(sequences, batch_first=True, padding_value=padding_value)
 
@@ -80,6 +81,7 @@ def get_masked_model_outputs_and_labels(model_output: torch.Tensor,
     Helper function to get masked model outputs, labels and their associated subject ids. Masking is performed
     by excluding the NaN model outputs and labels based on a bool mask created using the
     occurrences of NaN in the labels provided.
+
     :param model_output: The model output tensor to mask.
     :param labels: The label tensor to use for mask, and use for masking.
     :param subject_ids: The associated subject ids.
@@ -125,6 +127,7 @@ def apply_sequence_model_loss(loss_fn: torch.nn.Module,
     """
     Applies a loss function to a model output and labels, when the labels come from sequences with unequal length.
     Missing sequence elements are masked out.
+
     :param loss_fn: The loss function to apply to the sequence elements that are present.
     :param model_output: The model outputs
     :param labels: The ground truth labels.

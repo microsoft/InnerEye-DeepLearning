@@ -15,6 +15,7 @@ def plot_variation_error_prediction(
     """
     Plots the absolute prediction errors as well as the predicted values
     against the ground truth values.
+
     :param labels: ground truth labels
     :param predictions: model outputs
     :param filename: location to save the plot to. If None show the plot instead.

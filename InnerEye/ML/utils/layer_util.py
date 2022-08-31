@@ -38,14 +38,17 @@ def get_padding_from_kernel_size(padding: PaddingMode,
     Returns padding value required for convolution layers based on input kernel size and dilation.
 
     :param padding: Padding type (Enum) {`zero`, `no_padding`}. Option `zero` is intended to preserve the tensor shape.
-    In `no_padding` option, padding is not applied and the function returns only zeros.
+        In `no_padding` option, padding is not applied and the function returns only zeros.
+
     :param kernel_size: Spatial support of the convolution kernel. It is used to determine the padding size. This can be
-    a scalar, tuple or array.
+        a scalar, tuple or array.
+
     :param dilation: Dilation of convolution kernel. It is used to determine the padding size. This can be a scalar,
-    tuple or array.
+        tuple or array.
+
     :param num_dimensions: The number of dimensions that the returned padding tuple should have, if both
-    kernel_size and dilation are scalars.
-    :return padding value required for convolution layers based on input kernel size and dilation.
+        kernel_size and dilation are scalars.
+    :return: padding value required for convolution layers based on input kernel size and dilation.
     """
     if isinstance(kernel_size, Sized):
         num_dimensions = len(kernel_size)
@@ -70,8 +73,9 @@ def get_upsampling_kernel_size(downsampling_factor: IntOrTuple3, num_dimensions:
     https://distill.pub/2016/deconv-checkerboard/
 
     :param downsampling_factor: downsampling factor use for each dimension of the kernel. Can be
-    either a list of len(num_dimension) with one factor per dimension or an int in which case the
+        either a list of len(num_dimension) with one factor per dimension or an int in which case the
     same factor will be applied for all dimension.
+
     :param num_dimensions: number of dimensions of the kernel
     :return: upsampling_kernel_size
     """
@@ -98,6 +102,7 @@ def set_model_to_eval_mode(model: torch.nn.Module) -> Generator:
     """
     Puts the given torch model into eval mode. At the end of the context, resets the state of the training flag to
     what is was before the call.
+
     :param model: The model to modify.
     """
     old_mode = model.training

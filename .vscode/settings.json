@@ -4,5 +4,13 @@
         "Tests"
     ],
     "python.testing.unittestEnabled": false,
-    "python.testing.pytestEnabled": true
+    "python.testing.pytestEnabled": true,
+    "workbench.colorCustomizations": {
+        "activityBar.background": "#07338b",
+        "titleBar.activeBackground": "#07338b",
+        "titleBar.activeForeground": "#F8FCE5"
+    },
+    "files.trimTrailingWhitespace": true,
+    "files.trimFinalNewlines": true,
+    "files.insertFinalNewline": true,
 }

@@ -20,6 +20,7 @@ def nanmean(values: torch.Tensor) -> torch.Tensor:
     """
     Computes the average of all values in the tensor, skipping those entries that are NaN (not a number).
     If all values are NaN, the result is also NaN.
+
     :param values: The values to average.
     :return: A scalar tensor containing the average.
     """
@@ -164,7 +165,7 @@ class ScalarMetricsBase(Metric):
         difference between true positive rate and false positive rate is smallest. Then, computes
         the false positive rate, false negative rate and accuracy at this threshold (i.e. when the
         predicted probability is higher than the threshold the predicted label is 1 otherwise 0).
-        :returns: Tuple(optimal_threshold, false positive rate, false negative rate, accuracy)
+        :return: Tuple(optimal_threshold, false positive rate, false negative rate, accuracy)
         """
         preds, targets = self._get_preds_and_targets()
         if torch.unique(targets).numel() == 1:
@@ -287,12 +288,14 @@ class MetricForMultipleStructures(torch.nn.Module):
                  use_average_across_structures: bool = True) -> None:
         """
         Creates a new MetricForMultipleStructures object.
+
         :param ground_truth_ids: The list of anatomical structures that should be stored.
         :param metric_name: The name of the metric that should be stored. This is used in the names of the individual
-        metrics.
+            metrics.
+
         :param is_training: If true, use "train/" as the prefix for all metric names, otherwise "val/"
         :param use_average_across_structures: If True, keep track of the average metric value across structures,
-        while skipping NaNs. If false, only store the per-structure metric values.
+            while skipping NaNs. If false, only store the per-structure metric values.
         """
         super().__init__()
         prefix = (TRAIN_PREFIX if is_training else VALIDATION_PREFIX) + metric_name + "/"
@@ -307,6 +310,7 @@ class MetricForMultipleStructures(torch.nn.Module):
         """
         Stores a vector of per-structure Dice scores in the present object. It updates the per-structure values,
         and the aggregate value across all structures.
+
         :param values_per_structure: A row tensor that has as many entries as there are ground truth IDs.
         """
         if values_per_structure.dim() != 1 or values_per_structure.numel() != self.count:

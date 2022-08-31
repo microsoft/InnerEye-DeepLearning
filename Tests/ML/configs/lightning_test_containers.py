@@ -277,6 +277,7 @@ class DummySimCLRData(VisionDataset):
     """
     Returns a constant vector of size three [1., 1., 1.]
     """
+
     def __init__(
             self,
             root: str,

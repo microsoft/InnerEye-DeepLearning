@@ -674,6 +674,7 @@ def test_create_dicom_series(test_output_dirs: OutputFolderForTests) -> None:
 def test_zip_random_dicom_series(test_output_dirs: OutputFolderForTests) -> None:
     """
     Test that a DICOM series can be created.
+
         :param test_output_dirs: Test output directories.
     :return: None.
     """

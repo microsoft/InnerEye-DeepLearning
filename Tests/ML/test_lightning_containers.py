@@ -12,6 +12,7 @@ import param
 import pytest
 from azureml.core import ScriptRunConfig
 from azureml.train.hyperdrive.runconfig import HyperDriveConfig
+from health_azure import AzureRunInfo
 from pytorch_lightning import LightningModule
 
 from InnerEye.Azure.azure_config import AzureConfig
@@ -24,10 +25,11 @@ from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.run_ml import MLRunner
 from InnerEye.ML.runner import Runner
 from Tests.ML.configs.DummyModel import DummyModel
-from Tests.ML.configs.lightning_test_containers import (DummyContainerWithAzureDataset, DummyContainerWithHooks,
-                                                        DummyContainerWithModel, DummyContainerWithPlainLightning)
+from Tests.ML.configs.fastmri_random import FastMriOnRandomData
+from Tests.ML.configs.lightning_test_containers import (
+    DummyContainerWithAzureDataset, DummyContainerWithHooks, DummyContainerWithModel, DummyContainerWithPlainLightning
+)
 from Tests.ML.util import default_runner
-from health_azure import AzureRunInfo
 
 
 def test_run_container_in_situ(test_output_dirs: OutputFolderForTests) -> None:
@@ -127,7 +129,6 @@ def test_create_fastmri_container() -> None:
     and if the submodule is created correctly.
     """
     from InnerEye.ML.configs.other.fastmri_varnet import VarNetWithImageLogging
-    from Tests.ML.configs.fastmri_random import FastMriOnRandomData
     FastMriOnRandomData()
     VarNetWithImageLogging()
 
@@ -147,7 +148,6 @@ def test_run_fastmri_container(test_output_dirs: OutputFolderForTests) -> None:
     with mock.patch("sys.argv", args):
         loaded_config, run_info = runner.run()
     assert isinstance(run_info, AzureRunInfo)
-    from Tests.ML.configs.fastmri_random import FastMriOnRandomData
     assert isinstance(runner.lightning_container, FastMriOnRandomData)
 
 
@@ -308,7 +308,7 @@ def test_get_hyperdrive_config(number_of_cross_validation_splits: int,
         with pytest.raises(NotImplementedError) as not_implemented_error:
             container.get_hyperdrive_config(run_config=run_config)
         assert 'Parameter search is not implemented' in str(not_implemented_error.value)
-        # The error should be thrown by 
+        # The error should be thrown by
         #     InnerEye.ML.lightning_container.LightningContainer.get_parameter_search_hyperdrive_config
         # since number_of_cross_validation_splits == 0 implies a parameter search hyperdrive config and
         # not a cross validation one.
@@ -324,9 +324,10 @@ def test_innereyecontainer_setup_passes_on_allow_incomplete_labels(
     """
     Test that InnerEyeContainer.setup passes on the correct value of allow_incomplete_labels to
     full_image_dataset.convert_channels_to_file_paths
+
     :param test_output_dirs: Test fixture.
     :param allow_partial_ground_truth: The value to set allow_incomplete_labels to and check it is
-    passed through.
+        passed through.
     """
     config = DummyModel()
     config.set_output_to(test_output_dirs.root_dir)

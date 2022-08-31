@@ -72,6 +72,7 @@ def report_structure_extremes(dataset_dir: str, azure_config: AzureConfig) -> No
     Writes structure-extreme lines for the subjects in a directory.
     If there are any structures with missing slices, a ValueError is raised after writing all the lines.
     This allows a build failure to be triggered when such structures exist.
+
     :param azure_config: An object with all necessary information for accessing Azure.
     :param dataset_dir: directory containing subject subdirectories with integer names.
     """
@@ -129,7 +130,7 @@ def report_structure_extremes_for_subject(subj_dir: str, series_id: str) -> Iter
     """
     :param subj_dir: subject directory, containing <structure>.nii.gz files
     :param series_id: series identifier for the subject
-    Yields a line for every <structure>.nii.gz file in the directory.
+        Yields a line for every <structure>.nii.gz file in the directory.
     """
     subject = os.path.basename(subj_dir)
     series_prefix = "" if series_id is None else series_id[:8]
@@ -174,7 +175,7 @@ def extent_list(presence: np.array, max_value: int) -> Tuple[List[int], List[str
     :param presence: a 1-D array of distinct integers in increasing order.
     :param max_value: any integer, not necessarily related to presence
     :return: two tuples: (1) a list of the minimum and maximum values of presence, and max_value;
-    (2) a list of strings, each denoting a missing range of values within "presence".
+        (2) a list of strings, each denoting a missing range of values within "presence".
     """
     if len(presence) == 0:
         return [-1, -1, max_value], []

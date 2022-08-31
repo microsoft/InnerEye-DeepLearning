@@ -28,7 +28,7 @@ class HelloWorld(SegmentationModelBase):
 
     * This model can be trained from the commandline: python InnerEye/runner.py --model=HelloWorld
 
-    * If you want to test that your AzureML workspace is working, please follow the instructions in 
+    * If you want to test that your AzureML workspace is working, please follow the instructions in
     <repo_root>/docs/hello_world_model.md.
 
     In this example, the model is trained on 2 input image channels channel1 and channel2, and
@@ -94,6 +94,7 @@ class HelloWorld(SegmentationModelBase):
         https://docs.microsoft.com/en-us/azure/machine-learning/service/how-to-tune-hyperparameters
         A reference is provided at https://docs.microsoft.com/en-us/python/api/azureml-train-core/azureml.train
         .hyperdrive?view=azure-ml-py
+
         :param run_config: The configuration for running an individual experiment.
         :return: An Azure HyperDrive run configuration (configured PyTorch environment).
         """

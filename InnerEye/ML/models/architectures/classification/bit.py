@@ -26,6 +26,7 @@ class ResNetV2Block(nn.Module):
     ResNetV2 (https://arxiv.org/pdf/1603.05027.pdf) uses pre activation in the ResNet blocks.
     Big Transfer replaces BatchNorm with GroupNorm
     """
+
     def __init__(self,
                  in_channels: int,
                  out_channels: int,
@@ -82,6 +83,7 @@ class ResNetV2Layer(nn.Module):
     """
     Single layer of ResNetV2
     """
+
     def __init__(self,
                  in_channels: int,
                  out_channels: int,
@@ -110,6 +112,7 @@ class BiTResNetV2(nn.Module):
     https://arxiv.org/pdf/1912.11370.pdf
     https://github.com/google-research/big_transfer
     """
+
     def __init__(self, num_groups: int = 32,
                  num_classes: int = 21843,
                  num_blocks_in_layer: Tuple[int, int, int, int] = (3, 4, 23, 3),
@@ -165,4 +168,3 @@ class BiTResNetV2(nn.Module):
         x = self.conv_stack(x)
         x = self.linear(x)
         return x
-

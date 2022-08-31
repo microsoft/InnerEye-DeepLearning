@@ -111,12 +111,12 @@ def download_and_compare_scores(outputs_folder: Path, azure_config: AzureConfig,
     """
     :param azure_config: Azure configuration to use for downloading data
     :param comparison_blob_storage_paths: list of paths to directories containing metrics.csv and dataset.csv files,
-    each of the form run_recovery_id/rest_of_path
+        each of the form run_recovery_id/rest_of_path
     :param model_dataset_df: dataframe containing contents of dataset.csv for the current model
     :param model_metrics_df: dataframe containing contents of metrics.csv for the current model
     :return: a dataframe for all the data (current model and all baselines); whether any comparisons were
-    done, i.e. whether a valid baseline was found; and the text lines to be written to the Wilcoxon results
-    file.
+        done, i.e. whether a valid baseline was found; and the text lines to be written to the Wilcoxon results
+        file.
     """
     comparison_baselines = get_comparison_baselines(outputs_folder, azure_config, comparison_blob_storage_paths)
     result = perform_score_comparisons(model_dataset_df, model_metrics_df, comparison_baselines)
@@ -195,10 +195,11 @@ def compare_files(expected: Path, actual: Path, csv_relative_tolerance: float = 
     basis.
 
     :param expected: A file that contains the expected contents. The type of comparison (text or binary) is chosen
-    based on the extension of this file.
+        based on the extension of this file.
+
     :param actual: A file that contains the actual contents.
     :param csv_relative_tolerance: When comparing CSV files, use this as the maximum allowed relative discrepancy.
-    If 0.0, do not allow any discrepancy.
+        If 0.0, do not allow any discrepancy.
     :return: An empty string if the files appear identical, or otherwise an error message with details.
     """
 
@@ -257,9 +258,9 @@ def compare_folder_contents(expected_folder: Path,
     :param actual_folder: The output folder with the actually produced files.
     :param run: An AzureML run
     :param csv_relative_tolerance: When comparing CSV files, use this as the maximum allowed relative discrepancy.
-    If 0.0, do not allow any discrepancy.
+        If 0.0, do not allow any discrepancy.
     :return: A list of human readable error messages, with message and file path. If no errors are found, the list is
-    empty.
+        empty.
     """
     messages = []
     if run and is_offline_run_context(run):
@@ -302,7 +303,7 @@ def compare_folders_and_run_outputs(expected: Path, actual: Path, csv_relative_t
     :param expected: A folder with files that are expected to be present.
     :param actual: The output folder with the actually produced files.
     :param csv_relative_tolerance: When comparing CSV files, use this as the maximum allowed relative discrepancy.
-    If 0.0, do not allow any discrepancy.
+        If 0.0, do not allow any discrepancy.
     """
     if not expected.is_dir():
         raise ValueError(f"Folder with expected files does not exist: {expected}")
