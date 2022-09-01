@@ -402,7 +402,8 @@ class Runner:
         else:
             # Set environment variables for multi-node training if needed. This function will terminate early
             # if it detects that it is not in a multi-node environment.
-            set_environment_variables_for_multi_node()
+            if self.azure_config.num_nodes > 1:
+                set_environment_variables_for_multi_node()
             self.ml_runner = self.create_ml_runner()
             self.ml_runner.setup(azure_run_info)
             self.ml_runner.run()
