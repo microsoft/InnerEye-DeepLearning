@@ -30,6 +30,7 @@ class MoveModelConfig:
     def get_paths(self) -> Tuple[Path, Path]:
         """
         Gets paths and creates folders if necessary
+
         :param path: Base path
         :param model_id: The model ID
         :return: model_path, environment_path
@@ -46,6 +47,7 @@ class MoveModelConfig:
 def download_model(ws: Workspace, config: MoveModelConfig) -> Model:
     """
     Downloads an InnerEye model from an AzureML workspace
+
     :param ws: The AzureML workspace
     :param config: move config
     :return: the exported Model
@@ -64,6 +66,7 @@ def download_model(ws: Workspace, config: MoveModelConfig) -> Model:
 def upload_model(ws: Workspace, config: MoveModelConfig) -> Model:
     """
     Uploads an InnerEye model to an AzureML workspace
+
     :param ws: The AzureML workspace
     :param config: move config
     :return: imported Model
@@ -88,6 +91,7 @@ def upload_model(ws: Workspace, config: MoveModelConfig) -> Model:
 def get_workspace(config: MoveModelConfig) -> Workspace:
     """
     Get workspace based on command line input config
+
     :param config: MoveModelConfig
     :return: an Azure ML workspace
     """
@@ -121,6 +125,7 @@ def main() -> None:
 def move(ws: Workspace, config: MoveModelConfig) -> Model:
     """
     Moves a model: downloads or uploads the model depending on the configs
+
     :param config: the move model config
     :param ws: The Azure ML workspace
     :return: the download or upload model

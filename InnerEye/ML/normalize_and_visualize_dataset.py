@@ -45,8 +45,9 @@ def create_parser(yaml_file_path: Path) -> ParserResult:
     Create a parser for all runner arguments, even though we are only using a subset of the arguments.
     This way, we can get secrets handling in a consistent way.
     In particular, this will create arguments for
-      --local_dataset
-      --azure_dataset_id
+
+    * ``--local_dataset``
+    * ``--azure_dataset_id``
     """
     parser = create_runner_parser(SegmentationModelBase)
     NormalizeAndVisualizeConfig.add_args(parser)
@@ -67,9 +68,11 @@ def get_configs(default_model_config: SegmentationModelBase,
 def main(yaml_file_path: Path) -> None:
     """
     Invoke either by
-      * specifying a model, '--model Lung'
-      * or specifying dataset and normalization parameters separately: --azure_dataset_id=foo --norm_method=None
-    In addition, the arguments '--image_channel' and '--gt_channel' must be specified (see below).
+
+    * specifying a model, ``--model Lung``
+    * or specifying dataset and normalization parameters separately: ``--azure_dataset_id=foo --norm_method=None``
+
+    In addition, the arguments ``--image_channel`` and ``--gt_channel`` must be specified.
     """
     config, runner_config, args = get_configs(SegmentationModelBase(should_validate=False), yaml_file_path)
     dataset_config = DatasetConfig(name=config.azure_dataset_id,

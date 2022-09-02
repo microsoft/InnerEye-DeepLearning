@@ -28,6 +28,7 @@ COL_VALUE = "value"
 def memory_in_gb(bytes: int) -> float:
     """
     Converts a memory amount in bytes to gigabytes.
+
     :param bytes:
     :return:
     """
@@ -63,6 +64,7 @@ class GpuUtilization:
     def max(self, other: GpuUtilization) -> GpuUtilization:
         """
         Computes the metric-wise maximum of the two GpuUtilization objects.
+
         :param other:
         :return:
         """
@@ -103,8 +105,9 @@ class GpuUtilization:
         """
         Lists all metrics stored in the present object, as (metric_name, value) pairs suitable for logging in
         Tensorboard.
+
         :param prefix: If provided, this string as used as an additional prefix for the metric name itself. If prefix
-        is "max", the metric would look like "maxLoad_Percent"
+            is "max", the metric would look like "maxLoad_Percent"
         :return: A list of (name, value) tuples.
         """
         return [
@@ -118,6 +121,7 @@ class GpuUtilization:
     def from_gpu(gpu: GPU) -> GpuUtilization:
         """
         Creates a GpuUtilization object from data coming from the gputil library.
+
         :param gpu: GPU diagnostic data from gputil.
         :return:
         """
@@ -145,10 +149,11 @@ class ResourceMonitor(Process):
                  csv_results_folder: Path):
         """
         Creates a process that will monitor CPU and GPU utilization.
+
         :param interval_seconds: The interval in seconds at which usage statistics should be written.
         :param tensorboard_folder: The path in which to create a tensorboard logfile.
         :param csv_results_folder: The path in which the CSV file with aggregate metrics will be created.
-        When running in AzureML, this should NOT reside inside the /logs folder.
+            When running in AzureML, this should NOT reside inside the /logs folder.
         """
         super().__init__(name="Resource Monitor", daemon=True)
         self._interval_seconds = interval_seconds
@@ -163,6 +168,7 @@ class ResourceMonitor(Process):
     def log_to_tensorboard(self, label: str, value: float) -> None:
         """
         Write a scalar metric value to Tensorboard, marked with the present step.
+
         :param label: The name of the metric.
         :param value: The value.
         """
@@ -172,6 +178,7 @@ class ResourceMonitor(Process):
         """
         Updates the stored GPU utilization metrics with the current status coming from gputil, and logs
         them to Tensorboard.
+
         :param gpus: The current utilization information, read from gputil, for all available GPUs.
         """
         for gpu in gpus:

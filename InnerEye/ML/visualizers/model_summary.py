@@ -41,6 +41,7 @@ class ModelSummary:
         """
         Class to summarise the detail of neural network including (I) intermediate tensor shapes,
         (II) number of trainable and non-trainable parameters, and (III) total GPU/CPU memory requirements.
+
         :param model: BaseModel object containing the computation graph.
         """
         # Need a local import here to avoid circular dependency
@@ -63,8 +64,10 @@ class ModelSummary:
         """
         Produces a human readable summary of the model, and prints it via logging.info. The summary is computed by
         doing forward propagation through the model, with tensors of a given size or a given list of tensors.
+
         :param input_sizes: The list of sizes of the input tensors to the model. These sizes must be specifies
-        without the leading batch dimension.
+            without the leading batch dimension.
+
         :param input_tensors: The tensors to use in model forward propagation.
         :param log_summaries_to_files: if True, write the summary to a new file under logs/models instead of stdout
         :return:
@@ -116,6 +119,7 @@ class ModelSummary:
     def compute_tensor_memory_megabytes(input_size: Union[List[torch.Size], Sequence[Tuple]]) -> float:
         """Returns memory requirement of a tensor by deriving from its size.
         The returned values are in megabytes
+
         :param input_size: List of input tensor sizes
         """
         # check for the case where the input is not a list of tuples, in which case make it a singleton instance
@@ -130,6 +134,7 @@ class ModelSummary:
         Adds forward pass hooks to each submodule, module that has no nested modules/layers, in order to
         collect network summary information. Hook handles are stored in a list which are later removed
         outside the scope.
+
         :param submodule: Children module of the main neural network model.
         """
 
@@ -158,6 +163,7 @@ class ModelSummary:
         Creates a list of input torch tensors and registers forward pass hooks to the model,
         passes the inputs through the model, and collects model information such num of parameters
         and intermediate tensor size.
+
         :param input_tensors: A list of tensors which are fed into the torch model.
         """
 
@@ -210,9 +216,10 @@ def forward_preserve_state(module: DeviceAwareModule, inputs: List[torch.Tensor]
     Perform forward pass on input module with given list of torch tensors. The function preserves the random state
     of the backend libraries to avoid reproducibility issues. Additionally, it temporarily sets the model in
     evaluation mode for inference and then restores its previous state.
+
     :param module: Callable torch module
     :param inputs: List of input torch tensors
-    :return output: Output torch tensors
+    :return: output: Output torch tensors
     """
     if not isinstance(inputs, list):
         raise RuntimeError("Inputs object has to be a list of torch tensors")

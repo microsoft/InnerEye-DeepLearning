@@ -84,6 +84,7 @@ def create_inference_pipeline(model_config: SegmentationModelBase,
     """
     Create pipeline for inference, this can be a single model inference pipeline or an ensemble, if multiple
     checkpoints provided.
+
     :param model_config: Model config to use to create the pipeline.
     :param full_path_to_checkpoints: Checkpoints to use for model inference.
     :param use_gpu: If GPU should be used or not.
@@ -115,6 +116,7 @@ def run_inference(images_with_header: List[ImageWithHeader],
                   config: SegmentationModelBase) -> np.ndarray:
     """
     Runs inference on a list of channels and given a config and inference pipeline
+
     :param images_with_header:
     :param inference_pipeline:
     :param config:
@@ -261,6 +263,7 @@ def score_image(args: ScorePipelineConfig) -> Path:
     2) Instantiate an inference pipeline based on the provided model_inference.json in the snapshot
     3) Store the segmentation file in the current directory
     4) Upload the segmentation to AML
+
     :param args:
     :return:
     """

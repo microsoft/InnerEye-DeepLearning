@@ -63,6 +63,7 @@ def get_encoder_output_dim(
 ) -> int:
     """
     Calculates the output dimension of ssl encoder by making a single forward pass.
+
     :param pl_module: pl encoder module
     :param dm: pl datamodule
     """

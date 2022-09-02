@@ -80,9 +80,10 @@ class StoringLogger(LightningLoggerBase):
         Reads the set of metrics for a given epoch, filters them to retain only those that have the given prefix,
         and returns the filtered ones. This is used to break a set
         of results down into those for training data (prefix "Train/") or validation data (prefix "Val/").
+
         :param epoch: The epoch for which results should be read.
         :param prefix_filter: If empty string, return all metrics. If not empty, return only those metrics that
-        have a name starting with `prefix`, and strip off the prefix.
+            have a name starting with `prefix`, and strip off the prefix.
         :return: A metrics dictionary.
         """
         epoch_results = self.results_per_epoch.get(epoch, None)
@@ -103,8 +104,9 @@ class StoringLogger(LightningLoggerBase):
         Converts the results stored in the present object into a two-level dictionary, mapping from epoch number to
         metric name to metric value. Only metrics where the name starts with the given prefix are retained, and the
         prefix is stripped off in the result.
+
         :param prefix_filter: If empty string, return all metrics. If not empty, return only those metrics that
-        have a name starting with `prefix`, and strip off the prefix.
+            have a name starting with `prefix`, and strip off the prefix.
         :return: A dictionary mapping from epoch number to metric name to metric value.
         """
         return {epoch: self.extract_by_prefix(epoch, prefix_filter) for epoch in self.epochs}
@@ -113,8 +115,10 @@ class StoringLogger(LightningLoggerBase):
         """
         Gets a scalar metric out of either the list of training or the list of validation results. This returns
         the value that a specific metric attains in all of the epochs.
+
         :param is_training: If True, read metrics that have a "train/" prefix, otherwise those that have a "val/"
-        prefix.
+            prefix.
+
         :param metric_type: The metric to extract.
         :return: A list of floating point numbers, with one entry per entry in the the training or validation results.
         """
@@ -132,6 +136,7 @@ class StoringLogger(LightningLoggerBase):
         """
         Gets a scalar metric from the list of training results. This returns
         the value that a specific metric attains in all of the epochs.
+
         :param metric_type: The metric to extract.
         :return: A list of floating point numbers, with one entry per entry in the the training results.
         """
@@ -141,6 +146,7 @@ class StoringLogger(LightningLoggerBase):
         """
         Gets a scalar metric from the list of validation results. This returns
         the value that a specific metric attains in all of the epochs.
+
         :param metric_type: The metric to extract.
         :return: A list of floating point numbers, with one entry per entry in the the validation results.
         """

@@ -16,11 +16,12 @@ from azureml.core import Model, Run
 def spawn_and_monitor_subprocess(process: str, args: List[str], env: Dict[str, str]) -> Tuple[int, List[str]]:
     """
     Helper function to spawn and monitor subprocesses.
+
     :param process: The name or path of the process to spawn.
     :param args: The args to the process.
     :param env: The environment variables for the process (default is the environment variables of the parent).
     :return: Return code after the process has finished, and the list of lines that were written to stdout by the
-    subprocess.
+        subprocess.
     """
     p = subprocess.Popen(
         [process] + args,

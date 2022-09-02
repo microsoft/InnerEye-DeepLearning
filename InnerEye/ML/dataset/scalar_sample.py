@@ -39,7 +39,6 @@ class ScalarItemBase(SampleBase):
     def id(self) -> str:
         """
         Gets the identifier of the present object from metadata.
-        :return:
         """
         return self.metadata.id  # type: ignore
 
@@ -47,7 +46,6 @@ class ScalarItemBase(SampleBase):
     def props(self) -> Dict[str, Any]:
         """
         Gets the general metadata dictionary for the present object.
-        :return:
         """
         return self.metadata.props  # type: ignore
 
@@ -94,6 +92,7 @@ class ScalarItem(ScalarItemBase):
         """
         Creates a copy of the present object where all tensors live on the given CUDA device.
         The metadata field is left unchanged.
+
         :param device: The CUDA or GPU device to move to.
         :return: A new `ScalarItem` with all tensors on the chosen device.
         """
@@ -124,16 +123,19 @@ class ScalarDataSource(ScalarItemBase):
         root_path argument, or it must contain a file name stem only (without extension). In this case, the actual
         mapping from file name stem to full path is expected in the file_mapping argument.
         Either of 'root_path' or 'file_mapping' must be provided.
+
         :param root_path: The root path where all channel files for images are expected. This is ignored if
-        file_mapping is given.
+            file_mapping is given.
+
         :param file_mapping: A mapping from a file name stem (without extension) to its full path.
         :param load_segmentation: If True it loads segmentation if present on the same file as the image.
         :param center_crop_size: If supplied, all loaded images will be cropped to the size given here. The crop will
-        be taken from the center of the image.
+            be taken from the center of the image.
+
         :param image_size: If given, all loaded images will be reshaped to the size given here, prior to the
-        center crop.
+            center crop.
         :return: An instance of ClassificationItem, with the same label and numerical_non_image_features fields,
-        and all images loaded.
+            and all images loaded.
         """
         full_channel_files = self.get_all_image_filepaths(root_path=root_path,
                                                           file_mapping=file_mapping)
@@ -156,8 +158,9 @@ class ScalarDataSource(ScalarItemBase):
         """
         Checks if all file paths and non-image features are present in the object. All image channel files must
         be not None, and none of the non imaging features may be NaN or infinity.
+
         :return: True if channel files is a list with not-None entries, and all non imaging features are finite
-        floating point numbers.
+            floating point numbers.
         """
         return self.files_valid() and super().is_valid()
 
@@ -169,8 +172,10 @@ class ScalarDataSource(ScalarItemBase):
                                 file_mapping: Optional[Dict[str, Path]]) -> List[Path]:
         """
         Get a list of image paths for the object. Either root_path or file_mapping must be specified.
+
         :param root_path: The root path where all channel files for images are expected. This is ignored if
-        file_mapping is given.
+            file_mapping is given.
+
         :param file_mapping: A mapping from a file name stem (without extension) to its full path.
         """
         full_channel_files: List[Path] = []
@@ -188,9 +193,11 @@ class ScalarDataSource(ScalarItemBase):
         """
         Get the full path of an image file given the path relative to the dataset folder and one of
         root_path or file_mapping.
+
         :param file: Image filepath relative to the dataset folder
         :param root_path: The root path where all channel files for images are expected. This is ignored if
-        file_mapping is given.
+            file_mapping is given.
+
         :param file_mapping: A mapping from a file name stem (without extension) to its full path.
         """
         if file is None:

@@ -69,9 +69,11 @@ def read_csv_and_filter_prediction_target(csv: Path, prediction_target: str,
 
     :param csv: Path to the metrics CSV file. Must contain at least the following columns (defined in the LoggingColumns
         enum): LoggingColumns.Patient, LoggingColumns.Hue.
+
     :param prediction_target: Target ("hue") by which to filter.
     :param crossval_split_index: If specified, filter rows only for the respective run (requires
         LoggingColumns.CrossValidationSplitIndex).
+
     :param data_split: If specified, filter rows by Train/Val/Test (requires LoggingColumns.DataSplit).
     :param epoch: If specified, filter rows for given epoch (default: last epoch only; requires LoggingColumns.Epoch).
     :return: Filtered dataframe.
@@ -122,9 +124,11 @@ def get_labels_and_predictions(csv: Path, prediction_target: str,
 
     :param csv: Path to the metrics CSV file. Must contain at least the following columns (defined in the LoggingColumns
         enum): LoggingColumns.Patient, LoggingColumns.Hue.
+
     :param prediction_target: Target ("hue") by which to filter.
     :param crossval_split_index: If specified, filter rows only for the respective run (requires
         LoggingColumns.CrossValidationSplitIndex).
+
     :param data_split: If specified, filter rows by Train/Val/Test (requires LoggingColumns.DataSplit).
     :param epoch: If specified, filter rows for given epoch (default: last epoch only; requires LoggingColumns.Epoch).
     :return: Filtered labels and model outputs.
@@ -150,6 +154,7 @@ def get_labels_and_predictions_from_dataframe(df: pd.DataFrame) -> LabelsAndPred
 def format_pr_or_roc_axes(plot_type: str, ax: Axes) -> None:
     """
     Format PR or ROC plot with appropriate title, axis labels, limits, and grid.
+
     :param plot_type: Either 'pr' or 'roc'.
     :param ax: Axes object to format.
     """
@@ -171,9 +176,11 @@ def plot_pr_and_roc_curves(labels_and_model_outputs: LabelsAndPredictions, axs: 
                            plot_kwargs: Optional[Dict[str, Any]] = None) -> None:
     """
     Given labels and model outputs, plot the ROC and PR curves.
+
     :param labels_and_model_outputs:
     :param axs: Pair of axes objects onto which to plot the ROC and PR curves, respectively. New axes are created by
-    default.
+        default.
+
     :param plot_kwargs: Plotting options to be passed to both `ax.plot(...)` calls.
     """
     if axs is None:
@@ -202,15 +209,18 @@ def plot_scores_and_summary(all_labels_and_model_outputs: Sequence[LabelsAndPred
 
     Each plotted curve is interpolated onto a common horizontal grid, and the median and CI are computed vertically
     at each horizontal location.
+
     :param all_labels_and_model_outputs: Collection of ground-truth labels and model predictions (e.g. for various
-    cross-validation runs).
+        cross-validation runs).
+
     :param scoring_fn: A scoring function mapping a `LabelsAndPredictions` object to X and Y coordinates for plotting.
     :param interval_width: A value in [0, 1] representing what fraction of the data should be contained in
-    the shaded area. The edges of the interval are `median +/- interval_width/2`.
+        the shaded area. The edges of the interval are `median +/- interval_width/2`.
+
     :param ax: Axes object onto which to plot (default: use current axes).
     :return: A tuple of `(line_handles, summary_handle)` to use in setting a legend for the plot: `line_handles` is a
-    list corresponding to the curves for each `LabelsAndPredictions`, and `summary_handle` references the median line
-    and shaded CI area.
+        list corresponding to the curves for each `LabelsAndPredictions`, and `summary_handle` references the median line
+        and shaded CI area.
     """
     if ax is None:
         ax = plt.gca()
@@ -236,10 +246,12 @@ def plot_pr_and_roc_curves_crossval(all_labels_and_model_outputs: Sequence[Label
     """
     Given a list of LabelsAndPredictions objects, plot the corresponding ROC and PR curves, along with median line and
     shaded 80% confidence interval (computed over TPRs and precisions for each fixed FPR and recall value).
+
     :param all_labels_and_model_outputs: Collection of ground-truth labels and model predictions (e.g. for various
-    cross-validation runs).
+        cross-validation runs).
+
     :param axs: Pair of axes objects onto which to plot the ROC and PR curves, respectively. New axes are created by
-    default.
+        default.
     """
     if axs is None:
         _, axs = plt.subplots(1, 2)
@@ -276,11 +288,12 @@ def plot_pr_and_roc_curves_from_csv(metrics_csv: Path, config: ScalarModelBase,
     """
     Given the CSV written during inference time and the model config, plot the ROC and PR curves for all prediction
     targets.
+
     :param metrics_csv: Path to the metrics CSV file.
     :param config: Model config.
     :param data_split: Whether to filter the CSV file for Train, Val, or Test results (default: no filtering).
     :param is_crossval_report: If True, assumes CSV contains results for multiple cross-validation runs and plots the
-    curves with median and confidence intervals. Otherwise, plots curves for a single run.
+        curves with median and confidence intervals. Otherwise, plots curves for a single run.
     """
     for prediction_target in config.target_names:
         print_header(f"Class: {prediction_target}", level=3)
@@ -300,8 +313,10 @@ def get_metric(predictions_to_set_optimal_threshold: LabelsAndPredictions,
                optimal_threshold: Optional[float] = None) -> float:
     """
     Given LabelsAndPredictions objects for the validation and test sets, return the specified metric.
+
     :param predictions_to_set_optimal_threshold: This set of ground truth labels and model predictions is used to
-    determine the optimal threshold for classification.
+        determine the optimal threshold for classification.
+
     :param predictions_to_compute_metrics: The set of labels and model outputs to calculate metrics for.
     :param metric: The name of the metric to calculate.
     :param optimal_threshold: If provided, use this threshold instead of calculating an optimal threshold.
@@ -351,6 +366,7 @@ def get_all_metrics(predictions_to_set_optimal_threshold: LabelsAndPredictions,
                     is_thresholded: bool = False) -> Dict[str, float]:
     """
     Given LabelsAndPredictions objects for the validation and test sets, compute some metrics.
+
     :param predictions_to_set_optimal_threshold: This is used to determine the optimal threshold for classification.
     :param predictions_to_compute_metrics: Metrics are calculated for this set.
     :param is_thresholded: Whether the model outputs are binary (they have been thresholded at some point)
@@ -379,6 +395,7 @@ def print_metrics(predictions_to_set_optimal_threshold: LabelsAndPredictions,
                   is_thresholded: bool = False) -> None:
     """
     Given LabelsAndPredictions objects for the validation and test sets, print out some metrics.
+
     :param predictions_to_set_optimal_threshold: This is used to determine the optimal threshold for classification.
     :param predictions_to_compute_metrics: Metrics are calculated for this set.
     :param is_thresholded: Whether the model outputs are binary (they have been thresholded at some point)
@@ -402,16 +419,21 @@ def get_metrics_table_for_prediction_target(csv_to_set_optimal_threshold: Path,
 
     :param csv_to_set_optimal_threshold: CSV written during inference time for the val set. This is used to determine
         the optimal threshold for classification.
+
     :param csv_to_compute_metrics: CSV written during inference time for the test set. Metrics are calculated for
         this CSV.
+
     :param config: Model config
     :param prediction_target: The prediction target for which to compute metrics.
     :param data_split_to_set_optimal_threshold: Whether to filter the validation CSV file for Train, Val, or Test
         results (default: no filtering).
+
     :param data_split_to_compute_metrics: Whether to filter the test CSV file for Train, Val, or Test results
         (default: no filtering).
+
     :param is_thresholded: Whether the model outputs are binary (they have been thresholded at some point)
         or are floating point numbers.
+
     :param is_crossval_report: If True, assumes CSVs contain results for multiple cross-validation runs and formats the
         metrics along with means and standard deviations. Otherwise, collect metrics for a single run.
     :return: Tuple of rows and header, where each row and the header are lists of strings of same length (2 if
@@ -468,15 +490,20 @@ def print_metrics_for_all_prediction_targets(csv_to_set_optimal_threshold: Path,
 
     :param csv_to_set_optimal_threshold: CSV written during inference time for the val set. This is used to determine
         the optimal threshold for classification.
+
     :param csv_to_compute_metrics: CSV written during inference time for the test set. Metrics are calculated for
         this CSV.
+
     :param config: Model config
     :param data_split_to_set_optimal_threshold: Whether to filter the validation CSV file for Train, Val, or Test
         results (default: no filtering).
+
     :param data_split_to_compute_metrics: Whether to filter the test CSV file for Train, Val, or Test results
         (default: no filtering).
+
     :param is_thresholded: Whether the model outputs are binary (they have been thresholded at some point)
         or are floating point numbers.
+
     :param is_crossval_report: If True, assumes CSVs contain results for multiple cross-validation runs and prints the
         metrics along with means and standard deviations. Otherwise, prints metrics for a single run.
     """
@@ -563,11 +590,14 @@ def print_k_best_and_worst_performing(val_metrics_csv: Path,
     """
     Print the top "k" best predictions (i.e. correct classifications where the model was the most certain) and the
     top "k" worst predictions (i.e. misclassifications where the model was the most confident).
+
     :param val_metrics_csv: Path to one of the metrics csvs written during inference. This set of metrics will be
                             used to determine the thresholds for predicting labels on the test set. The best and worst
                             performing subjects will not be printed out for this csv.
+
     :param test_metrics_csv: Path to one of the metrics csvs written during inference. This is the csv for which
                             best and worst performing subjects will be printed out.
+
     :param k: Number of subjects of each category to print out.
     :param prediction_target: The class label to filter on
     """
@@ -605,6 +635,7 @@ def get_image_filepath_from_subject_id(subject_id: str,
                                        config: ScalarModelBase) -> List[Path]:
     """
     Return the filepaths for images associated with a subject. If the subject is not found, raises a ValueError.
+
     :param subject_id: Subject to retrive image for
     :param dataset: scalar dataset object
     :param config: model config
@@ -623,6 +654,7 @@ def get_image_labels_from_subject_id(subject_id: str,
                                      config: ScalarModelBase) -> List[str]:
     """
     Return the ground truth labels associated with a subject. If the subject is not found, raises a ValueError.
+
     :param subject_id: Subject to retrive image for
     :param dataset: scalar dataset object
     :param config: model config
@@ -657,6 +689,7 @@ def get_image_outputs_from_subject_id(subject_id: str,
 def plot_image_from_filepath(filepath: Path, im_width: int) -> bool:
     """
     Plots a 2D image given the filepath. Returns false if the image could not be plotted (for example, if it was 3D).
+
     :param filepath: Path to image
     :param im_width: Display width for image
     :return: True if image was plotted, False otherwise
@@ -693,6 +726,7 @@ def plot_image_for_subject(subject_id: str,
                            metrics_df: Optional[pd.DataFrame] = None) -> None:
     """
     Given a subject ID, plots the corresponding image.
+
     :param subject_id: Subject to plot image for
     :param dataset: scalar dataset object
     :param im_width: Display width for image
@@ -741,11 +775,14 @@ def plot_k_best_and_worst_performing(val_metrics_csv: Path, test_metrics_csv: Pa
     """
     Plot images for the top "k" best predictions (i.e. correct classifications where the model was the most certain)
     and the top "k" worst predictions (i.e. misclassifications where the model was the most confident).
+
     :param val_metrics_csv: Path to one of the metrics csvs written during inference. This set of metrics will be
                             used to determine the thresholds for predicting labels on the test set. The best and worst
                             performing subjects will not be printed out for this csv.
+
     :param test_metrics_csv: Path to one of the metrics csvs written during inference. This is the csv for which
                             best and worst performing subjects will be printed out.
+
     :param k: Number of subjects of each category to print out.
     :param prediction_target: The class label to filter on
     :param config: scalar model config object

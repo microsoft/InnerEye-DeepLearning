@@ -65,6 +65,7 @@ class InferenceMetricsForSegmentation(InferenceMetrics):
     def log_metrics(self, run_context: Run = None) -> None:
         """
         Log metrics for each epoch to the provided runs logs, or the current run context if None provided
+
         :param run_context: Run for which to log the metrics to, use the current run context if None provided
         :return:
         """
@@ -79,6 +80,7 @@ def surface_distance(seg: sitk.Image, reference_segmentation: sitk.Image) -> flo
     """
     Symmetric surface distances taking into account the image spacing
     https://github.com/InsightSoftwareConsortium/SimpleITK-Notebooks/blob/master/Python/34_Segmentation_Evaluation.ipynb
+
     :param seg: mask 1
     :param reference_segmentation: mask 2
     :return: mean distance
@@ -118,6 +120,7 @@ def surface_distance(seg: sitk.Image, reference_segmentation: sitk.Image) -> flo
 def _add_zero_distances(num_segmented_surface_pixels: int, seg2ref_distance_map_arr: np.ndarray) -> List[float]:
     """
     # Get all non-zero distances and then add zero distances if required.
+
     :param num_segmented_surface_pixels:
     :param seg2ref_distance_map_arr:
     :return: list of distances, augmented with zeros.
@@ -137,6 +140,7 @@ def calculate_metrics_per_class(segmentation: np.ndarray,
     Returns a MetricsDict with metrics for each of the foreground
     structures. Metrics are NaN if both ground truth and prediction are all zero for a class.
     If first element of a ground truth image channel is NaN, the image is flagged as NaN and not use.
+
     :param ground_truth_ids: The names of all foreground classes.
     :param segmentation: predictions multi-value array with dimensions: [Z x Y x X]
     :param ground_truth: ground truth binary array with dimensions: [C x Z x Y x X].
@@ -217,12 +221,13 @@ def compute_dice_across_patches(segmentation: torch.Tensor,
                                 allow_multiple_classes_for_each_pixel: bool = False) -> torch.Tensor:
     """
     Computes the Dice scores for all classes across all patches in the arguments.
+
     :param segmentation: Tensor containing class ids predicted by a model.
     :param ground_truth: One-hot encoded torch tensor containing ground-truth label ids.
     :param allow_multiple_classes_for_each_pixel: If set to False, ground-truth tensor has
-    to contain only one foreground label for each pixel.
-    :return A torch tensor of size (Patches, Classes) with the Dice scores. Dice scores are computed for
-    all classes including the background class at index 0.
+        to contain only one foreground label for each pixel.
+    :return: A torch tensor of size (Patches, Classes) with the Dice scores. Dice scores are computed for
+        all classes including the background class at index 0.
     """
     check_size_matches(segmentation, ground_truth, 4, 5, [0, -3, -2, -1],
                        arg1_name="segmentation", arg2_name="ground_truth")
@@ -255,6 +260,7 @@ def store_epoch_metrics(metrics: DictStrFloat,
     """
     Writes all metrics (apart from ones that measure run time) into a CSV file,
     with an additional columns for epoch number.
+
     :param file_logger: An instance of DataframeLogger, for logging results to csv.
     :param epoch: The epoch corresponding to the results.
     :param metrics: The metrics of the specified epoch, averaged along its batches.
@@ -291,12 +297,13 @@ def compute_scalar_metrics(metrics_dict: ScalarMetricsDict,
     of class 1. The label vector is expected to contain class indices 0 and 1 only.
     Metrics for each model output channel will be isolated, and a non-default hue for each model output channel is
     expected, and must exist in the provided metrics_dict. The Default hue is used for single model outputs.
+
     :param metrics_dict: An object that holds all metrics. It will be updated in-place.
     :param subject_ids: Subject ids for the model output and labels.
     :param model_output: A tensor containing model outputs.
     :param labels: A tensor containing class labels.
     :param loss_type: The type of loss that the model uses. This is required to optionally convert 2-dim model output
-    to probabilities.
+        to probabilities.
     """
     _model_output_channels = model_output.shape[1]
     model_output_hues = metrics_dict.get_hue_names(include_default=len(metrics_dict.hues_without_default) == 0)
@@ -346,6 +353,7 @@ def add_average_foreground_dice(metrics: MetricsDict) -> None:
     """
     If the given metrics dictionary contains an entry for Dice score, and only one value for the Dice score per class,
     then add an average Dice score for all foreground classes to the metrics dictionary (modified in place).
+
     :param metrics: The object that holds metrics. The average Dice score will be written back into this object.
     """
     all_dice = []

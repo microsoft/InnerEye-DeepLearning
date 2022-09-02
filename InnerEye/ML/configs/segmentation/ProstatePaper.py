@@ -20,6 +20,7 @@ class ProstatePaper(ProstateBase):
     def __init__(self, **kwargs: Any) -> None:
         """
         Creates a new instance of the class.
+
         :param kwargs: Additional arguments that will be passed through to the SegmentationModelBase constructor.
         """
         ground_truth_ids = fg_classes

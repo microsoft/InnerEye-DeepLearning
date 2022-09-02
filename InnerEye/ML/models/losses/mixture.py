@@ -14,6 +14,7 @@ class MixtureLoss(SupervisedLearningCriterion):
     def __init__(self, components: List[Tuple[float, SupervisedLearningCriterion]]):
         """
         Loss function defined as a weighted mixture (interpolation) of other loss functions.
+
         :param components: a non-empty list of weights and loss function instances.
         """
         super().__init__()
@@ -25,6 +26,7 @@ class MixtureLoss(SupervisedLearningCriterion):
         """
         Wrapper for mixture loss function implemented in PyTorch. Arguments should be suitable for the
         component loss functions, typically:
+
         :param output: Class logits (unnormalised), e.g. in 3D : BxCxWxHxD  or in 1D BxC
         :param target: Target labels encoded in one-hot representation, e.g. in 3D BxCxWxHxD or in 1D BxC
         """

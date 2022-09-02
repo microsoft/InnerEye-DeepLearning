@@ -93,6 +93,7 @@ def load_train_and_test_data_channels(patient_ids: List[int],
 def assert_file_contains_string(full_file: Union[str, Path], expected: Any = None) -> None:
     """
     Checks if the given file contains an expected string
+
     :param full_file: The path to the file.
     :param expected: The expected contents of the file, as a string.
     """
@@ -106,6 +107,7 @@ def assert_file_contains_string(full_file: Union[str, Path], expected: Any = Non
 def assert_text_files_match(full_file: Path, expected_file: Path) -> None:
     """
     Checks line by line (ignoring leading and trailing spaces) if the given two files contains the exact same strings
+
     :param full_file: The path to the file.
     :param expected_file: The expected file.
     """
@@ -151,6 +153,7 @@ def assert_nifti_content(full_file: PathOrString,
                          expected_type: type) -> None:
     """
     Checks if the given nifti file contains the expected unique values, and has the expected type and shape.
+
     :param full_file: The path to the file.
     :param expected_shape: The expected shape of the image in the nifti file.
     :param expected_header: the expected image header
@@ -214,11 +217,12 @@ def csv_column_contains_value(
         contains_only_value: bool = True) -> bool:
     """
     Checks that the column in the csv file contains the given value (and perhaps only contains that value)
+
     :param csv_file_path: The path to the CSV
     :param column_name: The name of the column in which we look for the value
     :param value: The value to look for
     :param contains_only_value: Check that this is the only value in the column (default True)
-    :returns: Boolean, whether the CSV column contains the value (and perhaps only the value)
+    :return: Boolean, whether the CSV column contains the value (and perhaps only the value)
     """
     result = True
     if not csv_file_path.exists:
@@ -284,11 +288,12 @@ def model_train_unittest(config: Optional[DeepLearningConfig],
     """
     A shortcut for running model training in the unit test suite. It runs training for the given config, with the
     default checkpoint handler initialized to point to the test output folder specified in dirs.
+
     :param config: The configuration of the model to train.
     :param output_folder: The test fixture that provides an output folder for the test.
     :param lightning_container: An optional LightningContainer object that will be pass through to the training routine.
     :param checkpoint_handler: The checkpoint handler that should be used for training. If not provided, it will be
-    created via get_default_checkpoint_handler.
+        created via get_default_checkpoint_handler.
     :return: Tuple[StoringLogger, CheckpointHandler]
     """
     runner = MLRunner(model_config=config, container=lightning_container)

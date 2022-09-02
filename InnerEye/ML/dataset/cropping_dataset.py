@@ -57,6 +57,7 @@ class CroppingDataset(FullImageDataset):
         """
         Pad the original sample such the the provided images has the same
         (or slightly larger in case of uneven difference) shape to the output_size, using the provided padding mode.
+
         :param sample: Sample to pad.
         :param crop_size: Crop size to match.
         :param padding_mode: The padding scheme to apply.
@@ -89,10 +90,12 @@ class CroppingDataset(FullImageDataset):
                                      class_weights: Optional[List[float]] = None) -> CroppedSample:
         """
         Creates an instance of a cropped sample extracted from full 3D images.
+
         :param sample: the full size 3D sample to use for extracting a cropped sample.
         :param crop_size: the size of the crop to extract.
         :param center_size: the size of the center of the crop (this should be the same as the spatial dimensions
                             of the posteriors that the model produces)
+
         :param class_weights: the distribution to use for the crop center class.
         :return: CroppedSample
         """

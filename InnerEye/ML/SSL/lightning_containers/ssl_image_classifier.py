@@ -19,11 +19,11 @@ class SSLClassifierContainer(SSLContainer):
     """
     This module is used to train a linear classifier on top of a frozen (or not) encoder.
 
-    If you are running on AML, you can specify the SSL training run id via the --pretraining_run_recovery_id flag. This
-    will automatically download the checkpoints for you and take the latest one as the starting weights of your
+    If you are running on AML, you can specify the SSL training run id via the ``--pretraining_run_recovery_id`` flag.
+    This will automatically download the checkpoints for you and take the latest one as the starting weights of your
     classifier.
 
-    If you are running locally, you can specify the path to your SSL weights via the --local_ssl_weights_path parameter.
+    If you are running locally, you can specify the path to your SSL weights via the ``--local_ssl_weights_path`` flag.
 
     See docs/self_supervised_models.md for more details.
     """

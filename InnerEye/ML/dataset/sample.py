@@ -40,6 +40,7 @@ class PatientMetadata:
         For each of the columns "seriesId", "instituionId" and "tags", the distinct values for the given patient are
         computed. If there is exactly 1 distinct value, that is returned as the respective patient metadata. If there is
         more than 1 distinct value, the metadata column is set to None.
+
         :param dataframe: The dataset to read from.
         :param patient_id: The ID of the patient for which the metadata should be extracted.
         :return: An instance of PatientMetadata for the given patient_id
@@ -101,8 +102,9 @@ class SampleBase:
     def from_dict(cls: Type[T], sample: Dict[str, Any]) -> T:
         """
         Create an instance of the sample class, based on the provided sample dictionary
+
         :param sample: dictionary of arguments
-        :return:
+        :return: an instance of the SampleBase class
         """
         return cls(**sample)  # type: ignore
 
@@ -110,6 +112,7 @@ class SampleBase:
         """
         Create a clone of the current sample, with the provided overrides to replace the
         existing properties if they exist.
+
         :param overrides:
         :return:
         """
@@ -118,7 +121,6 @@ class SampleBase:
     def get_dict(self) -> Dict[str, Any]:
         """
         Get the current sample as a dictionary of property names and their values.
-        :return:
         """
         return vars(self)
 

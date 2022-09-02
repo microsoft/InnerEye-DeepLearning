@@ -69,6 +69,7 @@ def check_dataset_folder_exists(local_dataset: PathOrString) -> Path:
     """
     Checks if a folder with a local dataset exists. If it does exist, return the argument converted to a Path instance.
     If it does not exist, raise a FileNotFoundError.
+
     :param local_dataset: The dataset folder to check.
     :return: The local_dataset argument, converted to a Path.
     """
@@ -83,6 +84,7 @@ def log_metrics(metrics: Dict[ModelExecutionMode, InferenceMetrics],
                 run_context: Run) -> None:
     """
     Log metrics for each split to the provided run, or the current run context if None provided
+
     :param metrics: Dictionary of inference results for each split.
     :param run_context: Run for which to log the metrics to, use the current run context if None provided
     """
@@ -111,20 +113,26 @@ class MLRunner:
         """
         Driver class to run a ML experiment. Note that the project root argument MUST be supplied when using InnerEye
         as a package!
+
         :param model_config: If None, run the training as per the `container` argument (bring-your-own-model). If not
-        None, this is the model configuration for a built-in InnerEye model.
+            None, this is the model configuration for a built-in InnerEye model.
+
         :param container: The LightningContainer object to use for training. If None, assume that the training is
-        for a built-in InnerEye model.
+            for a built-in InnerEye model.
+
         :param azure_config: Azure related configurations
         :param project_root: Project root. This should only be omitted if calling run_ml from the test suite. Supplying
-        it is crucial when using InnerEye as a package or submodule!
+            it is crucial when using InnerEye as a package or submodule!
+
         :param post_cross_validation_hook: A function to call after waiting for completion of cross validation runs.
-        The function is called with the model configuration and the path to the downloaded and merged metrics files.
+            The function is called with the model configuration and the path to the downloaded and merged metrics files.
+
         :param model_deployment_hook: an optional function for deploying a model in an application-specific way.
-        If present, it should take a LightningContainer, an AzureConfig, an AzureML Model and a ModelProcessing object
+            If present, it should take a LightningContainer, an AzureConfig, an AzureML Model and a ModelProcessing object
         as arguments, and return an object of any type.
+
         :param output_subfolder: If provided, the output folder structure will have an additional subfolder,
-        when running outside AzureML.
+            when running outside AzureML.
         """
         self.model_config = model_config
         if container is None:
@@ -145,8 +153,9 @@ class MLRunner:
         """
         If the present object is using one of the InnerEye built-in models, create a (fake) container for it
         and call the setup method. It sets the random seeds, and then creates the actual Lightning modules.
+
         :param azure_run_info: When running in AzureML or on a local VM, this contains the paths to the datasets.
-        This can be missing when running in unit tests, where the local dataset paths are already populated.
+            This can be missing when running in unit tests, where the local dataset paths are already populated.
         """
         if self._has_setup_run:
             return
@@ -404,6 +413,7 @@ class MLRunner:
     def run_inference_for_lightning_models(self, checkpoint_paths: List[Path]) -> None:
         """
         Run inference on the test set for all models that are specified via a LightningContainer.
+
         :param checkpoint_paths: The path to the checkpoint that should be used for inference.
         """
         if len(checkpoint_paths) != 1:
@@ -461,9 +471,10 @@ class MLRunner:
                       model_proc: ModelProcessing) -> None:
         """
         Run inference on InnerEyeContainer models
+
         :param checkpoint_paths: Checkpoint paths to initialize model
         :param model_proc: whether we are running an ensemble model from within a child run with index 0. If we are,
-        then outputs will be written to OTHER_RUNS/ENSEMBLE under the main outputs directory.
+            then outputs will be written to OTHER_RUNS/ENSEMBLE under the main outputs directory.
         """
 
         # run full image inference on existing or newly trained model on the training, and testing set
@@ -515,10 +526,11 @@ class MLRunner:
         """
         Registers a new model in the workspace's model registry on AzureML to be deployed further.
         The AzureML run's tags are updated to describe with information about ensemble creation and the parent run ID.
+
         :param checkpoint_paths: Checkpoint paths to register.
         :param model_proc: whether it's a single or ensemble model.
-        :returns Tuple element 1: AML model object, or None if no model could be registered.
-        Tuple element 2: The result of running the model_deployment_hook, or None if no hook was supplied.
+        :return: Tuple element 1: AML model object, or None if no model could be registered.
+            Tuple element 2: The result of running the model_deployment_hook, or None if no hook was supplied.
         """
         if self.is_offline_run:
             raise ValueError("Cannot register models when InnerEye is running outside of AzureML.")
@@ -601,9 +613,11 @@ class MLRunner:
         extra_code_directory, and all checkpoints in a newly created "checkpoints" folder inside the model.
         In addition, the name of the present AzureML Python environment will be written to a file, for later use
         in the inference code.
+
         :param model_folder: The folder into which all files should be copied.
         :param checkpoint_paths: A list with absolute paths to checkpoint files. They are expected to be
-        inside of the model's checkpoint folder.
+            inside of the model's checkpoint folder.
+
         :param python_environment: The Python environment that is used in the present AzureML run.
         """
 
@@ -704,6 +718,7 @@ class MLRunner:
     def wait_for_runs_to_finish(self, delay: int = 60) -> None:
         """
         Wait for cross val runs (apart from the current one) to finish and then aggregate results of all.
+
         :param delay: How long to wait between polls to AML to get status of child runs
         """
         with logging_section("Waiting for sibling runs"):
@@ -716,7 +731,7 @@ class MLRunner:
         or cancelled.
 
         :return: True if all sibling runs of the current run have finished (they either completed successfully,
-        or failed). False if any of them is still pending (running or queued).
+            or failed). False if any of them is still pending (running or queued).
         """
         if (not self.is_offline_run) \
                 and (azure_util.is_cross_validation_child_run(RUN_CONTEXT)):

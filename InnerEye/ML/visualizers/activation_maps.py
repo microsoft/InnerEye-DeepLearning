@@ -19,6 +19,7 @@ from InnerEye.ML.visualizers import model_hooks
 def vis_activation_map(activation_map: np.ndarray) -> np.ndarray:
     """
     Normalizes the activation map and maps it to RGB range for visualization
+
     :param activation_map:
     :return:
     """
@@ -35,6 +36,7 @@ def vis_activation_map(activation_map: np.ndarray) -> np.ndarray:
 def visualize_2d_activation_map(activation_map: np.ndarray, args: ModelConfigBase, slice_index: int = 0) -> None:
     """
     Saves all feature channels of a 2D activation map as png files
+
     :param activation_map:
     :param args:
     :param slice_index:
@@ -55,6 +57,7 @@ def visualize_3d_activation_map(activation_map: np.ndarray, args: ModelConfigBas
                                 slices_to_visualize: Optional[List[int]] = None) -> None:
     """
     Saves all feature channels of a 3D activation map as png files
+
     :param activation_map:
     :param args:
     :param slices_to_visualize:
@@ -72,6 +75,7 @@ def visualize_3d_activation_map(activation_map: np.ndarray, args: ModelConfigBas
 def extract_activation_maps(args: ModelConfigBase) -> None:
     """
     Extracts and saves activation maps of a specific layer of a trained network
+
     :param args:
     :return:
     """

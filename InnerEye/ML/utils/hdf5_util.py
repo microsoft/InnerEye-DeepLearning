@@ -72,9 +72,10 @@ class HDF5Object:
     def parse_acquisition_date(date: str) -> Optional[datetime]:
         """
         Converts a string representing a date to a datetime object
+
         :param date: string representing a date
         :return: converted date, None if the string is invalid for
-        date conversion.
+            date conversion.
         """
         try:
             return datetime.strptime(date, DATE_FORMAT)
@@ -90,6 +91,7 @@ class HDF5Object:
     def _load_image(hdf5_data: h5py.File, data_field: HDF5Field) -> np.ndarray:
         """
         Load the volume from the HDF5 file.
+
         :param hdf5_data: path to the hdf5 file
         :param data_field: field of the hdf5 file containing the data
         :return: image as numpy array

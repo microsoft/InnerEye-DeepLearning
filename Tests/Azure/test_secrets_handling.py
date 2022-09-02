@@ -20,6 +20,7 @@ def set_environment_variables(variables: Dict[str, str]) -> None:
     """
     Creates an environment variable for each entry in the given dictionary. The dictionary key is the variable
     name, it will be converted to uppercase before setting.
+
     :param variables: The variable names and their associated values that should be set.
     """
     for name, value in variables.items():

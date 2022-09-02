@@ -47,11 +47,12 @@ def get_fastmri_data_module(azure_dataset_id: str,
     Creates a LightningDataModule that consumes data from the FastMRI challenge. The type of challenge
     (single/multicoil) is determined from the name of the dataset in Azure blob storage. The mask type is set to
     equispaced, with 4x acceleration.
+
     :param azure_dataset_id: The name of the dataset (folder name in blob storage).
     :param local_dataset: The local folder at which the dataset has been mounted or downloaded.
     :param sample_rate: Fraction of slices of the training data split to use. Set to a value <1.0 for rapid prototyping.
     :param test_path: The name of the folder inside the dataset that contains the test data.
-    :return: A LightningDataModule object.
+    :return: The FastMRI LightningDataModule object.
     """
     if not azure_dataset_id:
         raise ValueError("The azure_dataset_id argument must be provided.")
