@@ -283,7 +283,6 @@ def run_duration_string_to_seconds(s: str) -> Optional[int]:
     return int(float(s[:-1]) * multiplier)
 
 
-
 def set_environment_variables_for_multi_node() -> None:
     """
     Sets the environment variables that PyTorch Lightning needs for multi-node training.
