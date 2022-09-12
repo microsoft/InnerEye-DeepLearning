@@ -1,7 +1,5 @@
 # AzureML Setup
 
-Our preferred way to use AzureML is using the [AzureTRE](https://microsoft.github.io/AzureTRE/)
-
 In order to be able to train models on Azure Machine Learning (AML) you will need to setup your environment in the
 Azure Portal first. In this document we will walk you through this process step-by-step.
 
@@ -22,6 +20,10 @@ Once you're done with these steps, you will be ready for the next steps describe
 [Get started with Azure](https://azure.microsoft.com/en-us/get-started/) page
 for more information on how to set up your account and your subscription. Here are more detailed instructions on how to
 [manage accounts and subscriptions with Azure](https://docs.microsoft.com/en-us/azure/cost-management-billing/manage/).
+
+## Azure Trusted Research Environment
+
+For projects handling sensitive data we recommend deploying InnerEye within the [AzureTRE](https://microsoft.github.io/AzureTRE/tre-templates/workspace-services/inner-eye/). This is a separate project to InnerEye that provides security infrastructure, such as an Azure Firewall, to keep data secure.
 
 ## Automatic Deployment
 
