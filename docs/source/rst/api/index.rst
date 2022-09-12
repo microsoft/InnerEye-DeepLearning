@@ -1,5 +1,6 @@
 .. toctree::
 
    ML/ML
-   Common/common
+   Azure/azure
    Scripts/scripts
+   Common/common
