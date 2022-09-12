@@ -28,7 +28,7 @@ InnerEye-DeepLearning Documentation
    :maxdepth: 1
    :caption: Further reading for contributors
 
-   md/pull_requests.md
+   md/software_design_overview.md
    md/testing.md
    md/contributing.md
    md/deploy_on_aml.md
@@ -39,7 +39,7 @@ InnerEye-DeepLearning Documentation
    md/CHANGELOG.md
 
 .. toctree::
-   :caption: API documentation (🚧 Work In Progress 🚧)
+   :caption: API documentation
    :maxdepth: 2
 
    rst/api/index

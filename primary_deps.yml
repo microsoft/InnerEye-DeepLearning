@@ -73,6 +73,7 @@ dependencies:
       - six==1.15.0
       - sphinx-rtd-theme==1.0.0
       - sphinx==5.0.2
+      - sphinx-argparse==0.3.1
       - stopit==1.1.2
       - tabulate==0.8.7
       - tensorboard==2.3.0
