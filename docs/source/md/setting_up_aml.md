@@ -43,7 +43,7 @@ need to be kept inside of the UK)
 
 You can invoke the deployment also by going to [Azure](https://ms.portal.azure.com/#create/Microsoft.Template),
 selecting "Build your own template", and in the editor upload the
-[json template file]([/azure-pipelines/azure_deployment_template.json](https://github.com/microsoft/InnerEye-DeepLearning/blob/main/azure-pipelines/azure_deployment_template.json) included in the repository.
+[json template file](https://github.com/microsoft/InnerEye-DeepLearning/blob/main/azure-pipelines/azure_deployment_template.json) included in the repository.
 
 ### Step 1: Create an AzureML workspace
 
