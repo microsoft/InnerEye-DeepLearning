@@ -88,6 +88,9 @@ Details about creating compute clusters can be found
 Note down the name of your compute cluster - this will later go into the `cluster` entry of your settings
 file `settings.yml`.
 
+Note: Details about Azure Machine Learning environments can be found [here](https://docs.microsoft.com/en-us/azure/machine-learning/concept-environments). An AzureML environment specifies the Python packages, environment variables, and software settings for your training and scoring scripts. InnerEye-DeepLearning creates such an environment for you. This environment specification is turned into a Docker image that is stored in an Azure Container Registry, all done under the hood by Azure Machine Learning. The Docker image contains all details to create an Ubuntu Linux VM with all software that is required to run InnerEye-DeepLearning. The Docker image does _not_ contain InnerEye-DeepLearning itself, nor any of the data that is used to train a model.
+Later, when the actual training job is started, the Docker image is read from the container registry, a virtual machine is created based on the Docker image, and the training data is made available to the virtual machine. The virtual machine is discarded after training is complete.
+
 ### Step 3 (Optional): Create a Service Principal Authentication object
 
 Training runs in AzureML can be submitted either under the name of user who started it, or as a generic identity called
