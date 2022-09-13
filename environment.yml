@@ -62,7 +62,7 @@ dependencies:
   - wheel=0.37.1=pyhd3eb1b0_0
   - x264=1!157.20191217=h7b6447c_0
   - xz=5.2.5=h7f8727e_1
-  - zlib=1.2.12=h7f8727e_2
+  - zlib=1.2.12=h5eee18b_3
   - zstd=1.5.2=ha4553b6_0
   - pip:
     - absl-py==1.2.0
@@ -78,7 +78,7 @@ dependencies:
     - async-timeout==4.0.2
     - attrs==22.1.0
     - azure-common==1.1.28
-    - azure-core==1.25.0
+    - azure-core==1.25.1
     - azure-graphrbac==0.61.1
     - azure-identity==1.7.0
     - azure-mgmt-authorization==0.61.0
@@ -109,7 +109,7 @@ dependencies:
     - backports-tempfile==1.0
     - backports-weakref==1.0.post1
     - beautifulsoup4==4.11.1
-    - black==22.6.0
+    - black==22.8.0
     - bleach==5.0.1
     - cachetools==4.2.4
     - cffi==1.15.1
@@ -139,7 +139,7 @@ dependencies:
     - flake8==3.8.3
     - flask==2.2.2
     - frozenlist==1.3.1
-    - fsspec==2022.7.1
+    - fsspec==2022.8.2
     - furo==2022.6.21
     - fusepy==3.0.1
     - gitdb==4.0.9
@@ -148,7 +148,7 @@ dependencies:
     - google-auth-oauthlib==0.4.6
     - gputil==1.4.0
     - greenlet==1.1.3
-    - grpcio==1.47.0
+    - grpcio==1.48.1
     - gunicorn==20.1.0
     - h5py==2.10.0
     - hi-ml==0.2.4
@@ -161,10 +161,10 @@ dependencies:
     - importlib-resources==5.9.0
     - iniconfig==1.1.1
     - innereye-dicom-rt==1.0.3
-    - ipykernel==6.15.1
+    - ipykernel==6.15.2
     - ipython==7.31.1
     - ipython-genutils==0.2.0
-    - ipywidgets==8.0.1
+    - ipywidgets==8.0.2
     - isodate==0.6.1
     - itsdangerous==2.1.2
     - jeepney==0.8.0
@@ -172,18 +172,18 @@ dependencies:
     - jmespath==0.10.0
     - joblib==0.16.0
     - jsonpickle==2.2.0
-    - jsonschema==4.14.0
+    - jsonschema==4.16.0
     - jupyter==1.0.0
     - jupyter-client==6.1.5
     - jupyter-console==6.4.4
     - jupyter-core==4.11.1
     - jupyterlab-pygments==0.2.2
-    - jupyterlab-widgets==3.0.2
+    - jupyterlab-widgets==3.0.3
     - kiwisolver==1.4.4
     - lightning-bolts==0.4.0
     - llvmlite==0.34.0
     - lxml==4.9.1
-    - mako==1.2.1
+    - mako==1.2.2
     - markdown==3.4.1
     - markdown-it-py==2.1.0
     - markupsafe==2.1.1
@@ -206,24 +206,24 @@ dependencies:
     - mypy==0.910
     - mypy-extensions==0.4.3
     - myst-parser==0.18.0
-    - nbclient==0.6.7
+    - nbclient==0.6.8
     - nbconvert==7.0.0
-    - nbformat==5.4.0
+    - nbformat==5.5.0
     - ndg-httpsclient==0.5.1
     - nest-asyncio==1.5.5
     - networkx==2.8.6
-    - nibabel==4.0.1
+    - nibabel==4.0.2
     - notebook==6.4.12
     - numba==0.51.2
     - numpy==1.19.1
-    - oauthlib==3.2.0
+    - oauthlib==3.2.1
     - opencv-python-headless==4.5.1.48
     - packaging==21.3
     - pandas==1.1.0
     - pandocfilters==1.5.0
     - papermill==2.2.2
     - param==1.9.3
-    - pathspec==0.9.0
+    - pathspec==0.10.1
     - pexpect==4.8.0
     - pillow==9.1.1
     - pkgutil-resolve-name==1.3.10
@@ -292,7 +292,7 @@ dependencies:
     - sphinxcontrib-jsmath==1.0.1
     - sphinxcontrib-qthelp==1.0.3
     - sphinxcontrib-serializinghtml==1.1.5
-    - sqlalchemy==1.4.40
+    - sqlalchemy==1.4.41
     - sqlparse==0.4.2
     - stopit==1.1.2
     - stringcase==1.2.0
@@ -311,14 +311,14 @@ dependencies:
     - torchio==0.18.74
     - torchmetrics==0.6.0
     - tornado==6.2
-    - tqdm==4.64.0
+    - tqdm==4.64.1
     - typing-inspect==0.8.0
     - umap-learn==0.5.2
     - urllib3==1.26.7
     - webencodings==0.5.1
-    - websocket-client==1.4.0
+    - websocket-client==1.4.1
     - werkzeug==2.2.2
-    - widgetsnbextension==4.0.2
+    - widgetsnbextension==4.0.3
     - wrapt==1.14.1
     - yacs==0.1.8
     - yarl==1.8.1
