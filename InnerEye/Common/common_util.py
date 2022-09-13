@@ -43,27 +43,34 @@ class ModelProcessing(Enum):
     """
     Enum used in model training and inference, used to decide where to put files and what logging messages to
     print. The meanings of the values are:
-      ENSEMBLE_CREATION: we are creating and processing an ensemble model from within the child run with
+
+      * ``ENSEMBLE_CREATION``: we are creating and processing an ensemble model from within the child run with
         cross-validation index 0 of the HyperDrive run that created this model.
-      DEFAULT: any other situation, *including* where the model is an ensemble model created by an earlier run
+      * ``DEFAULT``: any other situation, *including* where the model is an ensemble model created by an earlier run
         (so the current run is standalone, not part of a HyperDrive run).
-    There are four scenarios, only one of which uses ModelProcessing.ENSEMBLE_CREATION.
-    (1) Training and inference on a single model in a single (non-HyperDrive) run.
-    (2) Training and inference on a single model that is part of an ensemble, in HyperDrive child run.
-    (3) Inference on an ensemble model taking place in a HyperDrive child run that trained one of the component
-    models of the ensemble and whose cross validation index is 0.
-    (4) Inference on a single or ensemble model created in an another run specified by the value of run_recovery_id.
-    * Scenario (1) happens when we train a model (train=True) with number_of_cross_validation_splits=0. In this
-    case, the value of ModelProcessing passed around is DEFAULT.
-    * Scenario (2) happens when we train a model (train=True) with number_of_cross_validation_splits>0. In this
-    case, the value of ModelProcessing passed around is DEFAULT in each of the child runs while training and running
-    inference on its own single model. However, the child run whose cross validation index is 0 then goes on to
-    carry out Scenario (3), and does more processing with ModelProcessing value ENSEMBLE_CREATION, to create and
-    register the ensemble model, run inference on it, and upload information about the ensemble model to the parent run.
-    * Scenario (4) happens when we do an inference-only run (train=False), and specify an existing model with
-    run_recovery_id (and necessarily number_of_cross_validation_splits=0, even if the recovered run was a HyperDrive
-    one). This model may be either a single one or an ensemble one; in both cases, a ModelProcessing value of DEFAULT is
-    used.
+
+    There are four scenarios, only one of which uses ``ModelProcessing.ENSEMBLE_CREATION``:
+
+        1. Training and inference on a single model in a single (non-HyperDrive) run.
+        2. Training and inference on a single model that is part of an ensemble, in HyperDrive child run.
+        3. Inference on an ensemble model taking place in a HyperDrive child run that trained one of the component
+           models of the ensemble and whose cross validation index is 0.
+        4. Inference on a single or ensemble model created in an another run specified by the value of run_recovery_id.
+
+    The scenarios occur under the following conditions:
+
+        * Scenario 1 happens when we train a model (``train=True``) with ``number_of_cross_validation_splits=0``. In
+          this case, the value of ModelProcessing passed around is DEFAULT.
+        * Scenario 2 happens when we train a model (``train=True``) with ``number_of_cross_validation_splits > 0``. In
+          this case, the value of ModelProcessing passed around is DEFAULT in each of the child runs while training and
+          running inference on its own single model. However, the child run whose cross validation index is 0 then goes
+          on to carry out Scenario 3, and does more processing with ModelProcessing value ``ENSEMBLE_CREATION``, to
+          create and register the ensemble model, run inference on it, and upload information about the ensemble model
+          to the parent run.
+        * Scenario 4 happens when we do an inference-only run (``train=False``), and specify an existing model with
+          ``run_recovery_id`` (and necessarily ``number_of_cross_validation_splits=0``, even if the recovered run was a
+          HyperDrive one). This model may be either a single one or an ensemble one; in both cases, a ModelProcessing
+          value of ``DEFAULT`` is used.
     """
     DEFAULT = 'default'
     ENSEMBLE_CREATION = 'ensemble_creation'
@@ -113,7 +120,6 @@ def check_is_any_of(message: str, actual: Optional[str], valid: Iterable[Optiona
     :param message: The prefix for the error message.
     :param actual: The actual value.
     :param valid: The set of valid strings that 'actual' is allowed to take on.
-    :return:
     """
     if actual not in valid:
         all_valid = ", ".join(["<None>" if v is None else v for v in valid])
@@ -140,7 +146,8 @@ def logging_to_stdout(log_level: Union[int, str] = logging.INFO) -> None:
     Logging will use a timestamp as the prefix, using UTC.
 
     :param log_level: The logging level. All logging message with a level at or above this level will be written to
-        stdout. log_level can be numeric, or one of the pre-defined logging strings (INFO, DEBUG, ...).
+        stdout. log_level can be numeric, or one of the pre-defined logging strings (``loging.INFO``, ``logging.DEBUG``,
+        etc.).
     """
     log_level = standardize_log_level(log_level)
     logger = logging.getLogger()
@@ -379,7 +386,6 @@ def namespace_to_path(namespace: str, root: PathOrString = repository_root_direc
 
     :param namespace: Namespace to convert to path
     :param root: Path to prefix (default is project root)
-    :return:
     """""
     return Path(root, *namespace.split("."))
 
@@ -391,7 +397,7 @@ def path_to_namespace(path: Path, root: PathOrString = repository_root_directory
 
     :param path: Path to convert to namespace
     :param root: Path prefix to remove from namespace (default is project root)
-    :return:
+    :return: String representation to path of namespace
     """
     return ".".join([Path(x).stem for x in path.relative_to(root).parts])
 
