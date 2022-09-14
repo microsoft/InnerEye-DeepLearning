@@ -29,8 +29,8 @@ def memory_in_gb(bytes: int) -> float:
     """
     Converts a memory amount in bytes to gigabytes.
 
-    :param bytes:
-    :return:
+    :param bytes: Number of bytes
+    :return: Equivalent memory amount in gigabytes
     """
     gb = 2 ** 30
     return bytes / gb
@@ -65,8 +65,8 @@ class GpuUtilization:
         """
         Computes the metric-wise maximum of the two GpuUtilization objects.
 
-        :param other:
-        :return:
+        :param other: The other GpuUtilization object.
+        :return: The metric-wise maximum of the two GpuUtilization objects.
         """
         return GpuUtilization(
             # Effectively ignore ID. We could enforce consistent IDs, but then we could not compute overall max.
@@ -83,7 +83,7 @@ class GpuUtilization:
         """
         Returns a GPU utilization object that contains all metrics of the present object, divided by the number
         of observations.
-        :return:
+        :return: The GPU utilization object.
         """
         return GpuUtilization(
             id=self.id,
@@ -120,10 +120,10 @@ class GpuUtilization:
     @staticmethod
     def from_gpu(gpu: GPU) -> GpuUtilization:
         """
-        Creates a GpuUtilization object from data coming from the gputil library.
+        Creates a ``GpuUtilization`` object from data coming from the gputil library.
 
         :param gpu: GPU diagnostic data from gputil.
-        :return:
+        :return: ``GpuUtilization`` object
         """
         return GpuUtilization(
             id=gpu.id,

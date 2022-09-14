@@ -269,6 +269,7 @@ class GenericConfig(param.Parameterized):
     def get_overridable_parameters(cls: Type[GenericConfig]) -> Dict[str, param.Parameter]:
         """
         Get properties that are not constant, readonly or private (eg: prefixed with an underscore).
+
         :return: A dictionary of parameter names and their definitions.
         """
         return dict((k, v) for k, v in cls.params().items()
