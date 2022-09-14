@@ -32,7 +32,6 @@ def create_model_and_store_checkpoint(config: ModelConfigBase, checkpoint_path: 
     """
     Creates a Lightning model for the given model configuration, and stores it as a checkpoint file.
     If a GPU is available, the model is moved to the GPU before storing.
-    The trainer properties `current_epoch` and `global_step` are set to fixed non-default values.
 
     :param config: The model configuration.
     :param checkpoint_path: The path and filename of the checkpoint file.
@@ -71,6 +70,7 @@ def test_create_model_from_lightning_checkpoint(test_output_dirs: OutputFolderFo
     # method to get all devices of a model
     loaded_model = load_from_checkpoint_and_adjust_for_inference(config, checkpoint_path)
     assert loaded_model is not None
+    assert "(epoch = 0, global_step = 0)" in loaded_model.checkpoint_loading_message
     if isinstance(config, SegmentationModelBase):
         assert config._test_output_size is not None
         assert config._train_output_size is not None
