@@ -134,12 +134,12 @@ def test_innereye_ssl_container_cifar10_resnet_simclr() -> None:
     # Check the metrics that were recorded during training
     # Note: It is possible that after the PyTorch 1.10 upgrade, we can't get parity between local runs and runs on
     # the hosted build agents. If that suspicion is confirmed, we need to add branching for local and cloud results.
-    expected_metrics = {'simclr/val/loss': 2.8736934661865234,
-                        'ssl_online_evaluator/val/loss': 2.2684895992279053,
+    expected_metrics = {'simclr/val/loss': 2.859630584716797,
+                        'ssl_online_evaluator/val/loss': 2.26649808883667,
                         'ssl_online_evaluator/val/AccuracyAtThreshold05': 0.20000000298023224,
-                        'simclr/train/loss': 3.6261773109436035,
+                        'simclr/train/loss': 3.6261844635009766,
                         'simclr/learning_rate': 0.0,
-                        'ssl_online_evaluator/train/loss': 3.1140334606170654,
+                        'ssl_online_evaluator/train/loss': 3.212641477584839,
                         'ssl_online_evaluator/train/online_AccuracyAtThreshold05': 0.0}
 
     _compare_stored_metrics(runner, expected_metrics, abs=5e-5)
@@ -311,7 +311,7 @@ def test_simclr_training_recovery(test_output_dirs: OutputFolderForTests) -> Non
         checkpoint_folder = test_output_dirs.create_file_or_folder_path("checkpoints")
         checkpoint_folder.mkdir(exist_ok=True)
         checkpoint = ModelCheckpoint(dirpath=checkpoint_folder,
-                                    every_n_val_epochs=1,
+                                    every_n_epochs=1,
                                     save_last=True)
 
         trainer = Trainer(default_root_dir=str(test_output_dirs.root_dir),
@@ -359,7 +359,7 @@ def test_online_evaluator_recovery(test_output_dirs: OutputFolderForTests) -> No
     checkpoint_folder = test_output_dirs.create_file_or_folder_path("checkpoints")
     checkpoint_folder.mkdir(exist_ok=True)
     checkpoints = ModelCheckpoint(dirpath=checkpoint_folder,
-                                  every_n_val_epochs=1,
+                                  every_n_epochs=1,
                                   save_last=True)
     # Create a first callback, that will be used in training.
     callback1 = SSLOnlineEvaluatorInnerEye(class_weights=None,
@@ -469,7 +469,6 @@ def test_online_evaluator_distributed() -> None:
             trainer = Trainer(strategy="ddp", num_processes=2)
             # Test the two flags that the internal logic of on_pretrain_routine_start uses
             assert trainer._accelerator_connector.is_distributed
-            assert trainer._accelerator_connector.use_ddp
             callback.on_pretrain_routine_start(trainer, mock_module)
             # Check that SyncBatchNorm has been turned on
             mock_sync.assert_called_once()

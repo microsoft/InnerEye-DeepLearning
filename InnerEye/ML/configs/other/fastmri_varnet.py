@@ -32,8 +32,8 @@ class VarNetWithImageLogging(VarNetModule):
     """
 
     def log_image(self, name: str, image: torch.Tensor) -> None:
-        experiments = self.logger.experiment if isinstance(self.logger.experiment, list) \
-            else [self.logger.experiment]
+        experiments = self.loggers[0].experiment if isinstance(self.loggers[0].experiment, list) \
+            else [self.loggers[0].experiment]
         for experiment in experiments:
             if isinstance(experiment, SummaryWriter):
                 experiment.add_image(name, image, global_step=self.global_step)

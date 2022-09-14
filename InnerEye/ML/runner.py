@@ -24,36 +24,36 @@ from InnerEye.Common import fixed_paths
 # in a submodule
 fixed_paths.add_submodules_to_path()
 
+import matplotlib
 from azureml._base_sdk_common import user_agent
 from azureml._restclient.constants import RunStatus
 from azureml.core import Run, ScriptRunConfig
 from health_azure import AzureRunInfo, submit_to_azure_if_needed
-from health_azure.utils import create_run_recovery_id, is_global_rank_zero, is_local_rank_zero, merge_conda_files, \
-    to_azure_friendly_string
-import matplotlib
+from health_azure.utils import create_run_recovery_id, is_global_rank_zero, is_local_rank_zero, to_azure_friendly_string
 
-from InnerEye.Azure.tensorboard_monitor import AMLTensorBoardMonitorConfig, monitor
 from InnerEye.Azure import azure_util
 from InnerEye.Azure.azure_config import AzureConfig, ParserResult, SourceConfig
-from InnerEye.Azure.azure_runner import (DEFAULT_DOCKER_BASE_IMAGE, create_dataset_configs, create_experiment_name,
-                                         create_runner_parser,
-                                         get_git_tags,
-                                         parse_args_and_add_yaml_variables,
-                                         parse_arguments, additional_run_tags,
-                                         set_environment_variables_for_multi_node)
-from InnerEye.Azure.azure_util import (RUN_CONTEXT, RUN_RECOVERY_ID_KEY_NAME, get_all_environment_files,
-                                       is_offline_run_context)
+from InnerEye.Azure.azure_runner import (
+    DEFAULT_DOCKER_BASE_IMAGE, additional_run_tags, create_dataset_configs,
+    create_experiment_name, create_runner_parser, get_git_tags,
+    parse_args_and_add_yaml_variables, parse_arguments, set_environment_variables_for_multi_node
+)
+from InnerEye.Azure.azure_util import (
+    RUN_CONTEXT, RUN_RECOVERY_ID_KEY_NAME, get_all_environment_files, is_offline_run_context
+)
 from InnerEye.Azure.run_pytest import download_pytest_result, run_pytest
-from InnerEye.Common.common_util import (FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE,
-                                         is_linux, logging_to_stdout)
+from InnerEye.Azure.tensorboard_monitor import AMLTensorBoardMonitorConfig, monitor
+from InnerEye.Common.common_util import (
+    FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE, is_linux, logging_to_stdout, merge_conda_files
+)
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.ML.common import DATASET_CSV_FILE_NAME
 from InnerEye.ML.deep_learning_config import DeepLearningConfig
 from InnerEye.ML.lightning_base import InnerEyeContainer
+from InnerEye.ML.lightning_container import LightningContainer
 from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.run_ml import MLRunner, ModelDeploymentHookSignature, PostCrossValidationHookSignature
 from InnerEye.ML.utils.config_loader import ModelConfigLoader
-from InnerEye.ML.lightning_container import LightningContainer
 
 # We change the current working directory before starting the actual training. However, this throws off starting
 # the child training threads because sys.argv[0] is a relative path when running in AzureML. Turn that into an absolute

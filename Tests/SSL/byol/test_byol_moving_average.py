@@ -35,8 +35,8 @@ def test_update_tau() -> None:
 
     byol_weight_update = ByolMovingAverageWeightUpdate(initial_tau=0.99)
     trainer = Trainer(max_epochs=5)
-    trainer.train_dataloader = dummy_rsna_train_dataloader
-    n_steps_per_epoch = len(trainer.train_dataloader)
+    trainer.train_dataloader = dummy_rsna_train_dataloader  # type: ignore
+    n_steps_per_epoch = len(trainer.train_dataloader)  # type: ignore
     total_steps = n_steps_per_epoch * trainer.max_epochs  # type: ignore
     byol_module = BYOLInnerEye(num_samples=16,
                                learning_rate=1e-3,

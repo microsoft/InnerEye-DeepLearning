@@ -12,7 +12,14 @@ from contextlib import contextmanager
 from enum import Enum
 from functools import wraps
 from pathlib import Path
-from typing import Any, Callable, Generator, Iterable, List, Optional, Union
+from typing import Any, Callable, Dict, Generator, Iterable, List, Optional, Union
+
+import conda_merge
+import ruamel.yaml
+from health_azure.utils import (
+    CONDA_CHANNELS, CONDA_DEPENDENCIES, CONDA_NAME, CONDA_PIP, CondaDependencies, PinnedOperator,
+    _log_conda_dependencies_stats, _retrieve_unique_deps, is_conda_file_with_pip_include, is_pip_include_dependency
+)
 
 from InnerEye.Common.fixed_paths import repository_root_directory
 from InnerEye.Common.type_annotations import PathOrString
@@ -427,3 +434,75 @@ def change_working_directory(path_or_str: PathOrString) -> Generator:
     os.chdir(new_path)
     yield
     os.chdir(old_path)
+
+
+def merge_conda_files(
+    conda_files: List[Path],
+    result_file: Path,
+    pip_files: Optional[List[Path]] = None,
+) -> None:
+    """
+    Merges the given Conda environment files using the conda_merge package, optionally adds any
+    dependencies from pip requirements files, and writes the merged file to disk.
+
+    :param conda_files: The Conda environment files to read.
+    :param result_file: The location where the merge results should be written.
+    :param pip_files: An optional list of one or more pip requirements files including extra dependencies.
+    """
+    env_definitions: List[Any] = []
+    for file in conda_files:
+        _, pip_without_include = is_conda_file_with_pip_include(file)
+        env_definitions.append(pip_without_include)
+    unified_definition = {}
+
+    extra_pip_deps = []
+    for pip_file in pip_files or []:
+        additional_pip_deps = [d for d in pip_file.read_text().split("\n") if d and not is_pip_include_dependency(d)]
+        extra_pip_deps.extend(additional_pip_deps)
+
+    name = conda_merge.merge_names(env.get(CONDA_NAME) for env in env_definitions)
+    if name:
+        unified_definition[CONDA_NAME] = name
+
+    try:
+        channels = conda_merge.merge_channels(env.get(CONDA_CHANNELS) for env in env_definitions)
+    except conda_merge.MergeError:
+        logging.error("Failed to merge channel priorities.")
+        raise
+    if channels:
+        unified_definition[CONDA_CHANNELS] = channels
+
+    try:
+        deps_to_merge = [env.get(CONDA_DEPENDENCIES) for env in env_definitions]
+        if len(extra_pip_deps) > 0:
+            deps_to_merge.append([{CONDA_PIP: extra_pip_deps}])
+        deps = conda_merge.merge_dependencies(deps_to_merge)
+
+        # Get conda dependencies and pip dependencies from specification
+        pip_deps_entries = [d for d in deps if isinstance(d, dict) and CONDA_PIP in d]  # type: ignore
+        if len(pip_deps_entries) == 0:
+            raise ValueError("Didn't find a dictionary with the key 'pip' in the list of dependencies")
+        pip_deps_entry: Dict[str, List[str]] = pip_deps_entries[0]
+        pip_deps = pip_deps_entry[CONDA_PIP]
+        # temporarily remove pip dependencies from deps to be added back after deduplicaton
+        deps.remove(pip_deps_entry)
+
+        # remove all non-pip duplicates from the list of dependencies
+        unique_deps = _retrieve_unique_deps(deps, PinnedOperator.CONDA)
+
+        unique_pip_deps = sorted(_retrieve_unique_deps(pip_deps, PinnedOperator.PIP))
+
+        # finally add back the deduplicated list of dependencies
+        unique_deps.append({CONDA_PIP: unique_pip_deps})  # type: ignore
+
+    except conda_merge.MergeError:
+        logging.error("Failed to merge dependencies.")
+        raise
+    if unique_deps:
+        unified_definition[CONDA_DEPENDENCIES] = unique_deps
+    else:
+        raise ValueError("No dependencies found in any of the conda files.")
+
+    with result_file.open("w") as f:
+        ruamel.yaml.dump(unified_definition, f, indent=2, default_flow_style=False)
+    _log_conda_dependencies_stats(CondaDependencies(result_file), "Merged Conda environment")

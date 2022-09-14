@@ -431,8 +431,8 @@ def test_training_2nodes(test_output_dirs: OutputFolderForTests) -> None:
     assert training_indicator in log1_txt
     # Check diagnostic messages that show if DDP was set up correctly. This could fail if Lightning
     # changes its diagnostic outputs.
-    assert "initializing distributed: GLOBAL_RANK: 0, MEMBER: 1/4" in log0_txt
-    assert "initializing distributed: GLOBAL_RANK: 2, MEMBER: 3/4" in log1_txt
+    assert "Initializing distributed: GLOBAL_RANK: 0, MEMBER: 1/4" in log0_txt
+    assert "Initializing distributed: GLOBAL_RANK: 2, MEMBER: 3/4" in log1_txt
 
 
 @pytest.mark.skip("The recovery job hangs after completing on AML")

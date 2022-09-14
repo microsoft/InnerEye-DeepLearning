@@ -97,16 +97,10 @@ class SSLOnlineEvaluatorInnerEye(SSLOnlineEvaluator):
                                       p=self.drop_p,
                                       n_hidden=self.hidden_dim)
         self.evaluator.to(pl_module.device)
-        if hasattr(trainer, "accelerator_connector"):
-            # This works with Lightning 1.3.8
-            accelerator = trainer.accelerator_connector
-        elif hasattr(trainer, "_accelerator_connector"):
-            # This works with Lightning 1.5.5
-            accelerator = trainer._accelerator_connector
-        else:
-            raise ValueError("Unable to retrieve the accelerator information")
+        accelerator = trainer._accelerator_connector
+
         if accelerator.is_distributed:
-            if accelerator.use_ddp:
+            if accelerator.strategy.strategy_name == "ddp":
                 self.evaluator = SyncBatchNorm.convert_sync_batchnorm(self.evaluator)
                 self.evaluator = DistributedDataParallel(self.evaluator, device_ids=[pl_module.device])  # type: ignore
             else:

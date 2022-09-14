@@ -15,6 +15,8 @@ import stopit
 import torch.multiprocessing
 from azureml._restclient.constants import RunStatus
 from azureml.core import Model, Run, model
+from health_azure import AzureRunInfo
+from health_azure.utils import ENVIRONMENT_VERSION, create_run_recovery_id, is_global_rank_zero
 from pytorch_lightning import LightningModule, seed_everything
 from pytorch_lightning.core.datamodule import LightningDataModule
 from torch.utils.data import DataLoader
@@ -22,26 +24,28 @@ from torch.utils.data import DataLoader
 from InnerEye.Azure import azure_util
 from InnerEye.Azure.azure_config import AzureConfig
 from InnerEye.Azure.azure_runner import ENV_OMPI_COMM_WORLD_RANK, get_git_tags
-from InnerEye.Azure.azure_util import CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, \
-    EFFECTIVE_RANDOM_SEED_KEY_NAME, IS_ENSEMBLE_KEY_NAME, MODEL_ID_KEY_NAME, PARENT_RUN_CONTEXT, \
-    PARENT_RUN_ID_KEY_NAME, RUN_CONTEXT, RUN_RECOVERY_FROM_ID_KEY_NAME, RUN_RECOVERY_ID_KEY_NAME, \
-    get_all_environment_files, is_offline_run_context
+from InnerEye.Azure.azure_util import (
+    CROSS_VALIDATION_SPLIT_INDEX_TAG_KEY, DEFAULT_CROSS_VALIDATION_SPLIT_INDEX, EFFECTIVE_RANDOM_SEED_KEY_NAME,
+    IS_ENSEMBLE_KEY_NAME, MODEL_ID_KEY_NAME, PARENT_RUN_CONTEXT, PARENT_RUN_ID_KEY_NAME, RUN_CONTEXT,
+    RUN_RECOVERY_FROM_ID_KEY_NAME, RUN_RECOVERY_ID_KEY_NAME, get_all_environment_files, is_offline_run_context
+)
 from InnerEye.Common import fixed_paths
-from InnerEye.Common.common_util import (BASELINE_COMPARISONS_FOLDER, BASELINE_WILCOXON_RESULTS_FILE,
-                                         CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME, FULL_METRICS_DATAFRAME_FILE,
-                                         METRICS_AGGREGATES_FILE, ModelProcessing,
-                                         OTHER_RUNS_SUBDIR_NAME, SCATTERPLOTS_SUBDIR_NAME, SUBJECT_METRICS_FILE_NAME,
-                                         change_working_directory, get_best_epoch_results_path, is_windows,
-                                         logging_section, print_exception, remove_file_or_directory)
+from InnerEye.Common.common_util import (
+    BASELINE_COMPARISONS_FOLDER, BASELINE_WILCOXON_RESULTS_FILE, CROSSVAL_RESULTS_FOLDER, ENSEMBLE_SPLIT_NAME,
+    FULL_METRICS_DATAFRAME_FILE, METRICS_AGGREGATES_FILE, OTHER_RUNS_SUBDIR_NAME, SCATTERPLOTS_SUBDIR_NAME,
+    SUBJECT_METRICS_FILE_NAME, ModelProcessing, change_working_directory, get_best_epoch_results_path,
+    is_windows, logging_section, merge_conda_files, print_exception, remove_file_or_directory
+)
 from InnerEye.Common.fixed_paths import INNEREYE_PACKAGE_NAME, PYTHON_ENVIRONMENT_NAME
 from InnerEye.Common.type_annotations import PathOrString
 from InnerEye.ML.baselines_util import compare_folders_and_run_outputs
-from InnerEye.ML.common import CHECKPOINT_FOLDER, EXTRA_RUN_SUBFOLDER, FINAL_ENSEMBLE_MODEL_FOLDER, \
-    FINAL_MODEL_FOLDER, \
-    ModelExecutionMode
+from InnerEye.ML.common import (
+    CHECKPOINT_FOLDER, EXTRA_RUN_SUBFOLDER, FINAL_ENSEMBLE_MODEL_FOLDER, FINAL_MODEL_FOLDER, ModelExecutionMode
+)
 from InnerEye.ML.config import SegmentationModelBase
-from InnerEye.ML.deep_learning_config import DeepLearningConfig, ModelCategory, MultiprocessingStartMethod, \
-    load_checkpoint
+from InnerEye.ML.deep_learning_config import (
+    DeepLearningConfig, ModelCategory, MultiprocessingStartMethod, load_checkpoint
+)
 from InnerEye.ML.lightning_base import InnerEyeContainer
 from InnerEye.ML.lightning_container import InnerEyeInference, LightningContainer
 from InnerEye.ML.lightning_loggers import StoringLogger
@@ -50,16 +54,16 @@ from InnerEye.ML.model_config_base import ModelConfigBase
 from InnerEye.ML.model_inference_config import ModelInferenceConfig
 from InnerEye.ML.model_testing import model_test
 from InnerEye.ML.model_training import create_lightning_trainer, model_train
-from InnerEye.ML.reports.notebook_report import generate_classification_crossval_notebook, \
-    generate_classification_multilabel_notebook, generate_classification_notebook, generate_segmentation_notebook, \
-    get_ipynb_report_name, reports_folder
+from InnerEye.ML.reports.notebook_report import (
+    generate_classification_crossval_notebook, generate_classification_multilabel_notebook,
+    generate_classification_notebook, generate_segmentation_notebook, get_ipynb_report_name, reports_folder
+)
 from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler, download_all_checkpoints_from_run
 from InnerEye.ML.visualizers import activation_maps
-from InnerEye.ML.visualizers.plot_cross_validation import \
+from InnerEye.ML.visualizers.plot_cross_validation import (
     get_config_and_results_for_offline_runs, plot_cross_validation_from_files
-from health_azure import AzureRunInfo
-from health_azure.utils import ENVIRONMENT_VERSION, create_run_recovery_id, is_global_rank_zero, merge_conda_files
+)
 
 ModelDeploymentHookSignature = Callable[[LightningContainer, AzureConfig, Model, ModelProcessing], Any]
 PostCrossValidationHookSignature = Callable[[ModelConfigBase, Path], None]
@@ -797,8 +801,10 @@ class MLRunner:
         remove_file_or_directory(other_runs_dir)
 
     def plot_cross_validation_and_upload_results(self) -> Path:
-        from InnerEye.ML.visualizers.plot_cross_validation import crossval_config_from_model_config, \
-            plot_cross_validation, unroll_aggregate_metrics
+        from InnerEye.ML.visualizers.plot_cross_validation import (
+            crossval_config_from_model_config, plot_cross_validation, unroll_aggregate_metrics
+        )
+
         # perform aggregation as cross val splits are now ready
         plot_crossval_config = crossval_config_from_model_config(self.innereye_config)
         plot_crossval_config.run_recovery_id = PARENT_RUN_CONTEXT.tags[RUN_RECOVERY_ID_KEY_NAME]
