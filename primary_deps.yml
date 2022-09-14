@@ -28,8 +28,8 @@ dependencies:
       - gitpython==3.1.7
       - gputil==1.4.0
       - h5py==2.10.0
-      - hi-ml==0.2.4
-      - hi-ml-azure==0.2.4
+      - hi-ml==0.2.5
+      - hi-ml-azure==0.2.5
       - imageio==2.15.0
       - InnerEye-DICOM-RT==1.0.3
       - ipython==7.31.1
