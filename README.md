@@ -98,7 +98,7 @@ Oktay O., Nanavati J., Schwaighofer A., Carter D., Bristow M., Tanno R., Jena R.
 
 Bannur S., Oktay O., Bernhardt M, Schwaighofer A., Jena R., Nushi B., Wadhwani S., Nori A., Natarajan K., Ashraf S., Alvarez-Valle J., Castro D. C.: Hierarchical Analysis of Visual COVID-19 Features from Chest Radiographs. ICML 2021 Workshop on Interpretable Machine Learning in Healthcare. [https://arxiv.org/abs/2107.06618](https://arxiv.org/abs/2107.06618)
 
-Bernhardt M., Castro D. C., Tanno R., Schwaighofer A., Tezcan K. C., Monteiro M., Bannur S., Lungren M., Nori S., Glocker B., Alvarez-Valle J., Oktay. O: Active label cleaning for improved dataset quality under resource constraints. [https://www.nature.com/articles/s41467-022-28818-3](https://www.nature.com/articles/s41467-022-28818-3). Accompagnying code [InnerEye-DataQuality](https://github.com/microsoft/InnerEye-DeepLearning/blob/1606729c7a16e1bfeb269694314212b6e2737939/InnerEye-DataQuality/README.md)
+Bernhardt M., Castro D. C., Tanno R., Schwaighofer A., Tezcan K. C., Monteiro M., Bannur S., Lungren M., Nori S., Glocker B., Alvarez-Valle J., Oktay. O: Active label cleaning for improved dataset quality under resource constraints. [https://www.nature.com/articles/s41467-022-28818-3](https://www.nature.com/articles/s41467-022-28818-3). Accompanying code [InnerEye-DataQuality](https://github.com/microsoft/InnerEye-DeepLearning/blob/1606729c7a16e1bfeb269694314212b6e2737939/InnerEye-DataQuality/README.md)
 
 ## Contributing
 
