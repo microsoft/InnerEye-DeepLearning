@@ -38,3 +38,4 @@ cifar-10-batches-py
 cifar-100-python
 !**/InnerEye/ML/Histopathology/datasets
 None/
+Tests/ML/test_data
