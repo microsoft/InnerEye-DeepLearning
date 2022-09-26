@@ -5,11 +5,16 @@
 from __future__ import annotations
 
 import logging
+import os
 from enum import Enum, unique
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import param
+from health_azure.utils import (
+    ENV_AMLT_AZ_BATCHAI_DIR, ENV_AMLT_INPUT_OUTPUT, ENV_AMLT_PROJECT_NAME,
+    ENV_AMLT_SNAPSHOT_DIR, get_amlt_aml_working_dir, is_amulet_job, is_global_rank_zero
+)
 from pandas import DataFrame
 from param import Parameterized
 
@@ -19,10 +24,10 @@ from InnerEye.Common.common_util import ModelProcessing, is_windows
 from InnerEye.Common.fixed_paths import DEFAULT_AML_UPLOAD_DIR, DEFAULT_LOGS_DIR_NAME
 from InnerEye.Common.generic_parsing import GenericConfig
 from InnerEye.Common.type_annotations import PathOrString, T, TupleFloat2
-from InnerEye.ML.common import CHECKPOINT_FOLDER, DATASET_CSV_FILE_NAME, \
-    ModelExecutionMode, VISUALIZATION_FOLDER, \
-    create_unique_timestamp_id, get_best_checkpoint_path
-from health_azure.utils import is_global_rank_zero
+from InnerEye.ML.common import (
+    CHECKPOINT_FOLDER, DATASET_CSV_FILE_NAME, VISUALIZATION_FOLDER,
+    ModelExecutionMode, create_unique_timestamp_id, get_best_checkpoint_path
+)
 
 
 @unique
@@ -150,9 +155,23 @@ class DeepLearningFileSystemConfig(Parameterized):
         else:
             logging.info("Running inside AzureML.")
             logging.info("All results will be written to a subfolder of the project root folder.")
-            run_folder = project_root
-            outputs_folder = project_root / DEFAULT_AML_UPLOAD_DIR
-            logs_folder = project_root / DEFAULT_LOGS_DIR_NAME
+            if not is_amulet_job():
+                run_folder = project_root
+                outputs_folder = project_root / DEFAULT_AML_UPLOAD_DIR
+                logs_folder = project_root / DEFAULT_LOGS_DIR_NAME
+            else:
+                # Job submitted via Amulet
+                amlt_root_folder = Path(os.environ[ENV_AMLT_INPUT_OUTPUT])
+                project_name = os.environ[ENV_AMLT_PROJECT_NAME]
+                snapshot_dir = get_amlt_aml_working_dir()
+                assert snapshot_dir, \
+                    f"Either {ENV_AMLT_SNAPSHOT_DIR} or {ENV_AMLT_AZ_BATCHAI_DIR} must exist in env vars"
+                print(f"Found the following environment variables set by Amulet: "
+                      f"AZURE_ML_INPUT_OUTPUT: {amlt_root_folder}, AZUREML_ARM_PROJECT_NAME: {project_name}")
+                run_id = RUN_CONTEXT.id
+                run_folder = amlt_root_folder / "projects" / project_name / "amlt-code" / run_id
+                outputs_folder = snapshot_dir / DEFAULT_AML_UPLOAD_DIR
+                logs_folder = snapshot_dir / DEFAULT_LOGS_DIR_NAME
         logging.info(f"Run outputs folder: {outputs_folder}")
         logging.info(f"Logs folder: {logs_folder}")
         return DeepLearningFileSystemConfig(
