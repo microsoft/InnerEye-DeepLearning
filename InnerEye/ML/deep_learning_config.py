@@ -155,11 +155,8 @@ class DeepLearningFileSystemConfig(Parameterized):
         else:
             logging.info("Running inside AzureML.")
             logging.info("All results will be written to a subfolder of the project root folder.")
-            if not is_amulet_job():
-                run_folder = project_root
-                outputs_folder = project_root / DEFAULT_AML_UPLOAD_DIR
-                logs_folder = project_root / DEFAULT_LOGS_DIR_NAME
-            else:
+
+            if is_amulet_job():
                 # Job submitted via Amulet
                 amlt_root_folder = Path(os.environ[ENV_AMLT_INPUT_OUTPUT])
                 project_name = os.environ[ENV_AMLT_PROJECT_NAME]
@@ -172,6 +169,12 @@ class DeepLearningFileSystemConfig(Parameterized):
                 run_folder = amlt_root_folder / "projects" / project_name / "amlt-code" / run_id
                 outputs_folder = snapshot_dir / DEFAULT_AML_UPLOAD_DIR
                 logs_folder = snapshot_dir / DEFAULT_LOGS_DIR_NAME
+
+            else:
+                run_folder = project_root
+                outputs_folder = project_root / DEFAULT_AML_UPLOAD_DIR
+                logs_folder = project_root / DEFAULT_LOGS_DIR_NAME
+
         logging.info(f"Run outputs folder: {outputs_folder}")
         logging.info(f"Logs folder: {logs_folder}")
         return DeepLearningFileSystemConfig(

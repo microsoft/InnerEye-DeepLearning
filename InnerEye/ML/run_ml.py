@@ -572,10 +572,11 @@ class MLRunner:
                 logging.info(f"Registering the model on the current run {run_to_register_on.id}")
             logging.info(f"Uploading files in {final_model_folder} with prefix '{artifacts_path}'")
 
-            if not is_amulet_job():
-                final_model_upload_path = final_model_folder.relative_to(Path.cwd())
-            else:
+            if is_amulet_job():
                 final_model_upload_path = final_model_folder
+            else:
+                final_model_upload_path = final_model_folder.relative_to(Path.cwd())
+
             run_to_register_on.upload_folder(name=artifacts_path, path=str(final_model_upload_path))
             # When registering the model on the run, we need to provide a relative path inside of the run's output
             # folder in `model_path`
