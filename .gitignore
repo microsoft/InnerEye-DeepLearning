@@ -162,3 +162,8 @@ tensorboard_runs
 None
 cifar-10-batches-py
 cifar-10-python.tar.gz
+
+## Amulet
+
+.amltconfig
+amlt_job.yml

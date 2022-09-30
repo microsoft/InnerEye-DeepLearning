@@ -87,6 +87,7 @@ DEFAULT_TEST_ZIP_NAME = "test.zip"
 
 # The property in the model registry that holds the name of the Python environment
 PYTHON_ENVIRONMENT_NAME = "python_environment_name"
+PYTHON_ENVIRONMENT_VERSION = "python_environment_version"
 
 
 def get_environment_yaml_file() -> Path:

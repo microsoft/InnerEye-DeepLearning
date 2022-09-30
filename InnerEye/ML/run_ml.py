@@ -16,7 +16,7 @@ import torch.multiprocessing
 from azureml._restclient.constants import RunStatus
 from azureml.core import Model, Run, model
 from health_azure import AzureRunInfo
-from health_azure.utils import ENVIRONMENT_VERSION, create_run_recovery_id, is_global_rank_zero
+from health_azure.utils import ENVIRONMENT_VERSION, create_run_recovery_id, is_amulet_job, is_global_rank_zero
 from pytorch_lightning import LightningModule, seed_everything
 from pytorch_lightning.core.datamodule import LightningDataModule
 from torch.utils.data import DataLoader
@@ -36,7 +36,7 @@ from InnerEye.Common.common_util import (
     SUBJECT_METRICS_FILE_NAME, ModelProcessing, change_working_directory, get_best_epoch_results_path,
     is_windows, logging_section, merge_conda_files, print_exception, remove_file_or_directory
 )
-from InnerEye.Common.fixed_paths import INNEREYE_PACKAGE_NAME, PYTHON_ENVIRONMENT_NAME
+from InnerEye.Common.fixed_paths import INNEREYE_PACKAGE_NAME, PYTHON_ENVIRONMENT_NAME, PYTHON_ENVIRONMENT_VERSION
 from InnerEye.Common.type_annotations import PathOrString
 from InnerEye.ML.baselines_util import compare_folders_and_run_outputs
 from InnerEye.ML.common import (
@@ -571,8 +571,13 @@ class MLRunner:
                 run_to_register_on = RUN_CONTEXT
                 logging.info(f"Registering the model on the current run {run_to_register_on.id}")
             logging.info(f"Uploading files in {final_model_folder} with prefix '{artifacts_path}'")
-            final_model_folder_relative = final_model_folder.relative_to(Path.cwd())
-            run_to_register_on.upload_folder(name=artifacts_path, path=str(final_model_folder_relative))
+
+            if is_amulet_job():
+                final_model_upload_path = final_model_folder
+            else:
+                final_model_upload_path = final_model_folder.relative_to(Path.cwd())
+
+            run_to_register_on.upload_folder(name=artifacts_path, path=str(final_model_upload_path))
             # When registering the model on the run, we need to provide a relative path inside of the run's output
             # folder in `model_path`
             model = run_to_register_on.register_model(
@@ -584,10 +589,16 @@ class MLRunner:
             # on the model. We could add that as an immutable property, but with tags we have the option to modify
             # to a custom environment later.
             python_environment = RUN_CONTEXT.get_environment()
-            assert python_environment.version == ENVIRONMENT_VERSION, \
-                f"Expected all Python environments to have version '{ENVIRONMENT_VERSION}', but got: " \
-                f"'{python_environment.version}"
-            model.add_tags({PYTHON_ENVIRONMENT_NAME: python_environment.name})
+
+            if not is_amulet_job():
+                # amulet jobs re-use environment names, so we can't fix to version 1
+                assert python_environment.version == ENVIRONMENT_VERSION, \
+                    f"Expected all Python environments to have version '{ENVIRONMENT_VERSION}', but got: " \
+                    f"'{python_environment.version}"
+            model.add_tags({
+                PYTHON_ENVIRONMENT_NAME: python_environment.name,
+                PYTHON_ENVIRONMENT_VERSION: python_environment.version,
+            })
             # update the run's tags with the registered model information
             run_to_register_on.tag(MODEL_ID_KEY_NAME, model.id)
 
