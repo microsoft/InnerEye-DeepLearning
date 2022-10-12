@@ -31,7 +31,7 @@ dependencies:
       - hi-ml==0.2.5
       - hi-ml-azure==0.2.5
       - imageio==2.15.0
-      - InnerEye-DICOM-RT==1.0.3
+      - InnerEye-DICOM-RT==1.1.0
       - ipython==7.31.1
       - joblib==0.16.0
       - jupyter-client==6.1.5
