@@ -229,8 +229,9 @@ def convert_nifti_to_zipped_dicom_rt(nifti_file: Path, reference_series: Path, s
         modelId=model_id
     )
     # Log stdout, stderr from DICOM-RT conversion.
-    logging.debug("stdout: %s", stdout)
-    logging.debug("stderr: %s", stderr)
+    logging.info("DICOM-RT conversion stdout: %s", stdout)
+    if stderr != "":
+        logging.error("Errors detected during DICOM conversion: %s", stderr)
     dicom_rt_zip_file_path = scratch_folder / dicom_rt_zip_file_name
     with zipfile.ZipFile(dicom_rt_zip_file_path, 'w') as dicom_rt_zip:
         dicom_rt_zip.write(dicom_rt_file_path, dicom_rt_file_path.name)
