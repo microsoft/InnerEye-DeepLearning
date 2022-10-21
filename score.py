@@ -213,6 +213,7 @@ def convert_nifti_to_zipped_dicom_rt(nifti_file: Path, reference_series: Path, s
     :param config: Model config.
     :param dicom_rt_zip_file_name: Target DICOM-RT zip file name, ending in .dcm.zip.
     :param model_id: The AzureML model ID <model_name>:<ID>
+    :raises: RunTimeError if rtconvert fails.
     :return: Path to DICOM-RT file.
     """
     dicom_rt_file_path = scratch_folder / Path(dicom_rt_zip_file_name).with_suffix("")
@@ -232,6 +233,7 @@ def convert_nifti_to_zipped_dicom_rt(nifti_file: Path, reference_series: Path, s
     logging.info("DICOM-RT conversion stdout: %s", stdout)
     if stderr != "":
         logging.error("Errors detected during DICOM conversion: %s", stderr)
+        raise RuntimeError("Converting model output to DICOM failed. See stack trace for more details.")
     dicom_rt_zip_file_path = scratch_folder / dicom_rt_zip_file_name
     with zipfile.ZipFile(dicom_rt_zip_file_path, 'w') as dicom_rt_zip:
         dicom_rt_zip.write(dicom_rt_file_path, dicom_rt_file_path.name)
