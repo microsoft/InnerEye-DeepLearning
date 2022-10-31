@@ -67,7 +67,6 @@ class Lung(SegmentationModelBase):
         )
         self.add_and_validate(kwargs)
 
-
     def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:
         test = list(map(str, range(0, 9)))
         train_val = list(dataset_df[~dataset_df.subject.isin(test)].subject.unique())
