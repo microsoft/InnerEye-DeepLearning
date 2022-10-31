@@ -22,7 +22,7 @@ InnerEye-DeepLearning Documentation
    md/debugging_and_monitoring.md
    md/model_diagnostics.md
    md/move_model.md
-   md/hippocampus_model.md
+   rst/models
 
 .. toctree::
    :maxdepth: 1
