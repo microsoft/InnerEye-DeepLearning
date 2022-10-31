@@ -8,72 +8,13 @@ This documentation describes how to use our pre-trained model to segment the lef
 
 Please note that this model is intended for research purposes only. You are responsible for the performance, the necessary testing, and if needed any regulatory clearance for any of the models produced by this toolbox.
 
----
-
 ## Usage
-
-The following instructions assume you have completed the preceding setup steps in the [InnerEye README](https://github.com/microsoft/InnerEye-DeepLearning/), in particular, [Setting up Azure Machine Learning](setting_up_aml.md).
-
-### Create an AzureML Dataset
-
-To evaluate this model on your own data, you will first need to register an [Azure ML Dataset](https://docs.microsoft.com/en-us/azure/machine-learning/v1/how-to-create-register-datasets). You can follow the instructions in the for [creating datasets](creating_dataset.md) in order to do this.
-
-### Downloading the model
-
-The saved weights from the trained Hippocampus model can be downloaded along with the source code used to train it from [our GitHub releases page](https://github.com/microsoft/InnerEye-DeepLearning/releases/tag/v0.5).
-
-### Registering a model in Azure ML
-
-To evaluate the model in Azure ML, you must first [register an Azure ML Model](https://docs.microsoft.com/en-us/python/api/azureml-core/azureml.core.model.model?view=azure-ml-py#remarks). To register the Hippocampus model in your AML Workspace, unpack the source code downloaded in the previous step and follow InnerEye's [instructions to upload models to Azure ML](move_model.md).
-
-Run the following from a folder that contains both the `ENVIRONMENT/` and `MODEL/` folders (these exist inside the downloaded model files):
-
-```shell
-WORKSPACE="fill with your workspace name"
-GROUP="fill with your resource group name"
-SUBSCRIPTION="fill with your subscription ID"
-
-python InnerEye/Scripts/move_model.py \
-    --action upload \
-    --path . \
-    --workspace_name $WORKSPACE \
-    --resource_group $GROUP \
-    --subscription_id $SUBSCRIPTION \
-    --model_id Hippocampus:118
-```
-
-### Evaluating the model
-
-You can evaluate the model either in Azure ML or locally using the downloaded checkpoint files. These 2 scenarios are described in more detail, along with instructions in [testing an existing model](building_models.md#testing-an-existing-model).
-
-For example, to evaluate the model on your Dataset in Azure ML, run the following from within the directory `*/MODEL/final_ensemble_model/`
-
-```shell
-CLUSTER="fill with your cluster name"
-DATASET_ID="fill with your dataset name"
-
-python InnerEye/ML/runner.py \
-    --azure_dataset_id $DATASET_ID \
-    --model Hippocampus \
-    --model_id Hippocampus:111 \
-    --experiment_name evaluate_hippocampus_model \
-    --azureml \
-    --no-train \
-    --cluster $CLUSTER
-    --restrict_subjects=0,0,+
-```
 
 ### Connected components
 
 It is possible to apply connected components as a post-processing step, although by default this is disabled. To enable, update the property `largest_connected_component_foreground_classes` of the Hippocampus class in `InnerEye/ML/configs/segmentation/Hippocampus.py`
 
-### Deploy with InnerEye Gateway
-
-To deploy this model, see the instructions in the [InnerEye README](https://github.com/microsoft/InnerEye-DeepLearning/).
-
----
-
-## Hippocampal Segmentation Model Card
+## Model Card
 
 ### Model details
 
