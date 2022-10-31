@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This documentation describes how to use our pre-trained model to segment the left and right hippocampi from brain MRI scans. The model was trained on data from the [ADNI](https://adni.loni.usc.edu/) dataset (for more information see the model card below). This data is publicly available via their website, but users must sign a Data Use Agreement in order to gain access. We do not provide access to the data. The following description assumes the user has their own dataset to evaluate/ retrain the model on.
+This documentation describes our pre-trained model for segmentation of the left and right hippocampi from brain MRI scans. The model was trained on data from the [ADNI](https://adni.loni.usc.edu/) dataset (for more information see the model card below). This data is publicly available via their website, but users must sign a Data Use Agreement in order to gain access. We do not provide access to the data. The following description assumes the user has their own dataset to evaluate/ retrain the model on.
 
 ## Terms of use
 
