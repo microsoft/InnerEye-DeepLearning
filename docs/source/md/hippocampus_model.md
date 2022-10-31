@@ -1,4 +1,4 @@
-# Trained model for hippocampal segmentation
+# Hippocampus Segmentation Model
 
 ## Purpose
 
@@ -14,11 +14,11 @@ Please note that this model is intended for research purposes only. You are resp
 
 The following instructions assume you have completed the preceding setup steps in the [InnerEye README](https://github.com/microsoft/InnerEye-DeepLearning/), in particular, [Setting up Azure Machine Learning](setting_up_aml.md).
 
-### Create an Azure ML Dataset
+### Create an AzureML Dataset
 
 To evaluate this model on your own data, you will first need to register an [Azure ML Dataset](https://docs.microsoft.com/en-us/azure/machine-learning/v1/how-to-create-register-datasets). You can follow the instructions in the for [creating datasets](creating_dataset.md) in order to do this.
 
-## Downloading the model
+### Downloading the model
 
 The saved weights from the trained Hippocampus model can be downloaded along with the source code used to train it from [our GitHub releases page](https://github.com/microsoft/InnerEye-DeepLearning/releases/tag/v0.5).
 
