@@ -66,7 +66,7 @@ and ``MODEL/`` folders (these exist inside the downloaded model files):
        --workspace_name $WORKSPACE \
        --resource_group $GROUP \
        --subscription_id $SUBSCRIPTION \
-       --model_id Hippocampus:118
+       --model_id <Model Name>:<Model Version>
 
 Evaluating the model
 ~~~~~~~~~~~~~~~~~~~~
