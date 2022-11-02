@@ -11,7 +11,7 @@ This example is based on the paper [A feature agnostic approach for glaucoma det
 
 ### Downloading and preparing the glaucoma dataset
 
-The dataset is available [here](https://zenodo.org/record/1481223#.Xs-ehzPiuM_) <sup>[[1]](#1)</sup>.
+The dataset is available [here](https://zenodo.org/record/1481223#.Xs-ehzPiuM_) <sup>[1]</sup>.
 
 After downloading and extracting the zip file, run the [create_glaucoma_dataset_csv.py](https://github.com/microsoft/InnerEye-DeepLearning/blob/main/InnerEye/Scripts/create_glaucoma_dataset_csv.py)
  script on the extracted folder.
@@ -54,11 +54,11 @@ Please check [here](innereye_as_submodule.md) for details.
 
 ## Sample segmentation task: Segmentation of Lung CT
 
-This example is based on the [Lung CT Segmentation Challenge 2017](https://wiki.cancerimagingarchive.net/display/Public/Lung+CT+Segmentation+Challenge+2017) <sup>[[2]](#2)</sup>.
+This example is based on the [Lung CT Segmentation Challenge 2017](https://wiki.cancerimagingarchive.net/display/Public/Lung+CT+Segmentation+Challenge+2017) <sup>[2]</sup>.
 
 ### Downloading and preparing the lung dataset
 
-The dataset <sup>[[3]][#3]([4](#4)</sup> can be downloaded [here](https://wiki.cancerimagingarchive.net/display/Public/Lung+CT+Segmentation+Challenge+2017#021ca3c9a0724b0d9df784f1699d35e2).
+The dataset <sup>[3][4]</sup> can be downloaded [here](https://wiki.cancerimagingarchive.net/display/Public/Lung+CT+Segmentation+Challenge+2017#021ca3c9a0724b0d9df784f1699d35e2).
 
 You need to convert the dataset from DICOM-RT to NIFTI. Before this, place the downloaded dataset in another
  parent folder, which we will call `datasets`. This file structure is expected by the conversion tool.
@@ -109,17 +109,17 @@ See [Model Training](building_models.md) for details on training outputs, resumi
 
 ### References
 
-<a id="1">[1]</a>
+[1]
 Ishikawa, Hiroshi. (2018). OCT volumes for glaucoma detection (Version 1.0.0) [Data set]. Zenodo. <http://doi.org/10.5281/zenodo.1481223>
 
-<a id="2">[2]</a>
+[2]
 Yang, J. , Veeraraghavan, H. , Armato, S. G., Farahani, K. , Kirby, J. S., Kalpathy-Kramer, J. , van Elmpt, W. , Dekker, A. , Han, X. , Feng, X. , Aljabar, P. , Oliveira, B. , van der Heyden, B. , Zamdborg, L. , Lam, D. , Gooding, M. and Sharp, G. C. (2018),
 Autosegmentation for thoracic radiation treatment planning: A grand challenge at AAPM 2017. Med. Phys.. . [doi:10.1002/mp.13141](https://doi.org/10.1002/mp.13141)
 
-<a id="3">[3]</a>
+[3]
 Yang, Jinzhong; Sharp, Greg; Veeraraghavan, Harini ; van Elmpt, Wouter ; Dekker, Andre; Lustberg, Tim; Gooding, Mark. (2017).
 Data from Lung CT Segmentation Challenge. The Cancer Imaging Archive. <http://doi.org/10.7937/K9/TCIA.2017.3r3fvz08>
 
-<a id="4">[4]</a>
+[4]
 Clark K, Vendt B, Smith K, Freymann J, Kirby J, Koppel P, Moore S, Phillips S, Maffitt D, Pringle M, Tarbox L, Prior F.
 The Cancer Imaging Archive (TCIA): Maintaining and Operating a Public Information Repository, Journal of Digital Imaging, Volume 26, Number 6, December, 2013, pp 1045-1057. ([paper](http://link.springer.com/article/10.1007%2Fs10278-013-9622-7))
