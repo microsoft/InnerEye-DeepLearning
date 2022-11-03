@@ -8,9 +8,11 @@ This documentation describes our pre-trained model for segmentation of the left 
 
 Please note that this model is intended for research purposes only. You are responsible for the performance, the necessary testing, and if needed any regulatory clearance for any of the models produced by this toolbox.
 
-## Usage
+## Download
 
-### Connected components
+The hippocampus segmentation model can be downloaded from [this release](https://github.com/microsoft/InnerEye-DeepLearning/releases/tag/v0.5).
+
+## Connected components
 
 It is possible to apply connected components as a post-processing step, although by default this is disabled. To enable, update the property `largest_connected_component_foreground_classes` of the Hippocampus class in `InnerEye/ML/configs/segmentation/Hippocampus.py`
 

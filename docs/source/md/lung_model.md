@@ -8,6 +8,11 @@ This model is designed to perform segmentation of CT scans of human torsos. It i
 
 This model is intended for research purposes only. You are responsible for the performance, the necessary testing, and if needed any regulatory clearance for any of the models produced by this toolbox.
 
+
+## Download
+
+The lung segmentation model can be downloaded from [this release](https://github.com/microsoft/InnerEye-DeepLearning/releases/tag/v0.8).
+
 ## Connected Components
 
 It is possible to apply connected components as a post-processing step, and by default this is performed on the 3 largest structures: both lungs and the heart. To alter this behaviour, update the property `largest_connected_component_foreground_classes` of the Lung class in `InnerEye/ML/configs/segmentation/Lung.py`.
