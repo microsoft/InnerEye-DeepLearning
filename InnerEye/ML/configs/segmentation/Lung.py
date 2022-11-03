@@ -58,7 +58,7 @@ class Lung(SegmentationModelBase):
             opt_eps=1e-4,
             optimizer_type=OptimizerType.Adam,
             roi_interpreted_types=["ORGAN"] * len(fg_classes),
-            test_crop_size=(64, 256, 256),
+            test_crop_size=(112, 512, 512),
             train_batch_size=3,
             use_mixed_precision=True,
             use_model_parallel=True,
