@@ -167,7 +167,3 @@ cifar-10-python.tar.gz
 
 .amltconfig
 amlt_job.yml
-
-## VS Code
-
-.vscode/launch.json

@@ -4,11 +4,6 @@
 
 This model is designed to perform segmentation of CT scans of human torsos. It is trained to identify 5 key structures: left lung, right lung, heart, spinalcord and esophagus.
 
-## Terms of Use
-
-This model is intended for research purposes only. You are responsible for the performance, the necessary testing, and if needed any regulatory clearance for any of the models produced by this toolbox.
-
-
 ## Download
 
 The lung segmentation model can be downloaded from [this release](https://github.com/microsoft/InnerEye-DeepLearning/releases/tag/v0.8).
@@ -29,9 +24,15 @@ It is possible to apply connected components as a post-processing step, and by d
 - License: The model is released under MIT license as described [here](https://github.com/microsoft/InnerEye-DeepLearning/blob/main/LICENSE).
 - Contact: innereyeinfo@microsoft.com.
 
+### Terms of use
+
+Please note that all models provided by InnerEye-DeepLearning are intended for research purposes only. You are responsible for the performance, the necessary testing, and if needed any regulatory clearance for any of the models produced by this toolbox.
+
 ### Limitations
 
-The dataset used for training contains only 60 scans, 10 of which are withheld for testing. This limited amount of training data means that the model may not yet generalise well to data samples from outside the dataset and underperforms on the smaller structures (esophagus and spinalcord).
+The dataset used for training contains only 60 scans, 10 of which are withheld for testing. This limited amount of training data means that the model underperforms on the smaller structures (esophagus and spinalcord) and may not yet generalise well to data samples from outside the dataset.
+
+Furthermore, the dataset description does not contain details on the population of patients used for creating the dataset. Therefore it is not possible to assess whether this model is suitable for use on a target population outside of the dataset.
 
 ### Intended Uses
 
@@ -41,11 +42,16 @@ This model is intended for research purposes only. It is intended to be used as 
 
 This model is trained on the [LCTSC 2017 dataset](https://wiki.cancerimagingarchive.net/pages/viewpage.action?pageId=24284539). For a detailed description on this data, including the contouring guidelines, see [this page](https://wiki.cancerimagingarchive.net/pages/viewpage.action?pageId=24284539#242845396723d79f9909442996e4dd0af5e56a30).
 
-To create the dataset used for training, we utilised the [InnerEye-CreateDataset tool](https://github.com/microsoft/InnerEye-CreateDataset). The dataset was processed using the following command:
+The following steps were carrried out to create the dataset used for training this model:
 
-```shell
-  .\InnerEye.CreateDataset.Runner.exe dataset --datasetRootDirectory=C:\Users\a-phessey\Datasets\lung_dicom --niftiDatasetDirectory=lung_nifti --dicomDatasetDirectory=LCTSC --geoNorm 1 1 3 --groundTruthDescendingPriority esophagus spinalcord lung_r lung_l heart
-```
+1. Download the DICOM dataset from the above LCTSC 2017 link.
+1. Use the [InnerEye-CreateDataset tool](https://github.com/microsoft/InnerEye-CreateDataset) to run the following command on the data:
+
+   ```shell
+     .\InnerEye.CreateDataset.Runner.exe dataset --datasetRootDirectory=<path_to_DICOM_data> --niftiDatasetDirectory=lung_nifti --dicomDatasetDirectory=LCTSC --geoNorm 1 1 3 --groundTruthDescendingPriority esophagus spinalcord lung_r lung_l heart
+   ```
+
+1. Upload and register NIFTI dataset to Azure by following the [dataset creation](creating_dataset.md) guide.
 
 ### Metrics
 
