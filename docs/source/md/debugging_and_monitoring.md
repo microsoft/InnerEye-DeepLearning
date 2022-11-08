@@ -1,5 +1,42 @@
 # Debugging and Monitoring
 
+## Monitoring in the AzureML Portal
+
+The AzureML portal provides a powerful suite of tools for monitoring all aspects of your experiments including hardware analytics, training metrics and job outputs. InnerEye-DeepLearning is already configured to be fully compatible with all of these. To view this portal simply navigate to your [AzureML workspace](ml.azure.com) and select your experiment/run in the "Jobs" sub-menu.
+
+### Training Outputs + Reports
+
+Under the "Outputs + logs" tab you will find all the files output by your job:
+
+- The arguments used for your job in `args.txt`.
+- CSV files detailing your input dataset splits (`dataset.csv`, `train_dataset.csv`, `test_dataset.csv`, `val_dataset.csv`).
+- In the `logs/` and `azureml-logs/` folders you can find all the log files output by your job.
+  - The most important of these is the `azureml-logs/70_driver_log.txt` which contains information that is especially useful for debugging failed jobs.
+- Under the `outputs/` folder you will find:
+  - Each epoch's training metrics under `Train/` and `Val/` for training and validation respectively.
+  - The most recent training checkpoint under `checkpoints/`.
+  - Outputs from the epoch with the lowest validation loss under `best_validation_epoch/`.
+  - The final report on the completed model under `reports/`. This is especially useful as it contains a full breakdown of a variety of metrics which are produced by a full inference pass after training is completed.
+- For training tasks you will find a copy of the trained model (also registered to AzureML) in the `final_model/` folder (or `final_ensemble_model/` for ensemble models).
+
+### Metrics
+
+Under the "Metrics" tab you will be able to view all metrics logged by your job. This includes, but is not limited to:
+
+- Train and validation loss.
+- DICE scores for individual structures on segmentation tasks.
+- Voxel/Pixel counts.
+- Epoch number.
+
+### Hardware Analytics
+
+Under the "Monitoring" tab you will be able to view a range of hardware metrics. This includes, but is not limited to:
+
+- GPU Utilisation.
+- GPU Memory Usage.
+- GPU Energy Usage.
+- CPU Utilisation.
+
 ## Using TensorBoard to monitor AzureML jobs
 
 * **Existing jobs**: execute [`InnerEye/Azure/tensorboard_monitor.py`](https://github.com/microsoft/InnerEye-DeepLearning/tree/main/InnerEye/Azure/tensorboard_monitor.py)
