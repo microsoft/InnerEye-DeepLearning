@@ -4,7 +4,7 @@
 #  ------------------------------------------------------------------------------------------
 from typing import Any
 
-import numpy
+import numpy as np
 import pandas as pd
 
 from InnerEye.ML.config import PhotometricNormalizationMethod, SegmentationLoss, \
@@ -71,7 +71,7 @@ class Lung(SegmentationModelBase):
         test = list(map(str, range(0, 9)))
         train_val = list(dataset_df[~dataset_df.subject.isin(test)].subject.unique())
 
-        val = list(map(str, numpy.random.choice(train_val, int(len(train_val) * 0.1), replace=False)))
+        val = list(map(str, np.random.choice(train_val, int(len(train_val) * 0.1), replace=False)))
         train = [str(x) for x in train_val if x not in val]
 
         return DatasetSplits.from_subject_ids(
