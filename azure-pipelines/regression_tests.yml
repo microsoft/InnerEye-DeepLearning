@@ -1,15 +1,14 @@
-# YAML file in the main branch
-# schedules:
-# - cron: "0 0 * * *"
-#   displayName: Daily midnight regression tests
-#   branches:
-#     include:
-#     - main
-
-pr:
+schedules:
+- cron: "0 0 * * *"
+  displayName: Daily midnight regression tests
   branches:
     include:
-    - '*'
+    - phessey/improve-regression-tests
+
+# pr:
+#   branches:
+#     include:
+#     - '*'
 
 name: RegressionTests-$(Date:yyyyMMdd)$(Rev:-r)
 variables:
