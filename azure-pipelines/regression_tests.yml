@@ -23,7 +23,6 @@ variables:
 
 jobs:
   - job: LungRegression
-    dependsOn: CancelPreviousJobs
     variables:
       - name: tag
         value: 'TrainBasicModel'
