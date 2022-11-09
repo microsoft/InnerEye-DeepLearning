@@ -15,6 +15,7 @@ variables:
   more_switches: '--log_level=DEBUG --pl_deterministic'
   run_recovery_id: ''
   tag: ''
+  train: True
   number_of_cross_validation_splits: 0
   cluster: 'training-nc12'
   # Disable a spurious warning
@@ -24,8 +25,10 @@ variables:
 jobs:
   - job: LungRegression
     variables:
+      - name: model
+        value: 'LungRegression'
       - name: tag
-        value: 'TrainBasicModel'
+        value: 'TrainLungRegressionModel'
       - name: more_switches
         value: '--log_level=DEBUG --pl_deterministic --use_dataset_mount=True --regression_test_folder=RegressionTestResults/LungRegression --regression_test_csv_tolerance=0.005'
     pool:
