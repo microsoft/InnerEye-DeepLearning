@@ -11,4 +11,7 @@ steps:
     env:
       PYTHONPATH: $(Build.SourcesDirectory)/
       APPLICATION_KEY: $(InnerEyeDeepLearningServicePrincipalKey)
+      SUBSCRIPTION_ID: $(InnerEyeDevSubscriptionID)
+      APPLICATION_ID: $(InnerEyeDeepLearningServicePrincipalID)
+      BRANCH: $(Build.SourceBranch)
     displayName: 'Queue AzureML Job'

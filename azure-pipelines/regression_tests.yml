@@ -33,11 +33,6 @@ jobs:
         value: '--log_level=DEBUG --pl_deterministic --use_dataset_mount=True --regression_test_folder=RegressionTestResults/LungRegression --regression_test_csv_tolerance=0.005'
     pool:
       vmImage: 'ubuntu-20.04'
-    env:
-      SUBSCRIPTION_ID: $(InnerEyeDevSubscriptionID)
-      APPLICATION_ID: $(InnerEyeDeepLearningServicePrincipalID)
-      APPLICATION_KEY: $(InnerEyeDeepLearningServicePrincipalKey)
-      BRANCH: $(Build.SourceBranch)
     steps:
       - template: train_template.yml
         parameters:
