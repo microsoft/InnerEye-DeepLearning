@@ -28,7 +28,7 @@ jobs:
       - name: tag
         value: 'TrainBasicModel'
       - name: more_switches
-        value: '--log_level=DEBUG --pl_deterministic --use_dataset_mount=True --regression_test_folder=RegressionTestResults/LungRegression --regression_test_csv_tolerance=0.01'
+        value: '--log_level=DEBUG --pl_deterministic --use_dataset_mount=True --regression_test_folder=RegressionTestResults/LungRegression --regression_test_csv_tolerance=0.005'
     pool:
       vmImage: 'ubuntu-20.04'
     steps:
