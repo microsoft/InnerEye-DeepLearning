@@ -12,4 +12,4 @@ sphinx:
    configuration: docs/source/conf.py
 
 conda:
-   environment: environment.yml
+   environment: primary_deps.yml
