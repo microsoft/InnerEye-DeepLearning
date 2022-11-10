@@ -11,12 +11,12 @@ Under the "Outputs + logs" tab you will find all the files output by your job:
 - The arguments used for your job in `args.txt`.
 - CSV files detailing your input dataset splits (`dataset.csv`, `train_dataset.csv`, `test_dataset.csv`, `val_dataset.csv`).
 - In the `logs/` and `azureml-logs/` folders you can find all the log files output by your job.
-  - The most important of these is the `azureml-logs/70_driver_log.txt` which contains information that is especially useful for debugging failed jobs.
+  - The most important of these is the `azureml-logs/70_driver_log.txt`. All `stdout` and `stderr` output from training jobs is visible here so it contains information that is especially useful for debugging failed jobs.
 - Under the `outputs/` folder you will find:
   - Each epoch's training metrics under `Train/` and `Val/` for training and validation respectively.
   - The most recent training checkpoint under `checkpoints/`.
   - Outputs from the epoch with the lowest validation loss under `best_validation_epoch/`.
-  - The final report on the completed model under `reports/`. This is especially useful as it contains a full breakdown of a variety of metrics which are produced by a full inference pass after training is completed.
+  - The final report on the completed model under `reports/`. This is especially useful as it contains a full breakdown of a variety of metrics which are produced by a full inference pass on the test set after training is completed.
 - For training tasks you will find a copy of the trained model (also registered to AzureML) in the `final_model/` folder (or `final_ensemble_model/` for ensemble models).
 
 ### Metrics
