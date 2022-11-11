@@ -2,14 +2,22 @@
 #  Copyright (c) Microsoft Corporation. All rights reserved.
 #  Licensed under the MIT License (MIT). See LICENSE in the repo root for license information.
 #  ------------------------------------------------------------------------------------------
-from argparse import ArgumentParser
 import argparse
+import json
+import sys
+from argparse import ArgumentParser
 from pathlib import Path
 from typing import Tuple
 
-import json
 from attr import dataclass
 from azureml.core import Environment, Model, Workspace
+
+innereye_root = Path(__file__).resolve().parent.parent.parent
+if (innereye_root / "InnerEye").is_dir():
+    innereye_root_str = str(innereye_root)
+    if innereye_root_str not in sys.path:
+        print(f"Adding InnerEye folder to sys.path: {innereye_root_str}")
+        sys.path.insert(0, innereye_root_str)
 
 from InnerEye.ML.common import FINAL_ENSEMBLE_MODEL_FOLDER, FINAL_MODEL_FOLDER
 
