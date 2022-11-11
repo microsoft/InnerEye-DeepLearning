@@ -17,21 +17,22 @@ from InnerEye.ML.utils.split_dataset import DatasetSplits
 RANDOM_COLOUR_GENERATOR = random.Random(0)
 
 
-# This configuration needs to be supplied with a value for azure_dataset_id that refers to your
-# dataset. You may also supply a value for num_structures, feature_channels or any other feature. For example,
-# with the appropriate dataset, this would build the model whose results are reported in the InnerEye team's
-# paper:
-#
-# class HeadAndNeckPaper(HeadAndNeckBase):
-#
-#     def __init__(self):
-#         super().__init__(
-#             azure_dataset_id="foo_bar_baz",
-#             num_structures=10)
-
 class HeadAndNeckBase(SegmentationModelBase):
     """
     Head and Neck radiotherapy image segmentation model.
+
+    This configuration needs to be supplied with a value for azure_dataset_id that refers to your
+    dataset. You may also supply a value for num_structures, feature_channels or any other feature. For example,
+    with the appropriate dataset, this would build the model whose results are reported in the `InnerEye team's
+    paper <https://pubmed.ncbi.nlm.nih.gov/33252691/>`_::
+
+        class HeadAndNeckPaper(HeadAndNeckBase):
+            def __init__(self):
+                super().__init__(
+                    azure_dataset_id="foo_bar_baz",
+                    num_structures=10
+                )
+
     """
 
     def __init__(self,
