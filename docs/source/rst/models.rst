@@ -17,7 +17,7 @@ Terms of use
 
 Please note that all models provided by InnerEye-DeepLearning are intended for
 research purposes only. You are responsible for the performance, the necessary testing,
- and if needed any regulatory clearance for any of the models produced by this toolbox.
+and if needed any regulatory clearance for any of the models produced by this toolbox.
 
 Usage
 -----
@@ -25,7 +25,7 @@ Usage
 The following instructions assume you have completed the preceding setup
 steps in the `InnerEye
 README <https://github.com/microsoft/InnerEye-DeepLearning/>`__, in
-particular, `Setting up Azure Machine Learning <setting_up_aml.md>`__.
+particular, `Setting up Azure Machine Learning <../md/setting_up_aml.html>`__.
 
 Create an AzureML Dataset
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -34,7 +34,7 @@ To evaluate pre-trained models on your own data, you will first need to register
 an `Azure ML
 Dataset <https://docs.microsoft.com/en-us/azure/machine-learning/v1/how-to-create-register-datasets>`__.
 You can follow the instructions in the for `creating
-datasets <creating_dataset.md>`__ in order to do this.
+datasets <../md/creating_dataset.html>`__ in order to do this.
 
 Downloading the models
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -49,7 +49,7 @@ To evaluate the model in Azure ML, you must first `register an Azure ML
 Model <https://docs.microsoft.com/en-us/python/api/azureml-core/azureml.core.model.model?view=azure-ml-py#remarks>`__.
 To register the pre-trained model in your AML Workspace, unpack the
 source code downloaded in the previous step and follow InnerEye's
-`instructions to upload models to Azure ML <move_model.md>`__.
+`instructions to upload models to Azure ML <../md/move_model.html>`__.
 
 Run the following from a folder that contains both the ``ENVIRONMENT/``
 and ``MODEL/`` folders (these exist inside the downloaded model files):
@@ -74,7 +74,7 @@ Evaluating the model
 You can evaluate the model either in Azure ML or locally using the
 downloaded checkpoint files. These 2 scenarios are described in more
 detail, along with instructions in `testing an existing
-model <building_models.md#testing-an-existing-model>`__.
+model <../md/building_models.html#testing-an-existing-model>`__.
 
 For example, to evaluate the model on your Dataset in Azure ML, run the
 following from within the directory ``*/MODEL/final_ensemble_model/``
