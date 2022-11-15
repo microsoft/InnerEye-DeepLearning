@@ -13,8 +13,7 @@ This example is based on the paper [A feature agnostic approach for glaucoma det
 
 The dataset is available [here](https://zenodo.org/record/1481223#.Xs-ehzPiuM_) <sup>[1]</sup>.
 
-After downloading and extracting the zip file, run the [create_glaucoma_dataset_csv.py](https://github.com/microsoft/InnerEye-DeepLearning/blob/main/InnerEye/Scripts/create_glaucoma_dataset_csv.py)
- script on the extracted folder.
+After downloading and extracting the zip file, run the [create_glaucoma_dataset_csv.py](https://github.com/microsoft/InnerEye-DeepLearning/blob/main/InnerEye/Scripts/create_glaucoma_dataset_csv.py) script on the extracted folder.
 
 ```shell
 python create_dataset_csv.py /path/to/extracted/folder
@@ -22,15 +21,11 @@ python create_dataset_csv.py /path/to/extracted/folder
 
 This will convert the dataset to csv form and create a file `dataset.csv`.
 
-Finally, upload this folder (with the images and `dataset.csv`) to Azure Blob Storage. For details on creating a storage account,
-see [Setting up AzureML](setting_up_aml.md#step-4-create-a-storage-account-for-your-datasets). The dataset should go
-into a container called `datasets`, with a folder name of your choice (`name_of_your_dataset_on_azure` in the
-description below).
+Finally, upload this folder (with the images and `dataset.csv`) to Azure Blob Storage. For details on creating a storage account, see [AzureML Setup](setting_up_aml.md). The dataset should go into a container called `datasets`, with a folder name of your choice (`name_of_your_dataset_on_azure` in the description below).
 
 ### Creating the glaucoma model configuration and starting training
 
-Next, you need to create a configuration file `InnerEye/ML/configs/MyGlaucoma.py`
- which extends the GlaucomaPublic class like this:
+Next, you need to create a configuration file `InnerEye/ML/configs/MyGlaucoma.py` which extends the GlaucomaPublic class like this:
 
 ```python
 from InnerEye.ML.configs.classification.GlaucomaPublic import GlaucomaPublic
@@ -40,8 +35,7 @@ class MyGlaucomaModel(GlaucomaPublic):
         self.azure_dataset_id="name_of_your_dataset_on_azure"
 ```
 
-The value for `self.azure_dataset_id` should match the dataset upload location, called
-`name_of_your_dataset_on_azure` above.
+The value for `self.azure_dataset_id` should match the dataset upload location, called `name_of_your_dataset_on_azure` above.
 
 Once that config is in place, you can start training in AzureML via
 
@@ -106,12 +100,11 @@ Now, you should have another folder under `datasets` containing the converted NI
 
 Finally, upload this folder (with the images and dataset.csv) to Azure Blob Storage. We recommened using the [Azure Storage Explorer tool](https://azure.microsoft.com/en-us/products/storage/storage-explorer/) for this.
 
-For details on creating a storage account, see [Setting up AzureML](setting_up_aml.md#step-4-create-a-storage-account-for-your-datasets). All files should go into a folder in the `datasets` container, for example `my_lung_dataset`. This folder name will be passed into InnerEye using the `azure_dataset_id` flag of the model configuration (see below).
+For details on creating a storage account, see [AzureML Setup](setting_up_aml.md). All files should go into a folder in the `datasets` container, for example `my_lung_dataset`. This folder name will be passed into InnerEye using the `azure_dataset_id` flag of the model configuration (see below).
 
 ### Creating the lung model configuration and starting training
 
-You can then create a new model configuration, based on the template [Lung.py](https://github.com/microsoft/InnerEye-DeepLearning/tree/main/InnerEye/ML/configs/segmentation/Lung.py). To do this, create a file
-`InnerEye/ML/configs/segmentation/MyLungModel.py`, where you create a subclass of the template Lung model, and
+You can then create a new model configuration, based on the template [Lung.py](https://github.com/microsoft/InnerEye-DeepLearning/tree/main/InnerEye/ML/configs/segmentation/Lung.py). To do this, create a file `InnerEye/ML/configs/segmentation/MyLungModel.py`, where you create a subclass of the template Lung model, and
 add the `azure_dataset_id` field (i.e., the name of the folder that contains the uploaded data from above),
 so that it looks like:
 
