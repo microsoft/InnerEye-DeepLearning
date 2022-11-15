@@ -19,7 +19,7 @@ class LungRegression(Lung):
     def get_model_train_test_dataset_splits(self, dataset_df: pd.DataFrame) -> DatasetSplits:
         train = list(map(str, range(0, 10)))
         val = list(map(str, range(10, 15)))
-        test = list(map(str, range(15, 20)))
+        test = list(map(str, range(15, 16)))
 
         return DatasetSplits.from_subject_ids(
             df=dataset_df,
