@@ -58,32 +58,59 @@ This example is based on the [Lung CT Segmentation Challenge 2017](https://wiki.
 
 ### Downloading and preparing the lung dataset
 
+#### Download and prepare DICOM data
+
 The dataset <sup>[3][4]</sup> can be downloaded [here](https://wiki.cancerimagingarchive.net/display/Public/Lung+CT+Segmentation+Challenge+2017#021ca3c9a0724b0d9df784f1699d35e2).
 
 You need to convert the dataset from DICOM-RT to NIFTI. Before this, place the downloaded dataset in another
- parent folder, which we will call `datasets`. This file structure is expected by the conversion tool.
+ parent folder, which we will call `datasets`. This file structure is expected by the conversion tool:
 
-Next, use the
-[InnerEye-CreateDataset](https://github.com/microsoft/InnerEye-createdataset) commandline tools to create a
-NIFTI dataset from the downloaded (DICOM) files.
-After installing the tool, run
-
-```batch
-InnerEye.CreateDataset.Runner.exe dataset --datasetRootDirectory=<path to the 'datasets' folder> --niftiDatasetDirectory=<output folder name for converted dataset> --dicomDatasetDirectory=<name of downloaded folder inside 'datasets'> --geoNorm 1;1;3
+```shell
+├── datasets
+│   ├── LCTSC
+│   │   ├── LCTSC-Test-*
+│   │   ├── LCTSC-Train-*
+│   │   ├── LICENSE
 ```
 
-Now, you should have another folder under `datasets` with the converted Nifti files.
-The `geonorm` tag tells the tool to normalize the voxel sizes during conversion.
+#### Convert data to NIFTI
 
-Finally, upload this folder (with the images and dataset.csv) to Azure Blob Storage. For details on creating a storage account,
-see [Setting up AzureML](setting_up_aml.md#step-4-create-a-storage-account-for-your-datasets). All files should go
-into a folder in the `datasets` container, for example `my_lung_dataset`. This folder name will need to go into the
-`azure_dataset_id` field of the model configuration, see below.
+Next, use the [InnerEye-CreateDataset](https://github.com/microsoft/InnerEye-createdataset) commandline tools to create a NIFTI dataset from the downloaded DICOM files. After installing and building the tool, open a powershell terminal, navigate to the build folder containing the executable (e.g. .`InnerEye-CreateDataset\Source\projects\InnerEye.CreateDataset.Runner\bin\x64\Debug\`) and run the following (this may take a few minutes to complete):
+
+```batch
+.\InnerEye.CreateDataset.Runner.exe dataset --datasetRootDirectory=C:\Users\<User>\datasets --niftiDatasetDirectory=lung_nifti --dicomDatasetDirectory=LCTSC --geoNorm 1 1 3 --groundTruthDescendingPriority esophagus spinalcord lung_r lung_l heart
+```
+
+* The `--geonorm` flag tells the tool to normalize the voxel sizes during conversion.
+* The `--groundTruthDescendingPriority` flag removes additional labels from voxels that have been labelled as more than one structure. This improves the model performance on this specific dataset as it contains some overlapping structures.
+
+Now, you should have another folder under `datasets` containing the converted NIFTI files:
+
+```shell
+├── datasets
+│   ├── LCTSC
+│   │   ├── LCTSC-Test-*
+│   │   ├── LCTSC-Train-*
+│   │   ├── LICENSE
+│   ├── lung_nifti
+│   │   ├── 1
+│   │   ├── 2
+│   │   ├── 3
+│   │   ├── ...
+│   │   ├── dataset.csv
+│   │   ├── info.txt
+
+```
+
+#### Upload Dataset to Azure
+
+Finally, upload this folder (with the images and dataset.csv) to Azure Blob Storage. We recommened using the [Azure Storage Explorer tool](https://azure.microsoft.com/en-us/products/storage/storage-explorer/) for this.
+
+For details on creating a storage account, see [Setting up AzureML](setting_up_aml.md#step-4-create-a-storage-account-for-your-datasets). All files should go into a folder in the `datasets` container, for example `my_lung_dataset`. This folder name will be passed into InnerEye using the `azure_dataset_id` flag of the model configuration (see below).
 
 ### Creating the lung model configuration and starting training
 
-You can then create a new model configuration, based on the template
-[Lung.py](https://github.com/microsoft/InnerEye-DeepLearning/tree/main/InnerEye/ML/configs/segmentation/Lung.py). To do this, create a file
+You can then create a new model configuration, based on the template [Lung.py](https://github.com/microsoft/InnerEye-DeepLearning/tree/main/InnerEye/ML/configs/segmentation/Lung.py). To do this, create a file
 `InnerEye/ML/configs/segmentation/MyLungModel.py`, where you create a subclass of the template Lung model, and
 add the `azure_dataset_id` field (i.e., the name of the folder that contains the uploaded data from above),
 so that it looks like:

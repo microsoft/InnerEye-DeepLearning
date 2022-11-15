@@ -39,7 +39,7 @@ datasets <../md/creating_dataset.html>`__ in order to do this.
 Downloading the models
 ~~~~~~~~~~~~~~~~~~~~~~
 
-The saved weights for each model can be found in their respective :ref:`model cards<Pre-Trained Models>`.
+The saved weights for each model can be found in their respective model cards.
 You will need to download the weights and source code for the model that you wish to use.
 
 Registering a model in Azure ML
