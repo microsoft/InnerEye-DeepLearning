@@ -215,3 +215,20 @@ jobs:
         parameters:
           pytest_mark: after_training_hello_container
           test_run_title: tests_after_training_hello_container
+
+  - job: TrainLungRegression
+    dependsOn: CancelPreviousJobs
+    variables:
+      - name: model
+        value: 'LungRegression'
+      - name: tag
+        value: 'TrainLungRegressionModel'
+      - name: more_switches
+        value: '--log_level=DEBUG --pl_deterministic --use_dataset_mount=True --regression_test_folder=RegressionTestResults/LungRegression --regression_test_csv_tolerance=0.001'
+    pool:
+      vmImage: 'ubuntu-20.04'
+    steps:
+      - template: train_template.yml
+        parameters:
+          wait_for_completion: 'True'
+          max_run_duration: '30m'
