@@ -10,6 +10,7 @@ class LungRegression(Lung):
     but only runs for a small number of epochs and a smaller subset of the data. This is to ensure that
     the training time is kept under 30 minutes to prevents slowing down PRs significantly.
     """
+
     def __init__(self) -> None:
         super().__init__(
             azure_dataset_id="lung",
