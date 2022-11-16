@@ -38,7 +38,7 @@ from InnerEye.Common.common_util import (
 )
 from InnerEye.Common.fixed_paths import INNEREYE_PACKAGE_NAME, PYTHON_ENVIRONMENT_NAME, PYTHON_ENVIRONMENT_VERSION
 from InnerEye.Common.type_annotations import PathOrString
-from InnerEye.ML.baselines_util import compare_folders_and_run_outputs
+from InnerEye.ML.baselines_util import compare_folders_and_run_outputs, compare_scores_against_baselines
 from InnerEye.ML.common import (
     CHECKPOINT_FOLDER, EXTRA_RUN_SUBFOLDER, FINAL_ENSEMBLE_MODEL_FOLDER, FINAL_MODEL_FOLDER, ModelExecutionMode
 )
@@ -62,7 +62,8 @@ from InnerEye.ML.scalar_config import ScalarModelBase
 from InnerEye.ML.utils.checkpoint_handling import CheckpointHandler, download_all_checkpoints_from_run
 from InnerEye.ML.visualizers import activation_maps
 from InnerEye.ML.visualizers.plot_cross_validation import (
-    get_config_and_results_for_offline_runs, plot_cross_validation_from_files
+    crossval_config_from_model_config, get_config_and_results_for_offline_runs,
+    plot_cross_validation, plot_cross_validation_from_files, unroll_aggregate_metrics
 )
 
 ModelDeploymentHookSignature = Callable[[LightningContainer, AzureConfig, Model, ModelProcessing], Any]
@@ -520,7 +521,6 @@ class MLRunner:
         """
         if not isinstance(self.model_config, SegmentationModelBase):  # keep type checker happy
             return
-        from InnerEye.ML.baselines_util import compare_scores_against_baselines
         with logging_section("Comparing scores against baselines"):
             compare_scores_against_baselines(self.model_config, self.azure_config, model_proc)
 
@@ -812,9 +812,6 @@ class MLRunner:
         remove_file_or_directory(other_runs_dir)
 
     def plot_cross_validation_and_upload_results(self) -> Path:
-        from InnerEye.ML.visualizers.plot_cross_validation import (
-            crossval_config_from_model_config, plot_cross_validation, unroll_aggregate_metrics
-        )
 
         # perform aggregation as cross val splits are now ready
         plot_crossval_config = crossval_config_from_model_config(self.innereye_config)
