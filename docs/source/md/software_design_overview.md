@@ -80,10 +80,7 @@ use (for example, `lightning_bolts==0.4.0`). The Conda environment files are als
 change to a version of a third party library will need to be carried out via the same change management process as a code
 change, with Pull Request, review, and all tests passing.
 
-The list of third party software is maintained in GitHub in the Conda configuration file, that is `environment.yml` for
-Linux environments and `environment_win.yml` for Windows environments. For example, [this is the latest version of the
-environment file for the InnerEye-DeepLearning
-repository](https://github.com/microsoft/InnerEye-DeepLearning/blob/main/environment.yml).
+The list of third party software is maintained in GitHub in the Conda configuration file, that is `environment.yml` for Linux / AzureML environments and `primary_deps.yml` for all other environments. For example, [this is the latest version of the environment file for the InnerEye-DeepLearning repository](https://github.com/microsoft/InnerEye-DeepLearning/blob/main/environment.yml).
 
 ## Defect Handling
 
