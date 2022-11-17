@@ -162,7 +162,7 @@ jobs:
     dependsOn: CancelPreviousJobs
     variables:
       - name: model
-        value: 'HelloWorld'
+        value: 'HelloWorld2Channel'
       - name: tag
         value: 'HelloWorldPR'
     pool:

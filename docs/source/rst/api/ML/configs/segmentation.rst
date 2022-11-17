@@ -15,6 +15,8 @@ HelloWorld
 
 .. automodule:: InnerEye.ML.configs.segmentation.HelloWorld
 
+.. automodule:: InnerEye.ML.configs.segmentation.HelloWorld2Channel
+
 Head and Neck
 -------------
 

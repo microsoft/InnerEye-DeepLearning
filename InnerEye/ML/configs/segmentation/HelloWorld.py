@@ -31,12 +31,13 @@ class HelloWorld(SegmentationModelBase):
     * If you want to test that your AzureML workspace is working, please follow the instructions in
     <repo_root>/docs/hello_world_model.md.
 
-    In this example, the model is trained on 2 input image channels channel1 and channel2, and
+    In this example, the model is trained on 1 input image channels "channel1", and
     predicts 2 foreground classes region, region_1.
     """
 
     def __init__(self, **kwargs: Any) -> None:
         fg_classes = ["region", "region_1"]
+        image_channels = kwargs.pop("image_channels", ["channel1"])
         super().__init__(
             # Data definition - in this section we define where to load the dataset from
             local_dataset=full_ml_test_data_path(),
@@ -45,7 +46,7 @@ class HelloWorld(SegmentationModelBase):
             architecture="UNet3D",
             feature_channels=[4],
             crop_size=(64, 64, 64),
-            image_channels=["channel1", "channel2"],
+            image_channels=image_channels,
             ground_truth_ids=fg_classes,
             class_weights=equally_weighted_classes(fg_classes, background_weight=0.02),
             mask_id="mask",
@@ -116,3 +117,11 @@ class HelloWorld(SegmentationModelBase):
             max_total_runs=10,
             max_concurrent_runs=2
         )
+
+
+class HelloWorld2Channel(HelloWorld):
+    """Model used for large number of integration tests. It is functionally the same as the HelloWorld model, except
+    that it uses two image channels instead of one, covering more test cases."""
+
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(image_channels=["channel1", "channel2"], **kwargs)
