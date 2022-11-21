@@ -117,11 +117,3 @@ class HelloWorld(SegmentationModelBase):
             max_total_runs=10,
             max_concurrent_runs=2
         )
-
-
-class HelloWorld2Channel(HelloWorld):
-    """Model used for large number of integration tests. It is functionally the same as the HelloWorld model, except
-    that it uses two image channels instead of one, covering more test cases."""
-
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(image_channels=["channel1", "channel2"], **kwargs)
