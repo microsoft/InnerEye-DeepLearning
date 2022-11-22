@@ -68,10 +68,9 @@ A "datastore" in AzureML lingo is an abstraction for the ML systems to access fi
 Instructions to create the datastore are given
 [in the AML setup instructions](setting_up_aml.md) in step 5.
 
-## Run the HelloWorld model in AzureML
+## Train the HelloWorld model in AzureML
 
-Double-check that you have copied your Azure settings into the settings file, as described
-[in the AML setup instructions](setting_up_aml.md) in step 6.
+Double-check that you have copied your Azure settings into the settings file, as described [in the AML setup instructions](setting_up_aml.md) in step 6.
 
 Then execute:
 
@@ -79,3 +78,11 @@ Then execute:
 conda activate InnerEye
 python InnerEye/ML/runner.py --model=HelloWorld --azureml
 ```
+
+This will submit a training job to your AzureML workspace. You should see a URL for the run output in your terminal. Follow this link to monitor the job in the AzureML portal.
+
+Once the training job completes, it will register a trained HelloWorld model to your workspace. To see this model, navigate to the completed training run and under the "Overview" tab you will see your model and version under "Registered models". It will be in the format `HelloWorld:<Model Version>`.
+
+## (Optional) Run InnerEye-Inference on the HelloWorld model in AzureML
+
+If you wish to faciliate easily running inference on your models, you can set up the [InnerEye-Inference Service](https://github.com/microsoft/InnerEye-Inference/). Follow instructions in the Inference Service README.md to set it up either locally or as an Azure App Service. You will then be able to run the [start](https://github.com/microsoft/InnerEye-Inference/#start) and [monitor](https://github.com/microsoft/InnerEye-Inference/#results) commands, replacing the model name and version with the model trained in the previous step.
