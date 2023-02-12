@@ -35,12 +35,12 @@ class SSLClassifierContainer(SSLContainer):
         This method must create the actual Lightning model that will be trained.
         """
         if self.local_ssl_weights_path is None:
-            assert self.extra_downloaded_run_id is not None
+            assert self.pretraining_run_checkpoints is not None
             try:
-                path_to_checkpoint = self.extra_downloaded_run_id.get_best_checkpoint_paths()
+                path_to_checkpoint = self.pretraining_run_checkpoints.get_best_checkpoint_paths()
             except FileNotFoundError:
                 logging.info("Best checkpoint not found - using last recovery checkpoint instead")
-                path_to_checkpoint = self.extra_downloaded_run_id.get_recovery_checkpoint_paths()
+                path_to_checkpoint = self.pretraining_run_checkpoints.get_recovery_checkpoint_paths()
             path_to_checkpoint = path_to_checkpoint[0]  # type: ignore
         else:
             path_to_checkpoint = self.local_ssl_weights_path
