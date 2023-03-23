@@ -26,7 +26,7 @@ This quick setup assumes you are using a machine running Ubuntu with Git, Git LF
 1. Clone the InnerEye-DeepLearning repo by running the following command:
 
    ```shell
-   git clone --recursive https://github.com/microsoft/InnerEye-DeepLearning & cd InnerEye-DeepLearning
+   git clone --recursive https://github.com/microsoft/InnerEye-DeepLearning && cd InnerEye-DeepLearning
    ```
 
 2. Create and activate your conda environment:
