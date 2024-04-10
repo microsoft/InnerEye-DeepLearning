@@ -266,7 +266,8 @@ def model_train(checkpoint_path: Optional[Path],
     logging.info("Starting training")
 
     trainer.fit(lightning_model, datamodule=data_module)
-    trainer.logger.close()  # type: ignore
+    for logger in trainer.loggers:
+        logger.finalize("success")
 
     world_size = getattr(trainer, "world_size", 0)
     is_azureml_run = not is_offline_run_context(RUN_CONTEXT)
