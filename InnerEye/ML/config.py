@@ -495,6 +495,12 @@ class SegmentationModelBase(ModelConfigBase):
             "some test patient data with missing ground truth data is allowed and will be reflected in the patient "
             "counts in the metrics and report.")
 
+    #: If true, train a model to predict the segmentation dice score. This can be used to identify failure cases for review
+    train_uncertainty_aggregate: bool = param.Boolean(
+        False, 
+        doc="If true, train a model to predict the segmentation dice score. This can be used to identify failure cases "
+            "for review")
+
     def __init__(self, center_size: Optional[TupleInt3] = None,
                  inference_stride_size: Optional[TupleInt3] = None,
                  min_l_rate: float = 0,
