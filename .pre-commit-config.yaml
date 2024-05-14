@@ -3,7 +3,7 @@
 # See https://github.com/pre-commit/pre-commit-hooks/blob/master/.pre-commit-config.yaml for an example with more hooks
 
 ci:
-  autofix_prs: false
+  autofix_prs: true
   autoupdate_commit_msg: "ENH: Autoupdate hooks [pre-commit.ci]"
   autoupdate_schedule: monthly
 
@@ -33,3 +33,4 @@ repos:
   rev: v1.6.0
   hooks:
   - id: autopep8
+    args: [--in-place, --max-line-length, "160"]
