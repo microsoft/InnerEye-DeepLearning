@@ -10,7 +10,7 @@ InnerEye-DeepLearning Documentation
    :maxdepth: 1
    :caption: Overview and user guides
 
-   md/README.md
+   README
    md/environment.md
    md/WSL.md
    md/hello_world_model.md
